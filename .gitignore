@@ -1,0 +1,19 @@
+# Analysis targets (third-party binaries, APKs, apps)
+targets/
+
+# REA / Ghidra working output
+*.gpr
+*.rep/
+*.snapshot
+
+# Dependencies and secrets
+node_modules/
+.env
+.env.*
+
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
