@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{--bg:#f4f5f7;--surface:#fff;--s2:#f6f7f9;--text:#16181d;--t2:#464d5a;--t3:#636a77;--border:#e1e4e9;--bs:#c9ced6;--accent:#2563eb;--ok:#127436;--bad:#c42b2b;--badS:#fdeded;--mono:"Cascadia Mono",Consolas,monospace}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:14px/1.5 "Segoe UI Variable Text","Segoe UI",sans-serif;font-variant-numeric:tabular-nums;color:var(--text);background:var(--bg)}
+header{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:28px;padding:0 28px}
+.brand{display:flex;gap:8px;align-items:center;font:600 15px "Segoe UI Variable Display"}
+.brand i{width:18px;height:18px;border-radius:4px;background:var(--accent)}
+.tabs{display:flex;gap:4px;height:100%}
+.tabs b{display:flex;align-items:center;padding:0 12px;font-weight:400;color:var(--t2);border-bottom:2px solid transparent}
+.tabs b.on{color:var(--text);font-weight:600;border-color:var(--accent)}
+.theme{margin-left:auto;display:flex;padding:2px;gap:2px;border:1px solid var(--border);border-radius:8px;background:var(--s2);font-size:12px}
+.theme b{padding:4px 10px;font-weight:400;color:var(--t3)}.theme b.on{background:#fff;color:var(--text);font-weight:600;border-radius:6px}
+main{padding:26px 28px;max-width:1120px;margin:0 auto}
+.head{display:flex;align-items:center;margin-bottom:18px}
+h1{font:600 22px/1.25 "Segoe UI Variable Display"}
+.head p{color:var(--t2)}
+.acts{margin-left:auto;display:flex;gap:8px}
+.btn{height:32px;padding:0 14px;border:1px solid var(--bs);border-radius:6px;background:#fff;font:500 14px "Segoe UI"}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;min-height:210px}
+.card .top{display:flex;align-items:center;gap:8px;font:600 16px "Segoe UI Variable Display"}
+.dot{width:8px;height:8px;border-radius:50%}
+.card .ver{margin-left:auto;font:12.5px var(--mono);color:var(--t2);font-weight:400}
+dl{display:grid;grid-template-columns:90px 1fr;font-size:13px;gap:2px 0}
+dt{color:var(--t3)}dd{margin:0;font-family:var(--mono);font-size:12.5px;color:var(--t2)}
+.row{margin-top:auto;display:flex;gap:8px}
+.err{padding:8px 12px;border:1px solid #f2b8b8;background:var(--badS);border-radius:6px;font-size:13px}
+.empty{border-style:dashed;align-items:center;justify-content:center;color:var(--t3)}
+</style></head><body>
+<header><div class="brand"><i></i>DevManager</div>
+  <nav class="tabs"><b class="on">Services</b><b>Sites</b><b>Versions</b><b>Database</b><b>Settings</b></nav>
+  <div class="theme"><b class="on">Light</b><b>Dark</b><b>System</b></div></header>
+<main>
+  <div class="head"><div><h1>Services</h1><p>1 of 2 running</p></div><div class="acts"><button class="btn">Stop all</button><button class="btn p">Start all</button></div></div>
+  <div class="grid">
+    <section class="card"><div class="top"><span class="dot" style="background:var(--bad)"></span>Apache<span class="ver">2.4.63</span></div>
+      <p class="err">Port 80 is already in use by httpd.exe (PID 9112).</p>
+      <dl><dt>Port</dt><dd>80</dd><dt>Config</dt><dd>C:\DevManager\etc\apache\httpd.conf</dd></dl>
+      <div class="row"><button class="btn">Start</button><button class="btn">View log</button></div></section>
+    <section class="card"><div class="top"><span class="dot" style="background:var(--ok)"></span>PHP (FastCGI)<span class="ver">8.4.5</span></div>
+      <p style="font-size:13px;color:var(--t2)">Running for 12 minutes</p>
+      <dl><dt>Port</dt><dd>9085</dd><dt>PID</dt><dd>18044</dd><dt>php.ini</dt><dd>C:\DevManager\etc\php\php.ini</dd></dl>
+      <div class="row"><button class="btn">Stop</button><button class="btn">View log</button></div></section>
+    <section class="card"><div class="top"><span class="dot" style="background:var(--bs)"></span>MySQL<span class="ver">8.0.30</span></div>
+      <p style="font-size:13px;color:var(--t2)">Not running · managed outside DevManager</p>
+      <dl><dt>Port</dt><dd>3306</dd><dt>Path</dt><dd>C:\laragon\bin\mysql\mysql-8.0.30-winx64</dd></dl>
+      <div class="row"><button class="btn">View log</button></div></section>
+    <section class="card empty">nginx isn't installed · Add it from Versions</section>
+  </div>
+</main>
+</body></html>

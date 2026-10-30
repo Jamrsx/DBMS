@@ -1,0 +1,43 @@
+{
+  "title": "Choose the dashboard layout",
+  "question": "The look is already set by DESIGN.md; this round picks how the dashboard is organised. The roll dealt three structures. Lock one, steer, or re-roll.",
+  "options": [
+    {
+      "id": "dash-path",
+      "kind": "assigned",
+      "label": "Request path",
+      "kicker": "THE ROLL",
+      "thesis": "Your stack drawn as the path a request takes: Browser, Apache, PHP, MySQL, with the broken link shown where it breaks.",
+      "palette": ["#ffffff", "#eceef2", "#16181d", "#2563eb", "#c42b2b"],
+      "materials": ["station tiles on a hairline path", "status on each link", "log panel below"],
+      "viewport": "Left rail with Dashboard, Sites, Versions, Database; a horizontal path of four stations with live state and Start/Stop; the selected station's log underneath.",
+      "risk": "Fewer rows fit at once than a table; with many services (Redis, mail) the path needs a second row.",
+      "html": ".impeccable/mocks/decision/dash-path.html"
+    },
+    {
+      "id": "dash-command",
+      "kind": "dealt",
+      "label": "Command-first",
+      "thesis": "A command bar does everything (start, stop, open logs); the service list below is a dense readout.",
+      "palette": ["#ffffff", "#f6f7f9", "#16181d", "#2563eb"],
+      "materials": ["command bar", "dense service rows", "activity feed"],
+      "viewport": "Command bar across the top with Ctrl+K; dense service rows with inline actions; recent activity on the right.",
+      "risk": "Fast for professionals, but students may not discover the command bar.",
+      "html": ".impeccable/mocks/decision/dash-command.html"
+    },
+    {
+      "id": "dash-cards",
+      "kind": "dealt",
+      "label": "Top tabs and cards",
+      "thesis": "Tabs across the top for each area; one card per service with its facts and buttons.",
+      "palette": ["#f4f5f7", "#ffffff", "#16181d", "#2563eb"],
+      "materials": ["top tab bar", "service cards", "log on demand"],
+      "viewport": "Brand and tabs (Services, Sites, Versions, Database) in a top bar; a 2x2 grid of service cards; logs open per card.",
+      "risk": "Same-size cards are the generic dashboard default and spread data apart, so comparing ports and states takes longer.",
+      "html": ".impeccable/mocks/decision/dash-cards.html"
+    }
+  ],
+  "reroll": true,
+  "buildPath": { "value": "code" },
+  "steer": true
+}

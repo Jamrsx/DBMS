@@ -6,10 +6,12 @@ export function InstallView({
   plan,
   mysqlPassword,
   onBack,
+  onFinish,
 }: {
   plan: InstallPlan;
   mysqlPassword: string;
   onBack: () => void;
+  onFinish: () => void;
 }) {
   const run = useInstall(plan, mysqlPassword);
   const running = run.state === "running";
@@ -35,8 +37,8 @@ export function InstallView({
           </button>
         )}
         {run.state === "done" && (
-          <button className="btn btn-primary" disabled title="The dashboard comes in a later part">
-            Finish
+          <button className="btn btn-primary" onClick={onFinish}>
+            Open dashboard
           </button>
         )}
       </footer>

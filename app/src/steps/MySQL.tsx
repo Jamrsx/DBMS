@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Settings } from "../App";
+import type { Settings } from "../Wizard";
 import type { Selection } from "./Components";
 import { pathProblem } from "./Welcome";
 import { checkPort } from "../lib/ports";

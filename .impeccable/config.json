@@ -1,0 +1,29 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "ui variable text\",\"segoe ui\",sans-serif",
+        "createdAt": "2026-10-30T11:39:03.105Z",
+        "reason": "Claude: fragment of the DESIGN.md body stack \"Segoe UI Variable Text\",\"Segoe UI\" split by the font shorthand parser"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "ui variable display",
+        "createdAt": "2026-10-30T11:39:03.383Z",
+        "reason": "Claude: fragment of DESIGN.md display face \"Segoe UI Variable Display\" split by the font shorthand parser"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".impeccable/mocks/decision/dash-path.html"
+        ],
+        "createdAt": "2026-10-30T11:40:58.574Z",
+        "reason": "Claude: the flagged wrapper is DESIGN.md's segmented theme toggle (2px track inset by design); segment labels are centred, not flush"
+      }
+    ]
+  }
+}

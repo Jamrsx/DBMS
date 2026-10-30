@@ -50,7 +50,7 @@ export function Install({
       <p className="lede" role="status">
         {state === "running" && "Installing. You can keep using your PC; this can take a few minutes."}
         {state === "done" &&
-          "Everything is installed and configured. Starting the services comes with the dashboard."}
+          "Everything is installed and configured. Open the dashboard to start your services."}
         {state === "failed" && "Installation stopped."}
         {state === "cancelled" && "Installation cancelled. Nothing half-installed was left behind."}
       </p>

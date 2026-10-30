@@ -1,4 +1,4 @@
-import type { Settings } from "../App";
+import type { Settings } from "../Wizard";
 import type { Choices } from "./catalog";
 import type { ScanReport } from "./scan";
 import type { Selections } from "../steps/Components";

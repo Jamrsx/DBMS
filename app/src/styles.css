@@ -1062,3 +1062,359 @@ h2 {
     grid-column: 1 / -1;
   }
 }
+
+/* ------------------------------------------------------------------ dashboard */
+
+.nav {
+  display: grid;
+  gap: 2px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+}
+
+.nav-item.current {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-item.soon {
+  color: var(--text-3);
+}
+
+.nav-soon {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.dash-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-right: max(32px, calc(100% - 32px - 1000px));
+}
+
+.dash-summary {
+  margin: 4px 0 0;
+  color: var(--text-2);
+}
+
+.dash-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.dash-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-top: 22px;
+}
+
+.dash-body > * {
+  max-width: 1000px;
+}
+
+/* The path adapts to the panel's width (the window can be as narrow as 900px). */
+.dash-body {
+  container-type: inline-size;
+}
+
+.dash-body .notice,
+.dash-body .error-box {
+  margin: 0;
+}
+
+.dash-errors {
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+/* Request path: Browser, then one column per hop, joined by links. */
+.path {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 132px repeat(3, minmax(0, 1fr));
+  /* Stations in the row share one height so their actions line up. */
+  align-items: stretch;
+}
+
+.path-step {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.path-column {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.link {
+  flex: none;
+  width: 28px;
+  height: 0;
+  border-top: 2px solid var(--border-strong);
+}
+
+.link-broken {
+  border-top: 2px dashed var(--bad);
+}
+
+.station {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  min-height: 150px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.station.selected {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.station-client {
+  min-height: 0;
+  padding: 14px;
+  align-items: center;
+  text-align: center;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
+.station-client code {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.station-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+@container (max-width: 760px) {
+  .path {
+    grid-template-columns: 76px repeat(3, minmax(0, 1fr));
+  }
+
+  .link {
+    width: 16px;
+  }
+
+  .station {
+    padding: 10px 12px;
+  }
+
+  .station-client {
+    padding: 12px 8px;
+  }
+
+  .station-client code {
+    display: none;
+  }
+
+  /* Short windows: the log panel takes what's left, so only its text scrolls. */
+  .log-panel {
+    min-height: 120px;
+  }
+
+  /* Version drops under the name, aligned past the status dot. */
+  .station-version {
+    flex-basis: 100%;
+    margin-left: 16px;
+  }
+}
+
+.station-top h2 {
+  font: 600 14px/1.3 var(--font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.station-version {
+  margin-left: auto;
+  font-size: 12.5px;
+  color: var(--text-2);
+}
+
+.station-spin {
+  flex: none;
+  color: var(--accent-text);
+  animation: spin 0.9s linear infinite;
+}
+
+.dot-idle {
+  background: var(--border-strong);
+}
+
+.station-state {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.station-state.tone-ok {
+  color: var(--text);
+}
+
+.station-state.tone-bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.station-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.station-facts dt {
+  color: var(--text-3);
+}
+
+.station-facts dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.station-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 6px;
+}
+
+.btn-small {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 13px;
+}
+
+.btn-small[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-text);
+}
+
+/* Log panel */
+.log-panel {
+  flex: 1;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.log-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 6px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.log-tab {
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-2);
+  font: 13px var(--font);
+  cursor: pointer;
+}
+
+.log-tab:hover {
+  color: var(--text);
+}
+
+.log-tab[aria-selected="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.log-text {
+  flex: 1;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  font: 12.5px/1.6 var(--mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 760px) {
+  .rail .nav {
+    display: none;
+  }
+
+  .dash-head {
+    flex-wrap: wrap;
+    padding-right: 16px;
+  }
+
+  .path {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .link {
+    display: none;
+  }
+}
+
+/* Short windows (the app's minimum is 900x600): tighten vertical rhythm so the log panel
+   keeps room for its tabs and several lines, with only its text scrolling. */
+@media (max-height: 640px) {
+  .dash-head {
+    padding-top: 16px;
+  }
+
+  .dash-body {
+    gap: 12px;
+    padding-top: 14px;
+    padding-bottom: 16px;
+  }
+
+  .station {
+    min-height: 0;
+  }
+
+  .log-panel {
+    min-height: 104px;
+  }
+}

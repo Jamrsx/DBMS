@@ -1,4 +1,4 @@
-import type { Settings } from "../App";
+import type { Settings } from "../Wizard";
 
 interface Props {
   settings: Settings;

@@ -1,0 +1,57 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{--bg:#f4f5f7;--rail:#eceef2;--surface:#fff;--s2:#f6f7f9;--text:#16181d;--t2:#464d5a;--t3:#636a77;--border:#e1e4e9;--bs:#c9ced6;--accent:#2563eb;--aS:#e8efff;--ok:#127436;--bad:#c42b2b;--badS:#fdeded;--mono:"Cascadia Mono",Consolas,monospace}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:14px/1.5 "Segoe UI Variable Text","Segoe UI",sans-serif;font-variant-numeric:tabular-nums;color:var(--text);background:var(--bg);display:grid;grid-template-columns:64px 1fr}
+.rail{background:var(--rail);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;align-items:center;gap:6px}
+.rail i{width:20px;height:20px;border-radius:5px;background:var(--accent);margin-bottom:14px}
+.rail b{width:36px;height:36px;border-radius:6px;display:grid;place-items:center}
+.rail b::after{content:"";width:16px;height:16px;border:1.6px solid var(--t2);border-radius:4px}
+.rail b.on{background:#fff;box-shadow:0 1px 2px rgb(16 24 40/.06)}
+.rail .t{margin-top:auto}
+main{display:grid;grid-template-rows:auto 1fr;background:var(--surface);min-width:0}
+.bar{padding:18px 28px;border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:center}
+.cmd{flex:1;max-width:760px;height:38px;border:1px solid var(--bs);border-radius:8px;display:flex;align-items:center;padding:0 12px;gap:10px;color:var(--t3)}
+.cmd kbd{margin-left:auto;font:12px var(--mono);border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--t2)}
+.btn{height:32px;padding:0 14px;border:1px solid var(--bs);border-radius:6px;background:#fff;font:500 14px "Segoe UI"}
+.btn.p{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.cols{display:grid;grid-template-columns:1fr 360px;min-height:0}
+.list{padding:20px 28px}
+h1{font:600 22px/1.25 "Segoe UI Variable Display";margin-bottom:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;border:1px solid var(--border);border-radius:8px}
+th{text-align:left;font-weight:600;font-size:12px;color:var(--t3);padding:8px 12px;background:var(--s2);border-bottom:1px solid var(--border)}
+td{padding:9px 12px;border-bottom:1px solid var(--border)}
+td.m{font-family:var(--mono);font-size:12.5px;color:var(--t2)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+tr.sel td{background:var(--aS)}
+.feed{border-left:1px solid var(--border);padding:20px 22px;background:var(--s2)}
+.feed h2{font:600 16px "Segoe UI Variable Display";margin-bottom:10px}
+.ev{font-size:13px;padding:8px 0;border-top:1px solid var(--border);color:var(--t2)}
+.ev time{display:block;font:12px var(--mono);color:var(--t3)}
+.ev b{color:var(--bad)}
+.hint{margin-top:14px;font-size:12px;color:var(--t3)}
+.err{margin-top:14px;padding:10px 14px;border:1px solid #f2b8b8;background:var(--badS);border-radius:6px;font-size:13px}
+</style></head><body>
+<aside class="rail"><i></i><b class="on"></b><b></b><b></b><b></b><b class="t"></b></aside>
+<main>
+  <div class="bar"><div class="cmd">Type a command: start apache, stop all, open php log…<kbd>Ctrl K</kbd></div><button class="btn">Stop all</button><button class="btn p">Start all</button></div>
+  <div class="cols">
+    <div class="list"><h1>Services</h1>
+      <table><tr><th>Service</th><th>State</th><th>Version</th><th>Port</th><th>PID</th><th>Uptime</th><th></th></tr>
+        <tr class="sel"><td><span class="dot" style="background:var(--bad)"></span>Apache</td><td style="color:var(--bad);font-weight:600">Couldn't start</td><td class="m">2.4.63</td><td class="m">80</td><td class="m">-</td><td class="m">-</td><td><button class="btn">Start</button></td></tr>
+        <tr><td><span class="dot" style="background:var(--ok)"></span>PHP (FastCGI)</td><td>Running</td><td class="m">8.4.5</td><td class="m">9085</td><td class="m">18044</td><td class="m">12m</td><td><button class="btn">Stop</button></td></tr>
+        <tr><td><span class="dot" style="background:var(--bs)"></span>MySQL</td><td style="color:var(--t2)">Managed outside</td><td class="m">8.0.30</td><td class="m">3306</td><td class="m">-</td><td class="m">-</td><td></td></tr>
+      </table>
+      <p class="err">Port 80 is already in use by httpd.exe (PID 9112). Stop that program, or change Apache's port in Settings.</p>
+      <p class="hint">Tip: press Ctrl K and type "log apache" to read Apache's error log.</p>
+    </div>
+    <aside class="feed"><h2>Activity</h2>
+      <p class="ev"><time>19:41:07</time><b>Apache couldn't start</b>: port 80 in use</p>
+      <p class="ev"><time>19:41:05</time>PHP started on port 9085</p>
+      <p class="ev"><time>19:41:04</time>Configs regenerated and checked</p>
+      <p class="ev"><time>19:22:31</time>Setup saved to C:\DevManager</p>
+    </aside>
+  </div>
+</main>
+</body></html>
