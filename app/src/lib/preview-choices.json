@@ -1,0 +1,178 @@
+{
+  "catalog_date": "2026-10-30",
+  "components": [
+    {
+      "id": "apache",
+      "name": "Apache",
+      "versions": [
+        {
+          "line": "2.4",
+          "version": "2.4.69",
+          "released": "2026-10-01",
+          "eol": null,
+          "labels": [
+            "recommended",
+            "latest"
+          ],
+          "note": null
+        }
+      ],
+      "recommended": "2.4.69"
+    },
+    {
+      "id": "nginx",
+      "name": "nginx",
+      "versions": [
+        {
+          "line": "1.31",
+          "version": "1.31.8",
+          "released": "2026-10-21",
+          "eol": null,
+          "labels": [
+            "latest"
+          ],
+          "note": "Mainline (newest features)"
+        },
+        {
+          "line": "1.30",
+          "version": "1.30.6",
+          "released": "2026-10-14",
+          "eol": null,
+          "labels": [
+            "recommended"
+          ],
+          "note": null
+        }
+      ],
+      "recommended": "1.30.6"
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "versions": [
+        {
+          "line": "8.5",
+          "version": "8.5.12",
+          "released": "2026-10-21",
+          "eol": "2029-12-31",
+          "labels": [
+            "recommended",
+            "latest",
+            "security-fix"
+          ],
+          "note": null
+        },
+        {
+          "line": "8.4",
+          "version": "8.4.27",
+          "released": "2026-10-21",
+          "eol": "2028-12-31",
+          "labels": [
+            "security-fix"
+          ],
+          "note": null
+        },
+        {
+          "line": "8.3",
+          "version": "8.3.36",
+          "released": "2026-10-21",
+          "eol": "2027-12-31",
+          "labels": [
+            "security-fix"
+          ],
+          "note": "Security fixes only"
+        },
+        {
+          "line": "8.2",
+          "version": "8.2.35",
+          "released": "2026-10-21",
+          "eol": "2026-12-31",
+          "labels": [
+            "security-fix",
+            "ends-soon"
+          ],
+          "note": "Security fixes only"
+        }
+      ],
+      "recommended": "8.5.12"
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "versions": [
+        {
+          "line": "26.10",
+          "version": "26.10.0",
+          "released": "2026-10-20",
+          "eol": null,
+          "labels": [
+            "latest"
+          ],
+          "note": "Innovation release, short support"
+        },
+        {
+          "line": "9.7",
+          "version": "9.7.4",
+          "released": "2026-10-20",
+          "eol": "2034-04-30",
+          "labels": [
+            "recommended",
+            "lts"
+          ],
+          "note": null
+        },
+        {
+          "line": "8.4",
+          "version": "8.4.13",
+          "released": "2026-09-30",
+          "eol": "2032-04-30",
+          "labels": [
+            "lts"
+          ],
+          "note": null
+        }
+      ],
+      "recommended": "9.7.4"
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "versions": [
+        {
+          "line": "26",
+          "version": "26.13.0",
+          "released": "2026-10-28",
+          "eol": "2029-04-30",
+          "labels": [
+            "recommended",
+            "latest",
+            "lts"
+          ],
+          "note": null
+        },
+        {
+          "line": "24",
+          "version": "24.22.2",
+          "released": "2026-10-28",
+          "eol": "2028-04-30",
+          "labels": [
+            "lts"
+          ],
+          "note": null
+        },
+        {
+          "line": "22",
+          "version": "22.23.4",
+          "released": "2026-10-21",
+          "eol": "2027-04-30",
+          "labels": [
+            "lts",
+            "security-fix"
+          ],
+          "note": null
+        }
+      ],
+      "recommended": "26.13.0"
+    }
+  ]
+}

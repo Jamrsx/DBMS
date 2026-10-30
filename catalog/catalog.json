@@ -1,0 +1,184 @@
+{
+  "schema": 1,
+  "generated": "2026-10-30",
+  "sources": [
+    "endoflife.date",
+    "php.net/releases",
+    "nodejs.org/dist/index.json"
+  ],
+  "components": [
+    {
+      "id": "apache",
+      "name": "Apache",
+      "lines": [
+        {
+          "line": "2.4",
+          "latest": "2.4.69",
+          "latest_date": "2026-10-01",
+          "line_released": "2012-02-21",
+          "lts": false,
+          "lts_from": null,
+          "support_end": null,
+          "eol": null,
+          "security": false
+        }
+      ]
+    },
+    {
+      "id": "nginx",
+      "name": "nginx",
+      "lines": [
+        {
+          "line": "1.31",
+          "latest": "1.31.8",
+          "latest_date": "2026-10-21",
+          "line_released": "2026-05-13",
+          "lts": false,
+          "lts_from": null,
+          "support_end": null,
+          "eol": null,
+          "security": false
+        },
+        {
+          "line": "1.30",
+          "latest": "1.30.6",
+          "latest_date": "2026-10-14",
+          "line_released": "2026-04-14",
+          "lts": false,
+          "lts_from": null,
+          "support_end": null,
+          "eol": null,
+          "security": false
+        }
+      ]
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "lines": [
+        {
+          "line": "8.5",
+          "latest": "8.5.12",
+          "latest_date": "2026-10-21",
+          "line_released": "2025-11-20",
+          "lts": false,
+          "lts_from": null,
+          "support_end": "2027-12-31",
+          "eol": "2029-12-31",
+          "security": true
+        },
+        {
+          "line": "8.4",
+          "latest": "8.4.27",
+          "latest_date": "2026-10-21",
+          "line_released": "2024-11-21",
+          "lts": false,
+          "lts_from": null,
+          "support_end": "2026-12-31",
+          "eol": "2028-12-31",
+          "security": true
+        },
+        {
+          "line": "8.3",
+          "latest": "8.3.36",
+          "latest_date": "2026-10-21",
+          "line_released": "2023-11-23",
+          "lts": false,
+          "lts_from": null,
+          "support_end": "2025-12-31",
+          "eol": "2027-12-31",
+          "security": true
+        },
+        {
+          "line": "8.2",
+          "latest": "8.2.35",
+          "latest_date": "2026-10-21",
+          "line_released": "2022-12-08",
+          "lts": false,
+          "lts_from": null,
+          "support_end": "2024-12-31",
+          "eol": "2026-12-31",
+          "security": true
+        }
+      ]
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "lines": [
+        {
+          "line": "26.10",
+          "latest": "26.10.0",
+          "latest_date": "2026-10-20",
+          "line_released": "2026-10-20",
+          "lts": false,
+          "lts_from": null,
+          "support_end": null,
+          "eol": null,
+          "security": false
+        },
+        {
+          "line": "9.7",
+          "latest": "9.7.4",
+          "latest_date": "2026-10-20",
+          "line_released": "2026-04-21",
+          "lts": true,
+          "lts_from": null,
+          "support_end": "2031-04-30",
+          "eol": "2034-04-30",
+          "security": false
+        },
+        {
+          "line": "8.4",
+          "latest": "8.4.13",
+          "latest_date": "2026-09-30",
+          "line_released": "2024-04-30",
+          "lts": true,
+          "lts_from": null,
+          "support_end": "2029-04-30",
+          "eol": "2032-04-30",
+          "security": false
+        }
+      ]
+    },
+    {
+      "id": "node",
+      "name": "Node.js",
+      "lines": [
+        {
+          "line": "26",
+          "latest": "26.13.0",
+          "latest_date": "2026-10-28",
+          "line_released": "2026-05-05",
+          "lts": false,
+          "lts_from": "2026-10-28",
+          "support_end": "2027-10-27",
+          "eol": "2029-04-30",
+          "security": false
+        },
+        {
+          "line": "24",
+          "latest": "24.22.2",
+          "latest_date": "2026-10-28",
+          "line_released": "2025-05-06",
+          "lts": false,
+          "lts_from": "2025-10-28",
+          "support_end": "2026-10-20",
+          "eol": "2028-04-30",
+          "security": false
+        },
+        {
+          "line": "22",
+          "latest": "22.23.4",
+          "latest_date": "2026-10-21",
+          "line_released": "2024-04-24",
+          "lts": false,
+          "lts_from": "2024-10-29",
+          "support_end": "2025-10-21",
+          "eol": "2027-04-30",
+          "security": true
+        }
+      ]
+    }
+  ]
+}
