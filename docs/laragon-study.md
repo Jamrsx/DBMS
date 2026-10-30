@@ -178,9 +178,12 @@ only what the user picks. It must work on a fresh Windows PC with nothing instal
    - Standard `mysql` / `mysqldump` command-line tools on the app's terminal `PATH`.
 5. **Review**: the full list, download size, disk use, and which steps need one admin
    prompt (VC++ runtime, hosts helper, trusting the local HTTPS certificate).
-6. **Install**: download → verify SHA-256 → extract to `bin/<tool>/<version>` → initialise
-   MySQL (`mysqld --initialize`, set root password) → generate configs → install the
-   hosts helper → trust the local CA. Every step shows progress and can be retried on its own.
+6. **Install**: create folders → Visual C++ runtime if missing (Microsoft-signed installer,
+   one admin prompt) → download → verify checksum → extract to `bin/<tool>/<version>` →
+   generate and validate configs → initialise MySQL and set the root password → create the
+   local CA (limited to `.test`, `localhost` and loopback) and ask Windows to trust it → save
+   settings. Every step shows progress; Try again resumes and skips finished work.
+   The hosts-file helper is set up with the first site (Sites milestone), not at install time.
 7. **Done**: *Start All* and open the dashboard.
 
 MySQL is the default and first-class database engine; the built-in database browser follows

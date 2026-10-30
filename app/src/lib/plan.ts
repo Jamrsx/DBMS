@@ -29,8 +29,17 @@ export interface PlannedMysql {
 export interface PlanStep {
   id: string;
   title: string;
-  /** Needs a Windows administrator prompt. */
+  /** Needs a Windows administrator (UAC) prompt. */
   admin: boolean;
+  /** Windows shows its own confirmation dialog (not an admin prompt). */
+  confirm?: boolean;
+}
+
+/** Same rule as the installer: Apache Lounge VS18 builds need runtime 14.50 or newer. */
+export function vcRuntimeOk(version: string | null | undefined): boolean {
+  if (!version) return false;
+  const [major = 0, minor = 0] = version.replace(/^v/, "").split(".").map((n) => Number(n) || 0);
+  return major > 14 || (major === 14 && minor >= 50);
 }
 
 export interface InstallPlan {
@@ -125,11 +134,17 @@ function planSteps(
   const using = (id: string) => components.some((c) => c.id === id);
   const steps: PlanStep[] = [];
 
-  // PHP and Apache Windows builds need the Visual C++ runtime. Unknown counts as missing.
-  if ((installing("php") || installing("apache")) && !scan?.vc_runtime) {
-    steps.push({ id: "vc-runtime", title: "Install the Visual C++ runtime", admin: true });
-  }
   steps.push({ id: "folders", title: "Create the install and projects folders", admin: false });
+  // PHP and Apache Windows builds need the Visual C++ runtime. Unknown counts as missing.
+  if ((installing("php") || installing("apache")) && !vcRuntimeOk(scan?.vc_runtime)) {
+    steps.push({
+      id: "vc-runtime",
+      title: scan?.vc_runtime
+        ? `Update the Visual C++ runtime (${scan.vc_runtime} is too old)`
+        : "Install the Visual C++ runtime from Microsoft",
+      admin: true,
+    });
+  }
 
   for (const c of components.filter((c) => c.action === "install")) {
     steps.push({
@@ -166,13 +181,14 @@ function planSteps(
     });
   }
 
+  // .test addresses are added when sites are created, so there's no hosts-file step here.
   if (using("apache") || using("nginx")) {
     steps.push({
-      id: "hosts-helper",
-      title: "Install the site helper that adds .test addresses",
-      admin: true,
+      id: "local-ca",
+      title: "Create and trust a local HTTPS certificate",
+      admin: false,
+      confirm: true,
     });
-    steps.push({ id: "local-ca", title: "Create and trust a local HTTPS certificate", admin: true });
   }
 
   steps.push({ id: "save", title: "Save settings", admin: false });

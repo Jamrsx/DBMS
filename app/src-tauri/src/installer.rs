@@ -2,7 +2,7 @@
 //! URLs and checksums always come from the bundled catalog, never from the UI.
 
 use crate::catalog::{Catalog, Checksum, Download};
-use crate::configure;
+use crate::{admin, configure};
 use futures_util::StreamExt;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
@@ -102,11 +102,25 @@ pub fn target_dir(root: &Path, id: &str, version: &str) -> PathBuf {
     if id == "composer" { base } else { base.join(format!("{id}-{version}")) }
 }
 
+pub struct RunOptions {
+    /// Allow steps that change Windows itself (Visual C++ runtime, trusted certificates).
+    /// Tests run with this off so they never touch the real system.
+    pub system_changes: bool,
+    pub ca_dir: PathBuf,
+}
+
+impl RunOptions {
+    pub fn for_app() -> Self {
+        RunOptions { system_changes: true, ca_dir: admin::ca_dir() }
+    }
+}
+
 /// Runs the folder step and one download step per item, reporting progress through `emit`.
 /// Stops at the first failure or cancellation and returns its message.
 pub async fn run(
     catalog: &Catalog,
     request: &InstallRequest,
+    options: &RunOptions,
     emit: impl Fn(Progress),
 ) -> Result<(), String> {
     CANCEL.store(false, Ordering::SeqCst);
@@ -131,6 +145,23 @@ pub async fn run(
         .connect_timeout(Duration::from_secs(20))
         .build()
         .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
+
+    // PHP and Apache Windows builds need the Visual C++ runtime, and so does checking their configs.
+    if options.system_changes && request.items.iter().any(|i| i.id == "php" || i.id == "apache") {
+        let step = "vc-runtime";
+        report(step, StepStatus::Running, None);
+        match ensure_vc_runtime(&client, &root, step, &emit).await {
+            Ok(message) => report(step, StepStatus::Done, Some(message)),
+            Err(StepError::Cancelled) => {
+                report(step, StepStatus::Cancelled, None);
+                return Err("Installation cancelled.".into());
+            }
+            Err(StepError::Failed(msg)) => {
+                report(step, StepStatus::Failed, Some(msg.clone()));
+                return Err(msg);
+            }
+        }
+    }
 
     for item in &request.items {
         let step = format!("get-{}", item.id);
@@ -170,6 +201,17 @@ pub async fn run(
         let password = mysql.password.as_ref().map(|p| p.expose().to_string());
         configure_steps.push(("mysql-init", Box::new(move || configure_mysql(&l, &base, &data_dir, port, password.as_deref()))));
     }
+    if options.system_changes && (layout.apache.is_some() || layout.nginx.is_some()) {
+        let ca_dir = options.ca_dir.clone();
+        configure_steps.push((
+            "local-ca",
+            Box::new(move || {
+                let ca = admin::ensure_ca(&ca_dir)?;
+                let trust = admin::trust_ca(&ca)?;
+                Ok(Some(if ca.created { format!("Created · {trust}") } else { trust }))
+            }),
+        ));
+    }
     let settings = saved_settings(&layout, request);
     let l = layout.clone();
     configure_steps.push(("save", Box::new(move || save_settings(&l, &settings))));
@@ -193,6 +235,43 @@ pub async fn run(
         }
     }
     Ok(())
+}
+
+/// Installs the Visual C++ runtime unless a new enough one is already there.
+/// The installer must carry Microsoft's signature before it's run behind an admin prompt.
+async fn ensure_vc_runtime(
+    client: &reqwest::Client,
+    root: &Path,
+    step: &str,
+    emit: &impl Fn(Progress),
+) -> Result<String, StepError> {
+    let installed = crate::scan::vc_runtime_version();
+    if admin::vc_runtime_ok(installed.as_deref()) {
+        return Ok(format!("Already installed ({})", installed.unwrap_or_default()));
+    }
+    let download = Download {
+        url: admin::VC_REDIST_URL.into(),
+        size: None,
+        checksum: Checksum { algo: AUTHENTICODE.into(), value: String::new() },
+    };
+    let installer = root.join("tmp").join("downloads").join("vc_redist.x64.exe");
+    fetch(client, &download, &installer, step, emit).await?;
+    emit(Progress {
+        step: step.into(),
+        status: StepStatus::Running,
+        message: Some("Waiting for administrator approval".into()),
+        bytes_done: 0,
+        bytes_total: None,
+    });
+    let path = installer.clone();
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        admin::verify_microsoft_signature(&path)?;
+        admin::install_vc_runtime(&path)
+    })
+    .await
+    .map_err(|err| format!("The Visual C++ step stopped unexpectedly: {err}"))?;
+    let _ = fs::remove_file(&installer);
+    Ok(result?)
 }
 
 /// Where everything lives for this install, resolved from new and existing components.
@@ -506,7 +585,8 @@ async fn fetch(
     drop(file);
 
     let actual = hasher.finish();
-    if actual != download.checksum.value {
+    // Signed installers are checked by their Authenticode signature after download instead.
+    if download.checksum.algo != AUTHENTICODE && actual != download.checksum.value {
         let _ = fs::remove_file(&partial);
         return Err(StepError::Failed(format!(
             "The downloaded file didn't match its {} checksum, so it was deleted. Try again; \
@@ -518,9 +598,13 @@ async fn fetch(
     Ok(())
 }
 
+/// Checksum type for vendor installers verified by their code signature, not a hash.
+const AUTHENTICODE: &str = "authenticode";
+
 enum Hasher {
     Sha256(Sha256),
     Md5(Md5),
+    Signed,
 }
 
 impl Hasher {
@@ -528,6 +612,7 @@ impl Hasher {
         match algo {
             "sha256" => Ok(Hasher::Sha256(Sha256::new())),
             "md5" => Ok(Hasher::Md5(Md5::new())),
+            AUTHENTICODE => Ok(Hasher::Signed),
             other => Err(format!("Unsupported checksum type: {other}")),
         }
     }
@@ -536,6 +621,7 @@ impl Hasher {
         match self {
             Hasher::Sha256(h) => h.update(data),
             Hasher::Md5(h) => h.update(data),
+            Hasher::Signed => {}
         }
     }
 
@@ -543,6 +629,7 @@ impl Hasher {
         let bytes: Vec<u8> = match self {
             Hasher::Sha256(h) => h.finalize().to_vec(),
             Hasher::Md5(h) => h.finalize().to_vec(),
+            Hasher::Signed => Vec::new(),
         };
         bytes.iter().map(|b| format!("{b:02x}")).collect()
     }
@@ -734,13 +821,18 @@ mod tests {
             mysql: None,
         };
         let events = std::sync::Mutex::new(Vec::new());
-        tauri::async_runtime::block_on(run(&catalog, &request, |p| events.lock().unwrap().push(p))).unwrap();
+        tauri::async_runtime::block_on(run(&catalog, &request, &test_options(), |p| events.lock().unwrap().push(p))).unwrap();
         let events = events.into_inner().unwrap();
         for e in events.iter().filter(|e| e.status != StepStatus::Running || e.bytes_done == 0) {
             println!("{:?} {:?} {:?}", e.step, e.status, e.message);
         }
         assert!(events.iter().any(|e| e.step == format!("get-{id}") && e.status == StepStatus::Done));
         (dir, events)
+    }
+
+    /// Tests never change Windows (no runtime installs, no trusted certificates).
+    fn test_options() -> RunOptions {
+        RunOptions { system_changes: false, ca_dir: std::env::temp_dir().join("devmanager-test-ca-unused") }
     }
 
     #[test]
@@ -774,7 +866,7 @@ mod tests {
             mysql: None,
         };
         let events = std::sync::Mutex::new(Vec::new());
-        let result = tauri::async_runtime::block_on(run(&catalog, &request, |p| events.lock().unwrap().push(p)));
+        let result = tauri::async_runtime::block_on(run(&catalog, &request, &test_options(), |p| events.lock().unwrap().push(p)));
         let events = events.into_inner().unwrap();
         for e in events.iter().filter(|e| e.status != StepStatus::Running) {
             println!("{:<14} {:?} {:?}", e.step, e.status, e.message);

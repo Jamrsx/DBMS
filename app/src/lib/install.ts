@@ -13,13 +13,6 @@ export interface Progress {
   bytes_total: number | null;
 }
 
-/** Steps that need administrator approval arrive in a later part. */
-const LATER = new Set(["vc-runtime", "hosts-helper", "local-ca"]);
-
-export function isImplemented(stepId: string) {
-  return !LATER.has(stepId);
-}
-
 /**
  * What the Rust installer receives. The MySQL password is passed in separately and only
  * here, so it never ends up in the plan, the Review screen or saved settings.
@@ -78,37 +71,42 @@ async function simulateInstall(plan: InstallPlan, onProgress: (p: Progress) => v
   const emit = (step: string, status: StepStatus, extra: Partial<Progress> = {}) =>
     onProgress({ step, status, message: null, bytes_done: 0, bytes_total: null, ...extra });
 
-  emit("folders", "running");
-  await sleep(200);
-  emit("folders", "done");
-  for (const item of installRequest(plan, "").items) {
-    const step = `get-${item.id}`;
-    const total = 30 * 2 ** 20;
-    for (let done = 0; done <= total; done += total / 8) {
-      if (previewCancelled) {
-        emit(step, "cancelled");
-        throw new Error("Installation cancelled.");
-      }
-      emit(step, "running", { message: "Downloading", bytes_done: done, bytes_total: total });
-      await sleep(120);
-    }
-    emit(step, "running", { message: "Unpacking" });
-    await sleep(150);
-    emit(step, "done");
-  }
   const messages: Record<string, string> = {
+    "vc-runtime": "Installed",
     "config-apache": "Config checked · port 80",
     "config-nginx": `Config checked · port ${plan.components.some((c) => c.id === "apache") ? 8080 : 80}`,
     "mysql-init": "Data folder created · root password set",
+    "local-ca": "Created · Trusted for .test and localhost sites",
     save: "Saved settings",
   };
-  for (const step of plan.steps.map((s) => s.id).filter((id) => id in messages)) {
-    if (previewCancelled) {
-      emit(step, "cancelled");
-      throw new Error("Installation cancelled.");
+  const stop = (step: string) => {
+    emit(step, "cancelled");
+    throw new Error("Installation cancelled.");
+  };
+
+  // Same order as the plan, which is the order the real installer runs in.
+  for (const { id: step } of plan.steps) {
+    if (previewCancelled) stop(step);
+    if (step.startsWith("get-")) {
+      const total = 30 * 2 ** 20;
+      for (let done = 0; done <= total; done += total / 8) {
+        if (previewCancelled) stop(step);
+        emit(step, "running", { message: "Downloading", bytes_done: done, bytes_total: total });
+        await sleep(120);
+      }
+      emit(step, "running", { message: "Unpacking" });
+      await sleep(150);
+      emit(step, "done");
+    } else {
+      const waiting =
+        step === "vc-runtime"
+          ? "Waiting for administrator approval"
+          : step === "local-ca"
+            ? "Waiting for you to confirm in Windows"
+            : null;
+      emit(step, "running", { message: waiting });
+      await sleep(400);
+      emit(step, "done", { message: messages[step] ?? null });
     }
-    emit(step, "running");
-    await sleep(400);
-    emit(step, "done", { message: messages[step] });
   }
 }

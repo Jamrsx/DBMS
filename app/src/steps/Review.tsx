@@ -7,6 +7,7 @@ interface Props {
 
 export function Review({ plan, onEdit }: Props) {
   const adminSteps = plan.steps.filter((s) => s.admin).length;
+  const confirmSteps = plan.steps.filter((s) => s.confirm).length;
 
   return (
     <>
@@ -78,13 +79,20 @@ export function Review({ plan, onEdit }: Props) {
               <li key={s.id}>
                 {s.title}
                 {s.admin && <span className="tag tag-admin">Admin</span>}
+                {s.confirm && <span className="tag tag-admin">Windows asks</span>}
               </li>
             ))}
           </ol>
           <p className="hint">
-            {adminSteps === 0
-              ? "No administrator approval needed."
-              : `${adminSteps} step${adminSteps > 1 ? "s" : ""} need${adminSteps > 1 ? "" : "s"} administrator approval. Windows will ask before each one.`}
+            {[
+              adminSteps === 0
+                ? "No administrator approval needed."
+                : `${adminSteps} step${adminSteps > 1 ? "s" : ""} need${adminSteps > 1 ? "" : "s"} administrator approval.`,
+              confirmSteps > 0 &&
+                "Windows will ask you to confirm trusting the local certificate; it only covers .test and localhost.",
+            ]
+              .filter(Boolean)
+              .join(" ")}
           </p>
         </section>
       </div>

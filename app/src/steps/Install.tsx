@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InstallPlan } from "../lib/plan";
 import { inDesktopApp } from "../lib/scan";
-import { cancelInstall, isImplemented, runInstall, type Progress } from "../lib/install";
+import { cancelInstall, runInstall, type Progress } from "../lib/install";
 
 export type RunState = "running" | "done" | "failed" | "cancelled";
 
@@ -62,7 +62,14 @@ export function Install({
 
       <ol className="install-steps">
         {plan.steps.map((s) => (
-          <InstallStep key={s.id} title={s.title} admin={s.admin} progress={steps[s.id]} implemented={isImplemented(s.id)} runState={state} />
+          <InstallStep
+            key={s.id}
+            title={s.title}
+            admin={s.admin}
+            confirm={s.confirm ?? false}
+            progress={steps[s.id]}
+            runState={state}
+          />
         ))}
       </ol>
 
@@ -78,17 +85,17 @@ export function Install({
 function InstallStep({
   title,
   admin,
+  confirm,
   progress,
-  implemented,
   runState,
 }: {
   title: string;
   admin: boolean;
+  confirm: boolean;
   progress: Progress | undefined;
-  implemented: boolean;
   runState: RunState;
 }) {
-  const status = !implemented ? "later" : (progress?.status ?? "pending");
+  const status = progress?.status ?? "pending";
   const percent =
     progress?.status === "running" && progress.bytes_total
       ? Math.min(100, Math.round((progress.bytes_done / progress.bytes_total) * 100))
@@ -102,6 +109,7 @@ function InstallStep({
       <span className="install-title">
         {title}
         {admin && <span className="tag tag-admin">Admin</span>}
+        {confirm && <span className="tag tag-admin">Windows asks</span>}
       </span>
       <span className="install-state">
         {status === "pending" && (runState === "running" ? "Waiting" : "Not started")}
@@ -112,7 +120,6 @@ function InstallStep({
         {status === "done" && (progress?.message ?? "Done")}
         {status === "failed" && "Failed"}
         {status === "cancelled" && "Cancelled"}
-        {status === "later" && "Coming in a later part"}
       </span>
       {percent !== null && (
         <span

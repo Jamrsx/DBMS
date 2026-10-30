@@ -510,7 +510,7 @@ pub fn service_exe(image_path: &str) -> Option<PathBuf> {
 }
 
 #[cfg(windows)]
-fn vc_runtime_version() -> Option<String> {
+pub(crate) fn vc_runtime_version() -> Option<String> {
     use winreg::RegKey;
     use winreg::enums::HKEY_LOCAL_MACHINE;
 
@@ -532,7 +532,7 @@ fn vc_runtime_version() -> Option<String> {
 }
 
 #[cfg(not(windows))]
-fn vc_runtime_version() -> Option<String> {
+pub(crate) fn vc_runtime_version() -> Option<String> {
     None
 }
 

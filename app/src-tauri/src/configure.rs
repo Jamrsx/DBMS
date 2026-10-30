@@ -366,6 +366,7 @@ fn wait_for_exit(child: &mut Child, timeout: Duration) -> Result<(), String> {
 
 pub struct Output {
     pub success: bool,
+    pub code: Option<i32>,
     pub text: String,
 }
 
@@ -421,7 +422,7 @@ pub fn run_with_stdin(program: &Path, args: &[&str], input: &str, timeout: Durat
         std::thread::sleep(Duration::from_millis(50));
     };
     let text = format!("{}{}", out.join().unwrap_or_default(), err.join().unwrap_or_default());
-    Ok(Output { success: status.success(), text })
+    Ok(Output { success: status.success(), code: status.code(), text })
 }
 
 fn last_lines(text: &str, n: usize) -> String {

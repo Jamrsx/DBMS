@@ -1,3 +1,4 @@
+mod admin;
 mod catalog;
 mod configure;
 mod installer;
@@ -43,7 +44,7 @@ fn component_choices() -> catalog::Choices {
 #[tauri::command]
 async fn run_install(app: tauri::AppHandle, request: installer::InstallRequest) -> Result<(), String> {
     let catalog = catalog::bundled();
-    installer::run(&catalog, &request, |progress| {
+    installer::run(&catalog, &request, &installer::RunOptions::for_app(), |progress| {
         let _ = app.emit("install-progress", progress);
     })
     .await
