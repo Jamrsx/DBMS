@@ -17,3 +17,6 @@ desktop.ini
 .DS_Store
 .vscode/
 .idea/
+
+# Impeccable decision-page session logs
+.impeccable/questions/

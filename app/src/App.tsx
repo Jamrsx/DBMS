@@ -17,6 +17,8 @@ import {
 } from "./steps/MySQL";
 import { Review } from "./steps/Review";
 import { InstallView } from "./steps/InstallView";
+import { Check } from "lucide-react";
+import { ThemeToggle } from "./components/ThemeToggle";
 import { loadChoices, type Choices } from "./lib/catalog";
 import { suggestPort } from "./lib/ports";
 import { buildPlan, type InstallPlan } from "./lib/plan";
@@ -27,12 +29,12 @@ export interface Settings {
 }
 
 const STEPS = [
-  { id: "welcome", title: "Welcome" },
-  { id: "scan", title: "System scan" },
-  { id: "components", title: "Components" },
-  { id: "mysql", title: "MySQL" },
-  { id: "review", title: "Review" },
-  { id: "install", title: "Install" },
+  { id: "welcome", title: "Welcome", heading: "Set up your local stack" },
+  { id: "scan", title: "System scan", heading: "Check this PC" },
+  { id: "components", title: "Components", heading: "Choose components" },
+  { id: "mysql", title: "MySQL", heading: "Set up MySQL" },
+  { id: "review", title: "Review", heading: "Review and install" },
+  { id: "install", title: "Install", heading: "Install" },
 ] as const;
 
 /** Steps built so far; the rest show a placeholder. */
@@ -151,7 +153,15 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="rail">
-        <div className="brand">DevManager</div>
+        <div className="brand">
+          <svg className="brand-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
+            <rect x="1" y="1" width="16" height="16" rx="4" fill="var(--accent)" />
+            <rect x="4.5" y="5" width="9" height="2" rx="1" fill="var(--accent-on)" />
+            <rect x="4.5" y="8.5" width="9" height="2" rx="1" fill="var(--accent-on)" opacity="0.75" />
+            <rect x="4.5" y="12" width="5" height="2" rx="1" fill="var(--accent-on)" opacity="0.5" />
+          </svg>
+          DevManager
+        </div>
         <ol className="steps">
           {STEPS.map((s, i) => (
             <li
@@ -159,20 +169,20 @@ export default function App() {
               className={i === step ? "step current" : i < step ? "step done" : "step"}
               aria-current={i === step ? "step" : undefined}
             >
-              <span className="step-num">{i + 1}</span>
+              <span className="step-num" aria-hidden="true">
+                {i < step ? <Check size={13} strokeWidth={3} /> : i + 1}
+              </span>
               {s.title}
+              {i < step && <span className="visually-hidden"> (done)</span>}
             </li>
           ))}
         </ol>
-        <p className="rail-foot">Setup</p>
+        <ThemeToggle />
       </aside>
 
       <main className="panel">
         <header className="panel-head">
-          <p className="eyebrow">
-            Step {step + 1} of {STEPS.length}
-          </p>
-          <h1>{current.id === "welcome" ? "Set up your local stack" : current.title}</h1>
+          <h1>{current.heading}</h1>
         </header>
 
         {current.id === "install" && installPlan ? (
@@ -184,7 +194,7 @@ export default function App() {
           />
         ) : (
         <>
-        <div className="panel-body">
+        <div className="panel-body" key={current.id}>
           {current.id === "welcome" && (
             <Welcome
               settings={settings}
@@ -243,6 +253,9 @@ export default function App() {
           <button className="btn btn-quiet" onClick={back} disabled={step === 0}>
             Back
           </button>
+          <span className="foot-count">
+            Step {step + 1} of {STEPS.length}
+          </span>
           <button
             className="btn btn-primary"
             onClick={next}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&family=Overpass+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--ground:#f7f8fa;--panel:#fff;--ink:#14161b;--muted:#5d6472;--line:#dfe3ea;--l1:#1e5bb8;--l2:#6b2c91;--l3:#2e9e4f;--l4:#e08a00;--l5:#c2185b;--l6:#7a8494}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:15px/1.45 Overpass,sans-serif;color:var(--ink);background:var(--ground);display:grid;grid-template-columns:260px 1fr}
+.rail{background:var(--panel);border-right:1px solid var(--line);padding:24px 22px;display:flex;flex-direction:column}
+.brand{font:800 19px Overpass;letter-spacing:-.01em;margin-bottom:26px}
+.line{position:relative;list-style:none;padding:0 0 0 30px}
+.line:before{content:"";position:absolute;left:9px;top:10px;bottom:10px;width:6px;border-radius:3px;background:linear-gradient(var(--l1) 0 42%,var(--line) 42%)}
+.line li{position:relative;padding:9px 0;font-weight:600;color:var(--muted)}
+.line li:before{content:"";position:absolute;left:-27px;top:11px;width:14px;height:14px;border-radius:50%;background:#fff;border:3px solid var(--line)}
+.line li.done{color:var(--ink)}.line li.done:before{border-color:var(--l1)}
+.line li.cur{color:var(--l1);font-weight:800}.line li.cur:before{width:20px;height:20px;left:-30px;top:8px;background:var(--l1);border:4px solid #fff;box-shadow:0 0 0 3px var(--l1)}
+.theme{margin-top:auto;display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;font:600 12px Overpass}
+.theme b{flex:1;text-align:center;padding:7px 0;color:var(--muted)}.theme b.on{background:var(--ink);color:#fff}
+main{display:flex;flex-direction:column;min-width:0}
+.head{padding:30px 40px 14px;display:flex;justify-content:space-between;align-items:end}
+h1{font:800 30px/1.1 Overpass;letter-spacing:-.02em}
+.lede{color:var(--muted);margin-top:6px;max-width:62ch}
+.total{text-align:right;font-size:13px;color:var(--muted)}.total b{display:block;font:800 22px Overpass;color:var(--ink);font-variant-numeric:tabular-nums}
+.net{margin:0 40px;background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.svc{display:grid;grid-template-columns:30px 170px 1fr 90px;gap:16px;align-items:center;padding:14px 18px;border-top:1px solid var(--line)}
+.svc:first-child{border-top:0}
+.chk{width:18px;height:18px;border-radius:4px;border:2px solid var(--ink);display:grid;place-items:center}
+.chk.on{background:var(--ink)}.chk.on:after{content:"";width:8px;height:4px;border:2px solid #fff;border-top:0;border-right:0;transform:rotate(-45deg) translate(1px,-1px)}
+.nm{display:flex;align-items:center;gap:10px;font-weight:800}
+.nm i{width:26px;height:6px;border-radius:3px}
+.nm small{display:block;font:400 12px Overpass;color:var(--muted)}
+.stops{display:flex;align-items:center;gap:0}
+.st{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px;font:500 12px 'Overpass Mono';color:var(--muted)}
+.st:before{content:"";position:absolute;top:7px;left:-50%;width:100%;height:4px;background:var(--c);opacity:.35}
+.st:first-child:before{display:none}
+.st i{position:relative;width:16px;height:16px;border-radius:50%;background:#fff;border:3px solid var(--c)}
+.st.sel{color:var(--ink);font-weight:500}.st.sel i{background:var(--c);box-shadow:0 0 0 3px #fff,0 0 0 5px var(--c)}
+.st em{font:700 9px Overpass;font-style:normal;letter-spacing:.08em;text-transform:uppercase;color:var(--c)}
+.mb{font:500 13px 'Overpass Mono';text-align:right;color:var(--muted)}
+.off{opacity:.45}
+.note{margin:14px 40px 0;font-size:14px;padding:10px 14px;border-radius:8px;background:#fff4e0;color:#6b4300}
+footer{margin-top:auto;display:flex;justify-content:space-between;padding:16px 40px;background:var(--panel);border-top:1px solid var(--line)}
+.btn{font:700 15px Overpass;padding:10px 22px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.btn.go{background:var(--l1);border-color:var(--l1);color:#fff}
+</style></head><body>
+<aside class="rail">
+  <div class="brand">DevManager</div>
+  <ol class="line">
+    <li class="done">Welcome</li><li class="done">System scan</li><li class="cur">Components</li><li>MySQL</li><li>Review</li><li>Install</li>
+  </ol>
+  <div class="theme"><b class="on">Light</b><b>Dark</b><b>System</b></div>
+</aside>
+<main>
+  <div class="head"><div><h1>Choose your components</h1><p class="lede">Each component is a line in your stack. Pick a stop on each line; recommended stops are preselected.</p></div>
+    <div class="total">Total download<b>421 MB</b>108.2 GB free on C:\</div></div>
+  <div class="net">
+    <div class="svc" style="--c:var(--l1)"><span class="chk on"></span><span class="nm"><i style="background:var(--l1)"></i><span>Apache<small>Web server</small></span></span>
+      <span class="stops"><span class="st sel"><i></i>2.4.69<em>Recommended</em></span></span><span class="mb">14 MB</span></div>
+    <div class="svc" style="--c:var(--l2)"><span class="chk on"></span><span class="nm"><i style="background:var(--l2)"></i><span>PHP<small>Security fixes today</small></span></span>
+      <span class="stops"><span class="st"><i></i>8.2.35<em>Ends soon</em></span><span class="st"><i></i>8.3.36</span><span class="st"><i></i>8.4.27</span><span class="st sel"><i></i>8.5.12<em>Recommended</em></span></span><span class="mb">35 MB</span></div>
+    <div class="svc" style="--c:var(--l3)"><span class="chk on"></span><span class="nm"><i style="background:var(--l3)"></i><span>MySQL<small>Port 3307</small></span></span>
+      <span class="stops"><span class="st"><i></i>8.4.13<em>LTS</em></span><span class="st sel"><i></i>9.7.4<em>LTS · Rec.</em></span><span class="st"><i></i>26.10.0</span></span><span class="mb">328 MB</span></div>
+    <div class="svc" style="--c:var(--l4)"><span class="chk on"></span><span class="nm"><i style="background:var(--l4)"></i><span>Node.js<small>npm included</small></span></span>
+      <span class="stops"><span class="st"><i></i>22.23.4</span><span class="st"><i></i>24.22.2<em>LTS</em></span><span class="st sel"><i></i>26.13.0<em>LTS · Rec.</em></span></span><span class="mb">39 MB</span></div>
+    <div class="svc" style="--c:var(--l5)"><span class="chk on"></span><span class="nm"><i style="background:var(--l5)"></i><span>Composer<small>PHP packages</small></span></span>
+      <span class="stops"><span class="st sel"><i></i>2.11.0</span></span><span class="mb">4 MB</span></div>
+    <div class="svc off" style="--c:var(--l6)"><span class="chk"></span><span class="nm"><i style="background:var(--l6)"></i><span>nginx<small>Optional</small></span></span>
+      <span class="stops"><span class="st"><i></i>1.30.6</span><span class="st"><i></i>1.31.8</span></span><span class="mb">3 MB</span></div>
+  </div>
+  <p class="note">Port 3306 is used by mysqld.exe, so MySQL will use port 3307.</p>
+  <footer><button class="btn">Back</button><button class="btn go">Continue</button></footer>
+</main>
+</body></html>

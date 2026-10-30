@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+:root{--ground:#f3f4f6;--panel:#fff;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--blue:#2563eb;--soft:#eff4ff}
+*{box-sizing:border-box;margin:0}
+body{width:1440px;height:900px;overflow:hidden;font:15px/1.5 "Segoe UI",system-ui,sans-serif;color:var(--ink);background:var(--ground);display:grid;grid-template-columns:240px 1fr}
+.rail{background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:20px}
+.brand{font-weight:700;font-size:16px;padding:0 8px}
+.steps{list-style:none;padding:0;display:grid;gap:2px}
+.steps li{display:flex;gap:10px;align-items:center;padding:8px;border-radius:6px;color:var(--muted)}
+.steps li b{width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:12px;font-weight:600}
+.steps .done{color:var(--ink)}.steps .done b{background:#16a34a;border-color:#16a34a;color:#fff}
+.steps .cur{background:var(--soft);color:var(--ink);font-weight:600}.steps .cur b{background:var(--blue);border-color:var(--blue);color:#fff}
+.theme{margin-top:auto;display:flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px}
+.theme b{flex:1;text-align:center;padding:6px 0;font-weight:500;color:var(--muted)}.theme b.on{background:var(--soft);color:var(--blue)}
+main{display:flex;flex-direction:column;min-width:0;background:var(--panel)}
+.head{padding:28px 36px 12px}
+h1{font-size:22px;font-weight:650}
+.lede{color:var(--muted);margin-top:4px}
+.list{margin:6px 36px 0;border:1px solid var(--line);border-radius:8px}
+.row{display:grid;grid-template-columns:24px 160px 1fr 80px;gap:14px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.cb{width:16px;height:16px;border-radius:4px;border:1px solid #9ca3af}.cb.on{background:var(--blue);border-color:var(--blue)}
+.nm{font-weight:600}.nm small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.vs{display:flex;gap:6px;flex-wrap:wrap}
+.v{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line)}
+.v.sel{background:var(--soft);border-color:var(--blue);color:var(--blue);font-weight:600}
+.mb{text-align:right;font-size:13px;color:var(--muted)}
+.note{margin:14px 36px 0;padding:10px 14px;border-radius:8px;background:#fffbeb;color:#92400e;font-size:14px}
+footer{margin-top:auto;display:flex;justify-content:space-between;padding:14px 36px;border-top:1px solid var(--line)}
+.btn{font:inherit;padding:8px 18px;border-radius:6px;border:1px solid var(--line);background:#fff}
+.btn.go{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+</style></head><body>
+<aside class="rail">
+  <div class="brand">DevManager</div>
+  <ol class="steps"><li class="done"><b>✓</b>Welcome</li><li class="done"><b>✓</b>System scan</li><li class="cur"><b>3</b>Components</li><li><b>4</b>MySQL</li><li><b>5</b>Review</li><li><b>6</b>Install</li></ol>
+  <div class="theme"><b class="on">Light</b><b>Dark</b><b>System</b></div>
+</aside>
+<main>
+  <div class="head"><h1>Components</h1><p class="lede">Choose what to install. Recommended versions are preselected.</p></div>
+  <div class="list">
+    <div class="row"><span class="cb on"></span><span class="nm">Apache<small>Web server</small></span><span class="vs"><span class="v sel">2.4.69 · Recommended</span></span><span class="mb">14 MB</span></div>
+    <div class="row"><span class="cb on"></span><span class="nm">PHP<small>Security fixes today</small></span><span class="vs"><span class="v sel">8.5.12 · Recommended</span><span class="v">8.4.27</span><span class="v">8.3.36</span><span class="v">8.2.35</span></span><span class="mb">35 MB</span></div>
+    <div class="row"><span class="cb on"></span><span class="nm">MySQL<small>Port 3307</small></span><span class="vs"><span class="v">26.10.0</span><span class="v sel">9.7.4 · LTS</span><span class="v">8.4.13</span></span><span class="mb">328 MB</span></div>
+    <div class="row"><span class="cb on"></span><span class="nm">Node.js<small>npm included</small></span><span class="vs"><span class="v sel">26.13.0 · LTS</span><span class="v">24.22.2</span><span class="v">22.23.4</span></span><span class="mb">39 MB</span></div>
+    <div class="row"><span class="cb on"></span><span class="nm">Composer<small>PHP packages</small></span><span class="vs"><span class="v sel">2.11.0</span></span><span class="mb">4 MB</span></div>
+    <div class="row"><span class="cb"></span><span class="nm">nginx<small>Optional</small></span><span class="vs"><span class="v">1.30.6</span><span class="v">1.31.8</span></span><span class="mb">3 MB</span></div>
+  </div>
+  <p class="note">Port 3306 is used by mysqld.exe, so MySQL will use port 3307.</p>
+  <footer><button class="btn">Back</button><button class="btn go">Continue</button></footer>
+</main>
+</body></html>

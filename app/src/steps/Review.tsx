@@ -35,9 +35,11 @@ export function Review({ plan, onEdit }: Props) {
               <li key={c.id}>
                 <span className="plan-name">{c.name}</span>
                 <span className="plan-action">
-                  {c.action === "install"
-                    ? `Install ${c.version ?? "latest stable"}`
-                    : `Use existing ${c.version ?? ""}${c.source ? ` (${c.source})` : ""}`}
+                  {c.action === "install" ? "Install " : "Use existing "}
+                  <span className="plan-version">{c.version ?? "latest stable"}</span>
+                  {c.action === "use-existing" && c.source && (
+                    <span className="muted"> ({c.source})</span>
+                  )}
                 </span>
                 <code className="plan-path" title={c.path}>
                   {c.path}

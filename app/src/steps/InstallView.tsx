@@ -23,6 +23,7 @@ export function InstallView({
         <button className="btn btn-quiet" onClick={onBack} disabled={running}>
           Back
         </button>
+        <span className="foot-count">Step 6 of 6</span>
         {running && (
           <button className="btn" onClick={() => void run.cancel()}>
             Cancel

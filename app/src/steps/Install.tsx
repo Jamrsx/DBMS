@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Check, Circle, CircleSlash, LoaderCircle, X } from "lucide-react";
 import type { InstallPlan } from "../lib/plan";
 import { inDesktopApp } from "../lib/scan";
 import { cancelInstall, runInstall, type Progress } from "../lib/install";
@@ -104,7 +105,11 @@ function InstallStep({
   return (
     <li className={`install-step is-${status}`}>
       <span className="install-icon" aria-hidden="true">
-        {status === "done" ? "✓" : status === "failed" ? "!" : status === "running" ? "" : "·"}
+        {status === "done" && <Check size={12} strokeWidth={3} />}
+        {status === "failed" && <X size={12} strokeWidth={3} />}
+        {status === "running" && <LoaderCircle size={16} strokeWidth={2.5} />}
+        {status === "cancelled" && <CircleSlash size={14} strokeWidth={2} />}
+        {status === "pending" && <Circle size={14} strokeWidth={2} />}
       </span>
       <span className="install-title">
         {title}

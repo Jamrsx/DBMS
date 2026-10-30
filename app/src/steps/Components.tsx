@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import { LABEL_TEXT, type Choices, type ComponentChoices } from "../lib/catalog";
 import type { Install, ScanReport } from "../lib/scan";
 
@@ -160,6 +161,7 @@ function VersionPicker({
             <span className="option-labels">
               {v.labels.map((l) => (
                 <span key={l} className={`tag tag-${l}`}>
+                  {l === "security-fix" && <ShieldCheck size={12} strokeWidth={2.25} aria-hidden="true" />}
                   {LABEL_TEXT[l]}
                   {l === "ends-soon" && v.eol ? ` (${v.eol})` : ""}
                 </span>
