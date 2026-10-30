@@ -179,6 +179,7 @@ export default function App() {
           <InstallView
             key={JSON.stringify(installPlan)}
             plan={installPlan}
+            mysqlPassword={mysql?.value.noPassword ? "" : (mysql?.value.password ?? "")}
             onBack={() => goTo("review")}
           />
         ) : (

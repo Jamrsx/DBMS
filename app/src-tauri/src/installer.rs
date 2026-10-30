@@ -2,6 +2,7 @@
 //! URLs and checksums always come from the bundled catalog, never from the UI.
 
 use crate::catalog::{Catalog, Checksum, Download};
+use crate::configure;
 use futures_util::StreamExt;
 use md5::Md5;
 use serde::{Deserialize, Serialize};
@@ -21,14 +22,52 @@ const PROGRESS_INTERVAL: Duration = Duration::from_millis(150);
 pub struct InstallRequest {
     pub install_root: String,
     pub www_dir: String,
-    /// Components to install; existing installs aren't sent.
+    /// Components to download and install.
     pub items: Vec<InstallItem>,
+    /// Installs already on this PC that the user chose to use instead.
+    #[serde(default)]
+    pub existing: Vec<ExistingItem>,
+    /// Present when MySQL is being installed.
+    #[serde(default)]
+    pub mysql: Option<MysqlRequest>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct InstallItem {
     pub id: String,
     pub version: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ExistingItem {
+    pub id: String,
+    /// The executable the scan found, e.g. `C:\xampp\php\php.exe`.
+    pub path: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct MysqlRequest {
+    pub port: u16,
+    pub password: Option<Secret>,
+    pub data_dir: String,
+    pub autostart: bool,
+}
+
+/// A value that must never be logged or saved; `Debug` prints `***`.
+#[derive(Deserialize)]
+#[serde(transparent)]
+pub struct Secret(String);
+
+impl Secret {
+    pub fn expose(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Debug for Secret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("***")
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -112,7 +151,246 @@ pub async fn run(
             }
         }
     }
+
+    let layout = Layout::new(&root, request);
+    let mut configure_steps: Vec<(&str, Box<dyn FnOnce() -> Result<Option<String>, String> + Send>)> = Vec::new();
+    if let Some(server_root) = layout.apache.clone() {
+        let l = layout.clone();
+        configure_steps.push(("config-apache", Box::new(move || configure_apache(&l, &server_root))));
+    }
+    if let Some(nginx_dir) = layout.nginx.clone() {
+        let l = layout.clone();
+        configure_steps.push(("config-nginx", Box::new(move || configure_nginx(&l, &nginx_dir))));
+    }
+    if let (Some(base), Some(mysql)) = (layout.mysql.clone(), request.mysql.as_ref()) {
+        let l = layout.clone();
+        let port = mysql.port;
+        let data_dir = PathBuf::from(mysql.data_dir.trim());
+        // Copied only into this closure, which runs and is dropped right away.
+        let password = mysql.password.as_ref().map(|p| p.expose().to_string());
+        configure_steps.push(("mysql-init", Box::new(move || configure_mysql(&l, &base, &data_dir, port, password.as_deref()))));
+    }
+    let settings = saved_settings(&layout, request);
+    let l = layout.clone();
+    configure_steps.push(("save", Box::new(move || save_settings(&l, &settings))));
+
+    for (step, work) in configure_steps {
+        if CANCEL.load(Ordering::SeqCst) {
+            report(step, StepStatus::Cancelled, None);
+            return Err("Installation cancelled.".into());
+        }
+        report(step, StepStatus::Running, None);
+        let result = tauri::async_runtime::spawn_blocking(work)
+            .await
+            .map_err(|err| format!("Setup stopped unexpectedly: {err}"))
+            .and_then(|r| r);
+        match result {
+            Ok(message) => report(step, StepStatus::Done, message),
+            Err(msg) => {
+                report(step, StepStatus::Failed, Some(msg.clone()));
+                return Err(msg);
+            }
+        }
+    }
     Ok(())
+}
+
+/// Where everything lives for this install, resolved from new and existing components.
+#[derive(Debug, Clone)]
+struct Layout {
+    root: PathBuf,
+    www: PathBuf,
+    etc: PathBuf,
+    logs: PathBuf,
+    php: Option<PathBuf>,
+    apache: Option<PathBuf>,
+    nginx: Option<PathBuf>,
+    mysql: Option<PathBuf>,
+}
+
+impl Layout {
+    fn new(root: &Path, request: &InstallRequest) -> Self {
+        let dir_for = |id: &str| -> Option<PathBuf> {
+            if let Some(item) = request.items.iter().find(|i| i.id == id) {
+                return Some(target_dir(root, id, &item.version));
+            }
+            let existing = request.existing.iter().find(|e| e.id == id)?;
+            configure::root_above_bin(Path::new(&existing.path))
+        };
+        Layout {
+            root: root.to_path_buf(),
+            www: PathBuf::from(request.www_dir.trim()),
+            etc: root.join("etc"),
+            logs: root.join("logs"),
+            php: dir_for("php"),
+            apache: dir_for("apache"),
+            nginx: dir_for("nginx"),
+            // Only a newly installed MySQL is set up; an existing one keeps its own data.
+            mysql: request
+                .items
+                .iter()
+                .find(|i| i.id == "mysql")
+                .map(|i| target_dir(root, "mysql", &i.version)),
+        }
+    }
+
+    fn apache_port(&self) -> u16 {
+        80
+    }
+
+    /// nginx takes 8080 when Apache already has port 80.
+    fn nginx_port(&self) -> u16 {
+        if self.apache.is_some() { 8080 } else { 80 }
+    }
+
+    /// Writes php.ini for the selected PHP, if any.
+    fn write_php_ini(&self) -> Result<(), String> {
+        match &self.php {
+            Some(php) => configure::write_file(&self.etc.join("php").join("php.ini"), &configure::php_ini(php)),
+            None => Ok(()),
+        }
+    }
+}
+
+fn configure_apache(l: &Layout, server_root: &Path) -> Result<Option<String>, String> {
+    l.write_php_ini()?;
+    fs::create_dir_all(l.etc.join("apache").join("sites-enabled")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&l.logs).map_err(|e| e.to_string())?;
+    let conf = l.etc.join("apache").join("httpd.conf");
+    configure::write_file(
+        &conf,
+        &configure::apache_conf(&configure::ApacheConf {
+            server_root,
+            port: l.apache_port(),
+            www_dir: &l.www,
+            etc_dir: &l.etc,
+            logs_dir: &l.logs,
+            php: l.php.is_some(),
+        }),
+    )?;
+    configure::check_apache(server_root, &conf)?;
+    Ok(Some(format!("Config checked · port {}", l.apache_port())))
+}
+
+fn configure_nginx(l: &Layout, nginx_dir: &Path) -> Result<Option<String>, String> {
+    l.write_php_ini()?;
+    let temp = l.root.join("tmp").join("nginx");
+    for dir in ["client_body", "proxy", "fastcgi", "uwsgi", "scgi"] {
+        fs::create_dir_all(temp.join(dir)).map_err(|e| e.to_string())?;
+    }
+    fs::create_dir_all(l.etc.join("nginx").join("sites-enabled")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&l.logs).map_err(|e| e.to_string())?;
+    let conf = l.etc.join("nginx").join("nginx.conf");
+    configure::write_file(
+        &conf,
+        &configure::nginx_conf(&configure::NginxConf {
+            nginx_dir,
+            port: l.nginx_port(),
+            www_dir: &l.www,
+            etc_dir: &l.etc,
+            logs_dir: &l.logs,
+            temp_dir: &temp,
+            php: l.php.is_some(),
+        }),
+    )?;
+    configure::check_nginx(nginx_dir, &conf)?;
+    Ok(Some(format!("Config checked · port {}", l.nginx_port())))
+}
+
+fn configure_mysql(
+    l: &Layout,
+    base: &Path,
+    data_dir: &Path,
+    port: u16,
+    password: Option<&str>,
+) -> Result<Option<String>, String> {
+    fs::create_dir_all(&l.logs).map_err(|e| e.to_string())?;
+    let ini = l.etc.join("mysql").join("my.ini");
+    configure::write_file(
+        &ini,
+        &configure::mysql_ini(&configure::MysqlConf { base_dir: base, data_dir, port, logs_dir: &l.logs }),
+    )?;
+    match configure::setup_mysql(base, &ini, data_dir, port, password)? {
+        configure::MysqlSetup::Initialized => Ok(Some(if password.is_some() {
+            "Data folder created · root password set".into()
+        } else {
+            "Data folder created · root has no password".into()
+        })),
+        configure::MysqlSetup::KeptExisting => {
+            Ok(Some("Kept the existing data folder; its root password is unchanged".into()))
+        }
+    }
+}
+
+/// DevManager's own settings. Never contains the MySQL password.
+#[derive(Debug, Serialize)]
+struct SavedSettings {
+    schema: u32,
+    install_root: String,
+    www_dir: String,
+    php_fastcgi_port: u16,
+    components: Vec<SavedComponent>,
+    apache_port: Option<u16>,
+    nginx_port: Option<u16>,
+    mysql: Option<SavedMysql>,
+}
+
+#[derive(Debug, Serialize)]
+struct SavedComponent {
+    id: String,
+    version: Option<String>,
+    path: String,
+    existing: bool,
+}
+
+#[derive(Debug, Serialize)]
+struct SavedMysql {
+    port: u16,
+    data_dir: String,
+    autostart: bool,
+    has_password: bool,
+}
+
+fn saved_settings(l: &Layout, request: &InstallRequest) -> SavedSettings {
+    let mut components: Vec<SavedComponent> = request
+        .items
+        .iter()
+        .map(|i| SavedComponent {
+            id: i.id.clone(),
+            version: Some(i.version.clone()),
+            path: target_dir(&l.root, &i.id, &i.version).display().to_string(),
+            existing: false,
+        })
+        .collect();
+    components.extend(request.existing.iter().map(|e| SavedComponent {
+        id: e.id.clone(),
+        version: None,
+        path: e.path.clone(),
+        existing: true,
+    }));
+    SavedSettings {
+        schema: 1,
+        install_root: l.root.display().to_string(),
+        www_dir: l.www.display().to_string(),
+        php_fastcgi_port: configure::PHP_FASTCGI_PORT,
+        components,
+        apache_port: l.apache.as_ref().map(|_| l.apache_port()),
+        nginx_port: l.nginx.as_ref().map(|_| l.nginx_port()),
+        mysql: request.mysql.as_ref().map(|m| SavedMysql {
+            port: m.port,
+            data_dir: m.data_dir.trim().to_string(),
+            autostart: m.autostart,
+            has_password: m.password.as_ref().is_some_and(|p| !p.expose().is_empty()),
+        }),
+    }
+}
+
+fn save_settings(l: &Layout, settings: &SavedSettings) -> Result<Option<String>, String> {
+    // PHP-only installs still need a php.ini.
+    l.write_php_ini()?;
+    let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
+    configure::write_file(&l.etc.join("devmanager.json"), &json)?;
+    Ok(Some(format!("Saved to {}", l.etc.join("devmanager.json").display())))
 }
 
 #[derive(Debug)]
@@ -452,6 +730,8 @@ mod tests {
             install_root: dir.path().display().to_string(),
             www_dir: dir.path().join("www").display().to_string(),
             items: vec![InstallItem { id: id.into(), version: version.into() }],
+            existing: vec![],
+            mysql: None,
         };
         let events = std::sync::Mutex::new(Vec::new());
         tauri::async_runtime::block_on(run(&catalog, &request, |p| events.lock().unwrap().push(p))).unwrap();
@@ -461,6 +741,53 @@ mod tests {
         }
         assert!(events.iter().any(|e| e.step == format!("get-{id}") && e.status == StepStatus::Done));
         (dir, events)
+    }
+
+    #[test]
+    fn secrets_never_show_in_debug_output() {
+        let request: InstallRequest = serde_json::from_str(
+            r#"{"install_root":"C:\\D","www_dir":"C:\\D\\www","items":[],
+                "mysql":{"port":3306,"password":"hunter2","data_dir":"C:\\D\\data","autostart":true}}"#,
+        )
+        .unwrap();
+        let debug = format!("{request:?}");
+        assert!(!debug.contains("hunter2"));
+        assert!(debug.contains("***"));
+        assert_eq!(request.mysql.unwrap().password.unwrap().expose(), "hunter2");
+    }
+
+    /// Whole installer with Laragon's Apache and PHP as existing installs plus a real Composer
+    /// download, into a temp folder: `cargo test real_end_to_end -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_end_to_end_with_existing_apache_and_php() {
+        let dir = tempfile::tempdir().unwrap();
+        let catalog = crate::catalog::bundled();
+        let request = InstallRequest {
+            install_root: dir.path().display().to_string(),
+            www_dir: dir.path().join("www").display().to_string(),
+            items: vec![InstallItem { id: "composer".into(), version: catalog.tools.composer.version.clone() }],
+            existing: vec![
+                ExistingItem { id: "apache".into(), path: r"C:\laragon\bin\apache\Apache24\bin\httpd.exe".into() },
+                ExistingItem { id: "php".into(), path: r"C:\laragon\bin\php\php-8.4.5-Win32-vs17-x64\php.exe".into() },
+            ],
+            mysql: None,
+        };
+        let events = std::sync::Mutex::new(Vec::new());
+        let result = tauri::async_runtime::block_on(run(&catalog, &request, |p| events.lock().unwrap().push(p)));
+        let events = events.into_inner().unwrap();
+        for e in events.iter().filter(|e| e.status != StepStatus::Running) {
+            println!("{:<14} {:?} {:?}", e.step, e.status, e.message);
+        }
+        result.unwrap();
+        let etc = dir.path().join("etc");
+        assert!(etc.join("apache/httpd.conf").is_file());
+        assert!(etc.join("php/php.ini").is_file());
+        let saved = fs::read_to_string(etc.join("devmanager.json")).unwrap();
+        println!("{saved}");
+        assert!(saved.contains("\"apache_port\": 80"));
+        let order: Vec<&str> = events.iter().filter(|e| e.status == StepStatus::Done).map(|e| e.step.as_str()).collect();
+        assert_eq!(order, ["folders", "get-composer", "config-apache", "save"]);
     }
 
     /// `cargo test real_composer_install -- --ignored --nocapture`
@@ -485,5 +812,17 @@ mod tests {
         assert!(target.join("conf").join("nginx.conf").is_file());
         assert!(target.join(".devmanager-installed").is_file());
         assert!(!dir.path().join("tmp/downloads").read_dir().unwrap().any(|_| true), "archive cleaned up");
+
+        // The generated config must pass `nginx -t` with the real binary.
+        let request = InstallRequest {
+            install_root: dir.path().display().to_string(),
+            www_dir: dir.path().join("www").display().to_string(),
+            items: vec![InstallItem { id: "nginx".into(), version: version.clone() }],
+            existing: vec![],
+            mysql: None,
+        };
+        let layout = Layout::new(dir.path(), &request);
+        let message = configure_nginx(&layout, &target).unwrap();
+        println!("config-nginx: {message:?}");
     }
 }

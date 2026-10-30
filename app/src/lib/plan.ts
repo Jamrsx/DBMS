@@ -175,6 +175,6 @@ function planSteps(
     steps.push({ id: "local-ca", title: "Create and trust a local HTTPS certificate", admin: true });
   }
 
-  steps.push({ id: "save", title: "Save settings and start services", admin: false });
+  steps.push({ id: "save", title: "Save settings", admin: false });
   return steps;
 }

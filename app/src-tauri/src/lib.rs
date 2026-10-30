@@ -1,4 +1,5 @@
 mod catalog;
+mod configure;
 mod installer;
 mod scan;
 

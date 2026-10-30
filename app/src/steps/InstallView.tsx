@@ -2,8 +2,16 @@ import type { InstallPlan } from "../lib/plan";
 import { Install, useInstall } from "./Install";
 
 /** The Install step's body and footer; the footer changes with the run state. */
-export function InstallView({ plan, onBack }: { plan: InstallPlan; onBack: () => void }) {
-  const run = useInstall(plan);
+export function InstallView({
+  plan,
+  mysqlPassword,
+  onBack,
+}: {
+  plan: InstallPlan;
+  mysqlPassword: string;
+  onBack: () => void;
+}) {
+  const run = useInstall(plan, mysqlPassword);
   const running = run.state === "running";
 
   return (
@@ -26,7 +34,7 @@ export function InstallView({ plan, onBack }: { plan: InstallPlan; onBack: () =>
           </button>
         )}
         {run.state === "done" && (
-          <button className="btn btn-primary" disabled title="Setting up services comes in Part 5b">
+          <button className="btn btn-primary" disabled title="The dashboard comes in a later part">
             Finish
           </button>
         )}

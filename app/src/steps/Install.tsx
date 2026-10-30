@@ -6,7 +6,7 @@ import { cancelInstall, isImplemented, runInstall, type Progress } from "../lib/
 export type RunState = "running" | "done" | "failed" | "cancelled";
 
 /** Runs the plan once when mounted; `retry` runs it again (finished items are skipped). */
-export function useInstall(plan: InstallPlan) {
+export function useInstall(plan: InstallPlan, mysqlPassword: string) {
   const [state, setState] = useState<RunState>("running");
   const [steps, setSteps] = useState<Record<string, Progress>>({});
   const [error, setError] = useState<string | null>(null);
@@ -18,14 +18,14 @@ export function useInstall(plan: InstallPlan) {
     started.current = attempt;
     setState("running");
     setError(null);
-    runInstall(plan, (p) => setSteps((s) => ({ ...s, [p.step]: p })))
+    runInstall(plan, mysqlPassword, (p) => setSteps((s) => ({ ...s, [p.step]: p })))
       .then(() => setState("done"))
       .catch((err) => {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         setState(message === "Installation cancelled." ? "cancelled" : "failed");
       });
-  }, [plan, attempt]);
+  }, [plan, mysqlPassword, attempt]);
 
   const retry = useCallback(() => {
     setSteps({});
@@ -48,7 +48,8 @@ export function Install({
     <>
       <p className="lede" role="status">
         {state === "running" && "Installing. You can keep using your PC; this can take a few minutes."}
-        {state === "done" && "Downloads finished and verified."}
+        {state === "done" &&
+          "Everything is installed and configured. Starting the services comes with the dashboard."}
         {state === "failed" && "Installation stopped."}
         {state === "cancelled" && "Installation cancelled. Nothing half-installed was left behind."}
       </p>

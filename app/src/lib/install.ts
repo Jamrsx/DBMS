@@ -13,27 +13,49 @@ export interface Progress {
   bytes_total: number | null;
 }
 
-/** Steps the installer can run so far; the rest arrive in later parts. */
+/** Steps that need administrator approval arrive in a later part. */
+const LATER = new Set(["vc-runtime", "hosts-helper", "local-ca"]);
+
 export function isImplemented(stepId: string) {
-  return stepId === "folders" || stepId.startsWith("get-");
+  return !LATER.has(stepId);
 }
 
-export function installRequest(plan: InstallPlan) {
+/**
+ * What the Rust installer receives. The MySQL password is passed in separately and only
+ * here, so it never ends up in the plan, the Review screen or saved settings.
+ */
+export function installRequest(plan: InstallPlan, mysqlPassword: string) {
   return {
     install_root: plan.installRoot,
     www_dir: plan.wwwDir,
     items: plan.components
       .filter((c) => c.action === "install" && c.version)
       .map((c) => ({ id: c.id, version: c.version as string })),
+    existing: plan.components
+      .filter((c) => c.action === "use-existing")
+      .map((c) => ({ id: c.id, path: c.path })),
+    mysql:
+      plan.mysql?.mode === "new" && plan.mysql.dataDir
+        ? {
+            port: plan.mysql.port,
+            password: plan.mysql.hasPassword ? mysqlPassword : null,
+            data_dir: plan.mysql.dataDir,
+            autostart: plan.mysql.autostart,
+          }
+        : null,
   };
 }
 
 /** Runs the install, calling `onProgress` for every update. Rejects with the first error. */
-export async function runInstall(plan: InstallPlan, onProgress: (p: Progress) => void) {
+export async function runInstall(
+  plan: InstallPlan,
+  mysqlPassword: string,
+  onProgress: (p: Progress) => void,
+) {
   if (!inDesktopApp) return simulateInstall(plan, onProgress);
   const unlisten = await listen<Progress>("install-progress", (e) => onProgress(e.payload));
   try {
-    await invoke("run_install", { request: installRequest(plan) });
+    await invoke("run_install", { request: installRequest(plan, mysqlPassword) });
   } finally {
     unlisten();
   }
@@ -59,7 +81,7 @@ async function simulateInstall(plan: InstallPlan, onProgress: (p: Progress) => v
   emit("folders", "running");
   await sleep(200);
   emit("folders", "done");
-  for (const item of installRequest(plan).items) {
+  for (const item of installRequest(plan, "").items) {
     const step = `get-${item.id}`;
     const total = 30 * 2 ** 20;
     for (let done = 0; done <= total; done += total / 8) {
@@ -73,5 +95,20 @@ async function simulateInstall(plan: InstallPlan, onProgress: (p: Progress) => v
     emit(step, "running", { message: "Unpacking" });
     await sleep(150);
     emit(step, "done");
+  }
+  const messages: Record<string, string> = {
+    "config-apache": "Config checked · port 80",
+    "config-nginx": `Config checked · port ${plan.components.some((c) => c.id === "apache") ? 8080 : 80}`,
+    "mysql-init": "Data folder created · root password set",
+    save: "Saved settings",
+  };
+  for (const step of plan.steps.map((s) => s.id).filter((id) => id in messages)) {
+    if (previewCancelled) {
+      emit(step, "cancelled");
+      throw new Error("Installation cancelled.");
+    }
+    emit(step, "running");
+    await sleep(400);
+    emit(step, "done", { message: messages[step] });
   }
 }
