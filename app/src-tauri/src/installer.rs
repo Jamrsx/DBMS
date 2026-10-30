@@ -112,11 +112,13 @@ pub struct RunOptions {
     /// Tests run with this off so they never touch the real system.
     pub system_changes: bool,
     pub ca_dir: PathBuf,
+    /// The app's config folder, where the install location is remembered for next launch.
+    pub config_dir: Option<PathBuf>,
 }
 
 impl RunOptions {
-    pub fn for_app() -> Self {
-        RunOptions { system_changes: true, ca_dir: admin::ca_dir() }
+    pub fn for_app(config_dir: Option<PathBuf>) -> Self {
+        RunOptions { system_changes: true, ca_dir: admin::ca_dir(), config_dir }
     }
 }
 
@@ -223,7 +225,17 @@ pub async fn run(
     }
     let settings = saved_settings(&layout, request);
     let l = layout.clone();
-    configure_steps.push(("save", Box::new(move || save_settings(&l, &settings))));
+    let config_dir = options.config_dir.clone();
+    configure_steps.push((
+        "save",
+        Box::new(move || {
+            let message = save_settings(&l, &settings)?;
+            if let Some(dir) = &config_dir {
+                crate::settings::write_pointer(dir, &l.root)?;
+            }
+            Ok(message)
+        }),
+    ));
 
     for (step, work) in configure_steps {
         if CANCEL.load(Ordering::SeqCst) {
@@ -338,6 +350,54 @@ impl Layout {
             None => Ok(()),
         }
     }
+}
+
+/// Rewrites every config file from the saved settings and validates the web servers' configs.
+/// Run before starting services so fixes to the templates reach existing installs.
+pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Result<(), String> {
+    // New components store their folder; existing ones store their executable.
+    let dir_for = |id: &str| {
+        settings.components.iter().find(|c| c.id == id).and_then(|c| {
+            let path = Path::new(&c.path);
+            if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) {
+                configure::root_above_bin(path)
+            } else {
+                Some(path.to_path_buf())
+            }
+        })
+    };
+    let mysql_existing = settings.mysql.as_ref().is_some_and(|m| m.existing);
+    let layout = Layout {
+        root: root.to_path_buf(),
+        www: PathBuf::from(&settings.www_dir),
+        etc: root.join("etc"),
+        logs: root.join("logs"),
+        php: dir_for("php"),
+        apache: settings.apache_port.and(dir_for("apache")),
+        nginx: settings.nginx_port.and(dir_for("nginx")),
+        mysql: if mysql_existing { None } else { dir_for("mysql") },
+    };
+    layout.write_php_ini()?;
+    if let Some(server_root) = &layout.apache {
+        configure_apache(&layout, server_root)?;
+    }
+    if let Some(nginx_dir) = &layout.nginx {
+        configure_nginx(&layout, nginx_dir)?;
+    }
+    if let (Some(base), Some(mysql)) = (&layout.mysql, &settings.mysql) {
+        if let Some(data_dir) = &mysql.data_dir {
+            configure::write_file(
+                &layout.etc.join("mysql").join("my.ini"),
+                &configure::mysql_ini(&configure::MysqlConf {
+                    base_dir: base,
+                    data_dir: Path::new(data_dir),
+                    port: mysql.port,
+                    logs_dir: &layout.logs,
+                }),
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn configure_apache(l: &Layout, server_root: &Path) -> Result<Option<String>, String> {
@@ -865,7 +925,11 @@ mod tests {
 
     /// Tests never change Windows (no runtime installs, no trusted certificates).
     fn test_options() -> RunOptions {
-        RunOptions { system_changes: false, ca_dir: std::env::temp_dir().join("devmanager-test-ca-unused") }
+        RunOptions {
+            system_changes: false,
+            ca_dir: std::env::temp_dir().join("devmanager-test-ca-unused"),
+            config_dir: None,
+        }
     }
 
     #[test]

@@ -3,8 +3,11 @@ mod catalog;
 mod configure;
 mod installer;
 mod scan;
+mod settings;
+mod supervisor;
 
-use tauri::Emitter;
+use std::sync::{Arc, Mutex};
+use tauri::{Emitter, Manager};
 
 use std::path::PathBuf;
 
@@ -44,7 +47,8 @@ fn component_choices() -> catalog::Choices {
 #[tauri::command]
 async fn run_install(app: tauri::AppHandle, request: installer::InstallRequest) -> Result<(), String> {
     let catalog = catalog::bundled();
-    installer::run(&catalog, &request, &installer::RunOptions::for_app(), |progress| {
+    let config_dir = app.path().app_config_dir().ok();
+    installer::run(&catalog, &request, &installer::RunOptions::for_app(config_dir), |progress| {
         let _ = app.emit("install-progress", progress);
     })
     .await
@@ -56,18 +60,140 @@ fn cancel_install() {
     installer::CANCEL.store(true, std::sync::atomic::Ordering::SeqCst);
 }
 
+/// The saved install and its services, once setup has finished.
+#[derive(Default)]
+struct Stack {
+    current: Mutex<Option<Loaded>>,
+}
+
+struct Loaded {
+    root: PathBuf,
+    settings: settings::Settings,
+    supervisor: Arc<supervisor::Supervisor>,
+}
+
+impl Stack {
+    /// (Re)reads the saved install. Running services keep running under the old supervisor
+    /// only until it is dropped, so this is called when nothing is running (startup, after setup).
+    fn load(&self, app: &tauri::AppHandle) -> bool {
+        let found = settings::locate(app.path().app_config_dir().ok().as_deref());
+        let loaded = found.map(|(root, settings)| Loaded {
+            supervisor: Arc::new(supervisor::Supervisor::new(supervisor::specs_for(&root, &settings))),
+            root,
+            settings,
+        });
+        let ok = loaded.is_some();
+        *self.current.lock().unwrap() = loaded;
+        ok
+    }
+
+    fn get(&self) -> Result<(PathBuf, settings::Settings, Arc<supervisor::Supervisor>), String> {
+        let guard = self.current.lock().unwrap();
+        let l = guard.as_ref().ok_or("Setup hasn't been completed yet.")?;
+        Ok((l.root.clone(), l.settings.clone(), l.supervisor.clone()))
+    }
+}
+
+#[derive(serde::Serialize)]
+struct SetupInfo {
+    installed: bool,
+    install_root: Option<String>,
+    www_dir: Option<String>,
+}
+
+/// Whether a finished install exists, so the app opens on the dashboard instead of setup.
+#[tauri::command]
+fn setup_info(app: tauri::AppHandle, stack: tauri::State<Stack>) -> SetupInfo {
+    stack.load(&app);
+    let guard = stack.current.lock().unwrap();
+    SetupInfo {
+        installed: guard.is_some(),
+        install_root: guard.as_ref().map(|l| l.root.display().to_string()),
+        www_dir: guard.as_ref().map(|l| l.settings.www_dir.clone()),
+    }
+}
+
+async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|err| format!("Stopped unexpectedly: {err}"))?
+}
+
+#[tauri::command]
+async fn services(stack: tauri::State<'_, Stack>) -> Result<Vec<supervisor::ServiceStatus>, String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || Ok(sup.status())).await
+}
+
+/// Starts one service, or every managed service when `id` is None. Configs are regenerated
+/// from the saved settings first, so template fixes reach existing installs.
+#[tauri::command]
+async fn start_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        let ids = id.map(|i| vec![i]).unwrap_or_else(|| sup.ids());
+        let mut errors = Vec::new();
+        for id in ids {
+            match sup.start(&id) {
+                Ok(()) => {}
+                // Watched-only services are skipped by Start All.
+                Err(e) if e.contains("managed outside") => {}
+                Err(e) => errors.push(e),
+            }
+        }
+        if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
+    })
+    .await
+}
+
+/// Stops one service, or all of them when `id` is None.
+#[tauri::command]
+async fn stop_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> Result<(), String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || {
+        match id {
+            Some(id) => sup.stop(&id)?,
+            None => sup.stop_all(),
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn service_log(stack: tauri::State<'_, Stack>, id: String) -> Result<String, String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || sup.log_tail(&id)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(Stack::default())
         .invoke_handler(tauri::generate_handler![
             system_scan,
             component_choices,
             port_status,
             suggest_port,
             run_install,
-            cancel_install
+            cancel_install,
+            setup_info,
+            services,
+            start_services,
+            stop_services,
+            service_log
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    app.run(|handle, event| {
+        // Stop services cleanly when DevManager closes; the job objects cover crashes.
+        if let tauri::RunEvent::Exit = event {
+            if let Ok((_, _, sup)) = handle.state::<Stack>().get() {
+                sup.stop_all();
+            }
+        }
+    });
 }
