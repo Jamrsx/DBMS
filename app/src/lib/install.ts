@@ -34,8 +34,12 @@ export function installRequest(plan: InstallPlan, mysqlPassword: string) {
             password: plan.mysql.hasPassword ? mysqlPassword : null,
             data_dir: plan.mysql.dataDir,
             autostart: plan.mysql.autostart,
+            existing: false,
           }
-        : null,
+        : plan.mysql?.mode === "existing"
+          ? // Only the port is recorded; an existing MySQL keeps its own password and data.
+            { port: plan.mysql.port, password: null, data_dir: null, autostart: false, existing: true }
+          : null,
   };
 }
 

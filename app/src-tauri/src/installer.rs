@@ -48,9 +48,14 @@ pub struct ExistingItem {
 #[derive(Debug, Deserialize)]
 pub struct MysqlRequest {
     pub port: u16,
+    /// Only sent for a new MySQL; an existing one keeps its own password.
     pub password: Option<Secret>,
-    pub data_dir: String,
+    /// Data folder for a new MySQL; `None` when using an existing MySQL.
+    pub data_dir: Option<String>,
     pub autostart: bool,
+    /// True when the user chose a MySQL already on this PC; only its port is recorded.
+    #[serde(default)]
+    pub existing: bool,
 }
 
 /// A value that must never be logged or saved; `Debug` prints `***`.
@@ -193,10 +198,14 @@ pub async fn run(
         let l = layout.clone();
         configure_steps.push(("config-nginx", Box::new(move || configure_nginx(&l, &nginx_dir))));
     }
-    if let (Some(base), Some(mysql)) = (layout.mysql.clone(), request.mysql.as_ref()) {
+    if let (Some(base), Some(mysql), Some(data_dir)) = (
+        layout.mysql.clone(),
+        request.mysql.as_ref(),
+        request.mysql.as_ref().and_then(|m| m.data_dir.as_deref()),
+    ) {
         let l = layout.clone();
         let port = mysql.port;
-        let data_dir = PathBuf::from(mysql.data_dir.trim());
+        let data_dir = PathBuf::from(data_dir.trim());
         // Copied only into this closure, which runs and is dropped right away.
         let password = mysql.password.as_ref().map(|p| p.expose().to_string());
         configure_steps.push(("mysql-init", Box::new(move || configure_mysql(&l, &base, &data_dir, port, password.as_deref()))));
@@ -425,9 +434,11 @@ struct SavedComponent {
 #[derive(Debug, Serialize)]
 struct SavedMysql {
     port: u16,
-    data_dir: String,
+    existing: bool,
+    data_dir: Option<String>,
     autostart: bool,
-    has_password: bool,
+    /// Unknown (`None`) for an existing MySQL, whose password DevManager never sees.
+    has_password: Option<bool>,
 }
 
 fn saved_settings(l: &Layout, request: &InstallRequest) -> SavedSettings {
@@ -457,9 +468,11 @@ fn saved_settings(l: &Layout, request: &InstallRequest) -> SavedSettings {
         nginx_port: l.nginx.as_ref().map(|_| l.nginx_port()),
         mysql: request.mysql.as_ref().map(|m| SavedMysql {
             port: m.port,
-            data_dir: m.data_dir.trim().to_string(),
-            autostart: m.autostart,
-            has_password: m.password.as_ref().is_some_and(|p| !p.expose().is_empty()),
+            existing: m.existing,
+            data_dir: m.data_dir.as_ref().map(|d| d.trim().to_string()),
+            autostart: m.autostart && !m.existing,
+            has_password: (!m.existing)
+                .then(|| m.password.as_ref().is_some_and(|p| !p.expose().is_empty())),
         }),
     }
 }
@@ -467,6 +480,13 @@ fn saved_settings(l: &Layout, request: &InstallRequest) -> SavedSettings {
 fn save_settings(l: &Layout, settings: &SavedSettings) -> Result<Option<String>, String> {
     // PHP-only installs still need a php.ini.
     l.write_php_ini()?;
+    // Point `composer` at the PHP the user chose, not whichever php.exe is first on PATH.
+    let composer_dir = l.root.join("bin").join("composer");
+    if composer_dir.join("composer.phar").is_file() {
+        let php = l.php.as_ref().map(|dir| dir.join("php.exe"));
+        let ini = l.etc.join("php").join("php.ini");
+        configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
+    }
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
     configure::write_file(&l.etc.join("devmanager.json"), &json)?;
     Ok(Some(format!("Saved to {}", l.etc.join("devmanager.json").display())))
@@ -713,6 +733,19 @@ fn single_top_folder(zip: &mut zip::ZipArchive<File>) -> Option<PathBuf> {
     (top_dirs.len() == 1).then(|| top_dirs.into_iter().next().unwrap())
 }
 
+/// `composer.bat` running Composer with the chosen PHP and DevManager's php.ini,
+/// falling back to `php` on PATH when no PHP is configured.
+pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
+    match php {
+        Some(php) => format!(
+            "@\"{}\" -c \"{}\" \"%~dp0composer.phar\" %*\r\n",
+            php.display(),
+            ini.display()
+        ),
+        None => "@php \"%~dp0composer.phar\" %*\r\n".into(),
+    }
+}
+
 /// Composer is a single `.phar`; add a `composer.bat` so `composer` works in a terminal.
 fn install_composer(phar: &Path, target: &Path) -> io::Result<()> {
     fs::create_dir_all(target)?;
@@ -833,6 +866,28 @@ mod tests {
     /// Tests never change Windows (no runtime installs, no trusted certificates).
     fn test_options() -> RunOptions {
         RunOptions { system_changes: false, ca_dir: std::env::temp_dir().join("devmanager-test-ca-unused") }
+    }
+
+    #[test]
+    fn composer_shim_uses_the_chosen_php() {
+        let shim = composer_shim(Some(Path::new(r"C:\P\php.exe")), Path::new(r"C:\D\etc\php\php.ini"));
+        assert_eq!(shim, "@\"C:\\P\\php.exe\" -c \"C:\\D\\etc\\php\\php.ini\" \"%~dp0composer.phar\" %*\r\n");
+        assert!(composer_shim(None, Path::new("x")).starts_with("@php "));
+    }
+
+    #[test]
+    fn existing_mysql_records_port_but_no_password_state() {
+        let request: InstallRequest = serde_json::from_str(
+            r#"{"install_root":"C:\\D","www_dir":"C:\\D\\www","items":[],
+                "mysql":{"port":3306,"password":null,"data_dir":null,"autostart":true,"existing":true}}"#,
+        )
+        .unwrap();
+        let layout = Layout::new(Path::new(r"C:\D"), &request);
+        let saved = serde_json::to_value(saved_settings(&layout, &request)).unwrap();
+        assert_eq!(saved["mysql"]["port"], 3306);
+        assert_eq!(saved["mysql"]["existing"], true);
+        assert!(saved["mysql"]["has_password"].is_null());
+        assert_eq!(saved["mysql"]["autostart"], false);
     }
 
     #[test]
