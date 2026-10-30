@@ -706,3 +706,76 @@ input:focus-visible {
 .hint-bad {
   color: var(--bad);
 }
+
+/* Review step */
+.review {
+  display: grid;
+  gap: 22px;
+}
+
+.review-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-top: 8px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 6px 12px;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.plan-components {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.plan-components li {
+  display: grid;
+  grid-template-columns: 120px 220px 1fr;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.plan-name {
+  font-weight: 600;
+}
+
+.plan-path {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plan-steps {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 4px;
+}
+
+.plan-steps .tag {
+  margin-left: 8px;
+}
+
+.tag-admin {
+  color: var(--warn);
+  border-color: currentColor;
+}

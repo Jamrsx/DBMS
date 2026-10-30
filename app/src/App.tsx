@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Welcome, validateWelcome } from "./steps/Welcome";
 import { SystemScan, useSystemScan } from "./steps/SystemScan";
 import {
@@ -15,8 +15,10 @@ import {
   type MysqlMode,
   type MysqlSettings,
 } from "./steps/MySQL";
+import { Review } from "./steps/Review";
 import { loadChoices, type Choices } from "./lib/catalog";
 import { suggestPort } from "./lib/ports";
+import { buildPlan } from "./lib/plan";
 
 export interface Settings {
   installRoot: string;
@@ -33,7 +35,7 @@ const STEPS = [
 ] as const;
 
 /** Steps built so far; the rest show a placeholder. */
-const BUILT = new Set(["welcome", "scan", "components", "mysql"]);
+const BUILT = new Set(["welcome", "scan", "components", "mysql", "review"]);
 
 export default function App() {
   const [step, setStep] = useState(0);
@@ -123,6 +125,19 @@ export default function App() {
     setStep((s) => Math.max(s - 1, 0));
   }
 
+  function goTo(id: (typeof STEPS)[number]["id"]) {
+    setError(null);
+    setStep(STEPS.findIndex((s) => s.id === id));
+  }
+
+  const plan = useMemo(
+    () =>
+      current.id === "review" && selections && choices
+        ? buildPlan({ settings, selections, choices, scan: scanReport, mysql })
+        : null,
+    [current.id, settings, selections, choices, scanReport, mysql],
+  );
+
   const componentsReady = current.id !== "components" || (choices && selections);
   const mysqlReady = current.id !== "mysql" || (mysql !== null && mysql.mode === mode);
 
@@ -197,6 +212,7 @@ export default function App() {
                 Checking ports…
               </p>
             ))}
+          {current.id === "review" && plan && <Review plan={plan} onEdit={goTo} />}
           {!BUILT.has(current.id) && (
             <p className="lede">This step is coming in the next part of the build.</p>
           )}
@@ -214,9 +230,11 @@ export default function App() {
           <button
             className="btn btn-primary"
             onClick={next}
-            disabled={step === STEPS.length - 1 || !BUILT.has(current.id) || !componentsReady || !mysqlReady}
+            disabled={
+              step === STEPS.length - 1 || !BUILT.has(current.id) || !componentsReady || !mysqlReady
+            }
           >
-            Continue
+            {current.id === "review" ? "Install" : "Continue"}
           </button>
         </footer>
       </main>
