@@ -148,10 +148,11 @@ function VersionPicker({
       <fieldset>
         <legend className="picker-legend">Install</legend>
         {component.versions.map((v) => (
-          <label key={v.version} className="option">
+          <label key={v.version} className={v.downloadable ? "option" : "option is-disabled"}>
             <input
               type="radio"
               name={group}
+              disabled={!v.downloadable}
               checked={!selection.existingPath && selection.version === v.version}
               onChange={() => onPick({ version: v.version, existingPath: null })}
             />
@@ -164,7 +165,16 @@ function VersionPicker({
                 </span>
               ))}
             </span>
-            {v.note && <span className="option-note">{v.note}</span>}
+            <span className="option-note">
+              {[
+                v.note,
+                v.downloadable
+                  ? v.download_size && `${Math.round(v.download_size / 2 ** 20)} MB`
+                  : "No Windows download yet",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </span>
           </label>
         ))}
       </fieldset>

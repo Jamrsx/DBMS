@@ -1,5 +1,8 @@
 mod catalog;
+mod installer;
 mod scan;
+
+use tauri::Emitter;
 
 use std::path::PathBuf;
 
@@ -34,6 +37,23 @@ fn component_choices() -> catalog::Choices {
     catalog::choices(&catalog::bundled(), catalog::today())
 }
 
+/// Downloads, verifies and unpacks the requested components, emitting
+/// `install-progress` events. Returns the first error, if any.
+#[tauri::command]
+async fn run_install(app: tauri::AppHandle, request: installer::InstallRequest) -> Result<(), String> {
+    let catalog = catalog::bundled();
+    installer::run(&catalog, &request, |progress| {
+        let _ = app.emit("install-progress", progress);
+    })
+    .await
+}
+
+/// Asks a running install to stop at the next safe point.
+#[tauri::command]
+fn cancel_install() {
+    installer::CANCEL.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -42,7 +62,9 @@ pub fn run() {
             system_scan,
             component_choices,
             port_status,
-            suggest_port
+            suggest_port,
+            run_install,
+            cancel_install
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

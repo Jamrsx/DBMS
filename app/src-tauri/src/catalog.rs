@@ -14,6 +14,34 @@ const ENDS_SOON_DAYS: i64 = 180;
 pub struct Catalog {
     pub generated: String,
     pub components: Vec<CatalogComponent>,
+    pub tools: Tools,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Tools {
+    pub composer: Tool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Tool {
+    pub version: String,
+    pub download: Download,
+}
+
+/// An official Windows x64 download and the checksum it must match.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Download {
+    pub url: String,
+    pub size: Option<u64>,
+    pub checksum: Checksum,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Checksum {
+    /// "sha256" or "md5".
+    pub algo: String,
+    /// Lowercase hex.
+    pub value: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +62,25 @@ pub struct CatalogLine {
     pub support_end: Option<String>,
     pub eol: Option<String>,
     pub security: bool,
+    #[serde(default)]
+    pub download: Option<Download>,
+}
+
+impl Catalog {
+    /// The download for an exact component version, if the catalog has one.
+    pub fn download_for(&self, id: &str, version: &str) -> Option<&Download> {
+        if id == "composer" {
+            return (self.tools.composer.version == version).then_some(&self.tools.composer.download);
+        }
+        self.components
+            .iter()
+            .find(|c| c.id == id)?
+            .lines
+            .iter()
+            .find(|l| l.latest == version)?
+            .download
+            .as_ref()
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -65,12 +112,16 @@ pub struct VersionChoice {
     pub labels: Vec<Label>,
     /// Short plain-language caveat, e.g. "Security fixes only".
     pub note: Option<String>,
+    /// False when no official Windows download is published yet.
+    pub downloadable: bool,
+    pub download_size: Option<u64>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct Choices {
     pub catalog_date: String,
     pub components: Vec<ComponentChoices>,
+    pub composer_version: String,
 }
 
 pub fn bundled() -> Catalog {
@@ -86,6 +137,7 @@ pub fn choices(catalog: &Catalog, today: i64) -> Choices {
             .iter()
             .map(|c| component_choices(c, today))
             .collect(),
+        composer_version: catalog.tools.composer.version.clone(),
     }
 }
 
@@ -100,16 +152,16 @@ fn component_choices(component: &CatalogComponent, today: i64) -> ComponentChoic
     let is_lts = |l: &CatalogLine| {
         l.lts || l.lts_from.as_deref().and_then(parse_date).is_some_and(|d| d <= today)
     };
+    // Only versions with a published Windows download can be recommended.
+    let installable = || lines.iter().copied().filter(|l| l.download.is_some());
     let recommended: Option<&CatalogLine> = match component.id.as_str() {
-        "node" | "mysql" => lines.iter().copied().find(|l| is_lts(l)),
-        "nginx" => lines.iter().copied().find(|l| is_even_minor(&l.line)),
-        "php" => lines
-            .iter()
-            .copied()
+        "node" | "mysql" => installable().find(|l| is_lts(l)),
+        "nginx" => installable().find(|l| is_even_minor(&l.line)),
+        "php" => installable()
             .find(|l| parse_date(&l.line_released).is_some_and(|d| today - d >= PHP_SETTLE_DAYS)),
         _ => None,
     }
-    .or_else(|| lines.first().copied());
+    .or_else(|| installable().next());
 
     let versions = lines
         .iter()
@@ -138,6 +190,8 @@ fn component_choices(component: &CatalogComponent, today: i64) -> ComponentChoic
                 eol: l.eol.clone(),
                 labels,
                 note: note_for(&component.id, l, is_lts(l), today),
+                downloadable: l.download.is_some(),
+                download_size: l.download.as_ref().and_then(|d| d.size),
             }
         })
         .collect();
@@ -213,6 +267,11 @@ mod tests {
             support_end: None,
             eol: None,
             security: false,
+            download: Some(Download {
+                url: format!("https://example.test/{latest}.zip"),
+                size: Some(1),
+                checksum: Checksum { algo: "sha256".into(), value: "00".into() },
+            }),
         }
     }
 
@@ -303,6 +362,29 @@ mod tests {
         let c = component_choices(&mysql, day("2026-10-30"));
         assert_eq!(c.recommended.as_deref(), Some("9.7.4"));
         assert_eq!(c.versions[0].note.as_deref(), Some("Innovation release, short support"));
+    }
+
+    #[test]
+    fn skips_lines_without_a_windows_download() {
+        let mut fresh = line("9.8", "9.8.0", "2026-10-01");
+        fresh.lts = true;
+        fresh.download = None;
+        let mut lts = line("9.7", "9.7.4", "2026-04-21");
+        lts.lts = true;
+        let mysql = component("mysql", vec![fresh, lts]);
+        let c = component_choices(&mysql, day("2026-10-30"));
+        assert_eq!(c.recommended.as_deref(), Some("9.7.4"));
+        assert!(!c.versions[0].downloadable);
+    }
+
+    #[test]
+    fn finds_downloads_by_exact_version() {
+        let catalog = bundled();
+        let php = &catalog.components.iter().find(|c| c.id == "php").unwrap().lines[0];
+        assert!(catalog.download_for("php", &php.latest).is_some());
+        assert!(catalog.download_for("php", "0.0.1").is_none());
+        assert!(catalog.download_for("composer", &catalog.tools.composer.version).is_some());
+        assert!(catalog.download_for("nope", "1.0").is_none());
     }
 
     #[test]

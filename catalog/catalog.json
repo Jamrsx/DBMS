@@ -1,10 +1,15 @@
 {
-  "schema": 1,
+  "schema": 2,
   "generated": "2026-10-30",
   "sources": [
     "endoflife.date",
     "php.net/releases",
-    "nodejs.org/dist/index.json"
+    "downloads.php.net/~windows",
+    "nodejs.org/dist",
+    "apachelounge.com",
+    "nginx.org",
+    "cdn.mysql.com",
+    "getcomposer.org"
   ],
   "components": [
     {
@@ -20,7 +25,16 @@
           "lts_from": null,
           "support_end": null,
           "eol": null,
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.69-261002-Win64-VS18.zip",
+            "size": 14495691,
+            "checksum": {
+              "algo": "sha256",
+              "value": "77d715d0d9cee731e2251e7ddc2090a7a8e6d41fedef2e9827cd918593c5a652"
+            },
+            "file_version": null
+          }
         }
       ]
     },
@@ -37,7 +51,16 @@
           "lts_from": null,
           "support_end": null,
           "eol": null,
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://nginx.org/download/nginx-1.31.8.zip",
+            "size": 2794487,
+            "checksum": {
+              "algo": "sha256",
+              "value": "fbb1501009be34655cc238d460714cf20391b639013f4c73859813d7938783fd"
+            },
+            "file_version": null
+          }
         },
         {
           "line": "1.30",
@@ -48,7 +71,16 @@
           "lts_from": null,
           "support_end": null,
           "eol": null,
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://nginx.org/download/nginx-1.30.6.zip",
+            "size": 2773293,
+            "checksum": {
+              "algo": "sha256",
+              "value": "c6ee35edb0a861063323f709192ae50d1eefaf2ea7d00678bd2b22d8542dc61e"
+            },
+            "file_version": null
+          }
         }
       ]
     },
@@ -65,7 +97,16 @@
           "lts_from": null,
           "support_end": "2027-12-31",
           "eol": "2029-12-31",
-          "security": true
+          "security": true,
+          "download": {
+            "url": "https://downloads.php.net/~windows/releases/php-8.5.12-1-nts-Win32-vs17-x64.zip",
+            "size": 36310917,
+            "checksum": {
+              "algo": "sha256",
+              "value": "2a36a2edcb7a5b9252f638fd5e4cf84d7f6e066092654220dc0b63e5cf4e9723"
+            },
+            "file_version": "8.5.12-1"
+          }
         },
         {
           "line": "8.4",
@@ -76,7 +117,16 @@
           "lts_from": null,
           "support_end": "2026-12-31",
           "eol": "2028-12-31",
-          "security": true
+          "security": true,
+          "download": {
+            "url": "https://downloads.php.net/~windows/releases/php-8.4.27-1-nts-Win32-vs17-x64.zip",
+            "size": 35296081,
+            "checksum": {
+              "algo": "sha256",
+              "value": "dbae154a0a89791f36c3d48e68bae797878333e7d6cb5721e74617de59b63ab7"
+            },
+            "file_version": "8.4.27-1"
+          }
         },
         {
           "line": "8.3",
@@ -87,7 +137,16 @@
           "lts_from": null,
           "support_end": "2025-12-31",
           "eol": "2027-12-31",
-          "security": true
+          "security": true,
+          "download": {
+            "url": "https://downloads.php.net/~windows/releases/php-8.3.36-1-nts-Win32-vs16-x64.zip",
+            "size": 34179998,
+            "checksum": {
+              "algo": "sha256",
+              "value": "1a097d52b7a68622cdc723073b61cc70caf79c941218ff65b2d8441dbc6b10d4"
+            },
+            "file_version": "8.3.36-1"
+          }
         },
         {
           "line": "8.2",
@@ -98,7 +157,16 @@
           "lts_from": null,
           "support_end": "2024-12-31",
           "eol": "2026-12-31",
-          "security": true
+          "security": true,
+          "download": {
+            "url": "https://downloads.php.net/~windows/releases/php-8.2.35-1-nts-Win32-vs16-x64.zip",
+            "size": 33780725,
+            "checksum": {
+              "algo": "sha256",
+              "value": "ebe75134c03869826cb1714d31fd5eb96afefa6d9fd35d786971c03020e7bce2"
+            },
+            "file_version": "8.2.35-1"
+          }
         }
       ]
     },
@@ -115,7 +183,16 @@
           "lts_from": null,
           "support_end": null,
           "eol": null,
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://cdn.mysql.com/Downloads/MySQL-26.10/mysql-26.10.0-winx64.zip",
+            "size": 384367870,
+            "checksum": {
+              "algo": "md5",
+              "value": "11d70a5011b7760508e98b3a2fe5db3f"
+            },
+            "file_version": null
+          }
         },
         {
           "line": "9.7",
@@ -126,7 +203,16 @@
           "lts_from": null,
           "support_end": "2031-04-30",
           "eol": "2034-04-30",
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://cdn.mysql.com/Downloads/MySQL-9.7/mysql-9.7.4-winx64.zip",
+            "size": 344052123,
+            "checksum": {
+              "algo": "md5",
+              "value": "e05aaa40639d8548e0f68b7a70685a3b"
+            },
+            "file_version": null
+          }
         },
         {
           "line": "8.4",
@@ -137,7 +223,16 @@
           "lts_from": null,
           "support_end": "2029-04-30",
           "eol": "2032-04-30",
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://cdn.mysql.com/Downloads/MySQL-8.4/mysql-8.4.13-winx64.zip",
+            "size": 281154912,
+            "checksum": {
+              "algo": "md5",
+              "value": "7b94489d5524dea9b27097068bea25a8"
+            },
+            "file_version": null
+          }
         }
       ]
     },
@@ -154,7 +249,16 @@
           "lts_from": "2026-10-28",
           "support_end": "2027-10-27",
           "eol": "2029-04-30",
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip",
+            "size": 41157375,
+            "checksum": {
+              "algo": "sha256",
+              "value": "dcc60d59a0746999f99064a01c020445d54d84228c691cdbf25b49ac3b59150a"
+            },
+            "file_version": null
+          }
         },
         {
           "line": "24",
@@ -165,7 +269,16 @@
           "lts_from": "2025-10-28",
           "support_end": "2026-10-20",
           "eol": "2028-04-30",
-          "security": false
+          "security": false,
+          "download": {
+            "url": "https://nodejs.org/dist/v24.22.2/node-v24.22.2-win-x64.zip",
+            "size": 37754834,
+            "checksum": {
+              "algo": "sha256",
+              "value": "ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2"
+            },
+            "file_version": null
+          }
         },
         {
           "line": "22",
@@ -176,9 +289,32 @@
           "lts_from": "2024-10-29",
           "support_end": "2025-10-21",
           "eol": "2027-04-30",
-          "security": true
+          "security": true,
+          "download": {
+            "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip",
+            "size": 35604229,
+            "checksum": {
+              "algo": "sha256",
+              "value": "cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20"
+            },
+            "file_version": null
+          }
         }
       ]
     }
-  ]
+  ],
+  "tools": {
+    "composer": {
+      "version": "2.11.0",
+      "download": {
+        "url": "https://getcomposer.org/download/2.11.0/composer.phar",
+        "size": null,
+        "checksum": {
+          "algo": "sha256",
+          "value": "9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b"
+        },
+        "file_version": null
+      }
+    }
+  }
 }

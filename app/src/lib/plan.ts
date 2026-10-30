@@ -84,10 +84,12 @@ export function buildPlan({ settings, selections, choices, scan, mysql }: PlanIn
         };
       }
       // Versioned components get side-by-side folders; Composer is one file that self-updates.
-      const path = sel.version
-        ? `${root}\\bin\\${BIN_FOLDER[id]}\\${id}-${sel.version}`
-        : `${root}\\bin\\${BIN_FOLDER[id]}`;
-      return { id, name, action: "install", version: sel.version, path, source: null };
+      const version = id === "composer" ? choices.composer_version : sel.version;
+      const path =
+        id === "composer"
+          ? `${root}\\bin\\composer`
+          : `${root}\\bin\\${BIN_FOLDER[id]}\\${id}-${version}`;
+      return { id, name, action: "install", version, path, source: null };
     },
   );
 
@@ -134,7 +136,7 @@ function planSteps(
       id: `get-${c.id}`,
       title:
         c.id === "composer"
-          ? "Download Composer (latest stable)"
+          ? `Download and verify Composer ${c.version}`
           : `Download, verify and unpack ${c.name} ${c.version}`,
       admin: false,
     });

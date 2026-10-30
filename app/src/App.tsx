@@ -16,9 +16,10 @@ import {
   type MysqlSettings,
 } from "./steps/MySQL";
 import { Review } from "./steps/Review";
+import { InstallView } from "./steps/InstallView";
 import { loadChoices, type Choices } from "./lib/catalog";
 import { suggestPort } from "./lib/ports";
-import { buildPlan } from "./lib/plan";
+import { buildPlan, type InstallPlan } from "./lib/plan";
 
 export interface Settings {
   installRoot: string;
@@ -35,7 +36,7 @@ const STEPS = [
 ] as const;
 
 /** Steps built so far; the rest show a placeholder. */
-const BUILT = new Set(["welcome", "scan", "components", "mysql", "review"]);
+const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "install"]);
 
 export default function App() {
   const [step, setStep] = useState(0);
@@ -48,6 +49,8 @@ export default function App() {
   const [selections, setSelections] = useState<Selections | null>(null);
   const [mysql, setMysql] = useState<{ mode: MysqlMode; value: MysqlSettings } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The plan as it was when the user clicked Install. */
+  const [installPlan, setInstallPlan] = useState<InstallPlan | null>(null);
 
   const current = STEPS[step];
   const scanStep = STEPS.findIndex((s) => s.id === "scan");
@@ -117,6 +120,10 @@ export default function App() {
             : null;
     setError(problem);
     if (problem) return;
+    if (current.id === "review") {
+      if (!plan) return;
+      setInstallPlan(plan);
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
@@ -168,6 +175,14 @@ export default function App() {
           <h1>{current.id === "welcome" ? "Set up your local stack" : current.title}</h1>
         </header>
 
+        {current.id === "install" && installPlan ? (
+          <InstallView
+            key={JSON.stringify(installPlan)}
+            plan={installPlan}
+            onBack={() => goTo("review")}
+          />
+        ) : (
+        <>
         <div className="panel-body">
           {current.id === "welcome" && (
             <Welcome
@@ -237,6 +252,8 @@ export default function App() {
             {current.id === "review" ? "Install" : "Continue"}
           </button>
         </footer>
+        </>
+        )}
       </main>
     </div>
   );

@@ -11,6 +11,8 @@ export interface VersionChoice {
   eol: string | null;
   labels: Label[];
   note: string | null;
+  downloadable: boolean;
+  download_size: number | null;
 }
 
 export interface ComponentChoices {
@@ -23,6 +25,7 @@ export interface ComponentChoices {
 export interface Choices {
   catalog_date: string;
   components: ComponentChoices[];
+  composer_version: string;
 }
 
 export async function loadChoices(): Promise<Choices> {
