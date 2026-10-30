@@ -407,6 +407,32 @@ fn scan_ports() -> Vec<PortStatus> {
         .collect()
 }
 
+/// Live status of one port, for checking a port the user typed.
+pub fn port_status(port: u16, purpose: &str) -> PortStatus {
+    let pid = listening_ports()
+        .into_iter()
+        .find(|(p, _)| *p == port)
+        .map(|(_, pid)| pid);
+    PortStatus {
+        port,
+        purpose: purpose.into(),
+        in_use: pid.is_some(),
+        pid,
+        process: pid.and_then(process_name),
+    }
+}
+
+/// First free port at or after `start`, checked against current listeners.
+pub fn suggest_port(start: u16) -> Option<u16> {
+    let busy: HashSet<u16> = listening_ports().into_iter().map(|(p, _)| p).collect();
+    first_free(start, &busy)
+}
+
+/// First port in `start..start+100` that isn't in `busy`.
+pub fn first_free(start: u16, busy: &HashSet<u16>) -> Option<u16> {
+    (start..=start.saturating_add(99)).find(|p| !busy.contains(p))
+}
+
 /// (port, pid) for every listening TCP socket, from `netstat -ano`.
 fn listening_ports() -> Vec<(u16, u32)> {
     let Some(text) = run_capture(Path::new("netstat"), &["-ano", "-p", "TCP"], VERSION_TIMEOUT)
@@ -571,6 +597,14 @@ mod tests {
   TCP    [::]:443               [::]:0                 LISTENING       4
 ";
         assert_eq!(parse_netstat(text), vec![(80, 1234), (3306, 555), (443, 4)]);
+    }
+
+    #[test]
+    fn suggests_first_free_port() {
+        let busy: HashSet<u16> = [3306, 3307, 3309].into();
+        assert_eq!(first_free(3306, &busy), Some(3308));
+        assert_eq!(first_free(3310, &busy), Some(3310));
+        assert_eq!(first_free(65535, &[65535].into()), None);
     }
 
     #[test]

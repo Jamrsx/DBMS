@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Welcome, validateWelcome } from "./steps/Welcome";
 import { SystemScan, useSystemScan } from "./steps/SystemScan";
 import {
@@ -7,7 +7,16 @@ import {
   validateComponents,
   type Selections,
 } from "./steps/Components";
+import {
+  MySQL,
+  emptyMysqlSettings,
+  mysqlMode,
+  validateMysql,
+  type MysqlMode,
+  type MysqlSettings,
+} from "./steps/MySQL";
 import { loadChoices, type Choices } from "./lib/catalog";
+import { suggestPort } from "./lib/ports";
 
 export interface Settings {
   installRoot: string;
@@ -24,7 +33,7 @@ const STEPS = [
 ] as const;
 
 /** Steps built so far; the rest show a placeholder. */
-const BUILT = new Set(["welcome", "scan", "components"]);
+const BUILT = new Set(["welcome", "scan", "components", "mysql"]);
 
 export default function App() {
   const [step, setStep] = useState(0);
@@ -35,6 +44,7 @@ export default function App() {
   const [choices, setChoices] = useState<Choices | null>(null);
   const [choicesError, setChoicesError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Selections | null>(null);
+  const [mysql, setMysql] = useState<{ mode: MysqlMode; value: MysqlSettings } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const current = STEPS[step];
@@ -42,6 +52,32 @@ export default function App() {
   // Scan once the user reaches the scan step; keep the result while they move around.
   const scan = useSystemScan(settings.installRoot, step >= scanStep);
   const scanReport = scan.state.status === "done" ? scan.state.report : null;
+
+  const mode = selections ? mysqlMode(selections.mysql) : "skip";
+  const mysqlVersion = selections?.mysql.version ?? null;
+  const mysqlExisting =
+    scanReport?.components
+      .find((c) => c.id === "mysql")
+      ?.installs.find((i) => i.path === selections?.mysql.existingPath) ?? null;
+
+  // Fresh MySQL settings when the step is first reached, or when the user switched between
+  // installing and using an existing MySQL. New installs default to the first free port.
+  useEffect(() => {
+    if (current.id !== "mysql" || (mysql && mysql.mode === mode)) return;
+    let cancelled = false;
+    const port = mode === "new" ? suggestPort(3306) : Promise.resolve(3306);
+    port
+      .catch(() => 3306)
+      .then((p) => !cancelled && setMysql({ mode, value: emptyMysqlSettings(p ?? 3306) }));
+    return () => {
+      cancelled = true;
+    };
+  }, [current.id, mode, mysql]);
+
+  const updateMysql = useCallback((update: (prev: MysqlSettings) => MysqlSettings) => {
+    setMysql((prev) => (prev ? { ...prev, value: update(prev.value) } : prev));
+    setError(null);
+  }, []);
 
   // After a rescan, drop "use existing" picks whose install is no longer found.
   useEffect(() => {
@@ -74,7 +110,9 @@ export default function App() {
         ? validateWelcome(settings)
         : current.id === "components" && selections
           ? validateComponents(selections)
-          : null;
+          : current.id === "mysql" && mysql
+            ? validateMysql(mysql.value, mode, settings, mysqlVersion)
+            : null;
     setError(problem);
     if (problem) return;
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
@@ -86,6 +124,7 @@ export default function App() {
   }
 
   const componentsReady = current.id !== "components" || (choices && selections);
+  const mysqlReady = current.id !== "mysql" || (mysql !== null && mysql.mode === mode);
 
   return (
     <div className="shell">
@@ -143,6 +182,21 @@ export default function App() {
                   : "Loading versions…"}
               </p>
             ))}
+          {current.id === "mysql" &&
+            (mysqlReady && mysql ? (
+              <MySQL
+                value={mysql.value}
+                onChange={updateMysql}
+                mode={mode}
+                settings={settings}
+                version={mysqlVersion}
+                existing={mysqlExisting}
+              />
+            ) : (
+              <p className="lede" role="status">
+                Checking ports…
+              </p>
+            ))}
           {!BUILT.has(current.id) && (
             <p className="lede">This step is coming in the next part of the build.</p>
           )}
@@ -160,7 +214,7 @@ export default function App() {
           <button
             className="btn btn-primary"
             onClick={next}
-            disabled={step === STEPS.length - 1 || !BUILT.has(current.id) || !componentsReady}
+            disabled={step === STEPS.length - 1 || !BUILT.has(current.id) || !componentsReady || !mysqlReady}
           >
             Continue
           </button>

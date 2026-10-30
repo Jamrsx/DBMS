@@ -48,7 +48,7 @@ export function validateWelcome(settings: Settings): string | null {
   );
 }
 
-function pathProblem(label: string, value: string, example: string): string | null {
+export function pathProblem(label: string, value: string, example: string): string | null {
   const path = value.trim();
   if (!/^[a-zA-Z]:\\[^\\]/.test(path)) {
     return `${label} must be a full path to a folder, like ${example}.`;
