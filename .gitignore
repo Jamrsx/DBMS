@@ -20,3 +20,5 @@ desktop.ini
 
 # Impeccable decision-page session logs
 .impeccable/questions/
+app/src-tauri/icons/android/
+app/src-tauri/icons/ios/

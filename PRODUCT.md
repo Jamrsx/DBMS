@@ -41,7 +41,7 @@ A local development environment manager for Windows, in the space of Laragon and
 - MySQL is the default, first-class database; MySQL users should feel at home (root user, port 3306, usual CLI tools).
 - The MySQL root password is never saved or shown after entry.
 - Windows only for now.
-- Open: the product name. "DevManager" is a working name to be replaced before release; nothing may reuse Laragon's name or branding.
+- Open: the product name. "NexDB" is a working name to be replaced before release; nothing may reuse Laragon's name or branding.
 
 ## Brand Commitments
 

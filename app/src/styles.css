@@ -1418,3 +1418,16 @@ h2 {
     min-height: 104px;
   }
 }
+
+.startup-toggle {
+  padding: 0 10px 10px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.startup-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}

@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Where the wizard installs by default; also the fallback when no pointer file exists.
-pub const DEFAULT_ROOT: &str = r"C:\DevManager";
+pub const DEFAULT_ROOT: &str = r"C:\NexDB";
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Settings {

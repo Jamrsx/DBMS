@@ -83,7 +83,8 @@ export function Components({ choices, scan, selections, onChange }: Props) {
         {COMPONENTS.map((info) => {
           const sel = selections[info.id];
           const catalog = byId.get(info.id);
-          const existing = scan?.components.find((c) => c.id === info.id)?.installs ?? [];
+          // NexDB installs its own copies; it never borrows another tool's PHP, Apache or MySQL.
+          const existing: Install[] = [];
           const name = catalog?.name ?? "Composer";
           const blocked = info.id === "composer" && !selections.php.enabled;
           return (

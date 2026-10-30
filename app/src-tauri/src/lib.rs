@@ -5,6 +5,7 @@ mod installer;
 mod scan;
 mod settings;
 mod supervisor;
+mod tray;
 
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -170,7 +171,23 @@ async fn service_log(stack: tauri::State<'_, Stack>, id: String) -> Result<Strin
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_window(app)))
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            tray::setup(app.handle())?;
+            // The Windows startup entry launches hidden in the tray; a normal launch shows the window.
+            if !std::env::args().any(|a| a == tray::TRAY_ARG) {
+                tray::show_window(app.handle());
+            }
+            Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Closing the window keeps NexDB and its services running in the tray.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .manage(Stack::default())
         .invoke_handler(tauri::generate_handler![
             system_scan,
@@ -183,7 +200,9 @@ pub fn run() {
             services,
             start_services,
             stop_services,
-            service_log
+            service_log,
+            tray::autostart_get,
+            tray::autostart_set
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -195,5 +214,23 @@ pub fn run() {
                 sup.stop_all();
             }
         }
+    });
+}
+
+/// Tray menu "Start all" / "Stop all": the same work as the dashboard buttons, without a window.
+pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
+        if start {
+            if installer::refresh_configs(&root, &settings).is_ok() {
+                for id in sup.ids() {
+                    let _ = sup.start(&id);
+                }
+            }
+        } else {
+            sup.stop_all();
+        }
+        let _ = app.emit("services-changed", ());
     });
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 export type ThemeChoice = "light" | "dark" | "system";
 
-const STORAGE_KEY = "devmanager.theme";
+const STORAGE_KEY = "nexdb.theme";
 const darkQuery = () => window.matchMedia("(prefers-color-scheme: dark)");
 
 /** The saved choice; storage can be unavailable, so fall back to following Windows. */

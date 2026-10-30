@@ -1,5 +1,5 @@
 ---
-name: DevManager
+name: NexDB
 description: Local development stack manager for Windows; the category standard, calm and exact, in light and dark.
 colors:
   # Light theme (:root, :root[data-theme="light"])
@@ -201,7 +201,7 @@ components:
     height: "28px"
 ---
 
-# Design System: DevManager
+# Design System: NexDB
 
 ## Overview
 

@@ -1,8 +1,9 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "DevManager",
+  "productName": "NexDB",
+  "mainBinaryName": "NexDB",
   "version": "0.1.0",
-  "identifier": "com.jamrsx.devmanager",
+  "identifier": "com.jamrsx.nexdb",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +13,8 @@
   "app": {
     "windows": [
       {
-        "title": "DevManager",
+        "title": "NexDB",
+        "visible": false,
         "width": 1120,
         "minWidth": 900,
         "minHeight": 600,

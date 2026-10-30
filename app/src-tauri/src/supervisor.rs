@@ -582,9 +582,8 @@ mod tests {
         let php_dir = Path::new(LARAGON).join(r"php\php-8.4.5-Win32-vs17-x64");
         let (web_port, fcgi_port) = (8099u16, 9185u16);
         let conf = configure::apache_conf(&configure::ApacheConf {
-            server_root: &apache_root, port: web_port, www_dir: &www, etc_dir: &etc, logs_dir: &logs, php: true,
-        })
-        .replace(":9085/", &format!(":{fcgi_port}/"));
+            server_root: &apache_root, port: web_port, www_dir: &www, etc_dir: &etc, logs_dir: &logs, php: true, fcgi_port,
+        });
         configure::write_file(&etc.join("apache").join("httpd.conf"), &conf).unwrap();
         configure::write_file(&etc.join("php").join("php.ini"), &configure::php_ini(&php_dir)).unwrap();
 

@@ -1,5 +1,5 @@
 //! Install steps that change Windows itself and so always ask the user first:
-//! the Visual C++ runtime (administrator prompt) and trusting DevManager's local
+//! the Visual C++ runtime (administrator prompt) and trusting NexDB's local
 //! certificate authority (Windows' own confirmation dialog).
 
 use crate::configure::{run_quiet, Output};
@@ -136,8 +136,8 @@ pub fn ensure_ca(dir: &Path) -> Result<LocalCa, String> {
 fn generate_ca() -> Result<(String, String), rcgen::Error> {
     let mut params = CertificateParams::new(Vec::<String>::new())?;
     let mut name = DistinguishedName::new();
-    name.push(DnType::OrganizationName, "DevManager");
-    name.push(DnType::CommonName, format!("DevManager Local CA ({})", whoami()));
+    name.push(DnType::OrganizationName, "NexDB");
+    name.push(DnType::CommonName, format!("NexDB Local CA ({})", whoami()));
     params.distinguished_name = name;
     params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
     params.key_usages = vec![KeyUsagePurpose::KeyCertSign, KeyUsagePurpose::CrlSign, KeyUsagePurpose::DigitalSignature];

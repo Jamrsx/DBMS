@@ -66,7 +66,7 @@ export function Review({ plan, onEdit }: Props) {
               )}
               {plan.mysql.mode === "new" && (
                 <>
-                  <dt>Start with DevManager</dt>
+                  <dt>Start with NexDB</dt>
                   <dd>{plan.mysql.autostart ? "Yes" : "No"}</dd>
                 </>
               )}

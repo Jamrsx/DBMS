@@ -9,7 +9,7 @@ export function Welcome({ settings, onChange }: Props) {
   return (
     <>
       <p className="lede">
-        DevManager installs and runs PHP, Node.js, Apache and MySQL for local development. Pick
+        NexDB installs and runs PHP, Node.js, Apache and MySQL for local development. Pick
         only what you need; everything stays in one folder and never touches existing installs.
       </p>
 
@@ -43,8 +43,8 @@ export function Welcome({ settings, onChange }: Props) {
 /** Returns a message for the first invalid field, or null when both paths look usable. */
 export function validateWelcome(settings: Settings): string | null {
   return (
-    pathProblem("Install folder", settings.installRoot, "C:\\DevManager") ??
-    pathProblem("Projects folder", settings.wwwDir, "C:\\DevManager\\www")
+    pathProblem("Install folder", settings.installRoot, "C:\\NexDB") ??
+    pathProblem("Projects folder", settings.wwwDir, "C:\\NexDB\\www")
   );
 }
 

@@ -34,7 +34,7 @@ export function mysqlMode(selection: Selection): MysqlMode {
   return selection.existingPath ? "existing" : "new";
 }
 
-/** `C:\DevManager\data\mysql-9.7` for version 9.7.4. */
+/** `C:\NexDB\data\mysql-9.7` for version 9.7.4. */
 export function defaultDataDir(installRoot: string, version: string | null): string {
   const line = version?.split(".").slice(0, 2).join(".") ?? "server";
   return `${installRoot.replace(/\\+$/, "")}\\data\\mysql-${line}`;
@@ -68,7 +68,7 @@ export function validateMysql(
     if (m.password !== m.confirm) return "The two passwords don't match.";
   }
   const dataDir = effectiveDataDir(m, settings.installRoot, version);
-  const dirProblem = pathProblem("Data folder", dataDir, "C:\\DevManager\\data\\mysql");
+  const dirProblem = pathProblem("Data folder", dataDir, "C:\\NexDB\\data\\mysql");
   if (dirProblem) return dirProblem;
   if (isInside(dataDir, settings.wwwDir)) {
     return "Keep the data folder outside the projects folder, so it's never served on the web.";
@@ -137,7 +137,7 @@ export function MySQL({ value, onChange, mode, settings, version, existing }: Pr
       <p className="lede">
         {mode === "new"
           ? `MySQL ${version ?? ""} will run on this PC with the usual root user, like any MySQL install.`
-          : `DevManager will use your existing ${existingName} ${existing?.version ?? ""}. Tell it how to connect so the database manager works.`}
+          : `NexDB will use your existing ${existingName} ${existing?.version ?? ""}. Tell it how to connect so the database manager works.`}
       </p>
 
       {mode === "existing" && existing && (
@@ -211,7 +211,7 @@ export function MySQL({ value, onChange, mode, settings, version, existing }: Pr
             {value.noPassword
               ? "Anyone on this PC can sign in as root. Fine for local development; don't use it for real data."
               : mode === "new"
-                ? "Used once to set up MySQL. DevManager doesn't save it."
+                ? "Used once to set up MySQL. NexDB doesn't save it."
                 : "Leave empty if your root user has no password."}
           </span>
         </div>
@@ -237,7 +237,7 @@ export function MySQL({ value, onChange, mode, settings, version, existing }: Pr
                 checked={value.autostart}
                 onChange={(e) => set({ autostart: e.target.checked })}
               />
-              Start MySQL when DevManager starts
+              Start MySQL when NexDB starts
             </label>
           </>
         )}

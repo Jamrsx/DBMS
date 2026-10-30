@@ -27,7 +27,7 @@ export async function setupInfo(): Promise<SetupInfo> {
   if (inDesktopApp) return invoke<SetupInfo>("setup_info");
   // `?view=dashboard` opens the dashboard directly in the browser preview.
   const forced = new URLSearchParams(location.search).get("view") === "dashboard";
-  return { installed: preview.installed || forced, install_root: "C:\\DevManager", www_dir: "C:\\DevManager\\www" };
+  return { installed: preview.installed || forced, install_root: "C:\\NexDB", www_dir: "C:\\NexDB\\www" };
 }
 
 export async function listServices(): Promise<ServiceStatus[]> {
@@ -77,7 +77,7 @@ const preview = (() => {
     status(): ServiceStatus[] {
       return base.map((s) => {
         if (!s.managed) {
-          return { ...s, state: "external", listening: false, pid: null, uptime_secs: null, message: "Managed outside DevManager" };
+          return { ...s, state: "external", listening: false, pid: null, uptime_secs: null, message: "Managed outside NexDB" };
         }
         const t = started[s.id];
         return {

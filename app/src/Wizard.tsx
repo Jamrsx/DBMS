@@ -22,6 +22,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { loadChoices, type Choices } from "./lib/catalog";
 import { suggestPort } from "./lib/ports";
 import { buildPlan, type InstallPlan } from "./lib/plan";
+import { BrandMark } from "./components/BrandMark";
 
 export interface Settings {
   installRoot: string;
@@ -44,8 +45,8 @@ const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "inst
 export function Wizard({ onFinish }: { onFinish: () => void }) {
   const [step, setStep] = useState(0);
   const [settings, setSettings] = useState<Settings>({
-    installRoot: "C:\\DevManager",
-    wwwDir: "C:\\DevManager\\www",
+    installRoot: "C:\\NexDB",
+    wwwDir: "C:\\NexDB\\www",
   });
   const [choices, setChoices] = useState<Choices | null>(null);
   const [choicesError, setChoicesError] = useState<string | null>(null);
@@ -155,13 +156,8 @@ export function Wizard({ onFinish }: { onFinish: () => void }) {
     <div className="shell">
       <aside className="rail">
         <div className="brand">
-          <svg className="brand-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-            <rect x="1" y="1" width="16" height="16" rx="4" fill="var(--accent)" />
-            <rect x="4.5" y="5" width="9" height="2" rx="1" fill="var(--accent-on)" />
-            <rect x="4.5" y="8.5" width="9" height="2" rx="1" fill="var(--accent-on)" opacity="0.75" />
-            <rect x="4.5" y="12" width="5" height="2" rx="1" fill="var(--accent-on)" opacity="0.5" />
-          </svg>
-          DevManager
+          <BrandMark />
+          NexDB
         </div>
         <ol className="steps">
           {STEPS.map((s, i) => (

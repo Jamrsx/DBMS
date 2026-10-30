@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppWindow, Database, Globe, LayoutDashboard, Layers, LoaderCircle, Settings } from "lucide-react";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { StartupToggle } from "../components/StartupToggle";
+import { BrandMark } from "../components/BrandMark";
 import { inDesktopApp } from "../lib/scan";
 import {
   listServices,
@@ -75,7 +77,7 @@ export function Dashboard() {
       <aside className="rail">
         <div className="brand">
           <BrandMark />
-          DevManager
+          NexDB
         </div>
         <nav className="nav" aria-label="Main">
           <a className="nav-item current" aria-current="page">
@@ -87,6 +89,7 @@ export function Dashboard() {
           <SoonItem Icon={Database} label="Database" />
           <SoonItem Icon={Settings} label="Settings" />
         </nav>
+        <StartupToggle />
         <ThemeToggle />
       </aside>
 
@@ -363,16 +366,6 @@ function SoonItem({ Icon, label }: { Icon: typeof Globe; label: string }) {
   );
 }
 
-function BrandMark() {
-  return (
-    <svg className="brand-mark" viewBox="0 0 18 18" width="18" height="18" aria-hidden="true">
-      <rect x="1" y="1" width="16" height="16" rx="4" fill="var(--accent)" />
-      <rect x="4.5" y="5" width="9" height="2" rx="1" fill="var(--accent-on)" />
-      <rect x="4.5" y="8.5" width="9" height="2" rx="1" fill="var(--accent-on)" opacity="0.75" />
-      <rect x="4.5" y="12" width="5" height="2" rx="1" fill="var(--accent-on)" opacity="0.5" />
-    </svg>
-  );
-}
 
 function ordered(services: ServiceStatus[]) {
   return [...services].sort((a, b) => PATH_ORDER.indexOf(a.id) - PATH_ORDER.indexOf(b.id));
@@ -409,7 +402,7 @@ function stateView(
       return { label: "Couldn't start", tone: "bad", spinning: false };
     case "external":
       return {
-        label: s.listening ? "Running · managed outside DevManager" : "Not running · managed outside DevManager",
+        label: s.listening ? "Running · managed outside NexDB" : "Not running · managed outside NexDB",
         tone: s.listening ? "ok" : "idle",
         spinning: false,
       };

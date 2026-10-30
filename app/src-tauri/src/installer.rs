@@ -306,6 +306,9 @@ struct Layout {
     apache: Option<PathBuf>,
     nginx: Option<PathBuf>,
     mysql: Option<PathBuf>,
+    apache_port: u16,
+    nginx_port: u16,
+    fcgi_port: u16,
 }
 
 impl Layout {
@@ -317,13 +320,17 @@ impl Layout {
             let existing = request.existing.iter().find(|e| e.id == id)?;
             configure::root_above_bin(Path::new(&existing.path))
         };
+        let apache = dir_for("apache");
         Layout {
             root: root.to_path_buf(),
             www: PathBuf::from(request.www_dir.trim()),
             etc: root.join("etc"),
             logs: root.join("logs"),
             php: dir_for("php"),
-            apache: dir_for("apache"),
+            apache_port: 80,
+            nginx_port: if apache.is_some() { 8080 } else { 80 },
+            fcgi_port: configure::PHP_FASTCGI_PORT,
+            apache,
             nginx: dir_for("nginx"),
             // Only a newly installed MySQL is set up; an existing one keeps its own data.
             mysql: request
@@ -332,15 +339,6 @@ impl Layout {
                 .find(|i| i.id == "mysql")
                 .map(|i| target_dir(root, "mysql", &i.version)),
         }
-    }
-
-    fn apache_port(&self) -> u16 {
-        80
-    }
-
-    /// nginx takes 8080 when Apache already has port 80.
-    fn nginx_port(&self) -> u16 {
-        if self.apache.is_some() { 8080 } else { 80 }
     }
 
     /// Writes php.ini for the selected PHP, if any.
@@ -375,6 +373,9 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
         php: dir_for("php"),
         apache: settings.apache_port.and(dir_for("apache")),
         nginx: settings.nginx_port.and(dir_for("nginx")),
+        apache_port: settings.apache_port.unwrap_or(80),
+        nginx_port: settings.nginx_port.unwrap_or(8080),
+        fcgi_port: settings.php_fastcgi_port,
         mysql: if mysql_existing { None } else { dir_for("mysql") },
     };
     layout.write_php_ini()?;
@@ -409,15 +410,16 @@ fn configure_apache(l: &Layout, server_root: &Path) -> Result<Option<String>, St
         &conf,
         &configure::apache_conf(&configure::ApacheConf {
             server_root,
-            port: l.apache_port(),
+            port: l.apache_port,
             www_dir: &l.www,
             etc_dir: &l.etc,
             logs_dir: &l.logs,
             php: l.php.is_some(),
+            fcgi_port: l.fcgi_port,
         }),
     )?;
     configure::check_apache(server_root, &conf)?;
-    Ok(Some(format!("Config checked · port {}", l.apache_port())))
+    Ok(Some(format!("Config checked · port {}", l.apache_port)))
 }
 
 fn configure_nginx(l: &Layout, nginx_dir: &Path) -> Result<Option<String>, String> {
@@ -433,16 +435,17 @@ fn configure_nginx(l: &Layout, nginx_dir: &Path) -> Result<Option<String>, Strin
         &conf,
         &configure::nginx_conf(&configure::NginxConf {
             nginx_dir,
-            port: l.nginx_port(),
+            port: l.nginx_port,
             www_dir: &l.www,
             etc_dir: &l.etc,
             logs_dir: &l.logs,
             temp_dir: &temp,
             php: l.php.is_some(),
+            fcgi_port: l.fcgi_port,
         }),
     )?;
     configure::check_nginx(nginx_dir, &conf)?;
-    Ok(Some(format!("Config checked · port {}", l.nginx_port())))
+    Ok(Some(format!("Config checked · port {}", l.nginx_port)))
 }
 
 fn configure_mysql(
@@ -524,8 +527,8 @@ fn saved_settings(l: &Layout, request: &InstallRequest) -> SavedSettings {
         www_dir: l.www.display().to_string(),
         php_fastcgi_port: configure::PHP_FASTCGI_PORT,
         components,
-        apache_port: l.apache.as_ref().map(|_| l.apache_port()),
-        nginx_port: l.nginx.as_ref().map(|_| l.nginx_port()),
+        apache_port: l.apache.as_ref().map(|_| l.apache_port),
+        nginx_port: l.nginx.as_ref().map(|_| l.nginx_port),
         mysql: request.mysql.as_ref().map(|m| SavedMysql {
             port: m.port,
             existing: m.existing,
@@ -1035,5 +1038,95 @@ mod tests {
         let layout = Layout::new(dir.path(), &request);
         let message = configure_nginx(&layout, &target).unwrap();
         println!("config-nginx: {message:?}");
+    }
+
+    /// Nothing from Laragon or any other install: downloads PHP, Apache and MySQL, installs them
+    /// into a temp folder, starts all three on spare ports, serves a PHP page through Apache and
+    /// logs in to MySQL with the chosen password, then stops everything.
+    /// `cargo test real_standalone_stack -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_standalone_stack() {
+        use crate::supervisor::{port_listening, State, Supervisor};
+        use std::io::Read;
+        use std::net::TcpStream;
+
+        let dir = tempfile::tempdir().unwrap();
+        let catalog = crate::catalog::bundled();
+        let choices = crate::catalog::choices(&catalog, crate::catalog::today());
+        let pick = |id: &str| {
+            let c = choices.components.iter().find(|c| c.id == id).unwrap();
+            InstallItem { id: id.into(), version: c.recommended.clone().unwrap() }
+        };
+        let items = vec![pick("php"), pick("apache"), pick("mysql")];
+        for i in &items {
+            println!("installing {} {}", i.id, i.version);
+        }
+        let request = InstallRequest {
+            install_root: dir.path().display().to_string(),
+            www_dir: dir.path().join("www").display().to_string(),
+            items,
+            existing: vec![],
+            mysql: Some(MysqlRequest {
+                port: 3397,
+                password: Some(serde_json::from_str("\"test-pw\"").unwrap()),
+                data_dir: Some(dir.path().join("data").display().to_string()),
+                autostart: false,
+                existing: false,
+            }),
+        };
+        let events = std::sync::Mutex::new(Vec::new());
+        let t = Instant::now();
+        let result = tauri::async_runtime::block_on(run(&catalog, &request, &test_options(), |p| events.lock().unwrap().push(p)));
+        for e in events.lock().unwrap().iter().filter(|e| e.status != StepStatus::Running) {
+            println!("{:<14} {:?} {:?}", e.step, e.status, e.message);
+        }
+        result.unwrap();
+        println!("installed in {:?}", t.elapsed());
+
+        // The install must not point anywhere outside its own folder.
+        let saved = fs::read_to_string(dir.path().join("etc/devmanager.json")).unwrap();
+        assert!(!saved.to_lowercase().contains("laragon"), "{saved}");
+        let root = dir.path();
+
+        // Move to spare ports so the real stack on this PC is untouched, then regenerate configs.
+        let mut settings = crate::settings::load(root).expect("settings saved");
+        settings.apache_port = Some(8097);
+        settings.php_fastcgi_port = 9197;
+        refresh_configs(root, &settings).unwrap();
+        fs::create_dir_all(&settings.www_dir).unwrap();
+        fs::write(Path::new(&settings.www_dir).join("index.php"), "<?php echo 'standalone php ', PHP_VERSION;").unwrap();
+
+        let sup = Supervisor::new(crate::supervisor::specs_for(root, &settings));
+        assert_eq!(sup.ids().len(), 3, "php, apache and mysql");
+        for id in ["php", "apache", "mysql"] {
+            if let Err(e) = sup.start(id) {
+                println!("--- {id} log ---\n{}", sup.log_tail(id).unwrap_or_default());
+                panic!("{id} failed to start: {e}");
+            }
+        }
+        assert!(sup.status().iter().all(|s| s.state == State::Running), "{:?}", sup.status().iter().map(|s| (&s.id, &s.state)).collect::<Vec<_>>());
+
+        let mut stream = TcpStream::connect(("127.0.0.1", 8097)).unwrap();
+        std::io::Write::write_all(&mut stream, b"GET /index.php HTTP/1.0\r\nHost: localhost\r\n\r\n").unwrap();
+        let mut body = String::new();
+        stream.read_to_string(&mut body).unwrap();
+        println!("{}", body.lines().last().unwrap_or_default());
+        assert!(body.contains("200 OK") && body.contains("standalone php "), "{body}");
+
+        let mysql_dir = target_dir(root, "mysql", &request.items[2].version);
+        let out = configure::run_quiet(
+            &mysql_dir.join("bin").join("mysql.exe"),
+            &["--protocol=TCP", "-h", "127.0.0.1", "-P", "3397", "-u", "root", "-ptest-pw", "-N", "-e", "SELECT VERSION()"],
+            Duration::from_secs(30),
+        )
+        .unwrap();
+        println!("mysql says: {}", out.text.trim());
+        assert!(out.success && out.text.contains(&request.items[2].version[..3]), "{}", out.text);
+
+        let t = Instant::now();
+        sup.stop_all();
+        println!("stopped all in {:?}", t.elapsed());
+        assert!(!port_listening(8097) && !port_listening(9197) && !port_listening(3397));
     }
 }

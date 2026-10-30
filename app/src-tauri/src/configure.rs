@@ -99,6 +99,7 @@ pub struct ApacheConf<'a> {
     pub etc_dir: &'a Path,
     pub logs_dir: &'a Path,
     pub php: bool,
+    pub fcgi_port: u16,
 }
 
 const APACHE_MODULES: &[&str] = &[
@@ -117,8 +118,8 @@ pub fn apache_conf(c: &ApacheConf) -> String {
         // php-cgi needs a plain Windows path in SCRIPT_FILENAME; the proxy URL form gives it
         // "/C:/..." (or "proxy:fcgi://..."), so build it from the document root instead.
         format!(
-            "<FilesMatch \"\\.php$\">\n    SetHandler \"proxy:fcgi://127.0.0.1:{PHP_FASTCGI_PORT}/\"\n</FilesMatch>\nProxyFCGISetEnvIf \"true\" SCRIPT_FILENAME \"%{{DOCUMENT_ROOT}}%{{reqenv:SCRIPT_NAME}}\"\n"
-        )
+            "<FilesMatch \"\\.php$\">\n    SetHandler \"proxy:fcgi://127.0.0.1:{}/\"\n</FilesMatch>\nProxyFCGISetEnvIf \"true\" SCRIPT_FILENAME \"%{{DOCUMENT_ROOT}}%{{reqenv:SCRIPT_NAME}}\"\n"
+        , c.fcgi_port)
     } else {
         String::new()
     };
@@ -170,6 +171,7 @@ pub struct NginxConf<'a> {
     pub logs_dir: &'a Path,
     pub temp_dir: &'a Path,
     pub php: bool,
+    pub fcgi_port: u16,
 }
 
 pub fn nginx_conf(c: &NginxConf) -> String {
@@ -179,12 +181,12 @@ pub fn nginx_conf(c: &NginxConf) -> String {
         format!(
             r#"
         location ~ \.php$ {{
-            fastcgi_pass 127.0.0.1:{PHP_FASTCGI_PORT};
+            fastcgi_pass 127.0.0.1:{};
             fastcgi_index index.php;
             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
             include "{nginx}/conf/fastcgi_params";
         }}"#
-        )
+        , c.fcgi_port)
     } else {
         String::new()
     };
@@ -497,6 +499,7 @@ memory_limit = 128M
             etc_dir: Path::new(r"C:\Dev\etc"),
             logs_dir: Path::new(r"C:\Dev\logs"),
             php: true,
+            fcgi_port: 9085,
         });
         assert!(conf.contains("ServerRoot \"C:/Dev/bin/apache/apache-2.4.69\""));
         assert!(conf.contains("DocumentRoot \"C:/Dev/www\""));
@@ -550,7 +553,7 @@ memory_limit = 128M
             fs::create_dir_all(d).unwrap();
         }
         let conf = etc.join("apache").join("httpd.conf");
-        write_file(&conf, &apache_conf(&ApacheConf { server_root: &server_root, port: 8099, www_dir: &www, etc_dir: &etc, logs_dir: &logs, php: true })).unwrap();
+        write_file(&conf, &apache_conf(&ApacheConf { server_root: &server_root, port: 8099, www_dir: &www, etc_dir: &etc, logs_dir: &logs, php: true, fcgi_port: 9085 })).unwrap();
         check_apache(&server_root, &conf).unwrap();
     }
 
