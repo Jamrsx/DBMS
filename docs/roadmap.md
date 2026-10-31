@@ -110,13 +110,22 @@ Per-project PHP version (same release):
 - Each project picks its PHP version; the default stays the global one.
 - The terminal tab for a project uses that project's PHP.
 
-### 0.2.8: Database page, part 2
+### 0.2.8: Nex, Recycle Bin, and safer deletes
+
+- Nex, the NexDB mascot, in the setup welcome, empty lists, the log, project progress and errors
+  (one 17 KB animated drawing; motion stops when Windows reduces motion).
+- Projects get a Details button instead of a clickable name.
+- Recycle Bin page: projects deleted from the projects folder, with Restore.
+- Deleting a project always finishes once the folder is in the bin and goes back to the list;
+  a database that couldn't be deleted is a warning, not an error.
+
+### 0.2.9: Database page, part 2
 
 - Edit, add and delete rows in Browse, with a confirm step for deletes.
 - MySQL users: create, change password, grant access to a database, remove.
 - Export a table or a query result as CSV.
 
-### 0.2.9: Mail catcher
+Mail catcher (with 0.3.0's services):
 
 - A local SMTP server that catches every email PHP sends, so nothing reaches real inboxes.
 - A Mail page to read caught emails (HTML and plain text) and clear them.

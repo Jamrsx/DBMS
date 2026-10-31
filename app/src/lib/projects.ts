@@ -157,9 +157,26 @@ const preview = (() => {
   const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node")];
   let synced = false;
   const listeners = new Set<(e: QuickstartEvent) => void>();
+  let bin: DeletedProject[] = [{ name: "old-site", deleted: Date.now() / 1000 - 86400, path: "C:\$Recycle.Bin\S-1\$R1" }];
   const send = (e: QuickstartEvent) => listeners.forEach((l) => l(e));
   return {
     listeners,
+    recycle(name: string) {
+      const i = projects.findIndex((p) => p.name === name);
+      if (i >= 0) projects.splice(i, 1);
+      bin = [{ name, deleted: Date.now() / 1000, path: `C:\$Recycle.Bin\S-1\$R${name}` }, ...bin];
+    },
+    async bin() {
+      return [...bin];
+    },
+    restore(path: string) {
+      const item = bin.find((b) => b.path === path);
+      if (!item) throw "That project isn't in the Recycle Bin any more.";
+      bin = bin.filter((b) => b !== item);
+      projects.push(mk(item.name, "php"));
+      projects.sort((a, b) => a.name.localeCompare(b.name));
+      return item.name;
+    },
     async quickstart(name: string, kind: Starter): Promise<Created> {
       const steps = kind.startsWith("laravel")
         ? ["Creating the database", "Downloading Laravel", "Connecting it to the database", "Setting up the tables"]
@@ -239,8 +256,32 @@ export async function renameProject(name: string, newName: string): Promise<void
   await new Promise((r) => setTimeout(r, 400));
 }
 
-/** Moves the project to the Recycle Bin; optionally deletes its database and user too. */
-export async function deleteProject(name: string, dropDatabase: boolean): Promise<void> {
-  if (inDesktopApp) return invoke("project_delete", { name, dropDatabase });
+/** Moves the project to the Recycle Bin; optionally deletes its database and user too.
+ *  Resolves to a warning when the project went but its database couldn't be deleted. */
+export async function deleteProject(name: string, dropDatabase: boolean): Promise<string | null> {
+  if (inDesktopApp) return invoke<string | null>("project_delete", { name, dropDatabase });
   await new Promise((r) => setTimeout(r, 400));
+  preview.recycle(name);
+  return null;
+}
+
+export interface DeletedProject {
+  name: string;
+  /** Seconds since 1970. */
+  deleted: number;
+  /** Where the Recycle Bin keeps it; identifies it for restoring. */
+  path: string;
+}
+
+/** Projects in the Windows Recycle Bin that came from the projects folder. */
+export async function listDeleted(): Promise<DeletedProject[]> {
+  if (inDesktopApp) return invoke<DeletedProject[]>("projects_deleted");
+  return preview.bin();
+}
+
+/** Brings a project back from the Recycle Bin; resolves to its name. */
+export async function restoreProject(path: string): Promise<string> {
+  if (inDesktopApp) return invoke<string>("project_restore", { path });
+  await new Promise((r) => setTimeout(r, 400));
+  return preview.restore(path);
 }

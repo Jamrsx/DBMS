@@ -11,6 +11,7 @@ mod phpfix;
 mod phpver;
 mod projectops;
 mod projects;
+mod recyclebin;
 mod quickstart;
 mod scan;
 mod settings;
@@ -277,6 +278,8 @@ pub fn run() {
             project_set_php,
             project_rename,
             project_delete,
+            projects_deleted,
+            project_restore,
             editors_list,
             project_open_in,
             projects_sync_hosts,
@@ -498,6 +501,8 @@ async fn project_rename(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, n
 }
 
 /// Moves a project to the Recycle Bin; with `drop_database`, also deletes its database and user.
+/// Once the folder is in the bin the project counts as deleted: its settings are always cleaned
+/// up, and a database that couldn't be deleted comes back as a warning, not an error.
 #[tauri::command]
 async fn project_delete(
     app: tauri::AppHandle,
@@ -505,23 +510,55 @@ async fn project_delete(
     db: tauri::State<'_, db::Db>,
     name: String,
     drop_database: bool,
-) -> Result<(), String> {
+) -> Result<Option<String>, String> {
     let (_, settings, _) = stack.get()?;
     let password = db.inner().clone_handle().password();
     let port = settings.mysql.as_ref().map(|m| m.port);
     let n = name.clone();
-    blocking(move || {
+    let warning = blocking(move || {
         let www = std::path::Path::new(&settings.www_dir);
-        let database = projectops::database_of(&www.join(&n));
-        projectops::recycle(www, &n)?;
-        if let (true, Some(database), Some(port)) = (drop_database, database, port) {
-            projectops::drop_database(port, password.as_deref(), &database)
-                .map_err(|e| format!("The project went to the Recycle Bin, but its database wasn't deleted: {e}"))?;
+        let dir = www.join(&n);
+        // Already gone (deleted outside NexDB, or an earlier try got this far): just tidy up.
+        if !dir.exists() {
+            return Ok(None);
         }
-        Ok(())
+        let database = projectops::database_of(&dir);
+        projectops::recycle(www, &n)?;
+        Ok(match (drop_database, database, port) {
+            (true, Some(database), Some(port)) => projectops::drop_database(port, password.as_deref(), &database)
+                .err()
+                .map(|e| format!("Its database {database} wasn't deleted: {e}")),
+            _ => None,
+        })
     })
     .await?;
-    move_project_settings(&app, &stack, name, None).await
+    move_project_settings(&app, &stack, name, None).await?;
+    Ok(warning)
+}
+
+/// Projects in the Windows Recycle Bin that came from the projects folder.
+#[tauri::command]
+async fn projects_deleted(stack: tauri::State<'_, Stack>) -> Result<Vec<recyclebin::Deleted>, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || recyclebin::list(std::path::Path::new(&settings.www_dir))).await
+}
+
+/// Brings a deleted project back from the Recycle Bin (by its place in the bin).
+#[tauri::command]
+async fn project_restore(stack: tauri::State<'_, Stack>, path: String) -> Result<String, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let www = std::path::Path::new(&settings.www_dir);
+        // Only items the bin lists as deleted from the projects folder.
+        let item = recyclebin::list(www)?
+            .into_iter()
+            .find(|d| d.path == path)
+            .ok_or("That project isn't in the Recycle Bin any more.")?;
+        recyclebin::restore(www, &item)?;
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(item.name)
+    })
+    .await
 }
 
 /// Code editors found on this PC.

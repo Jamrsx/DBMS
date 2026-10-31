@@ -12,6 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
+import { Nex } from "../components/Nex";
 import { readable, type LogLevel } from "../lib/logs";
 import { missingComponents, type MissingPart } from "../lib/versions";
 import {
@@ -164,12 +165,15 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
             </section>
 
             {failures.length > 0 && (
-              <div className="error-box dash-errors" role="alert">
-                {failures.map((s) => (
-                  <p key={s.id}>
-                    <strong>{s.name} couldn't start.</strong> {s.message}
-                  </p>
-                ))}
+              <div className="error-box dash-errors has-nex" role="alert">
+                <Nex state="error" size={48} />
+                <div>
+                  {failures.map((s) => (
+                    <p key={s.id}>
+                      <strong>{s.name} couldn't start.</strong> {s.message}
+                    </p>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -215,7 +219,10 @@ function ServiceRow({
   const up = s.state === "running" || s.state === "starting";
   // Extra PHP versions projects use (php-8.4.27) look like the main PHP.
   const { role: what, Icon } =
-    ROLE[s.id] ?? (s.id.startsWith("php-") ? { role: "PHP for projects set to this version", Icon: FileCode2 } : { role: "", Icon: Server });
+    ROLE[s.id] ??
+    (s.id.startsWith("php-")
+      ? { role: "PHP for projects set to this version", Icon: FileCode2 }
+      : { role: "", Icon: Server });
   const role = s.state === "external" ? `Managed outside NexDB · ${what}` : what;
   return (
     <li className={selected ? "svc selected" : "svc"} aria-labelledby={`svc-${s.id}`}>
@@ -415,22 +422,25 @@ function LogPanel({
           ) : readableLog.entries.length === 0 ? (
             <div className="log-empty">
               {text.startsWith("Couldn't") ? (
-                <p>{text}</p>
+                <>
+                  <Nex state="error" size={72} />
+                  <p>{text}</p>
+                </>
               ) : current && current.managed && current.state !== "running" && current.state !== "starting" ? (
                 <>
-                  <p>
-                    {current.name} isn't running. Start it to see what it reports here.
-                  </p>
-                  <button
-                    className="btn btn-small"
-                    disabled={!!busy[current.id]}
-                    onClick={() => onStart(current.id)}
-                  >
+                  <Nex state={current.state === "failed" ? "error" : "sleeping"} size={72} />
+                  <p>{current.name} isn't running. Start it to see what it reports here.</p>
+                  <button className="btn btn-small" disabled={!!busy[current.id]} onClick={() => onStart(current.id)}>
                     <Play size={12} strokeWidth={2.5} aria-hidden="true" /> Start {current.name}
                   </button>
                 </>
               ) : (
-                <p>Nothing to report yet. Messages from {selectedName ?? "this service"} appear here as they happen.</p>
+                <>
+                  <Nex state="idle" size={72} />
+                  <p>
+                    Nothing to report yet. Messages from {selectedName ?? "this service"} appear here as they happen.
+                  </p>
+                </>
               )}
             </div>
           ) : (

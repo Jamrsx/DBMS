@@ -1,0 +1,244 @@
+<svg xmlns="http://www.w3.org/2000/svg" class="nex s-idle" viewBox="0 0 1076 1076" width="1076" height="1076" role="img" aria-label="Nex, the NexDB mascot (idle)">
+<title>Nex, the NexDB mascot (idle)</title>
+<style>
+.nex .a{transform-box:fill-box;transform-origin:center}
+.nex .eye-happy,.nex .eye-closed,.nex .eye-x,.nex .m-flat,.nex .m-happy,.nex .m-sad,.nex .m-zzz,.nex .x{display:none}
+.nex .body,.nex .head,.nex .antenna{transform-origin:50% 100%}
+.nex.paused *{animation-play-state:paused!important}
+
+/* shared keyframes */
+@keyframes nx-blink{0%,88%,100%{transform:scaleY(1)}92%{transform:scaleY(.08)}}
+@keyframes nx-glow{0%,100%{opacity:.06}50%{opacity:.5}}
+
+/* ---------- idle ---------- */
+.nex.s-idle .body{animation:nx-breathe 3.6s ease-in-out infinite}
+.nex.s-idle .antenna{animation:nx-sway 3.6s ease-in-out infinite}
+.nex.s-idle .eye-open{animation:nx-blink 3.6s infinite}
+.nex.s-idle .armL{transform-origin:100% 0;animation:nx-armL 3.6s ease-in-out infinite}
+.nex.s-idle .armR{transform-origin:0 0;animation:nx-armR 3.6s ease-in-out infinite}
+.nex.s-idle .glow{animation:nx-glow 1.8s ease-in-out infinite}
+@keyframes nx-breathe{0%,100%{transform:scale(1,1)}50%{transform:scale(1.012,.985)}}
+@keyframes nx-sway{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}
+@keyframes nx-armL{0%,100%{transform:rotate(3deg)}50%{transform:rotate(-5deg)}}
+@keyframes nx-armR{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(5deg)}}
+
+/* ---------- hello ---------- */
+.nex.s-hello .eye-open{display:none}
+.nex.s-hello .eye-happy,.nex.s-hello .m-happy{display:inline}
+.nex.s-hello .m-smile{display:none}
+.nex.s-hello .body{animation:nx-hello 1.2s ease-in-out infinite}
+.nex.s-hello .antenna{animation:nx-sway 1.8s ease-in-out infinite}
+.nex.s-hello .armR{transform-origin:50% 100%;animation:nx-wave .9s ease-in-out infinite}
+.nex.s-hello .armL{transform-origin:100% 0;animation:nx-armL 3.6s ease-in-out infinite}
+.nex.s-hello .glow{animation:nx-glow 1.2s ease-in-out infinite}
+@keyframes nx-hello{0%,100%{transform:translateY(0) scale(1.01,.99)}50%{transform:translateY(-14px) scale(.99,1.01)}}
+@keyframes nx-wave{0%,100%{transform:translate(12px,-128px) rotate(-20deg)}50%{transform:translate(12px,-128px) rotate(20deg)}}
+
+/* ---------- loading ---------- */
+.nex.s-loading .eye-open{animation:nx-blink 3.6s infinite}
+.nex.s-loading .m-smile{display:none}
+.nex.s-loading .m-flat,.nex.s-loading .x-dots{display:inline}
+.nex.s-loading .base{animation:nx-hop 1.2s ease-in-out infinite}
+.nex.s-loading .mid{animation:nx-hop 1.2s ease-in-out -1.08s infinite}
+.nex.s-loading .head{animation:nx-hop 1.2s ease-in-out -.96s infinite}
+.nex.s-loading .led1{animation:nx-chase 1.2s linear infinite}
+.nex.s-loading .led2{animation:nx-chase 1.2s linear -.8s infinite}
+.nex.s-loading .led3{animation:nx-chase 1.2s linear -.4s infinite}
+.nex.s-loading .eyes{animation:nx-look 3.6s ease-in-out infinite}
+.nex.s-loading .bulb{fill:#A8CBFF;animation:nx-bulb .6s ease-in-out infinite}
+.nex.s-loading .glow{animation:nx-glow .6s ease-in-out infinite}
+.nex.s-loading .antenna{animation:nx-sway 1.2s ease-in-out infinite}
+.nex.s-loading .armL{animation:nx-pump .6s ease-in-out infinite}
+.nex.s-loading .armR{animation:nx-pump .6s ease-in-out -.3s infinite}
+.nex.s-loading .footL{animation:nx-tap .6s ease-in-out infinite}
+.nex.s-loading .footR{animation:nx-tap .6s ease-in-out -.3s infinite}
+.nex.s-loading .d1{animation:nx-dot 1.2s ease-in-out infinite}
+.nex.s-loading .d2{animation:nx-dot 1.2s ease-in-out -.8s infinite}
+.nex.s-loading .d3{animation:nx-dot 1.2s ease-in-out -.4s infinite}
+@keyframes nx-hop{0%,45%,100%{transform:translateY(0)}22%{transform:translateY(-30px)}}
+@keyframes nx-chase{0%,33%{opacity:1}34%,100%{opacity:.2}}
+@keyframes nx-look{0%,100%{transform:translateX(0)}20%{transform:translateX(-16px)}60%{transform:translateX(16px)}}
+@keyframes nx-bulb{0%,100%{transform:scale(1)}50%{transform:scale(1.3)}}
+@keyframes nx-pump{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes nx-tap{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes nx-dot{0%,60%,100%{transform:translateY(0);opacity:.45}30%{transform:translateY(-20px);opacity:1}}
+
+/* ---------- thinking ---------- */
+.nex.s-thinking .m-smile{display:none}
+.nex.s-thinking .m-flat,.nex.s-thinking .x-think{display:inline}
+.nex.s-thinking .eye-open{animation:nx-blink 3.6s infinite}
+.nex.s-thinking .head{animation:nx-tilt 3.6s ease-in-out infinite}
+.nex.s-thinking .eyes{animation:nx-lookup 3.6s ease-in-out infinite}
+.nex.s-thinking .armR{transform-origin:50% 100%;animation:nx-thinkarm 1.2s ease-in-out infinite}
+.nex.s-thinking .bulb{animation:nx-flicker 1.8s steps(1) infinite}
+.nex.s-thinking .glow{animation:nx-glow 1.8s ease-in-out infinite}
+.nex.s-thinking .antenna{animation:nx-sway 3.6s ease-in-out infinite}
+.nex.s-thinking .cloud{animation:nx-float 3.6s ease-in-out infinite}
+.nex.s-thinking .t1{animation:nx-tdot 1.2s linear infinite}
+.nex.s-thinking .t2{animation:nx-tdot 1.2s linear -.8s infinite}
+.nex.s-thinking .t3{animation:nx-tdot 1.2s linear -.4s infinite}
+@keyframes nx-tilt{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(-6deg)}}
+@keyframes nx-lookup{0%,100%{transform:translate(18px,-16px)}45%{transform:translate(-8px,-18px)}}
+@keyframes nx-thinkarm{0%,100%{transform:translate(-8px,-62px) rotate(-6deg)}50%{transform:translate(-8px,-52px) rotate(-14deg)}}
+@keyframes nx-flicker{0%,100%{opacity:1}20%{opacity:.3}40%{opacity:1}60%{opacity:.55}80%{opacity:1}}
+@keyframes nx-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+@keyframes nx-tdot{0%,33%{opacity:1}34%,100%{opacity:.25}}
+
+/* ---------- success ---------- */
+.nex.s-success .eye-open,.nex.s-success .m-smile{display:none}
+.nex.s-success .eye-happy,.nex.s-success .m-happy,.nex.s-success .x-spark{display:inline}
+.nex.s-success .body{animation:nx-jump 1.2s ease-in-out infinite}
+.nex.s-success .shadow{animation:nx-shadow 1.2s ease-in-out infinite}
+.nex.s-success .armL{animation:nx-cheerL .6s ease-in-out infinite}
+.nex.s-success .armR{animation:nx-cheerR .6s ease-in-out infinite}
+.nex.s-success .bulb,.nex.s-success .glow{fill:#3DDC97}
+.nex.s-success .glow{animation:nx-glow 1.2s ease-in-out infinite}
+.nex.s-success .antenna{animation:nx-sway 1.2s ease-in-out infinite}
+.nex.s-success .sp1{animation:nx-spark 1.2s ease-out infinite}
+.nex.s-success .sp2{animation:nx-spark 1.2s ease-out -.2s infinite}
+.nex.s-success .sp3{animation:nx-spark 1.2s ease-out -.4s infinite}
+.nex.s-success .sp4{animation:nx-spark 1.2s ease-out -.6s infinite}
+.nex.s-success .sp5{animation:nx-spark 1.2s ease-out -.8s infinite}
+.nex.s-success .sp6{animation:nx-spark 1.2s ease-out -1s infinite}
+@keyframes nx-jump{
+0%{transform:translateY(0) scale(1.08,.9)}
+12%{transform:translateY(-30px) scale(.95,1.07)}
+45%{transform:translateY(-90px) scale(1,1)}
+78%{transform:translateY(-30px) scale(.97,1.04)}
+92%,100%{transform:translateY(0) scale(1.08,.9)}}
+@keyframes nx-shadow{0%,92%,100%{transform:scale(1.05,1);opacity:1}45%{transform:scale(.7,.8);opacity:.45}}
+@keyframes nx-cheerL{0%,100%{transform:translate(-4px,-166px) rotate(-14deg)}50%{transform:translate(-4px,-156px) rotate(-26deg)}}
+@keyframes nx-cheerR{0%,100%{transform:translate(4px,-166px) rotate(14deg)}50%{transform:translate(4px,-156px) rotate(26deg)}}
+@keyframes nx-spark{0%{transform:scale(0) rotate(0);opacity:0}25%{transform:scale(1.15) rotate(45deg);opacity:1}70%{transform:scale(.7) rotate(120deg);opacity:.9}100%{transform:scale(0) rotate(180deg);opacity:0}}
+
+/* ---------- error ---------- */
+.nex.s-error .eye-open,.nex.s-error .m-smile{display:none}
+.nex.s-error .eye-x,.nex.s-error .m-sad,.nex.s-error .x-sweat{display:inline}
+.nex.s-error .body{animation:nx-shake 1.8s linear infinite}
+.nex.s-error .head{animation:nx-droop 1.8s ease-in-out infinite}
+.nex.s-error .antenna{animation:nx-limp 1.8s ease-in-out infinite}
+.nex.s-error .armL{transform:translateY(26px) rotate(8deg)}
+.nex.s-error .armR{transform:translateY(26px) rotate(-8deg)}
+.nex.s-error .bulb,.nex.s-error .glow{fill:#FF5C6C}
+.nex.s-error .bulb{animation:nx-alarm .6s steps(1) infinite}
+.nex.s-error .glow{animation:nx-glow .6s steps(1) infinite}
+.nex.s-error .led{fill:#FF5C6C}
+.nex.s-error .led1{animation:nx-alarm .6s steps(1) infinite}
+.nex.s-error .led2{animation:nx-alarm .6s steps(1) -.3s infinite}
+.nex.s-error .led3{animation:nx-alarm .6s steps(1) infinite}
+.nex.s-error .drop{animation:nx-sweat 1.8s ease-in infinite}
+@keyframes nx-shake{
+0%,30%,100%{transform:translateX(0)}2%{transform:translateX(-14px)}6%{transform:translateX(14px)}10%{transform:translateX(-12px)}
+14%{transform:translateX(12px)}18%{transform:translateX(-8px)}22%{transform:translateX(8px)}26%{transform:translateX(-4px)}}
+@keyframes nx-droop{0%,25%,100%{transform:rotate(0)}55%,90%{transform:rotate(-3deg) translateY(6px)}}
+@keyframes nx-limp{0%,100%{transform:rotate(22deg)}50%{transform:rotate(30deg)}}
+@keyframes nx-alarm{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes nx-sweat{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(64px);opacity:0}}
+
+/* ---------- sleeping ---------- */
+.nex.s-sleeping .eye-open,.nex.s-sleeping .m-smile,.nex.s-sleeping .glow{display:none}
+.nex.s-sleeping .eye-closed,.nex.s-sleeping .m-zzz,.nex.s-sleeping .x-zzz{display:inline}
+.nex.s-sleeping .body{animation:nx-snooze 3.6s ease-in-out infinite}
+.nex.s-sleeping .head{animation:nx-nod 3.6s ease-in-out infinite}
+.nex.s-sleeping .antenna{animation:nx-snore 3.6s ease-in-out infinite}
+.nex.s-sleeping .bulb{opacity:.4}
+.nex.s-sleeping .armL{transform:translateY(18px) rotate(6deg)}
+.nex.s-sleeping .armR{transform:translateY(18px) rotate(-6deg)}
+.nex.s-sleeping .led{animation:nx-ledsleep 3.6s ease-in-out infinite}
+.nex.s-sleeping .m-zzz{animation:nx-mouth 3.6s ease-in-out infinite}
+.nex.s-sleeping .z1{animation:nx-zzz 3.6s ease-out infinite}
+.nex.s-sleeping .z2{animation:nx-zzz 3.6s ease-out -1.2s infinite}
+.nex.s-sleeping .z3{animation:nx-zzz 3.6s ease-out -2.4s infinite}
+@keyframes nx-snooze{0%,100%{transform:scale(1,1)}50%{transform:scale(1.02,.975)}}
+@keyframes nx-nod{0%,100%{transform:rotate(0)}50%{transform:rotate(3deg)}}
+@keyframes nx-snore{0%,100%{transform:rotate(32deg)}50%{transform:rotate(37deg)}}
+@keyframes nx-ledsleep{0%,100%{opacity:.15}50%{opacity:.4}}
+@keyframes nx-mouth{0%,100%{transform:scale(1)}50%{transform:scale(1.3,1.4)}}
+@keyframes nx-zzz{0%{transform:translate(0,0) scale(.6);opacity:0}20%{opacity:1}100%{transform:translate(46px,-120px) scale(1.2);opacity:0}}
+@media (prefers-reduced-motion:reduce){.nex *{animation-play-state:paused!important}}</style>
+
+  <g transform="translate(0 40)">
+    <ellipse class="shadow a" cx="538" cy="824" rx="170" ry="16" fill="#0A70FF" opacity=".16"/>
+    <g class="body a">
+      <g fill="#3D8CFF" stroke="#040B16" stroke-width="10" stroke-linejoin="round">
+        <rect class="footL a" x="410" y="760" width="90" height="48" rx="22"/>
+        <rect class="footR a" x="576" y="760" width="90" height="48" rx="22"/>
+      </g>
+      <g fill="none" stroke="#3D8CFF" stroke-width="28" stroke-linejoin="round" stroke-linecap="round">
+        <g class="armL a"><path d="M262 470 Q236 470 236 496 V520 Q236 540 220 548 Q236 556 236 576 V600 Q236 626 262 626"/></g>
+        <g class="armR a"><path d="M814 470 Q840 470 840 496 V520 Q840 540 856 548 Q840 556 840 576 V600 Q840 626 814 626"/></g>
+      </g>
+      <g class="base a" stroke="#040B16" stroke-width="10" stroke-linejoin="round">
+        <path d="M343 640 V710 A195 48 0 0 0 733 710 V640 Z" fill="#0A70FF"/>
+        <ellipse cx="538" cy="640" rx="195" ry="48" fill="#3D8CFF"/>
+      </g>
+      <g class="mid a">
+        <g stroke="#040B16" stroke-width="10" stroke-linejoin="round">
+          <path d="M323 505 V580 A215 52 0 0 0 753 580 V505 Z" fill="#0A70FF"/>
+          <ellipse cx="538" cy="505" rx="215" ry="52" fill="#3D8CFF"/>
+        </g>
+        <g fill="#A8CBFF">
+          <circle class="led led1" cx="392" cy="584" r="10"/>
+          <circle class="led led2" cx="428" cy="584" r="10"/>
+          <circle class="led led3" cx="464" cy="584" r="10"/>
+        </g>
+      </g>
+      <g class="head a">
+        <g class="antenna a">
+          <path d="M538 250 V190" stroke="#3D8CFF" stroke-width="14" stroke-linecap="round" fill="none"/>
+          <circle class="glow a" cx="538" cy="170" r="44" fill="#5FA3FF" opacity=".06"/>
+          <circle class="bulb a" cx="538" cy="170" r="26" fill="#5FA3FF" stroke="#040B16" stroke-width="10"/>
+        </g>
+        <g stroke="#040B16" stroke-width="10" stroke-linejoin="round">
+          <path d="M298 300 V460 A240 58 0 0 0 778 460 V300 Z" fill="#0A70FF"/>
+          <ellipse cx="538" cy="300" rx="240" ry="58" fill="#5FA3FF"/>
+        </g>
+        <ellipse cx="425" cy="464" rx="26" ry="15" fill="#5FA3FF" opacity=".55"/>
+        <ellipse cx="651" cy="464" rx="26" ry="15" fill="#5FA3FF" opacity=".55"/>
+        <g class="eyes a">
+          <g class="eye-open a">
+            <ellipse cx="452" cy="419" rx="28" ry="38" fill="#040B16"/>
+            <ellipse cx="624" cy="419" rx="28" ry="38" fill="#040B16"/>
+            <circle cx="461" cy="405" r="10" fill="#A8CBFF"/>
+            <circle cx="633" cy="405" r="10" fill="#A8CBFF"/>
+          </g>
+          <g class="eye-happy" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round">
+            <path d="M424 430 Q452 392 480 430"/><path d="M596 430 Q624 392 652 430"/>
+          </g>
+          <g class="eye-closed" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round">
+            <path d="M424 418 Q452 440 480 418"/><path d="M596 418 Q624 440 652 418"/>
+          </g>
+          <g class="eye-x" fill="none" stroke="#040B16" stroke-width="12" stroke-linecap="round">
+            <path d="M432 399 L472 439 M472 399 L432 439"/><path d="M604 399 L644 439 M644 399 L604 439"/>
+          </g>
+        </g>
+        <path class="m-smile" d="M492 462 Q538 508 584 462" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round"/>
+        <path class="m-flat" d="M510 484 H566" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round"/>
+        <path class="m-sad" d="M496 500 Q538 464 580 500" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round"/>
+        <g class="m-happy">
+          <path d="M486 458 Q538 560 590 458 Z" fill="#040B16" stroke="#040B16" stroke-width="8" stroke-linejoin="round"/>
+          <ellipse cx="538" cy="496" rx="22" ry="10" fill="#3D8CFF"/>
+        </g>
+        <ellipse class="m-zzz a" cx="538" cy="488" rx="10" ry="12" fill="#040B16"/>
+        <g class="x x-sweat"><g transform="translate(722 366)"><path class="drop a" d="M0 -26 Q22 4 0 18 Q-22 4 0 -26Z" fill="#A8CBFF" stroke="#040B16" stroke-width="6" stroke-linejoin="round" opacity="0"/></g></g>
+      </g>
+    </g>
+    <g class="x x-dots" fill="#3D8CFF">
+      <circle class="d1 a" cx="490" cy="906" r="13"/><circle class="d2 a" cx="538" cy="906" r="13"/><circle class="d3 a" cx="586" cy="906" r="13"/>
+    </g>
+    <g class="x x-think">
+      <g class="cloud a">
+        <circle cx="772" cy="258" r="9" fill="#12294A" stroke="#3D8CFF" stroke-width="5"/>
+        <circle cx="812" cy="214" r="14" fill="#12294A" stroke="#3D8CFF" stroke-width="5"/>
+        <ellipse cx="888" cy="130" rx="84" ry="54" fill="#12294A" stroke="#3D8CFF" stroke-width="7"/>
+        <g fill="#A8CBFF"><circle class="t1" cx="848" cy="130" r="10"/><circle class="t2" cx="888" cy="130" r="10"/><circle class="t3" cx="928" cy="130" r="10"/></g>
+      </g>
+    </g>
+    <g class="x x-spark"><g transform="translate(150 270)"><path class="a sp1" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g><g transform="translate(930 270)"><path class="a sp2" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#5FA3FF" opacity="0"/></g><g transform="translate(300 130)"><path class="a sp3" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#5FA3FF" opacity="0"/></g><g transform="translate(780 130)"><path class="a sp4" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g><g transform="translate(120 430)"><path class="a sp5" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#3D8CFF" opacity="0"/></g><g transform="translate(950 430)"><path class="a sp6" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g></g>
+    <g class="x x-zzz" fill="#5FA3FF" font-family="Arial,Helvetica,sans-serif" font-weight="800">
+      <text class="z1 a" x="790" y="270" font-size="48">Z</text>
+      <text class="z2 a" x="790" y="270" font-size="60">Z</text>
+      <text class="z3 a" x="790" y="270" font-size="74">Z</text>
+    </g>
+  </g>
+</svg>

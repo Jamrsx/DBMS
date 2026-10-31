@@ -27,6 +27,7 @@ import {
   type Starter,
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
+import { Nex } from "../components/Nex";
 
 type Kind = NewKind | Starter;
 
@@ -386,9 +387,12 @@ function Making({
 
   return (
     <div className="wizard-body" aria-live="polite">
-      <h2 className="quickstart-title">
-        {done ? `${name} is ready` : failed ? `${name} couldn't be made` : `Making ${name}…`}
-      </h2>
+      <div className="quickstart-head">
+        <Nex state={done ? "success" : failed ? "error" : "loading"} size={64} />
+        <h2 className="quickstart-title">
+          {done ? `${name} is ready` : failed ? `${name} couldn't be made` : `Making ${name}…`}
+        </h2>
+      </div>
 
       {steps.length > 0 && (
         <ol className="quickstart-steps">

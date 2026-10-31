@@ -28,7 +28,7 @@ export function ProjectDetails({
   addressReady: boolean;
   onBack: () => void;
   /** The project was renamed (new name) or deleted (null). */
-  onChanged: (renamedTo: string | null) => Promise<void>;
+  onChanged: (renamedTo: string | null, message?: string) => Promise<void>;
 }) {
   const [info, setInfo] = useState<Details | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +52,7 @@ export function ProjectDetails({
   useEffect(load, [load]);
 
   async function act(label: string, work: () => Promise<unknown>, done?: string) {
+    if (busy) return; // one change at a time; a second click must not repeat it
     setBusy(label);
     setError(null);
     setSaved(null);
@@ -191,7 +192,7 @@ export function ProjectDetails({
             if (newName === name || renameProblem) return;
             void act("Renaming…", async () => {
               await renameProject(name, newName);
-              await onChanged(newName);
+              await onChanged(newName, `Renamed to ${newName}. Its address is now ${newName}.test.`);
             });
           }}
         >
@@ -227,8 +228,11 @@ export function ProjectDetails({
             onSubmit={(e) => {
               e.preventDefault();
               void act(`Deleting ${name}…`, async () => {
-                await deleteProject(name, dropDb);
-                await onChanged(null);
+                const warning = await deleteProject(name, dropDb);
+                await onChanged(
+                  null,
+                  `${name} is in the Recycle Bin; restore it from Recycle Bin above.${warning ? " " + warning : ""}`,
+                );
               });
             }}
           >

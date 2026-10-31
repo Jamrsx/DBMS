@@ -1,4 +1,5 @@
 import type { Settings } from "../Wizard";
+import { Nex } from "../components/Nex";
 
 interface Props {
   /** An earlier NexDB folder whose settings file is missing. */
@@ -19,10 +20,13 @@ export function Welcome({ settings, onChange, repairRoot }: Props) {
           </p>
         </div>
       )}
-      <p className="lede">
-        NexDB installs and runs PHP, Node.js, Apache and MySQL for local development. Pick
-        only what you need; everything stays in one folder and never touches existing installs.
-      </p>
+      <div className="welcome-nex">
+        <Nex state="hello" size={88} label="Nex, the NexDB mascot, waving hello" />
+        <p className="lede">
+          NexDB installs and runs PHP, Node.js, Apache and MySQL for local development. Pick only what you need;
+          everything stays in one folder and never touches existing installs.
+        </p>
+      </div>
 
       <div className="fields">
         <label className="field">

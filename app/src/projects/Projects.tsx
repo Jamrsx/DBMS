@@ -1,18 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Code2, ExternalLink, FolderOpen, FolderPlus, ShieldCheck, SquareTerminal } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Code2,
+  ExternalLink,
+  FolderOpen,
+  FolderPlus,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+  SquareTerminal,
+  Trash2,
+} from "lucide-react";
 import {
   fixPhpWarnings,
+  listDeleted,
   listEditors,
   listProjects,
   openInEditor,
   openProject,
+  restoreProject,
   syncHosts,
+  type DeletedProject,
   type Editor,
   type Project,
   type ProjectsInfo,
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
+import { Nex } from "../components/Nex";
+import { formatWhen } from "../lib/backups";
 import { NewProjectWizard } from "./NewProjectWizard";
 import { ProjectDetails } from "./ProjectDetails";
 
@@ -33,6 +50,14 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
+  const [showBin, setShowBin] = useState(false);
+  const [deleted, setDeleted] = useState<DeletedProject[]>([]);
+
+  const loadBin = useCallback(() => {
+    listDeleted()
+      .then(setDeleted)
+      .catch(() => setDeleted([]));
+  }, []);
 
   const refresh = useCallback(async () => {
     try {
@@ -47,6 +72,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   useEffect(() => {
     if (!active) return;
     void refresh();
+    loadBin();
     listEditors()
       .then(setEditors)
       .catch(() => setEditors([]));
@@ -90,10 +116,31 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </p>
         </div>
         <div className="dash-actions">
+          <button
+            className="btn"
+            aria-pressed={showBin}
+            onClick={() => {
+              setShowBin((v) => !v);
+              setOpened(null);
+              setNotice(null);
+              setCreating(false);
+              loadBin();
+            }}
+          >
+            <Trash2 size={14} aria-hidden="true" /> Recycle Bin{deleted.length > 0 ? ` (${deleted.length})` : ""}
+          </button>
           <button className="btn" onClick={onOpenTerminal}>
             Open terminal
           </button>
-          <button className="btn btn-primary" onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setCreating((v) => !v);
+              setOpened(null);
+              setShowBin(false);
+            }}
+            aria-expanded={creating}
+          >
             <FolderPlus size={15} aria-hidden="true" /> New project
           </button>
         </div>
@@ -124,14 +171,35 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
             existing={projects.map((p) => p.name)}
             addressReady={!missing.has(`${opened}.test`)}
             onBack={() => setOpened(null)}
-            onChanged={async (renamedTo) => {
+            onChanged={async (renamedTo, message) => {
               setOpened(renamedTo);
+              if (message) setNotice(message);
               await refresh();
+              loadBin();
             }}
           />
         )}
 
-        {!opened && creating && (
+        {showBin && !opened && (
+          <RecycleBin
+            items={deleted}
+            onBack={() => setShowBin(false)}
+            onRestore={async (item) => {
+              setError(null);
+              try {
+                const name = await restoreProject(item.path);
+                setNotice(`${name} is back in your projects.`);
+                setShowBin(false);
+              } catch (e) {
+                setError(String(e));
+              }
+              await refresh();
+              loadBin();
+            }}
+          />
+        )}
+
+        {!opened && !showBin && creating && (
           <NewProjectWizard
             existing={projects.map((p) => p.name)}
             editors={editors}
@@ -141,7 +209,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           />
         )}
 
-        {info && info.web_server && missing.size > 0 && (
+        {!showBin && info && info.web_server && missing.size > 0 && (
           <div className="addr-banner">
             <ShieldCheck size={18} aria-hidden="true" />
             <p>
@@ -155,8 +223,9 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {!opened && info && projects.length === 0 && !creating && (
-          <div className="empty">
+        {!opened && !showBin && info && projects.length === 0 && !creating && (
+          <div className="empty empty-nex">
+            <Nex state="idle" size={120} />
             <p className="lede">
               No projects yet. Click <strong>New project</strong> for a ready-to-run Laravel, WordPress or React app, or
               run <code>git clone</code> in the terminal. Every folder in <code>{info.www_dir}</code> becomes a project.
@@ -164,22 +233,30 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {!opened && projects.length > 0 && (
+        {!opened && !showBin && projects.length > 0 && (
           <ul className="project-list" aria-label="Projects">
             {projects.map((p) => {
               const ready = p.host !== null && !missing.has(p.host);
               return (
                 <li key={p.name} className="project">
                   <div className="project-main">
-                    <button className="project-name cell-link" onClick={() => setOpened(p.name)} title="Details, PHP version, rename and delete">
-                      {p.name}
-                    </button>
+                    <span className="project-name">{p.name}</span>
                     <span className="kind">{KIND_LABEL[p.kind]}</span>
                   </div>
                   <code className="project-addr">
                     {ready ? p.url.replace(/^https?:\/\//, "").replace(/\/$/, "") : p.local_url.replace(/^http:\/\//, "")}
                   </code>
                   <div className="project-actions">
+                    <button
+                      className="btn btn-small"
+                      title="Details, PHP version, rename and delete"
+                      onClick={() => {
+                        setOpened(p.name);
+                        setNotice(null);
+                      }}
+                    >
+                      <Settings2 size={14} aria-hidden="true" /> Details
+                    </button>
                     {editors.length > 0 && (
                       <EditorMenu editors={editors} onPick={(id) => void act(openInEditor(p.name, id))} />
                     )}
@@ -227,6 +304,65 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
         )}
       </div>
     </main>
+  );
+}
+
+/** Projects that went to the Windows Recycle Bin from the projects folder, ready to come back. */
+function RecycleBin({
+  items,
+  onBack,
+  onRestore,
+}: {
+  items: DeletedProject[];
+  onBack: () => void;
+  onRestore: (item: DeletedProject) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  return (
+    <section className="bin" aria-labelledby="bin-title">
+      <div className="details-head">
+        <button className="btn btn-small btn-quiet" onClick={onBack}>
+          <ArrowLeft size={14} aria-hidden="true" /> All projects
+        </button>
+        <h2 id="bin-title">Recycle Bin</h2>
+      </div>
+      {items.length === 0 ? (
+        <div className="empty empty-nex">
+          <Nex state="sleeping" size={110} />
+          <p className="lede">Nothing here. Projects you delete in NexDB wait here so you can bring them back.</p>
+        </div>
+      ) : (
+        <>
+          <p className="field-hint">
+            Projects deleted from your projects folder. Restoring puts the folder back with the same name; its PHP
+            version goes back to NexDB&apos;s default, and a deleted database doesn&apos;t come back.
+          </p>
+          <ul className="project-list" aria-label="Deleted projects">
+            {items.map((item) => (
+              <li key={item.path} className="project">
+                <div className="project-main">
+                  <span className="project-name">{item.name}</span>
+                </div>
+                <span className="field-hint">Deleted {formatWhen(item.deleted)}</span>
+                <div className="project-actions">
+                  <button
+                    className="btn btn-small"
+                    disabled={!!busy}
+                    onClick={async () => {
+                      setBusy(item.path);
+                      await onRestore(item);
+                      setBusy(null);
+                    }}
+                  >
+                    <RotateCcw size={14} aria-hidden="true" /> {busy === item.path ? "Restoring…" : "Restore"}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
   );
 }
 

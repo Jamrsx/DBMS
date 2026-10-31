@@ -13,6 +13,7 @@ import {
   type BackupFile,
 } from "../lib/backups";
 import { dbNameProblem, formatSize } from "../lib/db";
+import { Nex } from "../components/Nex";
 
 type Pending =
   | { kind: "restore"; file: BackupFile; target: string }
@@ -140,7 +141,10 @@ export function Backups({
       )}
 
       {files && files.length === 0 && (
-        <p className="lede">No backups yet. Back up a database to make your first one.</p>
+        <div className="empty empty-nex">
+          <Nex state="idle" size={96} />
+          <p className="lede">No backups yet. Back up a database to make your first one.</p>
+        </div>
       )}
 
       {files && files.length > 0 && (
