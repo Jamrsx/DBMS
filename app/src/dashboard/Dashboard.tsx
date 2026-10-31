@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppWindow, Database, Globe, LayoutDashboard, Layers, LoaderCircle, Settings } from "lucide-react";
-import { ThemeToggle } from "../components/ThemeToggle";
-import { StartupToggle } from "../components/StartupToggle";
-import { BrandMark } from "../components/BrandMark";
+import { AppWindow, LoaderCircle, Trash2 } from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
 import {
   listServices,
+  clearServiceLog,
   serviceLog,
   startServices,
   stopServices,
@@ -73,26 +71,6 @@ export function Dashboard() {
   const failures = services?.filter((s) => s.state === "failed" && s.message) ?? [];
 
   return (
-    <div className="shell">
-      <aside className="rail">
-        <div className="brand">
-          <BrandMark />
-          NexDB
-        </div>
-        <nav className="nav" aria-label="Main">
-          <a className="nav-item current" aria-current="page">
-            <LayoutDashboard size={16} strokeWidth={2} aria-hidden="true" />
-            Dashboard
-          </a>
-          <SoonItem Icon={Globe} label="Sites" />
-          <SoonItem Icon={Layers} label="Versions" />
-          <SoonItem Icon={Database} label="Database" />
-          <SoonItem Icon={Settings} label="Settings" />
-        </nav>
-        <StartupToggle />
-        <ThemeToggle />
-      </aside>
-
       <main className="panel">
         <header className="panel-head dash-head">
           <div>
@@ -166,7 +144,6 @@ export function Dashboard() {
           )}
         </div>
       </main>
-    </div>
   );
 }
 
@@ -298,8 +275,23 @@ function LogPanel({
   reloadKey: number;
 }) {
   const [text, setText] = useState("");
+  const [clearing, setClearing] = useState(false);
   const pre = useRef<HTMLPreElement>(null);
   const stick = useRef(true);
+  const selectedName = services.find((s) => s.id === selected)?.name;
+
+  async function clear() {
+    if (!selected) return;
+    setClearing(true);
+    try {
+      await clearServiceLog(selected);
+      setText(await serviceLog(selected));
+    } catch (err) {
+      setText(`Couldn't clear the log: ${err}`);
+    } finally {
+      setClearing(false);
+    }
+  }
 
   useEffect(() => {
     if (!selected) return;
@@ -339,6 +331,16 @@ function LogPanel({
             {s.name}
           </button>
         ))}
+        <button
+          type="button"
+          className="log-clear"
+          disabled={!selected || clearing}
+          title={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
+          aria-label={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
+          onClick={clear}
+        >
+          <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+        </button>
       </div>
       <pre
         ref={pre}
@@ -353,16 +355,6 @@ function LogPanel({
         {text}
       </pre>
     </section>
-  );
-}
-
-function SoonItem({ Icon, label }: { Icon: typeof Globe; label: string }) {
-  return (
-    <span className="nav-item soon" aria-disabled="true">
-      <Icon size={16} strokeWidth={2} aria-hidden="true" />
-      {label}
-      <span className="nav-soon">Soon</span>
-    </span>
   );
 }
 

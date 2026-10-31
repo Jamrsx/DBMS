@@ -394,6 +394,21 @@ impl Supervisor {
             .collect()
     }
 
+    /// Empties a service's log files (its own log and the console output NexDB captures).
+    /// Files that don't exist yet are fine; a service that is running keeps writing to them.
+    pub fn clear_log(&self, id: &str) -> Result<(), String> {
+        let spec = self.spec(id)?;
+        let console = spec.log.with_extension("console.log");
+        for path in [&spec.log, &console] {
+            match fs::OpenOptions::new().write(true).truncate(true).open(path) {
+                Ok(_) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => return Err(format!("Couldn't clear {}: {e}", path.file_name().unwrap_or_default().to_string_lossy())),
+            }
+        }
+        Ok(())
+    }
+
     /// The end of a service's log, newest last.
     pub fn log_tail(&self, id: &str) -> Result<String, String> {
         let spec = self.spec(id)?;
@@ -548,6 +563,27 @@ mod tests {
             "components":[{"id":"php","version":"8.5.12","path":"C:\\D\\bin\\php\\php-8.5.12","existing":false}],
             "apache_port":null,"nginx_port":null,"mysql":null}"#);
         assert!(specs_for(Path::new(r"C:\D"), &s).is_empty());
+    }
+
+    #[test]
+    fn clearing_logs_empties_both_files() {
+        let dir = tempfile::tempdir().unwrap();
+        let log = dir.path().join("apache_error.log");
+        fs::write(&log, "old line\n").unwrap();
+        fs::write(log.with_extension("console.log"), "--- Apache starting ---\n").unwrap();
+        let sup = Supervisor::new(vec![ServiceSpec {
+            id: "apache".into(), name: "Apache".into(), version: None,
+            exe: dir.path().join("httpd.exe"), args: vec![], cwd: dir.path().into(), port: 1,
+            managed: true, stop: StopMethod::Kill, log: log.clone(),
+        }]);
+        sup.clear_log("apache").unwrap();
+        assert_eq!(fs::read_to_string(&log).unwrap(), "");
+        assert_eq!(fs::read_to_string(log.with_extension("console.log")).unwrap(), "");
+        assert_eq!(sup.log_tail("apache").unwrap(), "No log output yet.");
+        // A service that hasn't logged anything yet is fine too.
+        fs::remove_file(&log).unwrap();
+        sup.clear_log("apache").unwrap();
+        assert!(sup.clear_log("nope").is_err());
     }
 
     #[test]

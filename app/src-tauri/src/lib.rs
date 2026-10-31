@@ -1,10 +1,14 @@
 mod admin;
 mod catalog;
 mod configure;
+mod db;
 mod installer;
+mod phpmyadmin;
+mod projects;
 mod scan;
 mod settings;
 mod supervisor;
+mod terminal;
 mod tray;
 
 use std::sync::{Arc, Mutex};
@@ -189,6 +193,8 @@ pub fn run() {
             }
         })
         .manage(Stack::default())
+        .manage(terminal::Terminals::default())
+        .manage(db::Db::default())
         .invoke_handler(tauri::generate_handler![
             system_scan,
             component_choices,
@@ -201,8 +207,28 @@ pub fn run() {
             start_services,
             stop_services,
             service_log,
+            clear_service_log,
             tray::autostart_get,
-            tray::autostart_set
+            tray::autostart_set,
+            projects_list,
+            project_create,
+            projects_sync_hosts,
+            project_open,
+            terminal_open,
+            terminal_write,
+            terminal_resize,
+            terminal_close,
+            phpmyadmin_status,
+            phpmyadmin_install,
+            phpmyadmin_open,
+            db_connect,
+            db_databases,
+            db_tables,
+            db_columns,
+            db_browse,
+            db_query,
+            db_create,
+            db_drop
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -210,6 +236,7 @@ pub fn run() {
     app.run(|handle, event| {
         // Stop services cleanly when DevManager closes; the job objects cover crashes.
         if let tauri::RunEvent::Exit = event {
+            handle.state::<terminal::Terminals>().close_all();
             if let Ok((_, _, sup)) = handle.state::<Stack>().get() {
                 sup.stop_all();
             }
@@ -233,4 +260,221 @@ pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
         }
         let _ = app.emit("services-changed", ());
     });
+}
+
+#[derive(serde::Serialize)]
+struct ProjectsInfo {
+    www_dir: String,
+    web_server: bool,
+    projects: Vec<projects::Project>,
+    /// Project addresses that aren't in the Windows hosts file yet.
+    missing_hosts: Vec<String>,
+}
+
+#[tauri::command]
+async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let port = settings.apache_port.unwrap_or(80);
+        let projects = projects::list(std::path::Path::new(&settings.www_dir), port);
+        let wanted: Vec<String> = projects.iter().filter_map(|p| p.host.clone()).collect();
+        let hosts = std::fs::read_to_string(projects::hosts_path()).unwrap_or_default();
+        Ok(ProjectsInfo {
+            www_dir: settings.www_dir.clone(),
+            web_server: settings.apache_port.is_some(),
+            missing_hosts: projects::missing_hosts(&wanted, &hosts),
+            projects,
+        })
+    })
+    .await
+}
+
+/// Rewrites the virtual hosts and restarts Apache when it is running so it picks them up.
+fn apply_vhosts(root: &std::path::Path, settings: &settings::Settings, sup: &supervisor::Supervisor) -> Result<(), String> {
+    let Some(port) = settings.apache_port else { return Ok(()) };
+    projects::write_vhosts(&root.join("etc"), std::path::Path::new(&settings.www_dir), port)?;
+    let running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+    if running {
+        installer::refresh_configs(root, settings)?;
+        sup.stop("apache")?;
+        sup.start("apache")?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn project_create(stack: tauri::State<'_, Stack>, name: String, kind: String) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        projects::create(std::path::Path::new(&settings.www_dir), &name, &kind)?;
+        apply_vhosts(&root, &settings, &sup)
+    })
+    .await
+}
+
+/// Adds every project address to the Windows hosts file (one administrator approval), then
+/// refreshes Apache's virtual hosts.
+#[tauri::command]
+async fn projects_sync_hosts(stack: tauri::State<'_, Stack>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let port = settings.apache_port.unwrap_or(80);
+        let hosts: Vec<String> = projects::list(std::path::Path::new(&settings.www_dir), port)
+            .into_iter()
+            .filter_map(|p| p.host)
+            .collect();
+        projects::sync_hosts_elevated(&hosts)?;
+        apply_vhosts(&root, &settings, &sup)
+    })
+    .await
+}
+
+/// Opens a project's folder in Explorer, or one of its addresses in the browser. Only paths
+/// inside the www folder and the project's own addresses are accepted.
+#[tauri::command]
+fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String, what: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (_, settings, _) = stack.get()?;
+    let port = settings.apache_port.unwrap_or(80);
+    let project = projects::list(std::path::Path::new(&settings.www_dir), port)
+        .into_iter()
+        .find(|p| p.name == name)
+        .ok_or("That project doesn't exist any more.")?;
+    match what.as_str() {
+        "folder" => app.opener().open_path(project.path, None::<&str>).map_err(|e| e.to_string()),
+        "url" if !project.url.is_empty() => app.opener().open_url(project.url, None::<&str>).map_err(|e| e.to_string()),
+        "local" => app.opener().open_url(project.local_url, None::<&str>).map_err(|e| e.to_string()),
+        _ => Err("This project has no address.".into()),
+    }
+}
+
+#[tauri::command]
+fn terminal_open(
+    app: tauri::AppHandle,
+    stack: tauri::State<Stack>,
+    terminals: tauri::State<terminal::Terminals>,
+    cols: u16,
+    rows: u16,
+) -> Result<u32, String> {
+    let (root, settings, _) = stack.get()?;
+    terminals.open(&app, &root, &settings, cols, rows)
+}
+
+#[tauri::command]
+fn terminal_write(terminals: tauri::State<terminal::Terminals>, id: u32, data: String) -> Result<(), String> {
+    terminals.write(id, &data)
+}
+
+#[tauri::command]
+fn terminal_resize(terminals: tauri::State<terminal::Terminals>, id: u32, cols: u16, rows: u16) -> Result<(), String> {
+    terminals.resize(id, cols, rows)
+}
+
+#[tauri::command]
+fn terminal_close(terminals: tauri::State<terminal::Terminals>, id: u32) {
+    terminals.close(id);
+}
+
+fn mysql_port(stack: &Stack) -> Result<u16, String> {
+    let (_, settings, _) = stack.get()?;
+    settings.mysql.map(|m| m.port).ok_or_else(|| "MySQL isn't part of this install.".to_string())
+}
+
+/// Opens (or reopens) the connection as root. The password stays in memory only.
+#[tauri::command]
+async fn db_connect(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, password: Option<String>) -> Result<db::Connected, String> {
+    let port = mysql_port(&stack)?;
+    let db = db.inner().clone_handle();
+    blocking(move || db.connect(port, password.as_deref())).await
+}
+
+#[tauri::command]
+async fn db_databases(db: tauri::State<'_, db::Db>) -> Result<Vec<db::DatabaseInfo>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.databases()).await
+}
+
+#[tauri::command]
+async fn db_tables(db: tauri::State<'_, db::Db>, name: String) -> Result<Vec<db::TableInfo>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.tables(&name)).await
+}
+
+#[tauri::command]
+async fn db_columns(db: tauri::State<'_, db::Db>, name: String, table: String) -> Result<Vec<db::ColumnInfo>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.columns(&name, &table)).await
+}
+
+#[tauri::command]
+async fn db_browse(db: tauri::State<'_, db::Db>, name: String, table: String, page: u64, page_size: u64) -> Result<db::TablePage, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.browse(&name, &table, page, page_size)).await
+}
+
+#[tauri::command]
+async fn db_query(db: tauri::State<'_, db::Db>, name: Option<String>, sql: String) -> Result<db::QueryOutput, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.query(name.as_deref(), &sql)).await
+}
+
+#[tauri::command]
+async fn db_create(db: tauri::State<'_, db::Db>, name: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.create_database(&name)).await
+}
+
+#[tauri::command]
+async fn db_drop(db: tauri::State<'_, db::Db>, name: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.drop_database(&name)).await
+}
+
+#[tauri::command]
+fn phpmyadmin_status(stack: tauri::State<Stack>) -> Result<phpmyadmin::Status, String> {
+    let (root, settings, _) = stack.get()?;
+    Ok(phpmyadmin::status(&root, settings.apache_port))
+}
+
+/// Downloads phpMyAdmin, sets it up for NexDB's MySQL and restarts Apache if it is running.
+/// Progress arrives as `tool-progress` events.
+#[tauri::command]
+async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    if settings.apache_port.is_none() {
+        return Err("phpMyAdmin needs the Apache web server, which isn't part of this install.".into());
+    }
+    let catalog = catalog::bundled();
+    let emit_app = app.clone();
+    phpmyadmin::install(&catalog.tools.phpmyadmin.download, &root, settings.mysql.as_ref().map(|m| m.port), &move |p| {
+        let _ = emit_app.emit("tool-progress", p);
+    })
+    .await?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        let running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+        if running {
+            sup.stop("apache")?;
+            sup.start("apache")?;
+        }
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+fn phpmyadmin_open(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (root, settings, _) = stack.get()?;
+    let status = phpmyadmin::status(&root, settings.apache_port);
+    if !status.installed {
+        return Err("phpMyAdmin isn't installed yet.".into());
+    }
+    app.opener().open_url(status.url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn clear_service_log(stack: tauri::State<'_, Stack>, id: String) -> Result<(), String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || sup.clear_log(&id)).await
 }

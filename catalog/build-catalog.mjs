@@ -11,6 +11,7 @@
 //   nginx    nginx.org zip                              (SHA-256 computed here; zips are small)
 //   MySQL    cdn.mysql.com .md5 file                    (MD5; TODO: verify the .asc signature in CI)
 //   Composer getcomposer.org versioned .sha256sum       (SHA-256)
+//   phpMyAdmin files.phpmyadmin.net .sha256                (SHA-256)
 
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
@@ -118,6 +119,13 @@ async function composerTool() {
   return { version, download: download(url, await headSize(url), "sha256", sha) };
 }
 
+async function phpmyadminTool() {
+  const { version } = await getJson("https://www.phpmyadmin.net/home_page/version.json");
+  const url = `https://files.phpmyadmin.net/phpMyAdmin/${version}/phpMyAdmin-${version}-all-languages.zip`;
+  const sha = (await getText(`${url}.sha256`)).trim().split(/s+/)[0];
+  return { version, download: download(url, await headSize(url), "sha256", sha) };
+}
+
 /** endoflife.date fields are either a date string or a boolean. */
 const dateOrNull = (v) => (typeof v === "string" ? v : null);
 
@@ -175,9 +183,10 @@ const catalog = {
     "nginx.org",
     "cdn.mysql.com",
     "getcomposer.org",
+    "files.phpmyadmin.net",
   ],
   components,
-  tools: { composer: await composerTool() },
+  tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool() },
 };
 
 const out = new URL("./catalog.json", import.meta.url);

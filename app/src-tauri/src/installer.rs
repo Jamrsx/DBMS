@@ -148,7 +148,7 @@ pub async fn run(
     report("folders", StepStatus::Done, None);
 
     let client = reqwest::Client::builder()
-        .user_agent(concat!("DevManager/", env!("CARGO_PKG_VERSION")))
+        .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
         .connect_timeout(Duration::from_secs(20))
         .build()
         .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
@@ -381,6 +381,8 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
     layout.write_php_ini()?;
     if let Some(server_root) = &layout.apache {
         configure_apache(&layout, server_root)?;
+        crate::projects::write_vhosts(&layout.etc, &layout.www, layout.apache_port)?;
+        crate::phpmyadmin::write_config(root, settings.mysql.as_ref().map(|m| m.port))?;
     }
     if let Some(nginx_dir) = &layout.nginx {
         configure_nginx(&layout, nginx_dir)?;
@@ -404,6 +406,8 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
 fn configure_apache(l: &Layout, server_root: &Path) -> Result<Option<String>, String> {
     l.write_php_ini()?;
     fs::create_dir_all(l.etc.join("apache").join("sites-enabled")).map_err(|e| e.to_string())?;
+    // The config includes this folder; Apache refuses to start when an included folder is missing.
+    fs::create_dir_all(l.etc.join("apache").join("extra")).map_err(|e| e.to_string())?;
     fs::create_dir_all(&l.logs).map_err(|e| e.to_string())?;
     let conf = l.etc.join("apache").join("httpd.conf");
     configure::write_file(
@@ -617,6 +621,39 @@ async fn install_item(
     // The verified archive is no longer needed.
     let _ = fs::remove_file(&archive);
     Ok(reused.then(|| "Used an already-downloaded file".into()))
+}
+
+/// Downloads a verified zip into `root\tmp\downloads` and unpacks it into `target` (replacing it).
+pub async fn install_archive(
+    download: &Download,
+    root: &Path,
+    target: &Path,
+    step: &str,
+    emit: &impl Fn(Progress),
+) -> Result<(), String> {
+    CANCEL.store(false, Ordering::SeqCst);
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
+    let file_name = download.url.rsplit('/').next().unwrap_or("download.zip");
+    let archive = root.join("tmp").join("downloads").join(file_name);
+    fs::create_dir_all(archive.parent().unwrap()).map_err(|e| e.to_string())?;
+    if !(archive.is_file() && file_matches(&archive, &download.checksum).unwrap_or(false)) {
+        fetch(&client, download, &archive, step, emit).await.map_err(|e| match e {
+            StepError::Cancelled => "Cancelled.".to_string(),
+            StepError::Failed(msg) => msg,
+        })?;
+    }
+    emit(Progress { step: step.into(), status: StepStatus::Running, message: Some("Unpacking".into()), bytes_done: 0, bytes_total: None });
+    let (archive_path, target_path) = (archive.clone(), target.to_path_buf());
+    tauri::async_runtime::spawn_blocking(move || extract_into(&archive_path, &target_path))
+        .await
+        .map_err(|err| format!("Unpacking stopped unexpectedly: {err}"))?
+        .map_err(|err| format!("Couldn't unpack {file_name}: {err}"))?;
+    let _ = fs::remove_file(&archive);
+    Ok(())
 }
 
 /// Streams `download` to `dest`, hashing as it goes; the file only gets its final

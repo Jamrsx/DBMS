@@ -9,7 +9,8 @@
     "apachelounge.com",
     "nginx.org",
     "cdn.mysql.com",
-    "getcomposer.org"
+    "getcomposer.org",
+    "files.phpmyadmin.net"
   ],
   "components": [
     {
@@ -312,6 +313,18 @@
         "checksum": {
           "algo": "sha256",
           "value": "9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b"
+        },
+        "file_version": null
+      }
+    },
+    "phpmyadmin": {
+      "version": "5.2.3",
+      "download": {
+        "url": "https://files.phpmyadmin.net/phpMyAdmin/5.2.3/phpMyAdmin-5.2.3-all-languages.zip",
+        "size": 16431330,
+        "checksum": {
+          "algo": "sha256",
+          "value": "2d2e13c735366d318425c78e4ee2cc8fc648d77faba3ddea2cd516e43885733f"
         },
         "file_version": null
       }

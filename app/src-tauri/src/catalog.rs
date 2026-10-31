@@ -20,6 +20,7 @@ pub struct Catalog {
 #[derive(Debug, Deserialize)]
 pub struct Tools {
     pub composer: Tool,
+    pub phpmyadmin: Tool,
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,0 +1,1160 @@
+/* NexDB theme for phpMyAdmin: the app's own tokens, light and dark (follows the system). */
+
+:root {
+  --nx-bg: #f4f5f7;
+  --nx-rail: #eceef2;
+  --nx-surface: #ffffff;
+  --nx-surface-2: #f6f7f9;
+  --nx-text: #16181d;
+  --nx-text-2: #464d5a;
+  --nx-text-3: #636a77;
+  --nx-border: #e1e4e9;
+  --nx-border-strong: #c9ced6;
+  --nx-accent: #2563eb;
+  --nx-accent-hover: #1d4fd8;
+  --nx-accent-text: #1c4fd6;
+  --nx-accent-soft: #e8efff;
+  --nx-bad: #c42b2b;
+  --nx-bad-soft: #fdeded;
+  --nx-ok: #127436;
+  --nx-ok-soft: #e6f5ec;
+  --nx-warn-soft: #fff5e0;
+  --nx-font: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --nx-mono: "Cascadia Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+  --nx-radius: 8px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nx-bg: #111317;
+    --nx-rail: #15181d;
+    --nx-surface: #1a1d23;
+    --nx-surface-2: #21252c;
+    --nx-text: #e8eaef;
+    --nx-text-2: #b5bbc6;
+    --nx-text-3: #8f96a3;
+    --nx-border: #2b3038;
+    --nx-border-strong: #3c424d;
+    --nx-accent: #2f6ae0;
+    --nx-accent-hover: #3d77ea;
+    --nx-accent-text: #8fb3ff;
+    --nx-accent-soft: #1d2a45;
+    --nx-bad: #f47b7b;
+    --nx-bad-soft: #321a1c;
+    --nx-ok: #5ccb8b;
+    --nx-ok-soft: #16291f;
+    --nx-warn-soft: #2c2312;
+    color-scheme: dark;
+  }
+  img.icon,
+  .icon {
+    filter: brightness(0.92) contrast(1.05);
+  }
+}
+
+html,
+body {
+  background: var(--nx-bg) !important;
+  color: var(--nx-text) !important;
+  font-family: var(--nx-font) !important;
+  font-size: 14px !important;
+}
+
+a,
+a:link,
+a:visited {
+  color: var(--nx-accent-text);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+  color: var(--nx-accent);
+}
+
+h1,
+h2,
+h3,
+legend,
+.card-header {
+  color: var(--nx-text) !important;
+  font-family: var(--nx-font) !important;
+  text-shadow: none !important;
+}
+
+/* ---- navigation panel */
+
+#pma_navigation {
+  background: var(--nx-rail) !important;
+  color: var(--nx-text-2) !important;
+  border-right: 1px solid var(--nx-border);
+}
+
+#pma_navigation a,
+#pma_navigation_tree,
+#pma_navigation_tree a,
+#pma_navigation li,
+#pma_navigation_header a {
+  color: var(--nx-text-2) !important;
+}
+
+#pma_navigation_tree {
+  background: transparent !important;
+}
+
+#pma_navigation_tree li:hover,
+#pma_navigation_tree li.selected,
+#pma_navigation_tree a:hover,
+#pma_navigation_tree li.activePointer {
+  background: var(--nx-accent-soft) !important;
+  color: var(--nx-text) !important;
+  border-radius: 6px;
+}
+
+#pma_navigation_header,
+#pma_navigation_select_database,
+#pma_navigation_select_server,
+#pma_navigation_tree_content {
+  background: transparent !important;
+}
+
+#pma_navigation_resizer {
+  background: transparent !important;
+  width: 4px !important;
+}
+
+#pma_navigation_resizer:hover {
+  background: var(--nx-border-strong) !important;
+}
+
+#pma_navigation_collapser {
+  background: var(--nx-surface) !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: 0 6px 6px 0;
+  color: var(--nx-text-2) !important;
+}
+
+/* ---- breadcrumb and top tabs */
+
+#serverinfo {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text-2) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+  text-shadow: none !important;
+  padding: 0.7em 1em !important;
+  margin: 0 !important;
+}
+
+#serverinfo a,
+#serverinfo .item,
+#serverinfo .item a {
+  color: var(--nx-text) !important;
+  text-shadow: none !important;
+  font-weight: 600;
+}
+
+#topmenucontainer,
+#topmenu,
+#topmenu2,
+.navigationbar {
+  background: var(--nx-bg) !important;
+  border: 0 !important;
+}
+
+#topmenu {
+  border-bottom: 1px solid var(--nx-border) !important;
+}
+
+#topmenu .nav-link,
+#topmenu a.nav-link,
+#topmenu .nav-link.disabled,
+#topmenu2 .nav-link {
+  background: transparent !important;
+  color: var(--nx-text-2) !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  text-shadow: none !important;
+  padding: 0.75em 0.9em !important;
+  font-weight: 500;
+}
+
+#topmenu .nav-link:hover,
+#topmenu2 .nav-link:hover {
+  color: var(--nx-text) !important;
+  background: var(--nx-surface-2) !important;
+}
+
+#topmenu .nav-link.active,
+#topmenu .active .nav-link,
+#topmenu a.tabactive,
+#topmenu2 .nav-link.active {
+  color: var(--nx-accent-text) !important;
+  border-bottom-color: var(--nx-accent) !important;
+  background: transparent !important;
+  font-weight: 600;
+}
+
+/* ---- cards, fieldsets, boxes */
+
+.card,
+.pma-fieldset,
+fieldset.pma-fieldset,
+fieldset,
+.group,
+.config-form fieldset {
+  background: var(--nx-surface) !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: var(--nx-radius) !important;
+  box-shadow: 0 1px 2px rgb(16 24 40 / 0.05) !important;
+  text-shadow: none !important;
+  color: var(--nx-text) !important;
+}
+
+.card-header,
+fieldset legend,
+.pma-fieldset legend {
+  background: var(--nx-surface-2) !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+  border-radius: var(--nx-radius) var(--nx-radius) 0 0 !important;
+  font-weight: 600 !important;
+}
+
+fieldset legend {
+  border: 1px solid var(--nx-border) !important;
+  border-radius: 6px !important;
+  padding: 0.2em 0.7em !important;
+}
+
+.card-body,
+.card-footer {
+  background: transparent !important;
+  color: var(--nx-text) !important;
+}
+
+#page_content,
+#page_settings_modal,
+.pma_drop_handler {
+  color: var(--nx-text);
+}
+
+/* ---- tables */
+
+table,
+.table,
+.table > :not(caption) > * > * {
+  color: var(--nx-text) !important;
+  background-color: transparent !important;
+  border-color: var(--nx-border) !important;
+  text-shadow: none !important;
+}
+
+table th,
+.table th,
+table thead th {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  color: var(--nx-text-2) !important;
+  font-weight: 600 !important;
+  border-color: var(--nx-border) !important;
+  text-shadow: none !important;
+}
+
+table th a,
+table th a:link,
+table th a:visited {
+  color: var(--nx-text-2) !important;
+}
+
+table tr.odd,
+table tr.even,
+.table-striped > tbody > tr:nth-of-type(odd) > * {
+  background: transparent !important;
+}
+
+table.data tr:hover td,
+table tbody tr:hover > td,
+table tr.odd:hover,
+table tr.even:hover,
+.data tr:hover {
+  background: var(--nx-accent-soft) !important;
+}
+
+td,
+th {
+  border-color: var(--nx-border) !important;
+}
+
+table.data td,
+td.data,
+.data td {
+  font-family: var(--nx-mono);
+  font-size: 12.5px;
+}
+
+/* ---- forms */
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+input[type="email"],
+input[type="search"],
+input:not([type]),
+select,
+textarea,
+.form-control,
+.form-select {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  border-radius: 6px !important;
+  padding: 0.4em 0.6em !important;
+  font-family: var(--nx-font) !important;
+  box-shadow: none !important;
+}
+
+textarea,
+.CodeMirror,
+#sqlquery {
+  font-family: var(--nx-mono) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus,
+.form-control:focus {
+  outline: 2px solid var(--nx-accent) !important;
+  outline-offset: 1px;
+  border-color: var(--nx-accent) !important;
+}
+
+input[type="submit"],
+input[type="button"],
+button,
+.btn,
+.btn-primary,
+.btn-secondary {
+  background: var(--nx-surface) !important;
+  background-image: none !important;
+  color: var(--nx-text) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  border-radius: 6px !important;
+  padding: 0.4em 0.9em !important;
+  font-family: var(--nx-font) !important;
+  font-weight: 500;
+  text-shadow: none !important;
+  box-shadow: 0 1px 1px rgb(16 24 40 / 0.05) !important;
+  cursor: pointer;
+}
+
+input[type="submit"]:hover,
+input[type="button"]:hover,
+button:hover,
+.btn:hover {
+  background: var(--nx-surface-2) !important;
+}
+
+input[type="submit"].btn-primary,
+#button_submit_query,
+#input_go,
+input[name="Go"],
+.btn-primary,
+#pma_navigation input[type="submit"] {
+  background: var(--nx-accent) !important;
+  border-color: var(--nx-accent) !important;
+  color: #fff !important;
+}
+
+input[type="submit"].btn-primary:hover,
+#button_submit_query:hover,
+#input_go:hover,
+.btn-primary:hover {
+  background: var(--nx-accent-hover) !important;
+}
+
+/* ---- messages */
+
+.alert,
+div.error,
+div.success,
+div.notice,
+.alert-danger,
+.alert-success,
+.alert-warning,
+.alert-info {
+  border-radius: var(--nx-radius) !important;
+  border: 1px solid var(--nx-border) !important;
+  background: var(--nx-surface-2) !important;
+  color: var(--nx-text) !important;
+  background-image: none !important;
+  text-shadow: none !important;
+}
+
+.alert-danger,
+div.error {
+  background: var(--nx-bad-soft) !important;
+  border-color: var(--nx-bad) !important;
+}
+
+.alert-success,
+div.success {
+  background: var(--nx-ok-soft) !important;
+}
+
+.alert-warning,
+div.notice {
+  background: var(--nx-warn-soft) !important;
+}
+
+/* ---- login page */
+
+body#loginform,
+#loginform {
+  background: var(--nx-bg) !important;
+}
+
+#login_form,
+form.login {
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+body#loginform .container {
+  padding-top: 8vh;
+}
+
+body#loginform h1,
+body#loginform h2 {
+  text-align: center;
+}
+
+body#loginform .card,
+body#loginform fieldset {
+  box-shadow: 0 8px 28px rgb(16 24 40 / 0.1) !important;
+}
+
+/* ---- console and popups */
+
+#pma_console,
+#pma_console .content,
+#pma_console .toolbar,
+.ui-dialog,
+.ui-widget-content,
+.ui-widget-header,
+.ui-tooltip,
+.pma_quick_warp {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+  border-color: var(--nx-border) !important;
+  background-image: none !important;
+}
+
+.ui-dialog {
+  border-radius: var(--nx-radius) !important;
+  box-shadow: 0 16px 48px rgb(0 0 0 / 0.25) !important;
+}
+
+.ui-widget-overlay {
+  background: #000 !important;
+  opacity: 0.45 !important;
+}
+
+.cm-s-default,
+.CodeMirror {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  border-radius: 6px;
+}
+
+hr {
+  border-color: var(--nx-border) !important;
+}
+
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nx-border-strong);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---- gradients and headings from the default theme */
+
+nav.navbar,
+.navbar,
+.navbar.bg-light,
+.bg-light {
+  background: var(--nx-bg) !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+li.nav-item,
+li.nav-item.dropdown,
+.navbar-nav .nav-item {
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.navbar-nav .nav-link {
+  border-radius: 6px !important;
+  margin: 2px 1px;
+}
+
+.navbar-nav .dropdown-menu,
+.dropdown-menu {
+  background: var(--nx-surface) !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: var(--nx-radius) !important;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18) !important;
+}
+
+.dropdown-item {
+  color: var(--nx-text) !important;
+}
+
+.dropdown-item:hover {
+  background: var(--nx-accent-soft) !important;
+}
+
+.modal-content {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: var(--nx-radius) !important;
+}
+
+.modal-header,
+.modal-footer {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  border-color: var(--nx-border) !important;
+  color: var(--nx-text) !important;
+}
+
+h2,
+#page_content h2,
+.card h2,
+.container-fluid h2 {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--nx-text) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  font-size: 1.15em !important;
+  font-weight: 600 !important;
+  padding: 0.55em 0.2em !important;
+  margin: 0 0 0.7em !important;
+}
+
+.card > h2,
+.card h2:first-child {
+  margin-bottom: 0 !important;
+  padding: 0.8em 1em !important;
+  background: var(--nx-surface-2) !important;
+  border-radius: var(--nx-radius) var(--nx-radius) 0 0 !important;
+}
+
+fieldset legend,
+.pma-fieldset legend,
+form fieldset > legend {
+  box-shadow: none !important;
+  background: var(--nx-surface) !important;
+  margin-bottom: 0.4em;
+}
+
+#pma_navigation_header,
+#pma_navigation_content,
+#pma_navigation_tree_content,
+.navigation_controls_outer,
+#navipanellinks {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+#pma_navigation_tree a.hover_show_full,
+#pma_navigation_tree li {
+  text-shadow: none !important;
+}
+
+#pma_console .toolbar,
+#pma_console .console_message_container {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+}
+
+img.icon,
+.icon,
+#pma_navigation img {
+  vertical-align: middle;
+}
+
+#pma_navigation_tree img[class*="ic_"] {
+  filter: none;
+}
+
+/* ---- breadcrumb bar and legends */
+
+.breadcrumb,
+.breadcrumb-navbar,
+ol.breadcrumb {
+  background: var(--nx-surface) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+  border-radius: 0 !important;
+  color: var(--nx-text-2) !important;
+  text-shadow: none !important;
+  padding: 0.55em 1em !important;
+  margin: 0 !important;
+}
+
+.breadcrumb a,
+.breadcrumb .breadcrumb-item,
+.breadcrumb-item + .breadcrumb-item::before,
+.breadcrumb-navbar a {
+  color: var(--nx-text-2) !important;
+  text-shadow: none !important;
+}
+
+.breadcrumb a:hover {
+  color: var(--nx-text) !important;
+}
+
+#floating_menubar,
+#name-panel {
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+legend,
+fieldset legend,
+.pma-fieldset legend,
+form fieldset > legend {
+  float: none !important;
+  width: auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 0 0.6em !important;
+  font-size: 1.05em !important;
+  font-weight: 600 !important;
+  border-radius: 0 !important;
+}
+
+fieldset,
+.pma-fieldset {
+  padding: 1em 1.1em !important;
+  margin-top: 1em !important;
+}
+
+.pma_quick_warp,
+.drop_button {
+  background: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+}
+
+/* ---- pagination bars, row hover, query boxes */
+
+table.navigation,
+table.navigation.d-print-none,
+.navigation {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: var(--nx-radius) !important;
+  color: var(--nx-text) !important;
+}
+
+table.navigation td,
+table.navigation label {
+  color: var(--nx-text) !important;
+  background: transparent !important;
+}
+
+.table-hover > tbody > tr:hover > *,
+table tr:hover > td,
+table tr:hover > th,
+table.data tr.hover td,
+tr.hover td,
+tr.marked td,
+tr.marked th {
+  --bs-table-bg-state: var(--nx-accent-soft) !important;
+  --bs-table-color-state: var(--nx-text) !important;
+  background-color: var(--nx-accent-soft) !important;
+  color: var(--nx-text) !important;
+  box-shadow: none !important;
+}
+
+.sqlOuter,
+div.tools,
+.tools,
+div.button,
+.order_by .button,
+.sql-highlight,
+pre.sql-highlight {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  color: var(--nx-text) !important;
+  border-color: var(--nx-border) !important;
+  text-shadow: none !important;
+}
+
+.cm-keyword,
+.sql-highlight .sql-reserved {
+  color: var(--nx-accent-text) !important;
+}
+
+table.data td a,
+table.data td .edit_row_anchor {
+  color: var(--nx-accent-text);
+}
+
+#pma_navigation_tree li.selected,
+#pma_navigation_tree li.activePointer {
+  color: var(--nx-text) !important;
+}
+
+.tools a,
+.tools a:visited {
+  color: var(--nx-accent-text) !important;
+}
+
+td.edit_row_anchor,
+.edit_row_anchor {
+  background: transparent !important;
+}
+
+/* ---- clean pass: quiet stripes, no blue highlights ---- */
+
+:root {
+  --nx-stripe: #f5f6f8;
+  --nx-hover: #eceef2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nx-stripe: #1d2026;
+    --nx-hover: #262a31;
+  }
+}
+
+/* Bootstrap paints its stripes with a huge inset shadow; replace it with plain backgrounds. */
+html body .table,
+html body table {
+  --bs-table-bg: transparent;
+  --bs-table-bg-type: transparent;
+  --bs-table-bg-state: transparent;
+  --bs-table-color: var(--nx-text);
+  --bs-table-color-type: var(--nx-text);
+  --bs-table-color-state: var(--nx-text);
+  --bs-table-striped-bg: var(--nx-stripe);
+  --bs-table-striped-color: var(--nx-text);
+  --bs-table-hover-bg: var(--nx-hover);
+  --bs-table-hover-color: var(--nx-text);
+}
+
+html body .table > :not(caption) > * > *,
+html body table > tbody > tr > td,
+html body table > tbody > tr > th {
+  box-shadow: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  color: var(--nx-text) !important;
+  border-color: var(--nx-border) !important;
+}
+
+html body .table-striped > tbody > tr:nth-of-type(even) > *,
+html body table.data > tbody > tr:nth-of-type(even) > * {
+  background-color: var(--nx-stripe) !important;
+}
+
+html body .table-hover > tbody > tr:hover > *,
+html body table tr:hover > td,
+html body table tr:hover > th,
+html body table tr.hover > td,
+html body table tr.marked > td {
+  background-color: var(--nx-hover) !important;
+  color: var(--nx-text) !important;
+  box-shadow: none !important;
+}
+
+html body table th {
+  background-color: var(--nx-surface-2) !important;
+}
+
+/* Table links keep one calm accent. */
+html body table td a,
+html body table td a:link,
+html body table td a:visited {
+  color: var(--nx-accent-text) !important;
+}
+
+html body table td.data a,
+html body table td.data {
+  color: var(--nx-text) !important;
+}
+
+/* ---- navigation tree: no blue slab, a quiet hover ---- */
+
+html body #pma_navigation_tree li.selected,
+html body #pma_navigation_tree li.database.selected,
+html body #pma_navigation_tree li.activePointer,
+html body #pma_navigation li.selected {
+  background: transparent !important;
+  color: var(--nx-text) !important;
+}
+
+html body #pma_navigation_tree li.selected > .block > a,
+html body #pma_navigation_tree li.selected > a {
+  font-weight: 600;
+  color: var(--nx-text) !important;
+}
+
+html body #pma_navigation_tree li:hover > .block,
+html body #pma_navigation_tree li:hover > a,
+html body #pma_navigation_tree a:hover {
+  background: var(--nx-hover) !important;
+  border-radius: 6px;
+  text-decoration: none;
+}
+
+html body #pma_navigation_tree li.selected > .block,
+html body #pma_navigation_tree li.table.selected > .block,
+html body #pma_navigation_tree li.activePointer > .block {
+  background: var(--nx-hover) !important;
+  border-radius: 6px;
+}
+
+/* ---- quieter chrome ---- */
+
+html body .card,
+html body fieldset,
+html body .pma-fieldset {
+  box-shadow: none !important;
+}
+
+html body #serverinfo,
+html body .breadcrumb,
+html body .breadcrumb-navbar {
+  border-bottom: 1px solid var(--nx-border) !important;
+}
+
+html body ::selection {
+  background: var(--nx-accent-soft);
+  color: var(--nx-text);
+}
+
+html body .ajax_notification,
+html body .alert-success,
+html body div.success {
+  background: var(--nx-surface-2) !important;
+  border: 1px solid var(--nx-border) !important;
+  box-shadow: none !important;
+}
+
+html body .alert-success {
+  border-left: 3px solid var(--nx-ok) !important;
+}
+
+html body .alert-danger {
+  border-left: 3px solid var(--nx-bad) !important;
+}
+
+/* card headers: flat, no floating glow */
+html body .card-header {
+  box-shadow: none !important;
+  background: var(--nx-surface-2) !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+  border-radius: 8px 8px 0 0 !important;
+  padding: 0.65em 1em !important;
+  margin: 0 !important;
+  position: static !important;
+  text-shadow: none !important;
+  font-weight: 600;
+}
+
+/* ---- softer text: nothing pure white, nothing too dim ---- */
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --nx-text: #d3d7de;
+    --nx-text-2: #aab1bd;
+    --nx-text-3: #8d94a1;
+  }
+}
+
+html body .list-group,
+html body .list-group-item,
+html body .list-group-flush > .list-group-item {
+  background: transparent !important;
+  border-color: var(--nx-border) !important;
+  color: var(--nx-text-2) !important;
+}
+
+html body .list-group-item :where(span, label, div, p, small, li, b, strong) {
+  color: inherit !important;
+}
+
+html body .list-group-item a {
+  color: var(--nx-accent-text) !important;
+}
+
+html body #page_content :where(p, label, dd, dt, small, legend, caption) {
+  color: var(--nx-text-2) !important;
+}
+
+html body .card-header,
+html body h1,
+html body h2,
+html body h3 {
+  color: var(--nx-text) !important;
+}
+
+html body #topmenu .nav-link,
+html body #pma_navigation_tree a,
+html body #pma_navigation_tree li,
+html body #pma_navigation a {
+  color: var(--nx-text-2) !important;
+}
+
+html body #topmenu .nav-link.active,
+html body #topmenu .nav-link:hover {
+  color: var(--nx-text) !important;
+}
+
+html body input,
+html body select,
+html body textarea {
+  color: var(--nx-text) !important;
+}
+
+html body ::placeholder {
+  color: var(--nx-text-3) !important;
+  opacity: 1;
+}
+
+/* ---- Designer: calm canvas, flat table cards ---- */
+
+html body #canvas,
+html body canvas#canvas,
+html body canvas.designer,
+html body #canvas_outer,
+html body #canvas_outer > form {
+  background: var(--nx-bg) !important;
+  background-image: none !important;
+}
+
+html body table.designer_tab,
+html body .designer_tab {
+  background: var(--nx-surface) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.18) !important;
+}
+
+html body .designer_tab tr.header,
+html body .designer_tab thead,
+html body .designer_tab thead tr,
+html body tr.header {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  border-bottom: 1px solid var(--nx-border) !important;
+}
+
+html body td.tab_zag,
+html body td.tab_zag_2,
+html body td.tab_zag_noquery,
+html body .tab_zag,
+html body td.designer_Tabs {
+  background: transparent !important;
+  color: var(--nx-text) !important;
+  font-weight: 600;
+  text-shadow: none !important;
+}
+
+html body td.tab_zag a,
+html body .tab_zag span,
+html body .designer_tab .header a {
+  color: var(--nx-text) !important;
+}
+
+html body tr.tab_field,
+html body tr.tab_field_2,
+html body tr.tab_field_3,
+html body .designer_tab tbody tr,
+html body .designer_tab td {
+  background: transparent !important;
+  background-image: none !important;
+  color: var(--nx-text-2) !important;
+  border-color: var(--nx-border) !important;
+  box-shadow: none !important;
+}
+
+html body tr.tab_field:nth-of-type(even),
+html body .designer_tab tbody tr:nth-of-type(even) {
+  background: var(--nx-stripe) !important;
+}
+
+html body tr.tab_field_2,
+html body tr.tab_field:hover,
+html body .designer_tab tbody tr:hover {
+  background: var(--nx-hover) !important;
+  color: var(--nx-text) !important;
+}
+
+/* keys and foreign keys get a quiet accent instead of pink */
+html body tr.tab_field_3 {
+  background: var(--nx-accent-soft) !important;
+  color: var(--nx-text) !important;
+}
+
+html body .designer_tab td,
+html body .designer_tab td * {
+  color: inherit !important;
+}
+
+html body .designer_tab img {
+  filter: none;
+}
+
+/* the toolbar down the left */
+html body #side_menu,
+html body .designer_header,
+html body .side-menu {
+  background: var(--nx-surface) !important;
+  background-image: none !important;
+  border: 1px solid var(--nx-border) !important;
+  border-radius: 0 8px 8px 0;
+  box-shadow: none !important;
+}
+
+html body #layer_menu,
+html body #layer_upd_relation,
+html body #layer_new_relation,
+html body #layer_menu * ,
+html body .pmd_Tabs,
+html body ul.dropdown-menu {
+  background-color: var(--nx-surface) !important;
+  color: var(--nx-text) !important;
+  border-color: var(--nx-border) !important;
+}
+
+html body li.active.dropdown-item,
+html body a.nav-link.active {
+  background-color: var(--nx-accent-soft) !important;
+  color: var(--nx-text) !important;
+}
+
+html body .CodeMirror-gutter-filler,
+html body .CodeMirror-scrollbar-filler {
+  background: var(--nx-surface) !important;
+}
+
+/* ---- SQL editor, option rows, resize handles ---- */
+
+html body * {
+  text-shadow: none !important;
+}
+
+html body .CodeMirror-gutters {
+  background: var(--nx-surface-2) !important;
+  border-right: 1px solid var(--nx-border) !important;
+}
+
+html body .CodeMirror-linenumber {
+  color: var(--nx-text-3) !important;
+}
+
+html body .CodeMirror-cursor {
+  border-left-color: var(--nx-text) !important;
+}
+
+html body .CodeMirror-selected,
+html body .CodeMirror-focused .CodeMirror-selected {
+  background: var(--nx-accent-soft) !important;
+}
+
+html body .input-group-text {
+  background: var(--nx-surface-2) !important;
+  color: var(--nx-text-2) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  border-radius: 6px 0 0 6px !important;
+}
+
+html body .form-check-input {
+  background-color: var(--nx-surface) !important;
+  border: 1px solid var(--nx-border-strong) !important;
+  box-shadow: none !important;
+}
+
+html body .form-check-input:checked {
+  background-color: var(--nx-accent) !important;
+  border-color: var(--nx-accent) !important;
+}
+
+html body .form-check-label {
+  color: var(--nx-text-2) !important;
+}
+
+html body #sqlqueryform .card-footer,
+html body .card-footer,
+html body .pma-fieldset.tblFooters,
+html body fieldset.tblFooters {
+  background: var(--nx-surface-2) !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-top: 1px solid var(--nx-border) !important;
+  box-shadow: none !important;
+  border-radius: 0 0 8px 8px !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  html body textarea,
+  html body select,
+  html body .CodeMirror,
+  html body .CodeMirror-scroll,
+  html body .ui-resizable {
+    color-scheme: dark;
+  }
+}
+
+html body ::-webkit-resizer {
+  background: linear-gradient(135deg, transparent 50%, var(--nx-border-strong) 50%, var(--nx-border-strong) 60%, transparent 60%, transparent 75%, var(--nx-border-strong) 75%, var(--nx-border-strong) 85%, transparent 85%);
+}
+
+html body .ui-resizable-handle {
+  background: transparent !important;
+  filter: none !important;
+}
+
+html body hr {
+  border: 0 !important;
+  border-top: 1px solid var(--nx-border) !important;
+  opacity: 1 !important;
+}
+
+.CodeMirror::-webkit-resizer,
+select::-webkit-resizer,
+textarea::-webkit-resizer,
+.resize-vertical::-webkit-resizer,
+.ui-resizable::-webkit-resizer {
+  background: linear-gradient(135deg, transparent 55%, var(--nx-border-strong) 55%, var(--nx-border-strong) 65%, transparent 65%, transparent 78%, var(--nx-border-strong) 78%, var(--nx-border-strong) 88%, transparent 88%) !important;
+  border: 0;
+}

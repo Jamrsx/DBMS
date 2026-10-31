@@ -56,13 +56,15 @@ export function markPreviewInstalled() {
   preview.installed = true;
 }
 
+const previewLogs: Record<string, string[]> = { php: [], apache: [], mysql: [] };
+
 // Browser preview: a simulated stack shaped like a real one (Apache blocked by another
 // program on port 80, PHP startable, an existing MySQL that is only watched).
 const preview = (() => {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const started: Record<string, number | null> = { php: null, apache: null };
   const errors: Record<string, string | null> = { php: null, apache: null };
-  const logs: Record<string, string[]> = { php: [], apache: [], mysql: [] };
+  const logs = previewLogs;
   const stamp = () => new Date().toTimeString().slice(0, 8);
   const base: Omit<ServiceStatus, "state" | "pid" | "uptime_secs" | "message" | "listening">[] = [
     { id: "php", name: "PHP (FastCGI)", version: "8.4.5", port: 9085, managed: true },
@@ -121,3 +123,9 @@ const preview = (() => {
     },
   };
 })();
+
+/** Empties a service's log files. */
+export async function clearServiceLog(id: string): Promise<void> {
+  if (inDesktopApp) return invoke("clear_service_log", { id });
+  previewLogs[id] = [];
+}

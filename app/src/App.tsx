@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Wizard } from "./Wizard";
-import { Dashboard } from "./dashboard/Dashboard";
+import { Shell } from "./Shell";
 import { markPreviewInstalled, setupInfo } from "./lib/services";
 
 type View = "loading" | "setup" | "dashboard";
 
-/** Opens the dashboard when an install exists, otherwise the setup wizard. */
+/** Opens the app when an install exists, otherwise the setup wizard. */
 export default function App() {
   const [view, setView] = useState<View>("loading");
 
@@ -18,7 +18,7 @@ export default function App() {
   useEffect(check, [check]);
 
   if (view === "loading") return null;
-  if (view === "dashboard") return <Dashboard />;
+  if (view === "dashboard") return <Shell />;
   return (
     <Wizard
       onFinish={() => {
