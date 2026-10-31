@@ -81,7 +81,7 @@ pub fn valid_name(name: &str) -> bool {
         && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
 }
 
-fn quote(name: &str) -> Result<String, String> {
+pub(crate) fn quote(name: &str) -> Result<String, String> {
     if valid_name(name) {
         Ok(format!("`{name}`"))
     } else {
@@ -154,7 +154,7 @@ impl Db {
         *self.pool.lock().unwrap() = None;
     }
 
-    fn conn(&self) -> Result<mysql::PooledConn, String> {
+    pub(crate) fn conn(&self) -> Result<mysql::PooledConn, String> {
         let guard = self.pool.lock().unwrap();
         let pool = guard.as_ref().ok_or("NOT_CONNECTED")?;
         pool.get_conn().map_err(friendly)

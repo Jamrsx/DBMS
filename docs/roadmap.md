@@ -26,6 +26,13 @@ Rules every release follows:
 | 0.2.1 | Database backups: back up one or all, restore, import a `.sql` file, backups folder |
 | 0.2.2 | Terminal tabs: several terminals at once, renamable, with keyboard shortcuts |
 | 0.2.3 | New look (one floating work surface, a services list, softer colours); update notice in the sidebar; HTTPS for localhost and `.test` sites; centred window |
+| 0.2.4 | Backup before risky changes; automatic backups; terminal window, clickable links, copy and paste |
+| 0.2.5 | Quick-start projects (Laravel, WordPress, Vite, Next.js) with their own database and user |
+| 0.2.6 | New project wizard and guide; Laravel 13 kits; Laravel Boost; open in editor; PHP 8.5 fix |
+| 0.2.7 | Project details page; PHP version per project; rename; delete to the Recycle Bin |
+| 0.2.8 | Nex the mascot; Details button; Recycle Bin page with restore; safer deletes |
+| 0.2.9 | Nex comes alive: greetings, celebrations and heads-ups from the corner |
+| 0.3.0 | Database part 2: edit, add and delete rows; MySQL users; CSV export |
 
 ## Next
 

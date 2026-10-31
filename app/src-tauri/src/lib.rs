@@ -4,6 +4,7 @@ mod backup;
 mod catalog;
 mod configure;
 mod db;
+mod dbedit;
 mod editors;
 mod installer;
 mod phpmyadmin;
@@ -299,7 +300,19 @@ pub fn run() {
             db_browse,
             db_query,
             db_create,
-            db_drop
+            db_drop,
+            db_primary_key,
+            db_update_cell,
+            db_insert_row,
+            db_delete_row,
+            db_users,
+            db_create_user,
+            db_set_user_password,
+            db_grant,
+            db_revoke,
+            db_drop_user,
+            db_export_table_csv,
+            db_save_csv
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -766,6 +779,110 @@ async fn db_create(db: tauri::State<'_, db::Db>, name: String) -> Result<(), Str
 async fn db_drop(db: tauri::State<'_, db::Db>, name: String) -> Result<(), String> {
     let db = db.inner().clone_handle();
     blocking(move || db.drop_database(&name)).await
+}
+
+#[tauri::command]
+async fn db_primary_key(db: tauri::State<'_, db::Db>, name: String, table: String) -> Result<Vec<String>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.primary_key(&name, &table)).await
+}
+
+#[tauri::command]
+async fn db_update_cell(
+    db: tauri::State<'_, db::Db>,
+    name: String,
+    table: String,
+    key: dbedit::Key,
+    column: String,
+    value: dbedit::Cell,
+) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.update_cell(&name, &table, &key, &column, &value)).await
+}
+
+#[tauri::command]
+async fn db_insert_row(db: tauri::State<'_, db::Db>, name: String, table: String, values: Vec<(String, dbedit::Cell)>) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.insert_row(&name, &table, &values)).await
+}
+
+#[tauri::command]
+async fn db_delete_row(db: tauri::State<'_, db::Db>, name: String, table: String, key: dbedit::Key) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.delete_row(&name, &table, &key)).await
+}
+
+#[tauri::command]
+async fn db_users(db: tauri::State<'_, db::Db>) -> Result<Vec<dbedit::User>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.users()).await
+}
+
+#[tauri::command]
+async fn db_create_user(db: tauri::State<'_, db::Db>, user: String, password: String, database: Option<String>) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.create_user(&user, &password, database.as_deref().filter(|d| !d.is_empty()))).await
+}
+
+#[tauri::command]
+async fn db_set_user_password(db: tauri::State<'_, db::Db>, user: String, password: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.set_user_password(&user, &password)).await
+}
+
+#[tauri::command]
+async fn db_grant(db: tauri::State<'_, db::Db>, user: String, database: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.grant(&user, &database)).await
+}
+
+#[tauri::command]
+async fn db_revoke(db: tauri::State<'_, db::Db>, user: String, database: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.revoke(&user, &database)).await
+}
+
+#[tauri::command]
+async fn db_drop_user(db: tauri::State<'_, db::Db>, user: String) -> Result<(), String> {
+    let db = db.inner().clone_handle();
+    blocking(move || db.drop_user(&user)).await
+}
+
+/// Asks where to save a .csv file; None when cancelled.
+async fn pick_csv_target(app: &tauri::AppHandle, suggested: String) -> Result<Option<std::path::PathBuf>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let app = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog()
+            .file()
+            .set_title("Save as CSV")
+            .set_file_name(suggested)
+            .add_filter("CSV files", &["csv"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(picked.and_then(|p| p.into_path().ok()))
+}
+
+/// Saves a whole table as CSV; resolves to how many rows, or None when cancelled.
+#[tauri::command]
+async fn db_export_table_csv(app: tauri::AppHandle, db: tauri::State<'_, db::Db>, name: String, table: String) -> Result<Option<usize>, String> {
+    let Some(path) = pick_csv_target(&app, format!("{table}.csv")).await? else { return Ok(None) };
+    let db = db.inner().clone_handle();
+    blocking(move || db.export_table_csv(&name, &table, &path).map(Some)).await
+}
+
+/// Saves rows already on screen (a query result) as CSV.
+#[tauri::command]
+async fn db_save_csv(
+    app: tauri::AppHandle,
+    file_name: String,
+    columns: Vec<String>,
+    rows: Vec<Vec<serde_json::Value>>,
+) -> Result<Option<usize>, String> {
+    let Some(path) = pick_csv_target(&app, file_name).await? else { return Ok(None) };
+    blocking(move || dbedit::write_csv(&path, &columns, &rows).map(Some)).await
 }
 
 #[tauri::command]

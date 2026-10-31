@@ -3876,6 +3876,196 @@ h1 {
   gap: 14px;
 }
 
+/* Database part 2: rows, users, CSV */
+.rows-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.rows-toolbar .field-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rows-toolbar .btn {
+  gap: 6px;
+}
+
+.rows-table td[title] {
+  cursor: text;
+}
+
+.rows-key {
+  margin-left: 6px;
+  font-size: 10px;
+}
+
+.rows-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.rows-actions .btn + .btn {
+  margin-left: 4px;
+}
+
+.cell-edit {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 320px;
+}
+
+.cell-edit .input {
+  flex: 1;
+  min-width: 120px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font: 12.5px var(--mono);
+}
+
+.cell-null {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: 11.5px var(--font);
+  color: var(--text-2);
+}
+
+.add-row {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.add-row p {
+  margin: 0;
+}
+
+.add-row-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.add-row .input,
+.user-form .input,
+.user-grant .input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 13px var(--font);
+}
+
+.users {
+  display: grid;
+  gap: 10px;
+}
+
+.users-list .user-row {
+  display: grid;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.users-list .user-row:first-child {
+  border-top: 0;
+}
+
+.user-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.user-name {
+  font-size: 14px;
+}
+
+.user-dbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.chip code {
+  font-size: 12px;
+}
+
+.chip-x {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.chip-x:hover {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.user-actions,
+.user-grant,
+.user-pass {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-actions .btn {
+  gap: 6px;
+}
+
+.user-pass .input {
+  flex: 1;
+  font-family: var(--mono);
+}
+
+.user-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
 /* Asking before a MySQL switch */
 .ver-confirm {
   display: grid;

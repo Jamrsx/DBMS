@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronRight, DatabaseZap, Play, Plus, Table2, Trash2 } from "lucide-react";
 import {
   NEEDS_PASSWORD,
-  dbBrowse,
   dbColumns,
   dbConnect,
   dbCreate,
@@ -17,15 +16,17 @@ import {
   type DatabaseInfo,
   type QueryOutput,
   type TableInfo,
-  type TablePage,
 } from "../lib/db";
 import { inDesktopApp } from "../lib/scan";
 import { PhpMyAdmin } from "./PhpMyAdmin";
 import { Backups } from "./Backups";
+import { RowEditor } from "./RowEditor";
+import { Users } from "./Users";
+import { dbSaveCsv } from "../lib/db";
+import { nexCelebrate } from "../lib/nex";
 import { createBackup } from "../lib/backups";
 
-type Tab = "browse" | "structure" | "sql" | "backups";
-const PAGE_SIZE = 50;
+type Tab = "browse" | "structure" | "sql" | "backups" | "users";
 
 export function Database({ active }: { active: boolean }) {
   const [version, setVersion] = useState<string | null>(null);
@@ -183,12 +184,16 @@ export function Database({ active }: { active: boolean }) {
                 <TabButton id="backups" tab={tab} onSelect={setTab}>
                   Backups
                 </TabButton>
+                <TabButton id="users" tab={tab} onSelect={setTab}>
+                  Users
+                </TabButton>
                 <span className="db-where">
                   {selected ? (table ? `${selected} › ${table}` : selected) : "Pick a database"}
                 </span>
               </div>
 
-              {tab === "browse" && selected && table && <Browse key={`${selected}.${table}`} db={selected} table={table} />}
+              {tab === "browse" && selected && table && <RowEditor key={`${selected}.${table}`} db={selected} table={table} />}
+              {tab === "users" && <Users databases={dbs.filter((d) => !d.system).map((d) => d.name)} />}
               {tab === "browse" && selected && !table && (
                 <Overview
                   db={selected}
@@ -516,43 +521,6 @@ function Overview({
   );
 }
 
-function Browse({ db, table }: { db: string; table: string }) {
-  const [page, setPage] = useState(0);
-  const [data, setData] = useState<TablePage | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let live = true;
-    setError(null);
-    dbBrowse(db, table, page, PAGE_SIZE)
-      .then((d) => live && setData(d))
-      .catch((e) => live && setError(String(e)));
-    return () => {
-      live = false;
-    };
-  }, [db, table, page]);
-
-  if (error) return <div className="error-box" role="alert"><p>{error}</p></div>;
-  if (!data) return <p className="lede">Loading…</p>;
-  const pages = Math.max(1, Math.ceil(data.total / PAGE_SIZE));
-  return (
-    <div className="db-browse">
-      <DataTable columns={data.columns} rows={data.rows} empty="This table has no rows." />
-      <div className="pager">
-        <span>
-          {data.total === 0 ? "0 rows" : `Rows ${page * PAGE_SIZE + 1}–${page * PAGE_SIZE + data.rows.length} of ${data.total}`}
-        </span>
-        <button className="btn btn-small" disabled={page === 0} onClick={() => setPage(page - 1)}>
-          Previous
-        </button>
-        <button className="btn btn-small" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>
-          Next
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function Structure({ db, table }: { db: string; table: string }) {
   const [cols, setCols] = useState<ColumnInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -654,8 +622,31 @@ function SqlRunner({ db, onChanged }: { db: string | null; onChanged: () => void
           </p>
           {out.sets.map((s, i) => (
             <div key={i}>
+              {s.rows.length > 0 && (
+                <div className="rows-toolbar">
+                  <span className="quickstart-spacer" />
+                  <button
+                    className="btn btn-small"
+                    onClick={async () => {
+                      try {
+                        const n = await dbSaveCsv("query-result.csv", s.columns, s.rows);
+                        if (n !== null) nexCelebrate(`Saved ${n} row${n === 1 ? "" : "s"} as CSV.`);
+                      } catch (e) {
+                        setError(String(e));
+                      }
+                    }}
+                  >
+                    Export CSV
+                  </button>
+                </div>
+              )}
               <DataTable columns={s.columns} rows={s.rows} empty="No rows." />
-              {s.truncated && <p className="field-hint">Showing the first {s.rows.length} rows. Add a LIMIT to see others.</p>}
+              {s.truncated && (
+                <p className="field-hint">
+                  Showing the first {s.rows.length} rows; Export CSV saves these. Add a LIMIT, or export the table from
+                  Browse to get every row.
+                </p>
+              )}
             </div>
           ))}
         </div>
