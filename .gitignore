@@ -18,8 +18,9 @@ desktop.ini
 .vscode/
 .idea/
 
-# Impeccable decision-page session logs
+# Impeccable decision-page session logs and review screenshots
 .impeccable/questions/
+app/.impeccable/review/
 app/src-tauri/icons/android/
 app/src-tauri/icons/ios/
 release/

@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Download, RefreshCw, RotateCw } from "lucide-react";
+import { CheckCircle2, Download, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { StartupToggle } from "../components/StartupToggle";
 import {
-  checkForUpdate,
   getAppSettings,
-  installUpdate,
   restartApp,
   savePorts,
   setStartServicesOnLaunch,
   type AppSettings,
-  type UpdateState,
 } from "../lib/appsettings";
+import { checkUpdates, installUpdates, useUpdates } from "../lib/updates";
 
 export function SettingsPage({ active }: { active: boolean }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
@@ -48,6 +47,7 @@ export function SettingsPage({ active }: { active: boolean }) {
           <>
             <StartupCard settings={settings} onChanged={load} />
             <PortsCard settings={settings} onSaved={load} />
+            <HttpsCard active={active} />
             <FoldersCard settings={settings} />
             <UpdatesCard version={settings.app_version} />
           </>
@@ -64,6 +64,107 @@ function Card({ title, lede, children }: { title: string; lede?: string; childre
       {lede && <p className="set-lede">{lede}</p>}
       {children}
     </section>
+  );
+}
+
+function HttpsCard({ active }: { active: boolean }) {
+  const [info, setInfo] = useState<HttpsInfo | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getHttps()
+      .then(setInfo)
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  useEffect(() => {
+    if (active) load();
+  }, [active, load]);
+
+  async function act(label: string, work: () => Promise<unknown>) {
+    setBusy(label);
+    setError(null);
+    try {
+      await work();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(null);
+      load();
+    }
+  }
+
+  if (!info) return null;
+  const port = info.port === 443 ? "" : `:${info.port}`;
+  return (
+    <Card
+      title="HTTPS"
+      lede="Open localhost and your .test sites with https://, the way they run on a real server."
+    >
+      <div className="set-rows">
+        <div className="set-row">
+          <label className="set-check">
+            <input
+              type="checkbox"
+              checked={info.enabled}
+              disabled={!!busy || !info.web_server}
+              onChange={(e) => {
+                const on = e.target.checked;
+                void act(on ? "Turning HTTPS on…" : "Turning HTTPS off…", () => setHttps(on));
+              }}
+            />
+            <span>Serve my sites over HTTPS too</span>
+          </label>
+          <p className="field-hint">
+            {info.web_server
+              ? `Uses port ${info.port}. Sites keep working over http:// as well. Apache restarts if it's running.`
+              : "HTTPS needs NexDB's Apache web server. Install it on the Versions page first."}
+          </p>
+        </div>
+
+        {info.enabled && (
+          <div className={info.trusted ? "set-trust ok" : "set-trust"}>
+            {info.trusted ? (
+              <ShieldCheck size={18} aria-hidden="true" />
+            ) : (
+              <ShieldAlert size={18} aria-hidden="true" />
+            )}
+            <div>
+              <p className="set-trust-title">
+                {info.trusted ? "Windows trusts NexDB's certificate" : "Windows doesn't trust NexDB's certificate yet"}
+              </p>
+              <p className="field-hint">
+                {info.trusted
+                  ? `Browsers open https://localhost${port} and https://yourproject.test${port} without a warning.`
+                  : "Until you trust it, browsers warn that the connection isn't private. The certificate only works for .test and localhost addresses, never for real websites."}
+              </p>
+            </div>
+            {!info.trusted && (
+              <button
+                className="btn"
+                disabled={!!busy}
+                onClick={() => void act("Waiting for Windows…", trustHttps)}
+              >
+                Trust certificate…
+              </button>
+            )}
+          </div>
+        )}
+
+        {busy && (
+          <p className="field-hint" role="status">
+            {busy}
+            {busy.startsWith("Waiting") && " Windows asks you to confirm."}
+          </p>
+        )}
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -206,17 +307,9 @@ function FoldersCard({ settings }: { settings: AppSettings }) {
 }
 
 function UpdatesCard({ version }: { version: string }) {
-  const [state, setState] = useState<UpdateState>({ kind: "idle" });
-
-  async function check() {
-    setState({ kind: "checking" });
-    setState(await checkForUpdate());
-  }
-
-  async function install() {
-    setState({ kind: "downloading", percent: 0 });
-    setState(await installUpdate((percent) => setState({ kind: "downloading", percent })));
-  }
+  const { state } = useUpdates();
+  const check = () => void checkUpdates();
+  const install = () => void installUpdates();
 
   return (
     <Card title="NexDB updates" lede={`You have NexDB ${version}.`}>

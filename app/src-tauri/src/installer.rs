@@ -388,7 +388,7 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
     }
     if let Some(server_root) = &layout.apache {
         configure_apache(&layout, server_root)?;
-        crate::projects::write_vhosts(&layout.etc, &layout.www, layout.apache_port)?;
+        crate::projects::write_site_configs(root, settings)?;
         crate::phpmyadmin::write_config(root, settings.mysql.as_ref().map(|m| m.port))?;
     }
     if let Some(nginx_dir) = &layout.nginx {

@@ -37,11 +37,26 @@ pub struct MysqlSettings {
 }
 
 /// Choices made in the Settings page.
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Preferences {
     /// Start every service when NexDB opens.
     #[serde(default)]
     pub start_services_on_launch: bool,
+    /// Also serve localhost and the `.test` sites over HTTPS.
+    #[serde(default)]
+    pub https: bool,
+    #[serde(default = "default_https_port")]
+    pub https_port: u16,
+}
+
+impl Default for Preferences {
+    fn default() -> Self {
+        Self { start_services_on_launch: false, https: false, https_port: default_https_port() }
+    }
+}
+
+fn default_https_port() -> u16 {
+    443
 }
 
 /// Ports for the web server, PHP and MySQL: each between 1 and 65535 and all different.

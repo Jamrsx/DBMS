@@ -25,10 +25,11 @@ Rules every release follows:
 | 0.2.0 | Git in setup and the terminal; Versions page (install, switch, remove); Settings with ports and in-app updates; logs in plain language; missing-part warnings with one-click reinstall; branded installer |
 | 0.2.1 | Database backups: back up one or all, restore, import a `.sql` file, backups folder |
 | 0.2.2 | Terminal tabs: several terminals at once, renamable, with keyboard shortcuts |
+| 0.2.3 | New look (one floating work surface, a services list, softer colours); update notice in the sidebar; HTTPS for localhost and `.test` sites; centred window |
 
 ## Next
 
-### 0.2.3: New look, and HTTPS for `.test` sites
+### 0.2.3: New look, update notices, and HTTPS for `.test` sites
 
 New look for the desktop app: sleek, modern and clean.
 
@@ -40,6 +41,15 @@ New look for the desktop app: sleek, modern and clean.
 - Sidebar and page headers tidied; status (running, stopped, error) readable at a glance.
 - Same features and wording; nothing moves without a reason. Checked by screenshots of each page in
   both themes before and after.
+
+Updates you notice:
+
+- NexDB checks for a new version on launch and every few hours, quietly.
+- When one is found, a dot on Settings in the sidebar and a small notice: "NexDB 0.x.y is ready.
+  Update now or later?", with what's new. "Later" hides it until the next version or launch.
+- The NexDB window opens in the centre of the screen.
+- The Apache log no longer shows NexDB's own updater request as a red error (it reaches Apache on
+  port 80 for a moment while NexDB closes to install the update; it is harmless).
 
 HTTPS for `.test` sites:
 

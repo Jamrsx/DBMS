@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, AppWindow, LoaderCircle, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Database as DatabaseIcon,
+  FileCode2,
+  Globe,
+  LoaderCircle,
+  Play,
+  ScrollText,
+  Server,
+  Square,
+  Trash2,
+} from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
 import { readable, type LogLevel } from "../lib/logs";
 import { missingComponents, type MissingPart } from "../lib/versions";
@@ -52,7 +63,10 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
   }, [services, selected]);
 
   async function run(ids: string[], kind: "starting" | "stopping", action: () => Promise<void>) {
-    setBusy((b) => ({ ...b, ...Object.fromEntries(ids.map((id) => [id, kind])) }));
+    setBusy((b) => ({
+      ...b,
+      ...Object.fromEntries(ids.map((id) => [id, kind])),
+    }));
     try {
       await action();
     } catch {
@@ -73,136 +87,116 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
   const failures = services?.filter((s) => s.state === "failed" && s.message) ?? [];
 
   return (
-      <main className="panel">
-        <header className="panel-head dash-head">
-          <div>
-            <h1>Your stack</h1>
-            <p className="dash-summary" role="status">
-              {services ? summary(services) : "Checking services…"}
-            </p>
-          </div>
-          <div className="dash-actions">
-            <button
-              className="btn"
-              disabled={anyBusy || !managed.some((s) => s.state === "running" || s.state === "starting")}
-              onClick={() => run(managed.map((s) => s.id), "stopping", () => stopServices())}
-            >
-              Stop all
-            </button>
-            <button
-              className="btn btn-primary"
-              disabled={anyBusy || managed.length === 0 || managed.every((s) => s.state === "running")}
-              onClick={() => run(managed.map((s) => s.id), "starting", () => startServices())}
-            >
-              Start all
-            </button>
-          </div>
-        </header>
-
-        <div className="panel-body dash-body">
-          {!inDesktopApp && (
-            <p className="notice" role="note">
-              Browser preview: services are simulated.
-            </p>
-          )}
-          <MissingBanner onOpenVersions={onOpenVersions} />
-          {loadError && (
-            <div className="error-box" role="alert">
-              <p>Couldn't read service status: {loadError}</p>
-            </div>
-          )}
-
-          {services && services.length === 0 && (
-            <p className="lede">No services are set up yet. Run setup to install a web server, PHP or MySQL.</p>
-          )}
-
-          {services && services.length > 0 && (
-            <>
-              <RequestPath
-                services={services}
-                busy={busy}
-                selected={selected}
-                onSelect={setSelected}
-                onStart={(id) => run([id], "starting", () => startServices(id))}
-                onStop={(id) => run([id], "stopping", () => stopServices(id))}
-              />
-
-              {failures.length > 0 && (
-                <div className="error-box dash-errors" role="alert">
-                  {failures.map((s) => (
-                    <p key={s.id}>
-                      <strong>{s.name} couldn't start.</strong> {s.message}
-                    </p>
-                  ))}
-                </div>
-              )}
-
-              <LogPanel
-                services={ordered(services)}
-                selected={selected}
-                onSelect={setSelected}
-                reloadKey={actionCount}
-              />
-            </>
-          )}
+    <main className="panel">
+      <header className="panel-head dash-head">
+        <div>
+          <h1>Your stack</h1>
+          <p className="dash-summary" role="status">
+            {services ? summary(services) : "Checking services…"}
+          </p>
         </div>
-      </main>
+        <div className="dash-actions">
+          <button
+            className="btn"
+            disabled={anyBusy || !managed.some((s) => s.state === "running" || s.state === "starting")}
+            onClick={() =>
+              run(
+                managed.map((s) => s.id),
+                "stopping",
+                () => stopServices(),
+              )
+            }
+          >
+            Stop all
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={anyBusy || managed.length === 0 || managed.every((s) => s.state === "running")}
+            onClick={() =>
+              run(
+                managed.map((s) => s.id),
+                "starting",
+                () => startServices(),
+              )
+            }
+          >
+            Start all
+          </button>
+        </div>
+      </header>
+
+      <div className="panel-body dash-body">
+        {!inDesktopApp && (
+          <p className="notice" role="note">
+            Browser preview: services are simulated.
+          </p>
+        )}
+        <MissingBanner onOpenVersions={onOpenVersions} />
+        {loadError && (
+          <div className="error-box" role="alert">
+            <p>Couldn't read service status: {loadError}</p>
+          </div>
+        )}
+
+        {services && services.length === 0 && (
+          <p className="lede">No services are set up yet. Run setup to install a web server, PHP or MySQL.</p>
+        )}
+
+        {services && services.length > 0 && (
+          <>
+            <section className="dash-section" aria-labelledby="services-title">
+              <h2 id="services-title" className="section-title">
+                Services
+              </h2>
+              <ul className="svc-list">
+                {ordered(services).map((s) => (
+                  <ServiceRow
+                    key={s.id}
+                    service={s}
+                    busy={busy[s.id]}
+                    selected={selected === s.id}
+                    onSelect={() => setSelected(s.id)}
+                    onStart={() => run([s.id], "starting", () => startServices(s.id))}
+                    onStop={() => run([s.id], "stopping", () => stopServices(s.id))}
+                  />
+                ))}
+              </ul>
+            </section>
+
+            {failures.length > 0 && (
+              <div className="error-box dash-errors" role="alert">
+                {failures.map((s) => (
+                  <p key={s.id}>
+                    <strong>{s.name} couldn't start.</strong> {s.message}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <LogPanel
+              services={ordered(services)}
+              selected={selected}
+              onSelect={setSelected}
+              reloadKey={actionCount}
+              busy={busy}
+              onStart={(id) => run([id], "starting", () => startServices(id))}
+            />
+          </>
+        )}
+      </div>
+    </main>
   );
 }
 
-function RequestPath({
-  services,
-  busy,
-  selected,
-  onSelect,
-  onStart,
-  onStop,
-}: {
-  services: ServiceStatus[];
-  busy: Busy;
-  selected: string | null;
-  onSelect: (id: string) => void;
-  onStart: (id: string) => void;
-  onStop: (id: string) => void;
-}) {
-  const web = services.filter((s) => s.id === "apache" || s.id === "nginx");
-  const php = services.find((s) => s.id === "php");
-  const mysql = services.find((s) => s.id === "mysql");
-  const columns: ServiceStatus[][] = [web, php ? [php] : [], mysql ? [mysql] : []].filter((c) => c.length > 0);
-  const links = linkStates(columns);
+/** What each service does, in a few words. */
+const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
+  apache: { role: "Web server for localhost and .test sites", Icon: Globe },
+  nginx: { role: "Web server for localhost and .test sites", Icon: Globe },
+  php: { role: "Runs your PHP code for the web server", Icon: FileCode2 },
+  mysql: { role: "Database server", Icon: DatabaseIcon },
+};
 
-  return (
-    <ol className="path" aria-label="Request path">
-      <li className="path-step">
-        <div className="station station-client">
-          <AppWindow size={16} strokeWidth={2} aria-hidden="true" />
-          <span>Browser</span>
-          <code>localhost</code>
-        </div>
-      </li>
-      {columns.map((column, i) => (
-        <li key={column.map((s) => s.id).join()} className="path-step">
-          <span className={`link link-${links[i]}`} aria-hidden="true" />
-          <div className="path-column">
-            {column.map((s) => (
-              <Station
-                key={s.id}
-                service={s}
-                busy={busy[s.id]}
-                selected={selected === s.id}
-                onSelect={() => onSelect(s.id)}
-                onStart={() => onStart(s.id)}
-                onStop={() => onStop(s.id)}
-              />
-            ))}
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function Station({
+function ServiceRow({
   service: s,
   busy,
   selected,
@@ -219,56 +213,74 @@ function Station({
 }) {
   const view = stateView(s, busy);
   const up = s.state === "running" || s.state === "starting";
+  const { role: what, Icon } = ROLE[s.id] ?? { role: "", Icon: Server };
+  const role = s.state === "external" ? `Managed outside NexDB · ${what}` : what;
   return (
-    <article className={selected ? "station selected" : "station"} aria-labelledby={`st-${s.id}`}>
-      <div className="station-top">
-        {view.spinning ? (
-          <LoaderCircle className="station-spin" size={14} strokeWidth={2.5} aria-hidden="true" />
-        ) : (
-          <span className={`dot dot-${view.tone}`} aria-hidden="true" />
-        )}
-        <h2 id={`st-${s.id}`}>{s.name}</h2>
-        {s.version && <code className="station-version">{s.version}</code>}
+    <li className={selected ? "svc selected" : "svc"} aria-labelledby={`svc-${s.id}`}>
+      <span className="svc-icon" aria-hidden="true">
+        <Icon size={18} strokeWidth={1.75} />
+      </span>
+      <div className="svc-name">
+        <h3 id={`svc-${s.id}`}>
+          {s.name}
+          {s.version && <code className="svc-version">{s.version}</code>}
+        </h3>
+        <p>{role}</p>
+        {/* Port and uptime move here when the window is too narrow for their own column. */}
+        <p className="svc-inline-facts">
+          Port <code>{s.port}</code>
+          {s.uptime_secs !== null && (
+            <>
+              {" · "}Up <code>{formatUptime(s.uptime_secs)}</code>
+            </>
+          )}
+        </p>
       </div>
-      <p className={`station-state tone-${view.tone}`}>{view.label}</p>
-      <dl className="station-facts">
-        <dt>Port</dt>
-        <dd>{s.port}</dd>
-        {s.pid !== null && (
-          <>
-            <dt>PID</dt>
-            <dd>{s.pid}</dd>
-          </>
-        )}
-        {s.uptime_secs !== null && (
-          <>
-            <dt>Up</dt>
-            <dd>{formatUptime(s.uptime_secs)}</dd>
-          </>
-        )}
+      <dl className="svc-facts">
+        <div>
+          <dt>Port</dt>
+          <dd>{s.port}</dd>
+        </div>
+        <div>
+          <dt>Up for</dt>
+          <dd>{s.uptime_secs !== null ? formatUptime(s.uptime_secs) : "–"}</dd>
+        </div>
       </dl>
-      <div className="station-actions">
+      <span className={`status-pill status-${view.tone}`} title={s.pid !== null ? `Process ID ${s.pid}` : undefined}>
+        {view.spinning ? (
+          <LoaderCircle className="status-spin" size={12} strokeWidth={2.5} aria-hidden="true" />
+        ) : (
+          <span className="status-dot" aria-hidden="true" />
+        )}
+        {view.label}
+      </span>
+      <div className="svc-actions">
         {s.managed &&
           (up ? (
             <button className="btn btn-small" onClick={onStop} disabled={!!busy}>
-              Stop
+              <Square size={12} strokeWidth={2.5} aria-hidden="true" /> Stop
             </button>
           ) : (
             <button className="btn btn-small" onClick={onStart} disabled={!!busy}>
-              Start
+              <Play size={12} strokeWidth={2.5} aria-hidden="true" /> Start
             </button>
           ))}
-        <button className="btn btn-small" onClick={onSelect} aria-pressed={selected}>
-          Logs
+        <button className="btn btn-small" onClick={onSelect} aria-pressed={selected} title={`Show the ${s.name} log`}>
+          <ScrollText size={13} strokeWidth={2} aria-hidden="true" /> Logs
         </button>
       </div>
-    </article>
+    </li>
   );
 }
 
 type LogMode = "readable" | "raw";
 const LOG_MODE_KEY = "nexdb.logMode";
-const LEVEL_WORD: Record<LogLevel, string> = { info: "Info", ok: "OK", warn: "Heads-up", error: "Problem" };
+const LEVEL_WORD: Record<LogLevel, string> = {
+  info: "Info",
+  ok: "OK",
+  warn: "Heads-up",
+  error: "Problem",
+};
 
 function savedLogMode(): LogMode {
   try {
@@ -283,12 +295,17 @@ function LogPanel({
   selected,
   onSelect,
   reloadKey,
+  busy,
+  onStart,
 }: {
   services: ServiceStatus[];
   selected: string | null;
   onSelect: (id: string) => void;
   reloadKey: number;
+  busy: Busy;
+  onStart: (id: string) => void;
 }) {
+  const current = services.find((s) => s.id === selected);
   const [text, setText] = useState("");
   const [clearing, setClearing] = useState(false);
   const pre = useRef<HTMLDivElement>(null);
@@ -342,103 +359,108 @@ function LogPanel({
   }, [text]);
 
   return (
-    <section className="log-panel" aria-label="Service log">
-      <div className="log-tabs" role="tablist">
-        {services.map((s) => (
+    <section className="dash-section log-section" aria-labelledby="log-title">
+      <h2 id="log-title" className="section-title">
+        Log
+      </h2>
+      <div className="log-panel">
+        <div className="log-tabs" role="tablist" aria-label="Service">
+          {services.map((s) => (
+            <button
+              key={s.id}
+              role="tab"
+              className="log-tab"
+              aria-selected={selected === s.id}
+              onClick={() => {
+                stick.current = true;
+                onSelect(s.id);
+              }}
+            >
+              {s.name}
+            </button>
+          ))}
+          <div className="log-mode" role="group" aria-label="How to show the log">
+            <button type="button" aria-pressed={mode === "readable"} onClick={() => changeMode("readable")}>
+              Readable
+            </button>
+            <button type="button" aria-pressed={mode === "raw"} onClick={() => changeMode("raw")}>
+              Raw
+            </button>
+          </div>
           <button
-            key={s.id}
-            role="tab"
-            className="log-tab"
-            aria-selected={selected === s.id}
-            onClick={() => {
-              stick.current = true;
-              onSelect(s.id);
-            }}
+            type="button"
+            className="log-clear"
+            disabled={!selected || clearing}
+            title={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
+            aria-label={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
+            onClick={clear}
           >
-            {s.name}
-          </button>
-        ))}
-        <div className="log-mode" role="group" aria-label="How to show the log">
-          <button type="button" aria-pressed={mode === "readable"} onClick={() => changeMode("readable")}>
-            Readable
-          </button>
-          <button type="button" aria-pressed={mode === "raw"} onClick={() => changeMode("raw")}>
-            Raw
+            <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
-        <button
-          type="button"
-          className="log-clear"
-          disabled={!selected || clearing}
-          title={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
-          aria-label={selectedName ? `Clear the ${selectedName} log` : "Clear the log"}
-          onClick={clear}
+        <div
+          ref={pre}
+          className={mode === "raw" ? "log-text" : "log-text log-readable"}
+          role="tabpanel"
+          tabIndex={0}
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+          }}
         >
-          <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
-        </button>
-      </div>
-      <div
-        ref={pre}
-        className={mode === "raw" ? "log-text" : "log-text log-readable"}
-        role="tabpanel"
-        tabIndex={0}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
-        }}
-      >
-        {mode === "raw" ? (
-          <pre>{text}</pre>
-        ) : readableLog.entries.length === 0 ? (
-          <p className="log-empty">
-            {text.startsWith("Couldn't")
-              ? text
-              : `Nothing to report yet. Messages from ${selectedName ?? "this service"} appear here when it starts or stops.`}
-          </p>
-        ) : (
-          <ol className="log-lines">
-            {readableLog.entries.map((entry, i) => (
-              <li key={i} className={`log-line log-${entry.level}`} title={entry.raw.trim()}>
-                <span className="log-time">{entry.time ?? ""}</span>
-                <span className="log-dot" aria-hidden="true" />
-                <span className="log-msg">
-                  <span className="visually-hidden">{LEVEL_WORD[entry.level]}: </span>
-                  {entry.text}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-        {mode === "readable" && readableLog.hidden > 0 && (
-          <p className="log-hidden-note">
-            {readableLog.hidden} technical {readableLog.hidden === 1 ? "line is" : "lines are"} hidden.{" "}
-            <button type="button" className="cell-link" onClick={() => changeMode("raw")}>
-              Show the raw log
-            </button>
-          </p>
-        )}
+          {mode === "raw" ? (
+            <pre>{text}</pre>
+          ) : readableLog.entries.length === 0 ? (
+            <div className="log-empty">
+              {text.startsWith("Couldn't") ? (
+                <p>{text}</p>
+              ) : current && current.managed && current.state !== "running" && current.state !== "starting" ? (
+                <>
+                  <p>
+                    {current.name} isn't running. Start it to see what it reports here.
+                  </p>
+                  <button
+                    className="btn btn-small"
+                    disabled={!!busy[current.id]}
+                    onClick={() => onStart(current.id)}
+                  >
+                    <Play size={12} strokeWidth={2.5} aria-hidden="true" /> Start {current.name}
+                  </button>
+                </>
+              ) : (
+                <p>Nothing to report yet. Messages from {selectedName ?? "this service"} appear here as they happen.</p>
+              )}
+            </div>
+          ) : (
+            <ol className="log-lines">
+              {readableLog.entries.map((entry, i) => (
+                <li key={i} className={`log-line log-${entry.level}`} title={entry.raw.trim()}>
+                  <span className="log-time">{entry.time ?? ""}</span>
+                  <span className="log-dot" aria-hidden="true" />
+                  <span className="log-msg">
+                    <span className="visually-hidden">{LEVEL_WORD[entry.level]}: </span>
+                    {entry.text}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {mode === "readable" && readableLog.hidden > 0 && (
+            <p className="log-hidden-note">
+              {readableLog.hidden} technical {readableLog.hidden === 1 ? "line is" : "lines are"} hidden.{" "}
+              <button type="button" className="cell-link" onClick={() => changeMode("raw")}>
+                Show the raw log
+              </button>
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );
 }
 
-
 function ordered(services: ServiceStatus[]) {
   return [...services].sort((a, b) => PATH_ORDER.indexOf(a.id) - PATH_ORDER.indexOf(b.id));
-}
-
-/**
- * Links along the request path. Only the hop where requests actually stop is broken (a failed
- * station); everything else, including links past a break, is neutral, never "green".
- */
-export function linkStates(columns: ServiceStatus[][]): ("ok" | "broken")[] {
-  let reached = true;
-  return columns.map((column) => {
-    if (!reached) return "ok";
-    if (column.some(isUp)) return "ok";
-    reached = false;
-    return column.some((s) => s.state === "failed") ? "broken" : "ok";
-  });
 }
 
 function isUp(s: ServiceStatus) {
@@ -457,11 +479,7 @@ function stateView(
     case "failed":
       return { label: "Couldn't start", tone: "bad", spinning: false };
     case "external":
-      return {
-        label: s.listening ? "Running · managed outside NexDB" : "Not running · managed outside NexDB",
-        tone: s.listening ? "ok" : "idle",
-        spinning: false,
-      };
+      return { label: s.listening ? "Running" : "Not running", tone: s.listening ? "ok" : "idle", spinning: false };
     default:
       return { label: "Stopped", tone: "idle", spinning: false };
   }
@@ -472,7 +490,8 @@ function summary(services: ServiceStatus[]) {
   const web = services.filter((s) => s.id === "apache" || s.id === "nginx");
   const failedWeb = web.find((s) => s.state === "failed");
   const up = services.filter(isUp).length;
-  if (failedWeb) return `${up} of ${services.length} services running · Requests to localhost stop at ${failedWeb.name}.`;
+  if (failedWeb)
+    return `${up} of ${services.length} services running · Requests to localhost stop at ${failedWeb.name}.`;
   if (up === 0) return "Nothing is running. Start all to bring your stack up.";
   if (up === services.length) return "Everything is running. Your sites are served on localhost.";
   return `${up} of ${services.length} services running.`;
@@ -491,7 +510,10 @@ function MissingBanner({ onOpenVersions }: { onOpenVersions: () => void }) {
   const [missing, setMissing] = useState<MissingPart[]>([]);
 
   useEffect(() => {
-    const check = () => missingComponents().then(setMissing).catch(() => setMissing([]));
+    const check = () =>
+      missingComponents()
+        .then(setMissing)
+        .catch(() => setMissing([]));
     void check();
     // Re-check now and then, so a deleted or reinstalled folder shows up without a restart.
     const timer = setInterval(() => document.visibilityState === "visible" && void check(), 10000);
@@ -508,8 +530,9 @@ function MissingBanner({ onOpenVersions }: { onOpenVersions: () => void }) {
         <strong>
           {list} {missing.length === 1 ? "is" : "are"} missing.
         </strong>{" "}
-        {missing.length === 1 ? "Its files were" : "Their files were"} deleted, so {missing.length === 1 ? "it" : "they"} can't run.
-        Reinstall from the Versions page; your settings and projects are kept.
+        {missing.length === 1 ? "Its files were" : "Their files were"} deleted, so{" "}
+        {missing.length === 1 ? "it" : "they"} can't run. Reinstall from the Versions page; your settings and projects
+        are kept.
       </p>
       <button className="btn btn-primary" onClick={onOpenVersions}>
         Go to Versions

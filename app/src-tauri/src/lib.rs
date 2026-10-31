@@ -236,6 +236,9 @@ pub fn run() {
             app_settings,
             save_ports,
             set_start_services_on_launch,
+            https_status,
+            set_https,
+            https_trust,
             versions_overview,
             missing_components,
             backups_list,
@@ -316,7 +319,10 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
     let (_, settings, _) = stack.get()?;
     blocking(move || {
         let port = settings.apache_port.unwrap_or(80);
-        let projects = projects::list(std::path::Path::new(&settings.www_dir), port);
+        let mut projects = projects::list(std::path::Path::new(&settings.www_dir), port);
+        if settings.preferences.https {
+            projects::use_https(&mut projects, settings.preferences.https_port);
+        }
         let wanted: Vec<String> = projects.iter().filter_map(|p| p.host.clone()).collect();
         let hosts = std::fs::read_to_string(projects::hosts_path()).unwrap_or_default();
         Ok(ProjectsInfo {
@@ -331,8 +337,10 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
 
 /// Rewrites the virtual hosts and restarts Apache when it is running so it picks them up.
 fn apply_vhosts(root: &std::path::Path, settings: &settings::Settings, sup: &supervisor::Supervisor) -> Result<(), String> {
-    let Some(port) = settings.apache_port else { return Ok(()) };
-    projects::write_vhosts(&root.join("etc"), std::path::Path::new(&settings.www_dir), port)?;
+    if settings.apache_port.is_none() {
+        return Ok(());
+    }
+    projects::write_site_configs(root, settings)?;
     let running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
     if running {
         installer::refresh_configs(root, settings)?;
@@ -376,10 +384,11 @@ fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String,
     use tauri_plugin_opener::OpenerExt;
     let (_, settings, _) = stack.get()?;
     let port = settings.apache_port.unwrap_or(80);
-    let project = projects::list(std::path::Path::new(&settings.www_dir), port)
-        .into_iter()
-        .find(|p| p.name == name)
-        .ok_or("That project doesn't exist any more.")?;
+    let mut found = projects::list(std::path::Path::new(&settings.www_dir), port);
+    if settings.preferences.https {
+        projects::use_https(&mut found, settings.preferences.https_port);
+    }
+    let project = found.into_iter().find(|p| p.name == name).ok_or("That project doesn't exist any more.")?;
     match what.as_str() {
         "folder" => app.opener().open_path(project.path, None::<&str>).map_err(|e| e.to_string()),
         "url" if !project.url.is_empty() => app.opener().open_url(project.url, None::<&str>).map_err(|e| e.to_string()),
@@ -615,6 +624,114 @@ fn set_start_services_on_launch(stack: tauri::State<Stack>, on: bool) -> Result<
         loaded.settings.preferences.start_services_on_launch = on;
     }
     Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct HttpsInfo {
+    enabled: bool,
+    port: u16,
+    /// Whether Windows trusts NexDB's certificate, so browsers show no warning.
+    trusted: bool,
+    /// HTTPS needs NexDB's Apache.
+    web_server: bool,
+}
+
+#[tauri::command]
+async fn https_status(stack: tauri::State<'_, Stack>) -> Result<HttpsInfo, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let ca = admin::ensure_ca(&admin::ca_dir())?;
+        Ok(HttpsInfo {
+            enabled: settings.preferences.https,
+            port: settings.preferences.https_port,
+            trusted: admin::is_trusted(&ca.thumbprint),
+            web_server: settings.apache_port.is_some(),
+        })
+    })
+    .await
+}
+
+/// Turns HTTPS for localhost and the `.test` sites on or off, restarting Apache when it runs.
+/// If Apache can't start with HTTPS, it is turned off again and Apache restarts without it.
+#[tauri::command]
+async fn set_https(stack: tauri::State<'_, Stack>, on: bool) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    if settings.apache_port.is_none() {
+        return Err("HTTPS needs NexDB's Apache web server. Install Apache on the Versions page first.".into());
+    }
+    let port = settings.preferences.https_port;
+    let was_on = settings.preferences.https;
+    let apache_running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+    let save = |root: &std::path::Path, on: bool| {
+        settings::edit(root, |v| {
+            v["preferences"]["https"] = on.into();
+            Ok(())
+        })
+    };
+    let remember = |on: bool| {
+        if let Some(loaded) = stack.current.lock().unwrap().as_mut() {
+            loaded.settings.preferences.https = on;
+        }
+    };
+
+    let root2 = root.clone();
+    blocking(move || {
+        if on && !was_on {
+            let status = scan::port_status(port, "Web server (HTTPS)");
+            if status.in_use {
+                let who = status.process.map(|o| format!(" by {o}")).unwrap_or_default();
+                return Err(format!(
+                    "HTTPS can't use port {port}: it's already in use{who}. Close that program, then try again."
+                ));
+            }
+        }
+        save(&root2, on)
+    })
+    .await?;
+    remember(on);
+
+    let (root, settings, sup) = stack.get()?;
+    let result = blocking({
+        let root = root.clone();
+        move || {
+            installer::refresh_configs(&root, &settings)?;
+            if apache_running {
+                sup.stop("apache")?;
+                sup.start("apache")?;
+            }
+            Ok(())
+        }
+    })
+    .await;
+    if let Err(err) = result {
+        if on {
+            save(&root, false)?;
+            remember(false);
+            let (root, settings, sup) = stack.get()?;
+            let _ = blocking(move || {
+                installer::refresh_configs(&root, &settings)?;
+                if apache_running {
+                    sup.start("apache")?;
+                }
+                Ok(())
+            })
+            .await;
+            return Err(format!("HTTPS couldn't be turned on, so it was left off. {err}"));
+        }
+        return Err(err);
+    }
+    Ok(())
+}
+
+/// Asks Windows to trust NexDB's certificate (Windows shows its own confirmation).
+#[tauri::command]
+async fn https_trust() -> Result<bool, String> {
+    blocking(|| {
+        let ca = admin::ensure_ca(&admin::ca_dir())?;
+        admin::trust_ca(&ca)?;
+        Ok(admin::is_trusted(&ca.thumbprint))
+    })
+    .await
 }
 
 #[derive(serde::Serialize)]

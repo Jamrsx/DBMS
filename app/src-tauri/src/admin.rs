@@ -4,8 +4,8 @@
 
 use crate::configure::{run_quiet, Output};
 use rcgen::{
-    BasicConstraints, CertificateParams, CidrSubnet, DistinguishedName, DnType, GeneralSubtree,
-    IsCa, KeyPair, KeyUsagePurpose, NameConstraints,
+    BasicConstraints, CertificateParams, CidrSubnet, DistinguishedName, DnType, ExtendedKeyUsagePurpose,
+    GeneralSubtree, IsCa, Issuer, KeyPair, KeyUsagePurpose, NameConstraints,
 };
 use sha1::{Digest, Sha1};
 use std::fs;
@@ -193,6 +193,72 @@ fn base64_decode(input: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
+/// A server certificate for local sites, signed by the local CA.
+pub struct SiteCert {
+    pub cert_path: PathBuf,
+    pub key_path: PathBuf,
+}
+
+/// Days a site certificate is valid; under the 398 days browsers accept.
+const SITE_CERT_DAYS: i64 = 397;
+/// Renew this many days before it runs out.
+const SITE_CERT_RENEW_DAYS: i64 = 30;
+
+/// One certificate for every local address in `names` (`localhost`, `127.0.0.1`, `shop.test`…),
+/// written to `out` as `sites.crt` and `sites.key`. It is made again only when the names change
+/// or it is close to running out, so Apache restarts don't churn keys.
+pub fn site_certificate(ca_dir: &Path, out: &Path, names: &[String]) -> Result<SiteCert, String> {
+    let cert_path = out.join("sites.crt");
+    let key_path = out.join("sites.key");
+    let stamp_path = out.join("sites.names");
+    let mut wanted: Vec<String> = names.to_vec();
+    wanted.sort();
+    wanted.dedup();
+    let now = time::OffsetDateTime::now_utc();
+
+    // "<expiry unix seconds>\n<name>\n<name>…" from the last time it was made.
+    let fresh = fs::read_to_string(&stamp_path).ok().is_some_and(|stamp| {
+        let mut lines = stamp.lines();
+        let expires = lines.next().and_then(|l| l.parse::<i64>().ok()).unwrap_or(0);
+        let had: Vec<&str> = lines.collect();
+        had == wanted.iter().map(String::as_str).collect::<Vec<_>>()
+            && expires - now.unix_timestamp() > SITE_CERT_RENEW_DAYS * 86_400
+    });
+    if fresh && cert_path.is_file() && key_path.is_file() {
+        return Ok(SiteCert { cert_path, key_path });
+    }
+
+    let ca = ensure_ca(ca_dir)?;
+    let ca_pem = fs::read_to_string(&ca.cert_path).map_err(|e| format!("Couldn't read NexDB's certificate: {e}"))?;
+    let ca_key_pem = fs::read_to_string(ca_dir.join("devmanager-ca.key"))
+        .map_err(|e| format!("Couldn't read NexDB's certificate key: {e}"))?;
+    let ca_key = KeyPair::from_pem(&ca_key_pem).map_err(|e| format!("NexDB's certificate key is damaged: {e}"))?;
+    let issuer = Issuer::from_ca_cert_pem(&ca_pem, ca_key).map_err(|e| format!("NexDB's certificate is damaged: {e}"))?;
+
+    let mut params =
+        CertificateParams::new(wanted.clone()).map_err(|e| format!("Couldn't make the site certificate: {e}"))?;
+    let mut name = DistinguishedName::new();
+    name.push(DnType::OrganizationName, "NexDB");
+    name.push(DnType::CommonName, "NexDB local sites");
+    params.distinguished_name = name;
+    params.is_ca = IsCa::ExplicitNoCa;
+    params.key_usages = vec![KeyUsagePurpose::DigitalSignature, KeyUsagePurpose::KeyEncipherment];
+    params.extended_key_usages = vec![ExtendedKeyUsagePurpose::ServerAuth];
+    params.not_before = now - time::Duration::days(1);
+    let expires = now + time::Duration::days(SITE_CERT_DAYS);
+    params.not_after = expires;
+
+    let key = KeyPair::generate().map_err(|e| format!("Couldn't make the site key: {e}"))?;
+    let cert = params.signed_by(&key, &issuer).map_err(|e| format!("Couldn't sign the site certificate: {e}"))?;
+    fs::create_dir_all(out).map_err(|e| format!("Couldn't create {}: {e}", out.display()))?;
+    fs::write(&key_path, key.serialize_pem()).map_err(|e| format!("Couldn't save the site key: {e}"))?;
+    // The chain (site, then CA) so clients that don't have the CA yet still see who signed it.
+    fs::write(&cert_path, format!("{}{}", cert.pem(), ca_pem)).map_err(|e| format!("Couldn't save the site certificate: {e}"))?;
+    let stamp = std::iter::once(expires.unix_timestamp().to_string()).chain(wanted).collect::<Vec<_>>().join("\n");
+    fs::write(&stamp_path, stamp).map_err(|e| format!("Couldn't save the site certificate: {e}"))?;
+    Ok(SiteCert { cert_path, key_path })
+}
+
 /// Whether the current user's Windows trust store already has this certificate.
 pub fn is_trusted(thumbprint: &str) -> bool {
     run_quiet(Path::new(CERTUTIL), &["-user", "-store", "Root", thumbprint], Duration::from_secs(30))
@@ -264,6 +330,43 @@ mod tests {
         let second = ensure_ca(dir.path()).unwrap();
         assert!(!second.created);
         assert_eq!(first.thumbprint, second.thumbprint);
+    }
+
+    #[test]
+    fn site_certificate_is_reused_until_names_change() {
+        let ca = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let names = vec!["shop.test".to_string(), "localhost".to_string(), "127.0.0.1".to_string()];
+        let first = site_certificate(ca.path(), out.path(), &names).unwrap();
+        let pem = fs::read_to_string(&first.cert_path).unwrap();
+        assert_eq!(pem.matches("BEGIN CERTIFICATE").count(), 2, "site certificate plus the CA");
+        let key = fs::read_to_string(&first.key_path).unwrap();
+
+        // Same names in another order: nothing is made again.
+        let mut reordered = names.clone();
+        reordered.reverse();
+        site_certificate(ca.path(), out.path(), &reordered).unwrap();
+        assert_eq!(fs::read_to_string(&first.key_path).unwrap(), key);
+
+        // A new project: a new certificate.
+        let mut more = names.clone();
+        more.push("blog.test".into());
+        site_certificate(ca.path(), out.path(), &more).unwrap();
+        assert_ne!(fs::read_to_string(&first.key_path).unwrap(), key);
+    }
+
+    /// Checks a site certificate against its CA with Windows' own certutil (read-only):
+    /// `cargo test real_site_cert_verifies -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_site_cert_verifies() {
+        let ca = tempfile::tempdir().unwrap();
+        let out = tempfile::tempdir().unwrap();
+        let site = site_certificate(ca.path(), out.path(), &["shop.test".into(), "localhost".into()]).unwrap();
+        let dumped = run_quiet(Path::new(CERTUTIL), &["-dump", &site.cert_path.display().to_string()], Duration::from_secs(30)).unwrap();
+        println!("{}", dumped.text.lines().filter(|l| l.contains("DNS Name") || l.contains("Issuer") || l.contains("NotAfter")).collect::<Vec<_>>().join("\n"));
+        assert!(dumped.text.contains("DNS Name=shop.test"));
+        assert!(dumped.text.contains("Server Authentication"));
     }
 
     /// Inspects a freshly generated CA with Windows' own certutil (read-only):

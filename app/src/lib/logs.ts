@@ -125,6 +125,12 @@ export function readable(text: string): ReadableLog {
       while (i + 1 < lines.length && lines[i + 1] && !/^[[=-]/.test(lines[i + 1].trim())) {
         message += " " + lines[++i].trim();
       }
+      // NexDB's own window talking to itself (e.g. the updater while NexDB closes to install)
+      // can land on Apache's port for a moment. It is harmless and not about the user's sites.
+      if (/referer: http:\/\/tauri\.localhost|\/plugin%3A/i.test(message)) {
+        hidden++;
+        continue;
+      }
       const code = message.match(/AH\d{5}/)?.[0];
       const lvl = ap[3];
       const fallback: LogLevel = /emerg|alert|crit|error/.test(lvl) ? "error" : lvl === "warn" ? "warn" : "info";

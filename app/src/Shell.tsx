@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Database,
   FolderKanban,
@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { BrandMark } from "./components/BrandMark";
 import { ThemeToggle } from "./components/ThemeToggle";
+import { UpdateNotice } from "./components/UpdateNotice";
+import { startUpdateChecks, useUpdates } from "./lib/updates";
 import { Dashboard } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
@@ -42,6 +44,10 @@ function savedCollapsed(): boolean {
 export function Shell() {
   const [page, setPage] = useState<Page>("dashboard");
   const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const updates = useUpdates();
+  const updateReady = updates.state.kind === "available";
+
+  useEffect(startUpdateChecks, []);
 
   function toggle() {
     const next = !collapsed;
@@ -98,10 +104,16 @@ export function Shell() {
           >
             <Settings size={16} strokeWidth={2} aria-hidden="true" />
             <span className="nav-label">Settings</span>
+            {updateReady && (
+              <span className="nav-dot" title="A new NexDB is ready">
+                <span className="visually-hidden">, a new NexDB is ready</span>
+              </span>
+            )}
           </button>
         </nav>
 
         <div className="rail-foot">
+          <UpdateNotice />
           <ThemeToggle />
         </div>
       </aside>
