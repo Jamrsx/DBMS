@@ -201,5 +201,6 @@
       "recommended": "26.13.0"
     }
   ],
-  "composer_version": "2.11.0"
+  "composer_version": "2.11.0",
+  "git_version": "2.56.0.4"
 }

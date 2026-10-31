@@ -26,6 +26,8 @@ export interface Choices {
   catalog_date: string;
   components: ComponentChoices[];
   composer_version: string;
+  /** Portable Git; null when the bundled catalog predates it. */
+  git_version: string | null;
 }
 
 export async function loadChoices(): Promise<Choices> {

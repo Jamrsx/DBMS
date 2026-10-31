@@ -26,6 +26,7 @@ const COMPONENTS: ComponentInfo[] = [
   { id: "mysql", description: "Database server, with the built-in database manager.", defaultOn: true },
   { id: "node", description: "JavaScript runtime with npm, for front-end builds.", defaultOn: true },
   { id: "composer", description: "PHP package manager (latest stable).", defaultOn: true },
+  { id: "git", description: "Version control: git clone and more in the Terminal (latest stable).", defaultOn: true },
   { id: "nginx", description: "Alternative web server. Optional.", defaultOn: false },
 ];
 
@@ -85,7 +86,7 @@ export function Components({ choices, scan, selections, onChange }: Props) {
           const catalog = byId.get(info.id);
           // NexDB installs its own copies; it never borrows another tool's PHP, Apache or MySQL.
           const existing: Install[] = [];
-          const name = catalog?.name ?? "Composer";
+          const name = catalog?.name ?? (info.id === "git" ? "Git" : "Composer");
           const blocked = info.id === "composer" && !selections.php.enabled;
           return (
             <li key={info.id} className={sel.enabled ? "choice on" : "choice"}>

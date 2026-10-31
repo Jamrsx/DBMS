@@ -66,14 +66,16 @@ const BIN_FOLDER: Record<string, string> = {
   mysql: "mysql",
   node: "nodejs",
   composer: "composer",
+  git: "git",
 };
 
-const ORDER = ["apache", "nginx", "php", "mysql", "node", "composer"];
+const ORDER = ["apache", "nginx", "php", "mysql", "node", "composer", "git"];
 
 export function buildPlan({ settings, selections, choices, scan, mysql }: PlanInput): InstallPlan {
   const root = settings.installRoot.trim().replace(/\\+$/, "");
   const names = new Map(choices.components.map((c) => [c.id, c.name]));
   names.set("composer", "Composer");
+  names.set("git", "Git");
 
   const components: PlannedComponent[] = ORDER.filter((id) => selections[id]?.enabled).map(
     (id) => {
@@ -93,7 +95,7 @@ export function buildPlan({ settings, selections, choices, scan, mysql }: PlanIn
         };
       }
       // Versioned components get side-by-side folders; Composer is one file that self-updates.
-      const version = id === "composer" ? choices.composer_version : sel.version;
+      const version = id === "composer" ? choices.composer_version : id === "git" ? choices.git_version : sel.version;
       const path =
         id === "composer"
           ? `${root}\\bin\\composer`

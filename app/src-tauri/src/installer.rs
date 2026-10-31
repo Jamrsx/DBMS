@@ -1180,4 +1180,21 @@ mod tests {
         println!("stopped all in {:?}", t.elapsed());
         assert!(!port_listening(8097) && !port_listening(9197) && !port_listening(3397));
     }
+
+    /// The wizard's installer with Git selected, like a real setup:
+    /// `cargo test real_wizard_git -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_wizard_git() {
+        let catalog = crate::catalog::bundled();
+        let version = catalog.tools.git.as_ref().unwrap().version.clone();
+        let (dir, _) = real_install("git", &version);
+        let git = dir.path().join("bin").join("git").join(format!("git-{version}")).join("cmd").join("git.exe");
+        let out = std::process::Command::new(&git).arg("--version").output().unwrap();
+        println!("{}", String::from_utf8_lossy(&out.stdout).trim());
+        assert!(out.status.success());
+        let settings = crate::settings::load(dir.path()).unwrap();
+        assert!(settings.components.iter().any(|c| c.id == "git" && c.version.as_deref() == Some(version.as_str())));
+        assert!(crate::versions::missing(&settings).is_empty(), "Git counts as installed");
+    }
 }

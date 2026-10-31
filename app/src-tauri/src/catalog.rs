@@ -76,6 +76,9 @@ impl Catalog {
         if id == "composer" {
             return (self.tools.composer.version == version).then_some(&self.tools.composer.download);
         }
+        if id == "git" {
+            return self.tools.git.as_ref().filter(|g| g.version == version).map(|g| &g.download);
+        }
         self.components
             .iter()
             .find(|c| c.id == id)?
@@ -126,6 +129,7 @@ pub struct Choices {
     pub catalog_date: String,
     pub components: Vec<ComponentChoices>,
     pub composer_version: String,
+    pub git_version: Option<String>,
 }
 
 pub fn bundled() -> Catalog {
@@ -142,6 +146,7 @@ pub fn choices(catalog: &Catalog, today: i64) -> Choices {
             .map(|c| component_choices(c, today))
             .collect(),
         composer_version: catalog.tools.composer.version.clone(),
+        git_version: catalog.tools.git.as_ref().map(|g| g.version.clone()),
     }
 }
 
