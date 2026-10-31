@@ -15,6 +15,8 @@ const SYSTEM_DATABASES: [&str; 4] = ["information_schema", "mysql", "performance
 #[derive(Default)]
 pub struct Db {
     pool: std::sync::Arc<Mutex<Option<Pool>>>,
+    /// Kept in memory only, so backups can sign in the same way.
+    password: std::sync::Arc<Mutex<Option<String>>>,
 }
 
 #[derive(Serialize, Debug)]
@@ -144,6 +146,7 @@ impl Db {
             .map_err(friendly)?
             .unwrap_or_default();
         *self.pool.lock().unwrap() = Some(pool);
+        *self.password.lock().unwrap() = password.filter(|p| !p.is_empty()).map(str::to_string);
         Ok(Connected { version })
     }
 
@@ -416,7 +419,7 @@ mod tests {
 impl Db {
     /// A handle sharing the same pool, so a command can move it onto a worker thread.
     pub fn clone_handle(&self) -> Db {
-        Db { pool: self.pool.clone() }
+        Db { pool: self.pool.clone(), password: self.password.clone() }
     }
 }
 
@@ -444,4 +447,11 @@ fn typed(value: Value, kind: mysql::consts::ColumnType) -> serde_json::Value {
         }
     }
     to_json(value)
+}
+
+impl Db {
+    /// The password the current connection used, if any.
+    pub fn password(&self) -> Option<String> {
+        self.password.lock().unwrap().clone()
+    }
 }

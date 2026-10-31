@@ -21,8 +21,9 @@ import {
 } from "../lib/db";
 import { inDesktopApp } from "../lib/scan";
 import { PhpMyAdmin } from "./PhpMyAdmin";
+import { Backups } from "./Backups";
 
-type Tab = "browse" | "structure" | "sql";
+type Tab = "browse" | "structure" | "sql" | "backups";
 const PAGE_SIZE = 50;
 
 export function Database({ active }: { active: boolean }) {
@@ -89,7 +90,7 @@ export function Database({ active }: { active: boolean }) {
     } catch (e) {
       setError(String(e));
     }
-    setTab((t) => (t === "sql" ? "sql" : "browse"));
+    setTab((t) => (t === "sql" || t === "backups" ? t : "browse"));
   }
 
   function openTable(name: string) {
@@ -169,6 +170,9 @@ export function Database({ active }: { active: boolean }) {
                 <TabButton id="sql" tab={tab} onSelect={setTab}>
                   SQL
                 </TabButton>
+                <TabButton id="backups" tab={tab} onSelect={setTab}>
+                  Backups
+                </TabButton>
                 <span className="db-where">
                   {selected ? (table ? `${selected} › ${table}` : selected) : "Pick a database"}
                 </span>
@@ -191,6 +195,16 @@ export function Database({ active }: { active: boolean }) {
               {tab === "browse" && !selected && <p className="lede">Pick a database on the left to see its tables.</p>}
               {tab === "structure" && selected && table && <Structure key={`${selected}.${table}`} db={selected} table={table} />}
               {tab === "sql" && <SqlRunner db={selected} onChanged={() => selected && pick(selected).then(loadDbs)} />}
+              {tab === "backups" && (
+                <Backups
+                  selected={selected}
+                  databases={dbs.map((d) => d.name)}
+                  onChanged={() => {
+                    void loadDbs();
+                    if (selected) void pick(selected);
+                  }}
+                />
+              )}
             </section>
           </div>
         )}

@@ -1,4 +1,5 @@
 mod admin;
+mod backup;
 mod catalog;
 mod configure;
 mod db;
@@ -194,6 +195,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             tray::setup(app.handle())?;
             // "Start services when NexDB opens", from Settings.
@@ -236,6 +238,13 @@ pub fn run() {
             set_start_services_on_launch,
             versions_overview,
             missing_components,
+            backups_list,
+            backup_create,
+            backup_restore,
+            backup_delete,
+            backup_import_file,
+            pick_sql_file,
+            open_backups_folder,
             version_install,
             version_use,
             version_remove,
@@ -761,4 +770,106 @@ async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: 
 async fn version_remove(stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
     blocking(move || versions::remove(&root, &settings, &id, &version)).await
+}
+
+/// Folder holding mysql.exe and mysqldump.exe for the MySQL in use.
+fn mysql_bin(settings: &settings::Settings) -> Result<std::path::PathBuf, String> {
+    let c = settings.components.iter().find(|c| c.id == "mysql").ok_or("MySQL isn't part of this install.")?;
+    let path = std::path::PathBuf::from(&c.path);
+    let bin = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) {
+        path.parent().map(std::path::Path::to_path_buf).unwrap_or(path)
+    } else {
+        path.join("bin")
+    };
+    if !bin.join("mysqldump.exe").is_file() {
+        return Err("MySQL's backup tool is missing. Reinstall MySQL on the Versions page.".into());
+    }
+    Ok(bin)
+}
+
+#[tauri::command]
+fn backups_list(stack: tauri::State<Stack>) -> Result<Vec<backup::BackupFile>, String> {
+    let (root, _, _) = stack.get()?;
+    Ok(backup::list(&root))
+}
+
+/// Backs up one database, or every database of your own when `name` is empty.
+#[tauri::command]
+async fn backup_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, name: Option<String>) -> Result<Vec<backup::BackupFile>, String> {
+    let (root, settings, _) = stack.get()?;
+    let port = mysql_port(&stack)?;
+    let db = db.inner().clone_handle();
+    blocking(move || {
+        let bin = mysql_bin(&settings)?;
+        let password = db.password();
+        let names: Vec<String> = match name.filter(|n| !n.is_empty()) {
+            Some(n) => vec![n],
+            None => db.databases()?.into_iter().filter(|d| !d.system).map(|d| d.name).collect(),
+        };
+        if names.is_empty() {
+            return Err("There are no databases of your own to back up yet.".into());
+        }
+        names.iter().map(|n| backup::export(&bin, &root, port, password.as_deref(), n)).collect()
+    })
+    .await
+}
+
+/// Restores a backup into `database`, creating it first if it doesn't exist.
+#[tauri::command]
+async fn backup_restore(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, file: String, database: String) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    let port = mysql_port(&stack)?;
+    let db = db.inner().clone_handle();
+    blocking(move || {
+        let path = backup::backups_dir(&root).join(&file);
+        if file.contains(['/', '\\']) || !path.is_file() {
+            return Err("That backup file doesn't exist any more.".into());
+        }
+        restore_into(&settings, &root, port, &db, &path, &database)
+    })
+    .await
+}
+
+fn restore_into(settings: &settings::Settings, root: &std::path::Path, port: u16, db: &db::Db, file: &std::path::Path, database: &str) -> Result<(), String> {
+    let bin = mysql_bin(settings)?;
+    if !db.databases()?.iter().any(|d| d.name.eq_ignore_ascii_case(database)) {
+        db.create_database(database)?;
+    }
+    backup::import(&bin, root, port, db.password().as_deref(), database, file)
+}
+
+/// Imports any `.sql` file the user picked into `database` (created if needed).
+#[tauri::command]
+async fn backup_import_file(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, path: String, database: String) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    let port = mysql_port(&stack)?;
+    let db = db.inner().clone_handle();
+    blocking(move || restore_into(&settings, &root, port, &db, std::path::Path::new(&path), &database)).await
+}
+
+#[tauri::command]
+fn backup_delete(stack: tauri::State<Stack>, file: String) -> Result<(), String> {
+    let (root, _, _) = stack.get()?;
+    backup::delete(&root, &file)
+}
+
+/// Lets the user choose a .sql file; None when they cancel.
+#[tauri::command]
+async fn pick_sql_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        app.dialog().file().set_title("Choose a .sql file to import").add_filter("SQL files", &["sql"]).blocking_pick_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
+}
+
+#[tauri::command]
+fn open_backups_folder(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (root, _, _) = stack.get()?;
+    let dir = backup::backups_dir(&root);
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener().open_path(dir.display().to_string(), None::<&str>).map_err(|e| e.to_string())
 }
