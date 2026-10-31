@@ -22,6 +22,9 @@ pub struct Project {
     pub host: Option<String>,
     pub url: String,
     pub local_url: String,
+    /// Uses of code newer PHP warns about ("Deprecated: …"), which NexDB can fix.
+    #[serde(default)]
+    pub php_warnings: usize,
 }
 
 /// Lower-case letters, digits and hyphens, not starting or ending with a hyphen.
@@ -74,6 +77,7 @@ pub fn list(www: &Path, port: u16) -> Vec<Project> {
                 kind: kind.into(),
                 doc_root: doc_root.display().to_string(),
                 host,
+                php_warnings: 0,
             })
         })
         .collect();

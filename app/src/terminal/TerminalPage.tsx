@@ -7,15 +7,24 @@ import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
 interface Tab {
   key: number;
   name: string;
+  /** Opens in this project's folder. */
+  project?: string;
   state: SessionState;
   restart: number;
 }
 
 /** `standalone` is the page inside its own window, opened with "Open in new window". */
+/** A terminal window opened for one project starts in its folder (`?project=name`). */
+const startProject = new URLSearchParams(location.search).get("project") ?? undefined;
+
 export function TerminalPage({ active, standalone = false }: { active: boolean; standalone?: boolean }) {
   const [popError, setPopError] = useState<string | null>(null);
   const count = useRef(1);
-  const [tabs, setTabs] = useState<Tab[]>([{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }]);
+  const [tabs, setTabs] = useState<Tab[]>(() => [
+    standalone && startProject
+      ? { key: 1, name: startProject, project: startProject, state: "starting", restart: 0 }
+      : { key: 1, name: "Terminal 1", state: "starting", restart: 0 },
+  ]);
   const [current, setCurrent] = useState(1);
   const [editing, setEditing] = useState<number | null>(null);
 
@@ -170,6 +179,7 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
               key={t.key}
               active={active && t.key === shown?.key}
               restartToken={t.restart}
+              project={t.project}
               onState={(state) => update(t.key, { state })}
             />
           ))

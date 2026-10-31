@@ -3243,6 +3243,320 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+/* New project wizard */
+.wizard,
+.project-list,
+.addr-banner {
+  flex: none;
+}
+
+.wizard {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.wizard-steps {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 0;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.wizard-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wizard-steps li.current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.wizard-steps li.done {
+  color: var(--text-2);
+}
+
+.wizard-num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.wizard-steps .current .wizard-num {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.wizard-steps .done .wizard-num {
+  border-color: var(--ok);
+  background: var(--ok);
+  color: var(--surface);
+}
+
+.wizard-close {
+  margin-left: auto;
+}
+
+.wizard-close .update-close {
+  position: static;
+}
+
+.wizard-body {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.wizard-name {
+  max-width: 520px;
+}
+
+.wizard-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.wizard-group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.wizard-group legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.wizard-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 8px;
+}
+
+.wizard-card {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.wizard-card:hover {
+  border-color: var(--border-strong);
+}
+
+.wizard-card input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.wizard-card strong {
+  font-size: 13.5px;
+}
+
+.wizard-card span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.wizard-card.selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.wizard-card:has(input:focus-visible) {
+  box-shadow: var(--ring);
+}
+
+.wizard-summary {
+  margin: 0;
+  color: var(--text-2);
+}
+
+.wizard-summary strong {
+  color: var(--text);
+}
+
+.input-medium {
+  max-width: 320px;
+}
+
+.wizard-ai {
+  align-items: flex-start;
+}
+
+.wizard-ai input {
+  margin-top: 3px;
+}
+
+.wizard-ai > span {
+  display: grid;
+  gap: 2px;
+}
+
+.wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wizard-actions .btn {
+  gap: 6px;
+}
+
+.wizard-actions .btn-quiet:first-child {
+  margin-left: -10px;
+  margin-right: auto;
+}
+
+.quickstart-pct {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 4px;
+  font: 12px var(--mono);
+  color: var(--text-2);
+}
+
+.quickstart-pct .bar {
+  width: 120px;
+}
+
+/* What to do next, after a project is made */
+.guide {
+  display: grid;
+  gap: 10px;
+}
+
+.guide p {
+  margin: 0;
+}
+
+.guide-label {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.guide-commands {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.guide-commands li {
+  display: grid;
+  grid-template-columns: minmax(180px, auto) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.guide-commands li:first-child {
+  border-top: 0;
+}
+
+.guide-commands code {
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.guide-commands span {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+/* Project rows: PHP warning and editor menu */
+.project-warning {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  background: var(--warn-soft);
+}
+
+.project-warning > svg {
+  flex: none;
+  color: var(--warn);
+}
+
+.project-warning p {
+  flex: 1;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.project-warning .btn {
+  flex: none;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  display: grid;
+  min-width: 170px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 0.16);
+}
+
+.menu-list button {
+  height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: 13px var(--font);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-list button:hover,
+.menu-list button:focus-visible {
+  background: var(--nav-hover);
+  outline: none;
+}
+
 /* Asking before a MySQL switch */
 .ver-confirm {
   display: grid;

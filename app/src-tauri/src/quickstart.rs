@@ -16,6 +16,7 @@ pub enum Starter {
     Laravel,
     LaravelReact,
     LaravelVue,
+    LaravelLivewire,
     WordPress,
     ViteReact,
     ViteVue,
@@ -28,6 +29,7 @@ impl Starter {
             "laravel" => Self::Laravel,
             "laravel-react" => Self::LaravelReact,
             "laravel-vue" => Self::LaravelVue,
+            "laravel-livewire" => Self::LaravelLivewire,
             "wordpress" => Self::WordPress,
             "vite-react" => Self::ViteReact,
             "vite-vue" => Self::ViteVue,
@@ -41,6 +43,7 @@ impl Starter {
             Self::Laravel => "Laravel",
             Self::LaravelReact => "Laravel with React",
             Self::LaravelVue => "Laravel with Vue",
+            Self::LaravelLivewire => "Laravel with Livewire",
             Self::WordPress => "WordPress",
             Self::ViteReact => "React (Vite)",
             Self::ViteVue => "Vue (Vite)",
@@ -49,7 +52,18 @@ impl Starter {
     }
 
     fn laravel(self) -> bool {
-        matches!(self, Self::Laravel | Self::LaravelReact | Self::LaravelVue)
+        matches!(self, Self::Laravel | Self::LaravelReact | Self::LaravelVue | Self::LaravelLivewire)
+    }
+
+    /// Composer package and flags. Starter kits come from their latest code (as `laravel new`
+    /// does), since their tagged releases on Packagist stopped at Laravel 12.
+    fn package(self) -> (&'static str, &'static str) {
+        match self {
+            Self::LaravelReact => ("laravel/react-starter-kit", "--stability=dev"),
+            Self::LaravelVue => ("laravel/vue-starter-kit", "--stability=dev"),
+            Self::LaravelLivewire => ("laravel/livewire-starter-kit", "--stability=dev"),
+            _ => ("laravel/laravel", ""),
+        }
     }
 
     fn needs_database(self) -> bool {
@@ -57,19 +71,22 @@ impl Starter {
     }
 
     /// The steps the user sees, in order.
-    pub fn steps(self) -> Vec<&'static str> {
+    pub fn steps(self, opts: &Options) -> Vec<&'static str> {
         let mut steps = Vec::new();
         if self.needs_database() {
             steps.push("Creating the database");
         }
         match self {
-            Self::Laravel | Self::LaravelReact | Self::LaravelVue => {
+            Self::Laravel | Self::LaravelReact | Self::LaravelVue | Self::LaravelLivewire => {
                 steps.push("Downloading Laravel");
                 steps.push("Connecting it to the database");
                 steps.push("Setting up the tables");
                 if self != Self::Laravel {
                     steps.push("Installing JavaScript packages");
                     steps.push("Building the frontend");
+                }
+                if opts.ai {
+                    steps.push("Setting up AI assistant support (Laravel Boost)");
                 }
             }
             Self::WordPress => {
@@ -86,6 +103,17 @@ impl Starter {
     }
 }
 
+/// Choices made in the New project wizard.
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct Options {
+    /// Database name; the project name (with _ for -) when empty.
+    #[serde(default)]
+    pub db_name: Option<String>,
+    /// Laravel only: set up Laravel Boost so AI coding assistants know the project.
+    #[serde(default)]
+    pub ai: bool,
+}
+
 /// Progress for the New project view, sent as `quickstart` events.
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -93,6 +121,29 @@ pub enum Event {
     Plan { name: String, steps: Vec<String> },
     Step { name: String, index: usize, status: &'static str },
     Line { name: String, text: String },
+    /// How far the running step is, when the tool says (Composer packages, downloads).
+    Percent { name: String, index: usize, percent: u8 },
+}
+
+/// Removes terminal colour codes (ESC [ ... letter) so the log reads as plain text.
+pub fn strip_ansi(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{1b}' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for n in chars.by_ref() {
+                    if n.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else if c != '\r' {
+            out.push(c);
+        }
+    }
+    out
 }
 
 /// What the user needs to know when a project is ready.
@@ -161,15 +212,40 @@ struct Run<'a> {
     settings: &'a Settings,
     /// Set when the last command's output showed a briefly locked file.
     locked: std::cell::Cell<bool>,
+    /// The running step, and Composer's package count (total, done) for its percentage.
+    current: std::cell::Cell<usize>,
+    ops: std::cell::Cell<(usize, usize)>,
 }
 
 impl Run<'_> {
     fn step(&self, index: usize, status: &'static str) {
+        if status == "running" {
+            self.current.set(index);
+            self.ops.set((0, 0));
+        }
         (self.emit)(Event::Step { name: self.name.into(), index, status });
     }
 
+    fn percent(&self, percent: u8) {
+        (self.emit)(Event::Percent { name: self.name.into(), index: self.current.get(), percent: percent.min(100) });
+    }
+
+    /// Composer prints "Package operations: 110 installs, ..." then one "- Installing" per package.
+    fn track(&self, line: &str) {
+        let (total, done) = self.ops.get();
+        if let Some(rest) = line.split("Package operations:").nth(1) {
+            let n = rest.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0);
+            self.ops.set((n, 0));
+        } else if total > 0 && line.trim_start().starts_with("- Installing ") {
+            let done = done + 1;
+            self.ops.set((total, done));
+            self.percent(((done * 100) / total).min(99) as u8);
+        }
+    }
+
     fn line(&self, text: &str) {
-        let text = text.trim_end();
+        let clean = strip_ansi(text);
+        let text = clean.trim_end();
         if !text.is_empty() {
             (self.emit)(Event::Line { name: self.name.into(), text: text.into() });
         }
@@ -197,6 +273,7 @@ impl Run<'_> {
         let path = crate::terminal::path_with(&crate::terminal::tool_dirs(self.root, self.settings), &existing);
         let mut cmd = Command::new("cmd");
         cmd.arg("/C").arg(command).current_dir(cwd).env("PATH", path).env("COMPOSER_NO_INTERACTION", "1");
+        cmd.env("NO_COLOR", "1").env("npm_config_color", "false");
         cmd.env("npm_config_yes", "true").env("npm_config_fund", "false").env("npm_config_update_notifier", "false");
         let php_dir = self.root.join("etc").join("php");
         if php_dir.join("php.ini").is_file() {
@@ -237,8 +314,10 @@ impl Run<'_> {
             if line.contains("EBUSY") || line.contains("EPERM") {
                 self.locked.set(true);
             }
-            self.line(&line);
-            last.push(line);
+            let plain = strip_ansi(&line);
+            self.track(&plain);
+            self.line(&plain);
+            last.push(plain);
             if last.len() > 6 {
                 last.remove(0);
             }
@@ -265,7 +344,7 @@ struct ProjectDb {
 }
 
 /// Creates the database and a user that can only use it.
-fn make_database(root_password: Option<&str>, port: u16, project: &str) -> Result<ProjectDb, String> {
+fn make_database(root_password: Option<&str>, port: u16, name: &str) -> Result<ProjectDb, String> {
     let db = crate::db::Db::default();
     db.connect(port, root_password).map_err(|e| {
         if e == "NEEDS_PASSWORD" {
@@ -274,7 +353,10 @@ fn make_database(root_password: Option<&str>, port: u16, project: &str) -> Resul
             e
         }
     })?;
-    let name = db_name(project);
+    let name = name.to_string();
+    if !crate::db::valid_name(&name) || name.len() > 32 {
+        return Err(format!("\"{name}\" can't be a database name: use up to 32 letters, numbers and _."));
+    }
     if db.databases()?.iter().any(|d| d.name.eq_ignore_ascii_case(&name)) {
         return Err(format!("A database named {name} already exists. Pick another project name, or delete that database first."));
     }
@@ -303,6 +385,7 @@ pub fn create(
     root_password: Option<String>,
     name: &str,
     starter: Starter,
+    opts: &Options,
 ) -> Result<Created, String> {
     let www = PathBuf::from(&settings.www_dir);
     let dir = www.join(name);
@@ -312,10 +395,10 @@ pub fn create(
     if dir.exists() {
         return Err(format!("A project named \"{name}\" already exists."));
     }
-    let steps = starter.steps();
+    let steps = starter.steps(opts);
     emit(Event::Plan { name: name.into(), steps: steps.iter().map(|s| s.to_string()).collect() });
 
-    let result = run(emit, root, settings, sup, root_password, name, starter, &www, &dir);
+    let result = run(emit, root, settings, sup, root_password, name, starter, opts, &www, &dir);
     if result.is_err() && dir.exists() {
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -331,10 +414,19 @@ fn run(
     root_password: Option<String>,
     name: &str,
     starter: Starter,
+    opts: &Options,
     www: &Path,
     dir: &Path,
 ) -> Result<Created, String> {
-    let r = Run { emit, name, root, settings, locked: std::cell::Cell::new(false) };
+    let r = Run {
+        emit,
+        name,
+        root,
+        settings,
+        locked: std::cell::Cell::new(false),
+        current: std::cell::Cell::new(0),
+        ops: std::cell::Cell::new((0, 0)),
+    };
     let mut index = 0;
     let mut begin = |r: &Run| {
         r.step(index, "running");
@@ -360,26 +452,29 @@ fn run(
             r.line("Starting MySQL…");
             sup.start("mysql").map_err(|e| format!("MySQL isn't running and didn't start: {e}"))?;
         }
-        let made = make_database(root_password.as_deref(), port, name)?;
+        let wanted = opts.db_name.clone().map(|n| n.trim().to_string()).filter(|n| !n.is_empty()).unwrap_or_else(|| db_name(name));
+        let made = make_database(root_password.as_deref(), port, &wanted)?;
         r.line(&format!("Database {} with its own user {}", made.name, made.user));
         finish(&r, i);
         database = Some(made);
     }
 
     match starter {
-        Starter::Laravel | Starter::LaravelReact | Starter::LaravelVue => {
+        Starter::Laravel | Starter::LaravelReact | Starter::LaravelVue | Starter::LaravelLivewire => {
             need("php", "PHP")?;
             need("composer", "Composer")?;
             if starter != Starter::Laravel {
                 need("node", "Node.js")?;
             }
-            let package = match starter {
-                Starter::LaravelReact => "laravel/react-starter-kit",
-                Starter::LaravelVue => "laravel/vue-starter-kit",
-                _ => "laravel/laravel",
-            };
             let i = begin(&r);
-            r.exec(www, &format!("composer create-project {package} {name} --prefer-dist --no-interaction"))?;
+            let (package, flags) = starter.package();
+            r.exec(www, &format!("composer create-project {package} {name} {flags} --prefer-dist --no-interaction"))?;
+            // Older configs use constants PHP 8.5 warns about; update them so pages stay clean.
+            if let Ok(n) = crate::phpfix::fix(dir) {
+                if n > 0 {
+                    r.line(&format!("Updated {n} line(s) for PHP 8.5, so no \"Deprecated\" warnings show"));
+                }
+            }
             finish(&r, i);
 
             let i = begin(&r);
@@ -412,6 +507,14 @@ fn run(
                 r.exec(dir, "npm run build")?;
                 finish(&r, i);
             }
+            if opts.ai {
+                let i = begin(&r);
+                // "~2.2" (2.2 up to 3.0) instead of "^2.2": cmd treats ^ as an escape and quotes
+                // inside `cmd /C` get mangled, which garbled Composer's arguments.
+                r.exec(dir, "composer require laravel/boost:~2.2 --dev -W --no-interaction")?;
+                r.exec(dir, "php artisan boost:install --no-interaction")?;
+                finish(&r, i);
+            }
             Ok(Created { run_hint: None, database: database.map(|d| d.name) })
         }
         Starter::WordPress => {
@@ -436,7 +539,12 @@ fn run(
                 checksum: crate::catalog::Checksum { algo: "md5".into(), value: md5 },
             };
             r.line("Downloading https://wordpress.org/latest.zip (checked against wordpress.org's checksum)");
-            tauri::async_runtime::block_on(crate::installer::install_archive(&download, root, dir, "wordpress", &|_| {}))?;
+            let report = |p: crate::installer::Progress| {
+                if let Some(total) = p.bytes_total.filter(|t| *t > 0) {
+                    r.percent(((p.bytes_done * 100) / total) as u8);
+                }
+            };
+            tauri::async_runtime::block_on(crate::installer::install_archive(&download, root, dir, "wordpress", &report))?;
             finish(&r, i);
 
             let i = begin(&r);
@@ -550,11 +658,12 @@ mod tests {
             let name = format!("qs-{kind}");
             println!("== {kind}");
             let started = std::time::Instant::now();
-            match create(&emit, root, &settings, &sup, Some("rootpw".into()), &name, starter) {
+            let opts = Options { ai: std::env::var("NEXDB_AI").is_ok(), ..Default::default() };
+            match create(&emit, root, &settings, &sup, Some("rootpw".into()), &name, starter, &opts) {
                 Ok(_) => {
                     let p = www.join(&name);
                     let ok = match starter {
-                        Starter::Laravel | Starter::LaravelReact | Starter::LaravelVue => {
+                        Starter::Laravel | Starter::LaravelReact | Starter::LaravelVue | Starter::LaravelLivewire => {
                             let env = fs::read_to_string(p.join(".env")).unwrap();
                             let check = crate::db::Db::default();
                             check.connect(port, Some("rootpw")).unwrap();
@@ -586,11 +695,18 @@ mod tests {
 
     #[test]
     fn every_starter_has_steps() {
-        for k in ["laravel", "laravel-react", "laravel-vue", "wordpress", "vite-react", "vite-vue", "nextjs"] {
+        for k in ["laravel", "laravel-react", "laravel-vue", "laravel-livewire", "wordpress", "vite-react", "vite-vue", "nextjs"] {
             let s = Starter::parse(k).unwrap();
-            assert!(!s.steps().is_empty());
+            assert!(!s.steps(&Options::default()).is_empty());
             assert_eq!(s.needs_database(), k.starts_with("laravel") || k == "wordpress");
         }
-        assert_eq!(Starter::parse("laravel-react").unwrap().steps().len(), 6);
+        assert_eq!(Starter::parse("laravel-react").unwrap().steps(&Options::default()).len(), 6);
+        assert_eq!(Starter::parse("laravel").unwrap().steps(&Options { ai: true, ..Default::default() }).len(), 5);
+    }
+
+    #[test]
+    fn colour_codes_are_removed() {
+        assert_eq!(strip_ansi("\u{1b}[32mbuilt in 7.15s\u{1b}[39m\r"), "built in 7.15s");
+        assert_eq!(strip_ansi("\u{1b}[2mpublic/build/\u{1b}[22m\u{1b}[36massets/app.js"), "public/build/assets/app.js");
     }
 }

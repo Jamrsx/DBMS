@@ -36,10 +36,13 @@ export function isTabShortcut(e: KeyboardEvent) {
 export function TerminalView({
   active,
   restartToken,
+  project,
   onState,
 }: {
   active: boolean;
   restartToken: number;
+  /** Start in this project's folder instead of the projects folder. */
+  project?: string;
   onState: (state: SessionState) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -76,7 +79,7 @@ export function TerminalView({
         await closeTerminal(old);
       }
       t.clear();
-      session.current = await openTerminal(t.cols, t.rows);
+      session.current = await openTerminal(t.cols, t.rows, project);
       setState("open");
       t.focus();
     } catch (e) {

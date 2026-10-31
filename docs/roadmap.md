@@ -83,14 +83,28 @@ HTTPS for `.test` sites:
   the terminal window no longer freezes; the open database in the Database page folds away on a
   second click.
 
-### 0.2.6: Project details
+### 0.2.6: Better new projects, and project actions
+
+- New project as a three-step wizard: what to make (cards), options, then progress and a
+  getting-started guide with the commands for that starter and Copy buttons.
+- Latest templates: Laravel 13 and the current React, Vue and Livewire starter kits (from their
+  latest code, as `laravel new` does), plus an option to set up Laravel Boost for AI coding
+  assistants.
+- Choose the database name (defaults to the project name).
+- Real progress: Composer package count and download percentage; clean log without colour codes.
+- Open a project in the code editors installed on the PC (VS Code, Cursor, Windsurf, Zed,
+  PhpStorm, WebStorm, Sublime Text, Notepad++), or in a terminal window at its folder.
+- "Deprecated" warnings on PHP 8.5: projects using the old `PDO::MYSQL_ATTR_*` names get a
+  plain explanation and a one-click Fix; new Laravel projects are fixed automatically.
+- `.test` addresses explained in plain words.
+
+### 0.2.7: Project details and per-project PHP
 
 - A page per project: its URL, folder, database, PHP version, Git branch and status.
-- Buttons: open in VS Code, open folder, open terminal here, open in browser.
 - Rename and delete a project (delete moves the folder to the Recycle Bin and asks about the
   database).
 
-### 0.2.7: Per-project PHP version
+Per-project PHP version (same release):
 
 - Several PHP versions installed side by side, each with its own FastCGI process.
 - Each project picks its PHP version; the default stays the global one.

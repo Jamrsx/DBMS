@@ -10,6 +10,8 @@ export interface Project {
   host: string | null;
   url: string;
   local_url: string;
+  /** Uses of code newer PHP warns about ("Deprecated: …"), which NexDB can fix. */
+  php_warnings: number;
 }
 
 export interface ProjectsInfo {
@@ -22,12 +24,21 @@ export interface ProjectsInfo {
 export type NewKind = "php" | "html" | "empty";
 
 /** Ready-to-run starters NexDB downloads and sets up. */
-export type Starter = "laravel" | "laravel-react" | "laravel-vue" | "wordpress" | "vite-react" | "vite-vue" | "nextjs";
+export type Starter =
+  | "laravel"
+  | "laravel-react"
+  | "laravel-vue"
+  | "laravel-livewire"
+  | "wordpress"
+  | "vite-react"
+  | "vite-vue"
+  | "nextjs";
 
 export const STARTERS: { id: Starter; label: string; needs: string }[] = [
   { id: "laravel", label: "Laravel", needs: "PHP, Composer and MySQL" },
   { id: "laravel-react", label: "Laravel + React (Inertia)", needs: "PHP, Composer, Node.js and MySQL" },
   { id: "laravel-vue", label: "Laravel + Vue (Inertia)", needs: "PHP, Composer, Node.js and MySQL" },
+  { id: "laravel-livewire", label: "Laravel + Livewire", needs: "PHP, Composer, Node.js and MySQL" },
   { id: "wordpress", label: "WordPress", needs: "PHP and MySQL" },
   { id: "vite-react", label: "React (Vite)", needs: "Node.js" },
   { id: "vite-vue", label: "Vue (Vite)", needs: "Node.js" },
@@ -45,7 +56,44 @@ export interface Created {
 export type QuickstartEvent =
   | { kind: "plan"; name: string; steps: string[] }
   | { kind: "step"; name: string; index: number; status: "running" | "done" }
-  | { kind: "line"; name: string; text: string };
+  | { kind: "line"; name: string; text: string }
+  | { kind: "percent"; name: string; index: number; percent: number };
+
+export interface QuickstartOptions {
+  /** Database name; the project name with _ for - when empty. */
+  db_name?: string;
+  /** Laravel: set up Laravel Boost for AI coding assistants. */
+  ai?: boolean;
+}
+
+/** A database name from a project name: my-shop → my_shop. */
+export const defaultDbName = (project: string) => project.replace(/-/g, "_").slice(0, 32);
+
+export const needsDatabase = (kind: Starter) => kind.startsWith("laravel") || kind === "wordpress";
+
+export interface Editor {
+  id: string;
+  name: string;
+}
+
+export async function listEditors(): Promise<Editor[]> {
+  if (inDesktopApp) return invoke<Editor[]>("editors_list");
+  return [
+    { id: "vscode", name: "VS Code" },
+    { id: "phpstorm", name: "PhpStorm" },
+  ];
+}
+
+export async function openInEditor(name: string, editor: string): Promise<void> {
+  if (inDesktopApp) return invoke("project_open_in", { name, editor });
+}
+
+/** Updates code newer PHP warns about; resolves to how many lines changed. */
+export async function fixPhpWarnings(name: string): Promise<number> {
+  if (inDesktopApp) return invoke<number>("project_fix_php", { name });
+  await new Promise((r) => setTimeout(r, 400));
+  return 2;
+}
 
 export function onQuickstart(handler: (e: QuickstartEvent) => void): Promise<UnlistenFn> {
   if (!inDesktopApp) {
@@ -56,8 +104,8 @@ export function onQuickstart(handler: (e: QuickstartEvent) => void): Promise<Unl
 }
 
 /** Downloads and sets up a starter; progress arrives through `onQuickstart`. */
-export async function quickstart(name: string, kind: Starter): Promise<Created> {
-  if (inDesktopApp) return invoke<Created>("project_quickstart", { name, kind });
+export async function quickstart(name: string, kind: Starter, options: QuickstartOptions = {}): Promise<Created> {
+  if (inDesktopApp) return invoke<Created>("project_quickstart", { name, kind, options });
   return preview.quickstart(name, kind);
 }
 
@@ -103,6 +151,7 @@ const preview = (() => {
       host: `${name}.test`,
       url: `http://${name}.test/`,
       local_url: `http://localhost/${name}/`,
+      php_warnings: name === "my-shop" ? 2 : 0,
     };
   }
   const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node")];
@@ -119,7 +168,10 @@ const preview = (() => {
       for (let i = 0; i < steps.length; i++) {
         send({ kind: "step", name, index: i, status: "running" });
         send({ kind: "line", name, text: `> step ${i + 1} of ${steps.length} (simulated)` });
-        await sleep(700);
+        for (const pct of [25, 60, 90]) {
+          await sleep(250);
+          send({ kind: "percent", name, index: i, percent: pct });
+        }
         send({ kind: "step", name, index: i, status: "done" });
       }
       projects.push(mk(name, kind.startsWith("laravel") ? "laravel" : kind === "wordpress" ? "wordpress" : "node"));

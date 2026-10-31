@@ -4,8 +4,10 @@ mod backup;
 mod catalog;
 mod configure;
 mod db;
+mod editors;
 mod installer;
 mod phpmyadmin;
+mod phpfix;
 mod projects;
 mod quickstart;
 mod scan;
@@ -268,6 +270,9 @@ pub fn run() {
             projects_list,
             project_create,
             project_quickstart,
+            project_fix_php,
+            editors_list,
+            project_open_in,
             projects_sync_hosts,
             project_open,
             terminal_open,
@@ -334,6 +339,9 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
     blocking(move || {
         let port = settings.apache_port.unwrap_or(80);
         let mut projects = projects::list(std::path::Path::new(&settings.www_dir), port);
+        for p in projects.iter_mut().filter(|p| p.kind == "laravel" || p.kind == "php") {
+            p.php_warnings = phpfix::scan(std::path::Path::new(&p.path)).len();
+        }
         if settings.preferences.https {
             projects::use_https(&mut projects, settings.preferences.https_port);
         }
@@ -374,6 +382,38 @@ async fn project_create(stack: tauri::State<'_, Stack>, name: String, kind: Stri
     .await
 }
 
+/// Code editors found on this PC.
+#[tauri::command]
+fn editors_list() -> Vec<editors::Editor> {
+    editors::installed()
+}
+
+/// Opens a project folder in one of the installed editors.
+#[tauri::command]
+fn project_open_in(stack: tauri::State<Stack>, name: String, editor: String) -> Result<(), String> {
+    let (_, settings, _) = stack.get()?;
+    let dir = std::path::Path::new(&settings.www_dir).join(&name);
+    if projects::host_label(&name).is_none() || !dir.is_dir() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    editors::open(&editor, &dir)
+}
+
+/// Updates code newer PHP warns about (see `phpfix`) in one project. Returns how many uses changed.
+#[tauri::command]
+async fn project_fix_php(stack: tauri::State<'_, Stack>, name: String) -> Result<usize, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let www = std::path::Path::new(&settings.www_dir);
+        let dir = www.join(&name);
+        if projects::host_label(&name).is_none() || !dir.is_dir() {
+            return Err("That project doesn't exist any more.".into());
+        }
+        phpfix::fix(&dir)
+    })
+    .await
+}
+
 /// Makes a ready-to-run project from a starter (Laravel, WordPress, Vite, Next.js). Progress
 /// arrives as `quickstart` events; the new site gets its virtual host when it's done.
 #[tauri::command]
@@ -383,7 +423,9 @@ async fn project_quickstart(
     db: tauri::State<'_, db::Db>,
     name: String,
     kind: String,
+    options: Option<quickstart::Options>,
 ) -> Result<quickstart::Created, String> {
+    let options = options.unwrap_or_default();
     let starter = quickstart::Starter::parse(&kind).ok_or("That kind of project isn't available.")?;
     let (root, settings, sup) = stack.get()?;
     let password = db.inner().clone_handle().password();
@@ -391,7 +433,7 @@ async fn project_quickstart(
         let emit = |e: quickstart::Event| {
             let _ = app.emit("quickstart", e);
         };
-        let created = quickstart::create(&emit, &root, &settings, &sup, password, &name, starter)?;
+        let created = quickstart::create(&emit, &root, &settings, &sup, password, &name, starter, &options)?;
         apply_vhosts(&root, &settings, &sup)?;
         Ok(created)
     })
@@ -443,20 +485,31 @@ fn terminal_open(
     terminals: tauri::State<terminal::Terminals>,
     cols: u16,
     rows: u16,
+    project: Option<String>,
 ) -> Result<u32, String> {
     let (root, settings, _) = stack.get()?;
-    terminals.open(&app, window.label(), &root, &settings, cols, rows)
+    // Only a project folder inside the projects folder.
+    let cwd = project
+        .filter(|p| projects::host_label(p).is_some())
+        .map(|p| std::path::Path::new(&settings.www_dir).join(p));
+    terminals.open(&app, window.label(), &root, &settings, cwd.as_deref(), cols, rows)
 }
 
 /// Opens the terminal in a window of its own, which can be moved and resized freely.
 /// Async on purpose: building a window inside a synchronous command deadlocks on Windows
 /// (WebView2), which left the new window frozen.
 #[tauri::command]
-async fn terminal_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn terminal_window(app: tauri::AppHandle, project: Option<String>) -> Result<(), String> {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    tauri::WebviewWindowBuilder::new(&app, format!("terminal-{n}"), tauri::WebviewUrl::App("index.html?view=terminal".into()))
-        .title("NexDB Terminal")
+    let project = project.filter(|p| projects::host_label(p).is_some());
+    let url = match &project {
+        Some(p) => format!("index.html?view=terminal&project={p}"),
+        None => "index.html?view=terminal".into(),
+    };
+    let title = project.map(|p| format!("{p} · NexDB Terminal")).unwrap_or_else(|| "NexDB Terminal".into());
+    tauri::WebviewWindowBuilder::new(&app, format!("terminal-{n}"), tauri::WebviewUrl::App(url.into()))
+        .title(title)
         .inner_size(960.0, 600.0)
         .min_inner_size(520.0, 320.0)
         .resizable(true)

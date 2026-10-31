@@ -1,22 +1,19 @@
 import { useCallback, useEffect, useState } from "react";
-import { Check, Circle, ExternalLink, FolderOpen, FolderPlus, LoaderCircle, ShieldCheck, SquareTerminal, X } from "lucide-react";
+import { AlertTriangle, Code2, ExternalLink, FolderOpen, FolderPlus, ShieldCheck, SquareTerminal } from "lucide-react";
 import {
-  createProject,
-  isStarter,
+  fixPhpWarnings,
+  listEditors,
   listProjects,
-  nameProblem,
-  onQuickstart,
+  openInEditor,
   openProject,
-  quickstart,
-  STARTERS,
   syncHosts,
-  type Created,
-  type NewKind,
-  type Starter,
+  type Editor,
   type Project,
   type ProjectsInfo,
 } from "../lib/projects";
+import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
+import { NewProjectWizard } from "./NewProjectWizard";
 
 const KIND_LABEL: Record<Project["kind"], string> = {
   laravel: "Laravel",
@@ -29,7 +26,9 @@ const KIND_LABEL: Record<Project["kind"], string> = {
 
 export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTerminal: () => void }) {
   const [info, setInfo] = useState<ProjectsInfo | null>(null);
+  const [editors, setEditors] = useState<Editor[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -44,7 +43,11 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
 
   // Reload whenever the page is shown, so folders made in the terminal appear.
   useEffect(() => {
-    if (active) void refresh();
+    if (!active) return;
+    void refresh();
+    listEditors()
+      .then(setEditors)
+      .catch(() => setEditors([]));
   }, [active, refresh]);
 
   async function setUpAddresses() {
@@ -60,6 +63,18 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
     }
   }
 
+  async function fixPhp(p: Project) {
+    setError(null);
+    try {
+      const n = await fixPhpWarnings(p.name);
+      setNotice(`Fixed ${p.name}: updated ${n} line${n === 1 ? "" : "s"}, so the "Deprecated" warnings are gone.`);
+    } catch (e) {
+      setError(String(e));
+    }
+    await refresh();
+  }
+
+  const act = (p: Promise<unknown>) => p.catch((e) => setError(String(e)));
   const missing = new Set(info?.missing_hosts ?? []);
   const projects = info?.projects ?? [];
 
@@ -93,13 +108,19 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
             <p>{error}</p>
           </div>
         )}
+        {notice && (
+          <p className="set-ok" role="status">
+            {notice}
+          </p>
+        )}
 
         {creating && (
-          <NewProject
+          <NewProjectWizard
             existing={projects.map((p) => p.name)}
+            editors={editors}
+            addressReady={(name) => !missing.has(`${name}.test`)}
             onCreated={refresh}
             onClose={() => setCreating(false)}
-            onOpenTerminal={onOpenTerminal}
           />
         )}
 
@@ -108,8 +129,8 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
             <ShieldCheck size={18} aria-hidden="true" />
             <p>
               <strong>{missing.size === 1 ? "One address isn't" : `${missing.size} addresses aren't`} set up yet.</strong>{" "}
-              Windows asks once for permission to add <code>.test</code> names. Until then, projects open at{" "}
-              <code>localhost/name</code>.
+              Each project gets a private <code>name.test</code> address that only this PC knows. Windows asks once to
+              add them; until then, projects open at <code>localhost/name</code>.
             </p>
             <button className="btn btn-primary" disabled={syncing} onClick={setUpAddresses}>
               {syncing ? "Waiting for Windows…" : "Set up addresses"}
@@ -117,11 +138,11 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {info && projects.length === 0 && (
+        {info && projects.length === 0 && !creating && (
           <div className="empty">
             <p className="lede">
-              No projects yet. Create one, or run <code>git clone</code> in the terminal. Every folder in{" "}
-              <code>{info.www_dir}</code> becomes a project.
+              No projects yet. Click <strong>New project</strong> for a ready-to-run Laravel, WordPress or React app, or
+              run <code>git clone</code> in the terminal. Every folder in <code>{info.www_dir}</code> becomes a project.
             </p>
           </div>
         )}
@@ -137,23 +158,49 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
                     <span className="kind">{KIND_LABEL[p.kind]}</span>
                   </div>
                   <code className="project-addr">
-                    {ready ? p.url.replace(/^http:\/\//, "").replace(/\/$/, "") : p.local_url.replace(/^http:\/\//, "")}
+                    {ready ? p.url.replace(/^https?:\/\//, "").replace(/\/$/, "") : p.local_url.replace(/^http:\/\//, "")}
                   </code>
                   <div className="project-actions">
+                    {editors.length > 0 && (
+                      <EditorMenu editors={editors} onPick={(id) => void act(openInEditor(p.name, id))} />
+                    )}
+                    <button
+                      className="btn btn-small btn-icon"
+                      title="Open a terminal in this project"
+                      aria-label={`Open a terminal in ${p.name}`}
+                      onClick={() => void act(openTerminalWindow(p.name))}
+                    >
+                      <SquareTerminal size={14} aria-hidden="true" />
+                    </button>
                     <button
                       className="btn btn-small"
                       disabled={!info?.web_server}
-                      onClick={() => openProject(p.name, ready ? "url" : "local").catch((e) => setError(String(e)))}
+                      onClick={() => void act(openProject(p.name, ready ? "url" : "local"))}
                     >
                       <ExternalLink size={14} aria-hidden="true" /> Open
                     </button>
                     <button
-                      className="btn btn-small"
-                      onClick={() => openProject(p.name, "folder").catch((e) => setError(String(e)))}
+                      className="btn btn-small btn-icon"
+                      title="Show the folder"
+                      aria-label={`Show the ${p.name} folder`}
+                      onClick={() => void act(openProject(p.name, "folder"))}
                     >
-                      <FolderOpen size={14} aria-hidden="true" /> Folder
+                      <FolderOpen size={14} aria-hidden="true" />
                     </button>
                   </div>
+                  {p.php_warnings > 0 && (
+                    <div className="project-warning">
+                      <AlertTriangle size={14} aria-hidden="true" />
+                      <p>
+                        <strong>Shows "Deprecated" warnings on PHP 8.5.</strong> It uses older PHP names that still work
+                        but print a warning on every page. NexDB can update {p.php_warnings === 1 ? "that line" : `those ${p.php_warnings} lines`}{" "}
+                        so it works on every PHP version.
+                      </p>
+                      <button className="btn btn-small" onClick={() => void fixPhp(p)}>
+                        Fix it
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -164,224 +211,37 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   );
 }
 
-type Kind = NewKind | Starter;
-
-interface Progress {
-  steps: string[];
-  /** Index of the step running now; steps before it are done. */
-  at: number;
-  lines: string[];
-  outcome: { ok: true; created: Created } | { ok: false; error: string } | null;
-}
-
-function NewProject({
-  existing,
-  onCreated,
-  onClose,
-  onOpenTerminal,
-}: {
-  existing: string[];
-  onCreated: () => Promise<void>;
-  onClose: () => void;
-  onOpenTerminal: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<Kind>("php");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<Progress | null>(null);
-  const problem = nameProblem(name, existing);
-  const starter = isStarter(kind) ? STARTERS.find((s) => s.id === kind) : null;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name || problem) return;
-    setBusy(true);
-    setError(null);
-    if (isStarter(kind)) {
-      setProgress({ steps: [], at: 0, lines: [], outcome: null });
-      // Listen before starting, so the first steps aren't missed.
-      const unlisten = await onQuickstart((ev) => {
-        if (ev.name !== name) return;
-        setProgress((p) => {
-          if (!p) return p;
-          if (ev.kind === "plan") return { ...p, steps: ev.steps, at: 0 };
-          if (ev.kind === "step") return { ...p, at: ev.status === "done" ? ev.index + 1 : ev.index };
-          return { ...p, lines: [...p.lines.slice(-400), ev.text] };
-        });
-      });
-      try {
-        const created = await quickstart(name, kind);
-        setProgress((p) => p && { ...p, at: p.steps.length, outcome: { ok: true, created } });
-        await onCreated();
-      } catch (err) {
-        setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
-      } finally {
-        unlisten();
-        setBusy(false);
-      }
-      return;
-    }
-    try {
-      await createProject(name, kind);
-      await onCreated();
-      onClose();
-    } catch (err) {
-      setError(String(err));
-      setBusy(false);
-    }
-  }
-
-  if (progress) {
+/** "Code" button: the first editor, or a short list when there are several. */
+function EditorMenu({ editors, onPick }: { editors: Editor[]; onPick: (id: string) => void }) {
+  const [open, setOpen] = useState(false);
+  if (editors.length === 1) {
     return (
-      <QuickstartProgress
-        name={name}
-        label={starter?.label ?? kind}
-        progress={progress}
-        onOpenTerminal={onOpenTerminal}
-        onClose={onClose}
-        onBack={() => setProgress(null)}
-      />
+      <button className="btn btn-small" title={`Open in ${editors[0].name}`} onClick={() => onPick(editors[0].id)}>
+        <Code2 size={14} aria-hidden="true" /> {editors[0].name}
+      </button>
     );
   }
-
   return (
-    <form className="new-project" onSubmit={submit}>
-      <label className="field">
-        <span className="field-label">Project name</span>
-        <input
-          className="input"
-          value={name}
-          onChange={(e) => setName(e.target.value.trim())}
-          placeholder="my-shop"
-          autoFocus
-          spellCheck={false}
-          aria-invalid={!!problem}
-          aria-describedby="np-hint"
-        />
-        <span id="np-hint" className={problem ? "field-error" : "field-hint"}>
-          {problem ?? (name ? `Address: ${name}.test` : "Lowercase letters, numbers and hyphens.")}
-        </span>
-      </label>
-      <label className="field">
-        <span className="field-label">Starts as</span>
-        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-          <optgroup label="Simple">
-            <option value="php">PHP page</option>
-            <option value="html">HTML page</option>
-            <option value="empty">Empty folder</option>
-          </optgroup>
-          <optgroup label="Ready-to-run starters">
-            {STARTERS.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </label>
-      <button className="btn btn-primary" type="submit" disabled={!name || !!problem || busy}>
-        {busy ? "Creating…" : "Create"}
+    <div className="menu" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
+      <button className="btn btn-small" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Code2 size={14} aria-hidden="true" /> Code
       </button>
-      {starter && (
-        <p className="field-hint new-project-note">
-          NexDB downloads {starter.label} and sets it up for you; this takes a few minutes and needs the internet. Uses{" "}
-          {starter.needs}.
-          {(kind.startsWith("laravel") || kind === "wordpress") &&
-            " It gets its own database and MySQL user, so your MySQL password is never written into the project."}
-        </p>
+      {open && (
+        <div className="menu-list" role="menu">
+          {editors.map((e) => (
+            <button
+              key={e.id}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onPick(e.id);
+              }}
+            >
+              Open in {e.name}
+            </button>
+          ))}
+        </div>
       )}
-      {error && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
-    </form>
-  );
-}
-
-function QuickstartProgress({
-  name,
-  label,
-  progress,
-  onOpenTerminal,
-  onClose,
-  onBack,
-}: {
-  name: string;
-  label: string;
-  progress: Progress;
-  onOpenTerminal: () => void;
-  onClose: () => void;
-  onBack: () => void;
-}) {
-  const [details, setDetails] = useState(false);
-  const { steps, at, lines, outcome } = progress;
-  const failed = outcome && !outcome.ok;
-  return (
-    <section className="quickstart" aria-live="polite">
-      <h2 className="quickstart-title">
-        {outcome?.ok ? `${name} is ready` : failed ? `${name} couldn't be made` : `Making ${name} (${label})…`}
-      </h2>
-      <ol className="quickstart-steps">
-        {steps.map((step, i) => {
-          const state = i < at ? "done" : i === at && failed ? "failed" : i === at && !outcome ? "running" : "waiting";
-          return (
-            <li key={step} className={`quickstart-step ${state}`}>
-              {state === "done" && <Check size={14} aria-hidden="true" />}
-              {state === "running" && <LoaderCircle size={14} className="status-spin" aria-hidden="true" />}
-              {state === "failed" && <X size={14} aria-hidden="true" />}
-              {state === "waiting" && <Circle size={14} aria-hidden="true" />}
-              <span>{step}</span>
-            </li>
-          );
-        })}
-        {steps.length === 0 && !outcome && <li className="quickstart-step running">Getting ready…</li>}
-      </ol>
-
-      {failed && (
-        <p className="field-error" role="alert">
-          {outcome.error} Nothing was left behind, so you can try again.
-        </p>
-      )}
-      {outcome?.ok && (
-        <p className="set-ok quickstart-done">
-          {outcome.created.run_hint
-            ? `Start it from the Terminal: open the ${name} folder and run ${outcome.created.run_hint}.`
-            : `Open http://${name}.test/ in your browser.`}
-          {outcome.created.database && ` Its database is ${outcome.created.database}.`}
-        </p>
-      )}
-
-      <div className="quickstart-actions">
-        {lines.length > 0 && (
-          <button className="btn btn-small btn-quiet" onClick={() => setDetails((d) => !d)} aria-expanded={details}>
-            {details ? "Hide details" : "Show details"}
-          </button>
-        )}
-        <span className="quickstart-spacer" />
-        {failed && (
-          <button className="btn btn-small" onClick={onBack}>
-            Back
-          </button>
-        )}
-        {outcome?.ok && outcome.created.run_hint && (
-          <button className="btn btn-small" onClick={onOpenTerminal}>
-            <SquareTerminal size={13} aria-hidden="true" /> Open terminal
-          </button>
-        )}
-        {outcome?.ok && !outcome.created.run_hint && (
-          <button className="btn btn-small" onClick={() => void openProject(name, "url")}>
-            <ExternalLink size={13} aria-hidden="true" /> Open site
-          </button>
-        )}
-        {outcome && (
-          <button className="btn btn-small btn-primary" onClick={onClose}>
-            Done
-          </button>
-        )}
-      </div>
-      {details && <pre className="quickstart-log">{lines.join("\n")}</pre>}
-    </section>
+    </div>
   );
 }

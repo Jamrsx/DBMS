@@ -83,7 +83,7 @@ fn split_complete(bytes: &[u8]) -> usize {
 }
 
 /// PowerShell in the projects folder with NexDB's tools on PATH; `extra` are added to its arguments.
-fn shell_command(root: &Path, settings: &Settings, extra: &[&str]) -> CommandBuilder {
+fn shell_command(root: &Path, settings: &Settings, extra: &[&str], cwd: Option<&Path>) -> CommandBuilder {
     let mut cmd = CommandBuilder::new("powershell.exe");
     cmd.args(["-NoLogo", "-NoExit"]);
     cmd.args(extra);
@@ -94,17 +94,32 @@ fn shell_command(root: &Path, settings: &Settings, extra: &[&str]) -> CommandBui
         cmd.env("PHPRC", php_ini);
     }
     let www = PathBuf::from(&settings.www_dir);
-    cmd.cwd(if www.is_dir() { www } else { root.to_path_buf() });
+    cmd.cwd(match cwd.filter(|d| d.is_dir()) {
+        Some(dir) => dir.to_path_buf(),
+        None if www.is_dir() => www,
+        None => root.to_path_buf(),
+    });
     cmd
 }
 
 impl Terminals {
-    pub fn open(&self, app: &AppHandle, owner: &str, root: &Path, settings: &Settings, cols: u16, rows: u16) -> Result<u32, String> {
+    /// `cwd` is where the shell starts; the projects folder when None.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open(
+        &self,
+        app: &AppHandle,
+        owner: &str,
+        root: &Path,
+        settings: &Settings,
+        cwd: Option<&Path>,
+        cols: u16,
+        rows: u16,
+    ) -> Result<u32, String> {
         let pair = native_pty_system()
             .openpty(PtySize { rows: rows.max(2), cols: cols.max(10), pixel_width: 0, pixel_height: 0 })
             .map_err(|e| format!("Couldn't open a terminal: {e}"))?;
 
-        let cmd = shell_command(root, settings, &[]);
+        let cmd = shell_command(root, settings, &[], cwd);
 
         let child = pair.slave.spawn_command(cmd).map_err(|e| format!("Couldn't start PowerShell: {e}"))?;
         drop(pair.slave);
@@ -213,7 +228,7 @@ mod tests {
             Write-Output ('NODE=' + (node -v)); Write-Output ('NPM=' + (npm -v)); \
             Write-Output ('MYSQL=' + ((mysql --version) -join ' ')); \
             Write-Output ('GIT=' + ((git --version) -join ' ')); exit";
-        let cmd = shell_command(root, &settings, &["-Command", script]);
+        let cmd = shell_command(root, &settings, &["-Command", script], None);
         let mut child = pair.slave.spawn_command(cmd).unwrap();
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().unwrap();
