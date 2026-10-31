@@ -13,6 +13,7 @@ import {
   type TablePage,
 } from "../lib/db";
 import { nexCelebrate } from "../lib/nex";
+import { enumValues, plainType } from "../lib/sqlTemplates";
 
 const PAGE_SIZE = 50;
 
@@ -279,6 +280,14 @@ export function RowEditor({ db, table }: { db: string; table: string }) {
   );
 }
 
+/** "2026-11-01 14:05:09" for date-and-time columns. */
+function now(columnType: string): string {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return columnType.toLowerCase() === "date" ? date : `${date} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
 /** A form with one field per column; empty fields get the column's default. */
 function AddRow({
   cols,
@@ -294,6 +303,7 @@ function AddRow({
   const [values, setValues] = useState<Record<string, string>>({});
   const [nulls, setNulls] = useState<Record<string, boolean>>({});
   const fields = cols.filter(editableType);
+  const set = (name: string, value: string) => setValues({ ...values, [name]: value });
   return (
     <form
       className="add-row"
@@ -307,33 +317,69 @@ function AddRow({
         onAdd(out);
       }}
     >
-      <p className="field-hint">Leave a field empty to use its default.</p>
+      <p className="field-hint">Fill in what you know. Empty fields use their default.</p>
       <div className="add-row-fields">
         {fields.map((c) => {
           const auto = c.extra.includes("auto_increment");
+          const type = c.column_type.toLowerCase();
+          const dated = /^(date|datetime|timestamp)/.test(type);
+          const choices = type.startsWith("enum") ? enumValues(c.column_type) : null;
+          const isNull = !!nulls[c.name];
           return (
-            <label key={c.name} className="field">
-              <span className="field-label">
-                {c.name} <span className="field-hint">{c.column_type}</span>
-              </span>
-              <input
-                className="input"
-                value={values[c.name] ?? ""}
-                disabled={!!nulls[c.name]}
-                placeholder={auto ? "automatic" : c.default !== null ? `default: ${c.default}` : ""}
-                onChange={(e) => setValues({ ...values, [c.name]: e.target.value })}
-              />
-              {c.nullable && (
-                <label className="cell-null">
-                  <input
-                    type="checkbox"
-                    checked={!!nulls[c.name]}
-                    onChange={(e) => setNulls({ ...nulls, [c.name]: e.target.checked })}
-                  />
-                  NULL
+            <div key={c.name} className="add-field">
+              <div className="add-field-head">
+                <label className="field-label" htmlFor={`add-${c.name}`}>
+                  {c.name}
                 </label>
+                {c.nullable && !auto && (
+                  <label className="cell-null" title="Leave it empty on purpose (NULL)">
+                    <input type="checkbox" checked={isNull} onChange={(e) => setNulls({ ...nulls, [c.name]: e.target.checked })} />
+                    Empty (NULL)
+                  </label>
+                )}
+              </div>
+              {auto ? (
+                <input id={`add-${c.name}`} className="input" disabled placeholder="Filled in automatically" />
+              ) : choices ? (
+                <select
+                  id={`add-${c.name}`}
+                  className="input"
+                  value={values[c.name] ?? ""}
+                  disabled={isNull}
+                  onChange={(e) => set(c.name, e.target.value)}
+                >
+                  <option value="">{c.default !== null ? `Default (${c.default})` : "Pick one…"}</option>
+                  {choices.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="add-field-input">
+                  <input
+                    id={`add-${c.name}`}
+                    className="input"
+                    value={values[c.name] ?? ""}
+                    disabled={isNull}
+                    placeholder={c.default !== null ? `Default: ${c.default}` : ""}
+                    onChange={(e) => set(c.name, e.target.value)}
+                  />
+                  {dated && (
+                    <button className="btn btn-small" type="button" disabled={isNull} onClick={() => set(c.name, now(type))}>
+                      Now
+                    </button>
+                  )}
+                </div>
               )}
-            </label>
+              <span className="field-hint">
+                {auto
+                  ? "NexDB leaves this to MySQL."
+                  : /password/i.test(c.name)
+                    ? "Apps like Laravel store a hashed password here, not the real one."
+                    : plainType(c)}
+              </span>
+            </div>
           );
         })}
       </div>

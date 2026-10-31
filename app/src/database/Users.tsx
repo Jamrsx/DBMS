@@ -19,6 +19,7 @@ export function Users({ databases }: { databases: string[] }) {
   const [status, setStatus] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showOwn, setShowOwn] = useState(false);
 
   const load = useCallback(() => {
     dbUsers()
@@ -87,11 +88,31 @@ export function Users({ databases }: { databases: string[] }) {
       )}
 
       {users && (
-        <ul className="project-list users-list" aria-label="MySQL users">
-          {users.map((u) => (
-            <UserRow key={u.name} user={u} databases={databases} busy={busy} act={act} />
-          ))}
-        </ul>
+        <>
+          {users.filter((u) => !u.protected).length === 0 ? (
+            <p className="lede">No users of your own yet. Make one for each app that needs MySQL.</p>
+          ) : (
+            <ul className="project-list users-list" aria-label="Your MySQL users">
+              {users
+                .filter((u) => !u.protected)
+                .map((u) => (
+                  <UserRow key={u.name} user={u} databases={databases} busy={busy} act={act} />
+                ))}
+            </ul>
+          )}
+          <button className="btn btn-small btn-quiet users-own" onClick={() => setShowOwn((v) => !v)} aria-expanded={showOwn}>
+            {showOwn ? "Hide" : "Show"} MySQL&apos;s own accounts ({users.filter((u) => u.protected).length})
+          </button>
+          {showOwn && (
+            <ul className="project-list users-list users-own-list" aria-label="MySQL's own accounts">
+              {users
+                .filter((u) => u.protected)
+                .map((u) => (
+                  <UserRow key={u.name} user={u} databases={databases} busy={busy} act={act} />
+                ))}
+            </ul>
+          )}
+        </>
       )}
       {!users && !error && <p className="lede">Loading…</p>}
     </div>
@@ -109,7 +130,7 @@ function UserRow({
   busy: boolean;
   act: (work: () => Promise<unknown>, done: string, cheer?: boolean) => Promise<boolean>;
 }) {
-  const [mode, setMode] = useState<"password" | "delete" | null>(null);
+  const [mode, setMode] = useState<"password" | "delete" | "allow" | null>(null);
   const [password, setPassword] = useState("");
   const [grantDb, setGrantDb] = useState("");
   const free = databases.filter((d) => !u.databases.includes(d));
@@ -147,33 +168,20 @@ function UserRow({
             ))
           )}
         </span>
+        {!u.protected && free.length > 0 && (
+          <button className="chip chip-add" disabled={busy} onClick={() => setMode(mode === "allow" ? null : "allow")}>
+            <Plus size={11} aria-hidden="true" /> Database
+          </button>
+        )}
         {!u.protected && (
           <span className="user-actions">
-            {free.length > 0 && (
-              <span className="user-grant">
-                <select className="input" value={grantDb} onChange={(e) => setGrantDb(e.target.value)} aria-label="Database to allow">
-                  <option value="">Allow a database…</option>
-                  {free.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="btn btn-small btn-icon"
-                  disabled={!grantDb || busy}
-                  aria-label="Allow"
-                  title="Allow"
-                  onClick={async () => {
-                    if (await act(() => dbGrant(u.name, grantDb), `${u.name} can now use ${grantDb}.`)) setGrantDb("");
-                  }}
-                >
-                  <Plus size={13} aria-hidden="true" />
-                </button>
-              </span>
-            )}
-            <button className="btn btn-small" onClick={() => setMode(mode === "password" ? null : "password")}>
-              <KeyRound size={13} aria-hidden="true" /> Password
+            <button
+              className="btn btn-small btn-icon"
+              aria-label={`Change ${u.name}'s password`}
+              title="Change password"
+              onClick={() => setMode(mode === "password" ? null : "password")}
+            >
+              <KeyRound size={13} aria-hidden="true" />
             </button>
             <button
               className="btn btn-small btn-icon"
@@ -186,6 +194,35 @@ function UserRow({
           </span>
         )}
       </div>
+
+      {mode === "allow" && (
+        <form
+          className="user-form"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (grantDb && (await act(() => dbGrant(u.name, grantDb), `${u.name} can now use ${grantDb}.`))) {
+              setGrantDb("");
+              setMode(null);
+            }
+          }}
+        >
+          <span>Let {u.name} use</span>
+          <select className="input" value={grantDb} onChange={(e) => setGrantDb(e.target.value)} autoFocus aria-label="Database">
+            <option value="">Pick a database…</option>
+            {free.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          <button className="btn btn-small btn-primary" type="submit" disabled={!grantDb || busy}>
+            Allow
+          </button>
+          <button className="btn btn-small" type="button" onClick={() => setMode(null)}>
+            Cancel
+          </button>
+        </form>
+      )}
 
       {mode === "password" && (
         <form

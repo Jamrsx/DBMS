@@ -33,6 +33,7 @@ Rules every release follows:
 | 0.2.8 | Nex the mascot; Details button; Recycle Bin page with restore; safer deletes |
 | 0.2.9 | Nex comes alive: greetings, celebrations and heads-ups from the corner |
 | 0.3.0 | Database part 2: edit, add and delete rows; MySQL users; CSV export |
+| 0.3.1 | Clearer Database page; SQL templates; WHERE safety check; .sql export and import |
 
 ## Next
 
@@ -141,30 +142,45 @@ Per-project PHP version (same release):
 - MySQL users: create, change password, grant access to a database, remove.
 - Export a table or a query result as CSV.
 
-Mail catcher (with 0.3.1's services):
+Mail catcher (with 0.3.2's services):
 
 - A local SMTP server that catches every email PHP sends, so nothing reaches real inboxes.
 - A Mail page to read caught emails (HTML and plain text) and clear them.
 - `php.ini` points `sendmail_path` at it automatically.
 
-### 0.3.1: More services
+### 0.3.1: A clearer Database page, and SQL templates
+
+- SQL tab: one-click ready-made commands (show, find, search, count, add, change, delete rows; make,
+  change, index, empty and delete tables; databases), filled in with the table and its real columns,
+  each explained in plain words. Risky ones are marked and keep a WHERE line.
+- Running an UPDATE or DELETE without WHERE asks first.
+- Export a database as a .sql file anywhere (Save dialog) and Import .sql, right on the database
+  view and in the page header.
+- Users: MySQL's own accounts tucked behind a toggle; each user shows its databases with a small
+  "+ Database", a password key and a delete button.
+- Add row: every field the same shape, types in plain words, Now for dates, a list for enum
+  columns, a tip for password columns.
+- Sidebar: MySQL's built-in databases fold away; table counts are labelled. Browse and Structure
+  tabs always open and say what to pick.
+
+### 0.3.2: More services
 
 - Optional components on the Versions page: Redis, PostgreSQL, nginx (as an Apache alternative).
 - Each one gets start/stop on the dashboard, logs, ports in Settings and a plain-language log view.
 - Python (with pip) for the terminal.
 
-### 0.3.2: Share a site
+### 0.3.3: Share a site
 
 - Open a project on your phone on the same Wi-Fi (LAN address with a QR code).
 - Optional public link through a tunnel service the user chooses and signs in to themselves.
 
-### 0.3.3: Health and diagnostics
+### 0.3.4: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.4: Polish and accessibility
+### 0.3.5: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

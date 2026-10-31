@@ -93,6 +93,9 @@ export const dbExportTableCsv = (name: string, table: string) => call<number | n
 export const dbSaveCsv = (fileName: string, columns: string[], rows: Cell[][]) =>
   call<number | null>("db_save_csv", { fileName, columns, rows });
 
+/** Saves a database as a .sql file wherever the user picks; null when cancelled, else the path. */
+export const dbExportSql = (name: string) => call<string | null>("db_export_sql", { name });
+
 /** A random password of letters and digits. */
 export function makePassword(length = 16): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
@@ -213,6 +216,8 @@ async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown
       return null;
     case "db_export_table_csv":
       return sim.people.length;
+    case "db_export_sql":
+      return `C:\\Users\\you\\Desktop\\${a.name}.sql`;
     case "db_save_csv":
       return (a.rows as unknown[]).length;
   }

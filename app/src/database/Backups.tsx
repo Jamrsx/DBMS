@@ -27,10 +27,13 @@ export function Backups({
   selected,
   databases,
   onChanged,
+  importToken = 0,
 }: {
   selected: string | null;
   databases: string[];
   onChanged: () => void;
+  /** Going up opens the file picker for an import. */
+  importToken?: number;
 }) {
   const [files, setFiles] = useState<BackupFile[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,6 +47,10 @@ export function Backups({
   }, []);
 
   useEffect(load, [load]);
+  useEffect(() => {
+    if (importToken > 0) void chooseFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [importToken]);
 
   async function act(label: string, work: () => Promise<string>) {
     setBusy(label);

@@ -152,6 +152,19 @@ pub fn export(
     let name = file_name(database, &now_stamp());
     let name = if auto { name.replace(".sql", AUTO_SUFFIX) } else { name };
     let target = dir.join(name);
+    dump_to(mysql_bin, root, port, password, database, &target)?;
+    list(root)
+        .into_iter()
+        .find(|b| Path::new(&b.path) == target)
+        .ok_or_else(|| "The backup was written but can't be found.".into())
+}
+
+/// Writes `database` as a .sql file at `target` (any folder the user picked). The file only gets
+/// its name once mysqldump finished, so a failed export never leaves a half file behind.
+pub fn dump_to(mysql_bin: &Path, root: &Path, port: u16, password: Option<&str>, database: &str, target: &Path) -> Result<(), String> {
+    if !valid_name(database) {
+        return Err(format!("\"{database}\" can't be exported from here."));
+    }
     let partial = target.with_extension("sql.part");
     let options = ClientOptions::new(root, port, password)?;
     let out = hidden(
@@ -179,11 +192,8 @@ pub fn export(
         let _ = fs::remove_file(&partial);
         return Err(mysql_error(&String::from_utf8_lossy(&out.stderr)));
     }
-    fs::rename(&partial, &target).map_err(|e| format!("Couldn't save the backup: {e}"))?;
-    list(root)
-        .into_iter()
-        .find(|b| Path::new(&b.path) == target)
-        .ok_or_else(|| "The backup was written but can't be found.".into())
+    let _ = fs::remove_file(target);
+    fs::rename(&partial, target).map_err(|e| format!("Couldn't save the file: {e}"))
 }
 
 /// Runs a `.sql` file against `database` (which must exist).

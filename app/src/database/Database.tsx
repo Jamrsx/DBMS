@@ -24,6 +24,9 @@ import { RowEditor } from "./RowEditor";
 import { Users } from "./Users";
 import { dbSaveCsv } from "../lib/db";
 import { nexCelebrate } from "../lib/nex";
+import { sqlTemplates, touchesEveryRow, type SqlTemplate } from "../lib/sqlTemplates";
+import { dbExportSql } from "../lib/db";
+import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
 
 type Tab = "browse" | "structure" | "sql" | "backups" | "users";
@@ -35,6 +38,8 @@ export function Database({ active }: { active: boolean }) {
   const [connecting, setConnecting] = useState(false);
   const [dbs, setDbs] = useState<DatabaseInfo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  // Going up opens the .sql file picker on the Backups tab.
+  const [importToken, setImportToken] = useState(0);
   // The selected database's table list; clicking that database again folds it away.
   const [listOpen, setListOpen] = useState(true);
   const choose = (name: string) => {
@@ -123,7 +128,23 @@ export function Database({ active }: { active: boolean }) {
         </div>
         <div className="dash-actions">
           <PhpMyAdmin onError={setError} />
-          <button className="btn btn-primary" disabled={!version} onClick={() => setCreating((v) => !v)} aria-expanded={creating}>
+          <button
+            className="btn"
+            disabled={!version}
+            title="Bring in a .sql file from another PC or a web host"
+            onClick={() => {
+              setTab("backups");
+              setImportToken((n) => n + 1);
+            }}
+          >
+            <FileUp size={15} aria-hidden="true" /> Import .sql
+          </button>
+          <button
+            className="btn btn-primary"
+            disabled={!version}
+            onClick={() => setCreating((v) => !v)}
+            aria-expanded={creating}
+          >
             <Plus size={15} aria-hidden="true" /> New database
           </button>
         </div>
@@ -137,12 +158,7 @@ export function Database({ active }: { active: boolean }) {
         )}
 
         {!version && (
-          <ConnectCard
-            needsPassword={needsPassword}
-            error={connectError}
-            busy={connecting}
-            onConnect={connect}
-          />
+          <ConnectCard needsPassword={needsPassword} error={connectError} busy={connecting} onConnect={connect} />
         )}
 
         {error && (
@@ -166,16 +182,35 @@ export function Database({ active }: { active: boolean }) {
         {version && (
           <div className="db-layout">
             <nav className="db-tree" aria-label="Databases">
-              <DbGroup label="Your databases" dbs={userDbs} selected={selected} open={listOpen} tables={tables} table={table} onPick={choose} onTable={openTable} />
-              <DbGroup label="MySQL built-in" dbs={systemDbs} selected={selected} open={listOpen} tables={tables} table={table} onPick={choose} onTable={openTable} />
+              <DbGroup
+                label="Your databases"
+                dbs={userDbs}
+                selected={selected}
+                open={listOpen}
+                tables={tables}
+                table={table}
+                onPick={choose}
+                onTable={openTable}
+              />
+              <DbGroup
+                label="MySQL built-in"
+                folded
+                dbs={systemDbs}
+                selected={selected}
+                open={listOpen}
+                tables={tables}
+                table={table}
+                onPick={choose}
+                onTable={openTable}
+              />
             </nav>
 
             <section className="db-main" aria-label="Database contents">
               <div className="log-tabs db-tabs" role="tablist">
-                <TabButton id="browse" tab={tab} disabled={!table} onSelect={setTab}>
+                <TabButton id="browse" tab={tab} onSelect={setTab}>
                   Browse
                 </TabButton>
-                <TabButton id="structure" tab={tab} disabled={!table} onSelect={setTab}>
+                <TabButton id="structure" tab={tab} onSelect={setTab}>
                   Structure
                 </TabButton>
                 <TabButton id="sql" tab={tab} onSelect={setTab}>
@@ -192,7 +227,9 @@ export function Database({ active }: { active: boolean }) {
                 </span>
               </div>
 
-              {tab === "browse" && selected && table && <RowEditor key={`${selected}.${table}`} db={selected} table={table} />}
+              {tab === "browse" && selected && table && (
+                <RowEditor key={`${selected}.${table}`} db={selected} table={table} />
+              )}
               {tab === "users" && <Users databases={dbs.filter((d) => !d.system).map((d) => d.name)} />}
               {tab === "browse" && selected && !table && (
                 <Overview
@@ -200,6 +237,10 @@ export function Database({ active }: { active: boolean }) {
                   tables={tables}
                   system={dbs.find((d) => d.name === selected)?.system ?? false}
                   onTable={openTable}
+                  onImport={() => {
+                    setTab("backups");
+                    setImportToken((n) => n + 1);
+                  }}
                   onDropped={async () => {
                     setSelected(null);
                     setTables([]);
@@ -208,10 +249,22 @@ export function Database({ active }: { active: boolean }) {
                 />
               )}
               {tab === "browse" && !selected && <p className="lede">Pick a database on the left to see its tables.</p>}
-              {tab === "structure" && selected && table && <Structure key={`${selected}.${table}`} db={selected} table={table} />}
-              {tab === "sql" && <SqlRunner db={selected} onChanged={() => selected && pick(selected).then(loadDbs)} />}
+              {tab === "structure" && selected && table && (
+                <Structure key={`${selected}.${table}`} db={selected} table={table} />
+              )}
+              {tab === "structure" && !table && (
+                <p className="lede">
+                  {selected
+                    ? `Pick a table of ${selected} on the left to see its columns.`
+                    : "Pick a database on the left, then one of its tables, to see its columns."}
+                </p>
+              )}
+              {tab === "sql" && (
+                <SqlRunner db={selected} table={table} onChanged={() => selected && pick(selected).then(loadDbs)} />
+              )}
               {tab === "backups" && (
                 <Backups
+                  importToken={importToken}
                   selected={selected}
                   databases={dbs.map((d) => d.name)}
                   onChanged={() => {
@@ -280,6 +333,7 @@ function ConnectCard({
 
 function DbGroup({
   label,
+  folded = false,
   dbs,
   selected,
   open,
@@ -289,6 +343,8 @@ function DbGroup({
   onTable,
 }: {
   label: string;
+  /** Starts folded away (MySQL's own databases), unless one of them is open. */
+  folded?: boolean;
   dbs: DatabaseInfo[];
   selected: string | null;
   open: boolean;
@@ -297,37 +353,53 @@ function DbGroup({
   onPick: (name: string) => void;
   onTable: (name: string) => void;
 }) {
+  const [shown, setShown] = useState(!folded);
   if (dbs.length === 0) return null;
+  const visible = shown || dbs.some((d) => d.name === selected);
   return (
     <div className="db-group">
-      <h2 className="db-group-label">{label}</h2>
-      <ul>
-        {dbs.map((d) => (
-          <li key={d.name}>
-            <button
-              className={d.name === selected ? "db-item current" : "db-item"}
-              aria-expanded={d.name === selected && open}
-              onClick={() => onPick(d.name)}
-            >
-              <ChevronRight size={14} className="db-chevron" aria-hidden="true" />
-              <span className="db-name">{d.name}</span>
-              <span className="db-count">{d.tables}</span>
-            </button>
-            {d.name === selected && open && tables.length > 0 && (
-              <ul className="db-tables">
-                {tables.map((t) => (
-                  <li key={t.name}>
-                    <button className={t.name === table ? "db-table current" : "db-table"} onClick={() => onTable(t.name)}>
-                      <Table2 size={13} aria-hidden="true" />
-                      {t.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </li>
-        ))}
-      </ul>
+      {folded ? (
+        <button className="db-group-label db-group-toggle" aria-expanded={visible} onClick={() => setShown((v) => !v)}>
+          <ChevronRight size={12} className="db-chevron" aria-hidden="true" />
+          {label} ({dbs.length})
+        </button>
+      ) : (
+        <h2 className="db-group-label">{label}</h2>
+      )}
+      {visible && (
+        <ul>
+          {dbs.map((d) => (
+            <li key={d.name}>
+              <button
+                className={d.name === selected ? "db-item current" : "db-item"}
+                aria-expanded={d.name === selected && open}
+                onClick={() => onPick(d.name)}
+              >
+                <ChevronRight size={14} className="db-chevron" aria-hidden="true" />
+                <span className="db-name">{d.name}</span>
+                <span className="db-count" title={`${d.tables} table${d.tables === 1 ? "" : "s"}`}>
+                  {d.tables}
+                </span>
+              </button>
+              {d.name === selected && open && tables.length > 0 && (
+                <ul className="db-tables">
+                  {tables.map((t) => (
+                    <li key={t.name}>
+                      <button
+                        className={t.name === table ? "db-table current" : "db-table"}
+                        onClick={() => onTable(t.name)}
+                      >
+                        <Table2 size={13} aria-hidden="true" />
+                        {t.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -409,13 +481,16 @@ function Overview({
   system,
   onTable,
   onDropped,
+  onImport,
 }: {
   db: string;
   tables: TableInfo[];
   system: boolean;
   onTable: (name: string) => void;
   onDropped: () => Promise<void>;
+  onImport: () => void;
 }) {
+  const [exported, setExported] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -457,6 +532,36 @@ function Overview({
       )}
 
       {!system && (
+        <div className="db-transfer">
+          <button
+            className="btn"
+            onClick={async () => {
+              setError(null);
+              try {
+                const path = await dbExportSql(db);
+                if (path) {
+                  setExported(path);
+                  nexCelebrate(`${db} is saved as a .sql file.`);
+                }
+              } catch (e) {
+                setError(String(e));
+              }
+            }}
+          >
+            <FileDown size={14} aria-hidden="true" /> Export .sql…
+          </button>
+          <button className="btn" onClick={onImport}>
+            <FileUp size={14} aria-hidden="true" /> Import .sql…
+          </button>
+          <span className="field-hint">
+            {exported
+              ? `Saved to ${exported}`
+              : "Export saves the whole database as one file you can copy anywhere. Import brings one in."}
+          </span>
+        </div>
+      )}
+
+      {!system && (
         <div className="danger-zone">
           {!confirming ? (
             <button className="btn" onClick={() => setConfirming(true)}>
@@ -491,9 +596,22 @@ function Overview({
                 <span className="field-label">
                   This deletes <strong>{db}</strong> and everything in it. Type its name to confirm.
                 </span>
-                <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus spellCheck={false} />
+                <input
+                  className="input"
+                  value={typed}
+                  onChange={(e) => setTyped(e.target.value)}
+                  autoFocus
+                  spellCheck={false}
+                />
               </label>
-              <button className="btn" type="button" onClick={() => { setConfirming(false); setTyped(""); }}>
+              <button
+                className="btn"
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  setTyped("");
+                }}
+              >
                 Cancel
               </button>
               <label className="set-check backup-first">
@@ -525,9 +643,16 @@ function Structure({ db, table }: { db: string; table: string }) {
   const [cols, setCols] = useState<ColumnInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    dbColumns(db, table).then(setCols).catch((e) => setError(String(e)));
+    dbColumns(db, table)
+      .then(setCols)
+      .catch((e) => setError(String(e)));
   }, [db, table]);
-  if (error) return <div className="error-box" role="alert"><p>{error}</p></div>;
+  if (error)
+    return (
+      <div className="error-box" role="alert">
+        <p>{error}</p>
+      </div>
+    );
   if (!cols) return <p className="lede">Loading…</p>;
   return (
     <table className="data-table">
@@ -557,13 +682,49 @@ function Structure({ db, table }: { db: string; table: string }) {
   );
 }
 
-function SqlRunner({ db, onChanged }: { db: string | null; onChanged: () => void }) {
+function SqlRunner({ db, table, onChanged }: { db: string | null; table: string | null; onChanged: () => void }) {
   const [sql, setSql] = useState("SHOW DATABASES;");
   const [out, setOut] = useState<QueryOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [cols, setCols] = useState<ColumnInfo[]>([]);
+  const [picked, setPicked] = useState<SqlTemplate | null>(null);
+  const [confirmAll, setConfirmAll] = useState(false);
+  const editor = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!db || !table) {
+      setCols([]);
+      return;
+    }
+    dbColumns(db, table)
+      .then(setCols)
+      .catch(() => setCols([]));
+  }, [db, table]);
+
+  const groups = sqlTemplates(db, table, cols);
+
+  /** Puts a template in the editor in a way Ctrl+Z can undo. */
+  function applyTemplate(t: SqlTemplate) {
+    setPicked(t);
+    setConfirmAll(false);
+    const el = editor.current;
+    if (el) {
+      el.focus();
+      el.select();
+      if (!document.execCommand("insertText", false, t.sql)) setSql(t.sql);
+    } else {
+      setSql(t.sql);
+    }
+  }
 
   async function run() {
+    // An UPDATE or DELETE without WHERE would touch every row: ask once.
+    if (touchesEveryRow(sql) && !confirmAll) {
+      setConfirmAll(true);
+      return;
+    }
+    setConfirmAll(false);
     setBusy(true);
     setError(null);
     try {
@@ -581,15 +742,44 @@ function SqlRunner({ db, onChanged }: { db: string | null; onChanged: () => void
 
   return (
     <div className="sql">
+      <div className="sql-templates" aria-label="Ready-made SQL">
+        {groups.map((g) => (
+          <div key={g.label} className="sql-group">
+            <span className="sql-group-label">{g.label}</span>
+            {g.templates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`sql-chip${t.danger ? " danger" : ""}${picked?.id === t.id ? " current" : ""}`}
+                title={t.help}
+                onClick={() => applyTemplate(t)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        ))}
+      </div>
+      <p className={picked?.danger ? "sql-help danger" : "sql-help"}>
+        {picked
+          ? picked.help
+          : table
+            ? `Pick a ready-made command above; it's filled in with ${table} and its columns. Then edit it and press Run.`
+            : "Pick a ready-made command above, or type your own. Pick a table on the left and the commands use its columns."}
+      </p>
       <label className="visually-hidden" htmlFor="sql-input">
         SQL
       </label>
       <textarea
         id="sql-input"
+        ref={editor}
         className="sql-input"
         value={sql}
         spellCheck={false}
-        onChange={(e) => setSql(e.target.value)}
+        onChange={(e) => {
+          setSql(e.target.value);
+          setConfirmAll(false);
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
@@ -602,10 +792,22 @@ function SqlRunner({ db, onChanged }: { db: string | null; onChanged: () => void
         <button className="btn btn-primary" onClick={run} disabled={busy || !sql.trim()}>
           <Play size={14} aria-hidden="true" /> {busy ? "Running…" : "Run"}
         </button>
-        <span className="field-hint">
-          Ctrl+Enter runs it · {db ? `using ${db}` : "no database selected"}
-        </span>
+        <span className="field-hint">Ctrl+Enter runs it · {db ? `using ${db}` : "no database selected"}</span>
       </div>
+      {confirmAll && (
+        <div className="sql-confirm" role="alert">
+          <p>
+            <strong>This has no WHERE, so it changes or deletes every row.</strong> Add a WHERE line to pick the rows,
+            or run it anyway if that&apos;s what you want.
+          </p>
+          <button className="btn btn-small" onClick={() => setConfirmAll(false)}>
+            Go back
+          </button>
+          <button className="btn btn-small btn-danger" onClick={() => void run()}>
+            Run on every row
+          </button>
+        </div>
+      )}
 
       {error && (
         <div className="error-box" role="alert">

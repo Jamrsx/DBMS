@@ -4066,6 +4066,178 @@ h1 {
   background: var(--surface-2);
 }
 
+/* Export / import a database as .sql, right where the database is shown */
+.db-transfer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.db-transfer .btn {
+  gap: 6px;
+}
+
+.db-transfer .field-hint {
+  flex: 1 1 240px;
+  overflow-wrap: anywhere;
+}
+
+/* SQL templates */
+.sql-templates {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.sql-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sql-group-label {
+  width: 96px;
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-3);
+}
+
+.sql-chip {
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 12.5px var(--font);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.sql-chip:hover {
+  border-color: var(--border-strong);
+}
+
+.sql-chip.current {
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--btn-bg));
+  color: var(--accent-text);
+}
+
+.sql-chip.danger {
+  border-color: var(--warn-border);
+  color: var(--warn);
+}
+
+.sql-chip.danger.current {
+  background: var(--warn-soft);
+}
+
+.sql-help {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.sql-help.danger {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.sql-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  background: var(--warn-soft);
+}
+
+.sql-confirm p {
+  flex: 1 1 320px;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* Add row: every field has the same shape */
+.add-field {
+  display: grid;
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  gap: 4px;
+}
+
+.add-field-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 20px;
+}
+
+.add-field-input {
+  display: flex;
+  gap: 6px;
+}
+
+.add-field-input .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.add-field .input:disabled {
+  opacity: 0.7;
+}
+
+/* Users: MySQL's own accounts tucked away */
+.chip-add {
+  padding: 0 8px;
+  border-style: dashed;
+  color: var(--text-2);
+  font: 12px var(--font);
+  cursor: pointer;
+}
+
+.chip-add:hover {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.users-own {
+  justify-self: start;
+  margin-left: -10px;
+}
+
+.users-own-list {
+  opacity: 0.85;
+}
+
+/* Database sidebar: built-in group folds away */
+.db-group-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.db-group-toggle[aria-expanded="true"] .db-chevron {
+  transform: rotate(90deg);
+}
+
 /* Asking before a MySQL switch */
 .ver-confirm {
   display: grid;

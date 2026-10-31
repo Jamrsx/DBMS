@@ -312,7 +312,8 @@ pub fn run() {
             db_revoke,
             db_drop_user,
             db_export_table_csv,
-            db_save_csv
+            db_save_csv,
+            db_export_sql
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
@@ -1412,6 +1413,40 @@ async fn backup_import_file(stack: tauri::State<'_, Stack>, db: tauri::State<'_,
 fn backup_delete(stack: tauri::State<Stack>, file: String) -> Result<(), String> {
     let (root, _, _) = stack.get()?;
     backup::delete(&root, &file)
+}
+
+/// Saves a database as a .sql file wherever the user picks; None when they cancel.
+#[tauri::command]
+async fn db_export_sql(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    name: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (root, settings, _) = stack.get()?;
+    let port = mysql_port(&stack)?;
+    let password = db.inner().clone_handle().password();
+    let dialog = app.clone();
+    let suggested = format!("{name}.sql");
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        dialog
+            .dialog()
+            .file()
+            .set_title("Export database as .sql")
+            .set_file_name(suggested)
+            .add_filter("SQL files", &["sql"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
+    blocking(move || {
+        let bin = mysql_bin(&settings)?;
+        backup::dump_to(&bin, &root, port, password.as_deref(), &name, &path)?;
+        Ok(Some(path.display().to_string()))
+    })
+    .await
 }
 
 /// Lets the user choose a .sql file; None when they cancel.
