@@ -213,7 +213,9 @@ function ServiceRow({
 }) {
   const view = stateView(s, busy);
   const up = s.state === "running" || s.state === "starting";
-  const { role: what, Icon } = ROLE[s.id] ?? { role: "", Icon: Server };
+  // Extra PHP versions projects use (php-8.4.27) look like the main PHP.
+  const { role: what, Icon } =
+    ROLE[s.id] ?? (s.id.startsWith("php-") ? { role: "PHP for projects set to this version", Icon: FileCode2 } : { role: "", Icon: Server });
   const role = s.state === "external" ? `Managed outside NexDB · ${what}` : what;
   return (
     <li className={selected ? "svc selected" : "svc"} aria-labelledby={`svc-${s.id}`}>
@@ -460,7 +462,8 @@ function LogPanel({
 }
 
 function ordered(services: ServiceStatus[]) {
-  return [...services].sort((a, b) => PATH_ORDER.indexOf(a.id) - PATH_ORDER.indexOf(b.id));
+  const rank = (id: string) => (id.startsWith("php-") ? PATH_ORDER.indexOf("php") + 0.5 : PATH_ORDER.indexOf(id));
+  return [...services].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
 }
 
 function isUp(s: ServiceStatus) {

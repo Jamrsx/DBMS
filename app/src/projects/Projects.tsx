@@ -14,6 +14,7 @@ import {
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { NewProjectWizard } from "./NewProjectWizard";
+import { ProjectDetails } from "./ProjectDetails";
 
 const KIND_LABEL: Record<Project["kind"], string> = {
   laravel: "Laravel",
@@ -31,6 +32,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   const [notice, setNotice] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [opened, setOpened] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -114,7 +116,22 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </p>
         )}
 
-        {creating && (
+        {opened && (
+          <ProjectDetails
+            key={opened}
+            name={opened}
+            editors={editors}
+            existing={projects.map((p) => p.name)}
+            addressReady={!missing.has(`${opened}.test`)}
+            onBack={() => setOpened(null)}
+            onChanged={async (renamedTo) => {
+              setOpened(renamedTo);
+              await refresh();
+            }}
+          />
+        )}
+
+        {!opened && creating && (
           <NewProjectWizard
             existing={projects.map((p) => p.name)}
             editors={editors}
@@ -138,7 +155,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {info && projects.length === 0 && !creating && (
+        {!opened && info && projects.length === 0 && !creating && (
           <div className="empty">
             <p className="lede">
               No projects yet. Click <strong>New project</strong> for a ready-to-run Laravel, WordPress or React app, or
@@ -147,14 +164,16 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {projects.length > 0 && (
+        {!opened && projects.length > 0 && (
           <ul className="project-list" aria-label="Projects">
             {projects.map((p) => {
               const ready = p.host !== null && !missing.has(p.host);
               return (
                 <li key={p.name} className="project">
                   <div className="project-main">
-                    <span className="project-name">{p.name}</span>
+                    <button className="project-name cell-link" onClick={() => setOpened(p.name)} title="Details, PHP version, rename and delete">
+                      {p.name}
+                    </button>
                     <span className="kind">{KIND_LABEL[p.kind]}</span>
                   </div>
                   <code className="project-addr">

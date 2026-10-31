@@ -121,6 +121,26 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 log: logs.join("php.log"),
             });
         }
+        // Other PHP versions projects chose, each on its own port.
+        for extra in crate::phpver::extras(root, settings) {
+            specs.push(ServiceSpec {
+                id: format!("php-{}", extra.version),
+                name: format!("PHP {} (FastCGI)", extra.version),
+                version: Some(extra.version.clone()),
+                exe: extra.dir.join("php-cgi.exe"),
+                args: vec![
+                    "-b".into(),
+                    format!("127.0.0.1:{}", extra.port),
+                    "-c".into(),
+                    extra.ini_dir.join("php.ini").display().to_string(),
+                ],
+                cwd: extra.dir.clone(),
+                port: extra.port,
+                managed: true,
+                stop: StopMethod::Kill,
+                log: logs.join(format!("php-{}.log", extra.version)),
+            });
+        }
     }
 
     if let Some(mysql) = &settings.mysql {

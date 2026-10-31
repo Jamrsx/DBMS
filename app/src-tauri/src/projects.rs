@@ -139,19 +139,27 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
     let Some(port) = settings.apache_port else { return Ok(()) };
     let www = Path::new(&settings.www_dir);
     let etc = root.join("etc");
+    let php_ports = crate::phpver::project_ports(root, settings);
     if !settings.preferences.https {
-        return write_vhosts(&etc, www, port, None);
+        return write_vhosts(&etc, www, port, None, &php_ports);
     }
     let mut names: Vec<String> = vec!["localhost".into(), "127.0.0.1".into(), "::1".into()];
     names.extend(list(www, port).into_iter().filter_map(|p| p.host));
     let cert = crate::admin::site_certificate(&crate::admin::ca_dir(), &etc.join("ssl"), &names)?;
     let https = Https { port: settings.preferences.https_port, cert: &cert.cert_path, key: &cert.key_path };
-    write_vhosts(&etc, www, port, Some(&https))
+    write_vhosts(&etc, www, port, Some(&https), &php_ports)
 }
 
 /// One virtual host per project, plus a first one that keeps `http://localhost/` on the www folder.
 /// With `https`, each one is also served over TLS.
-pub fn write_vhosts(etc: &Path, www: &Path, port: u16, https: Option<&Https>) -> Result<(), String> {
+/// `php_ports` sends a project's PHP files to another PHP version's FastCGI port.
+pub fn write_vhosts(
+    etc: &Path,
+    www: &Path,
+    port: u16,
+    https: Option<&Https>,
+    php_ports: &std::collections::BTreeMap<String, u16>,
+) -> Result<(), String> {
     let dir = etc.join("apache").join("sites-enabled");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     for entry in fs::read_dir(&dir).map_err(|e| e.to_string())?.flatten() {
@@ -192,6 +200,17 @@ pub fn write_vhosts(etc: &Path, www: &Path, port: u16, https: Option<&Https>) ->
         ));
     }
     first.push_str(&vhost("localhost", www, "    ServerAlias 127.0.0.1\n"));
+    // Projects on another PHP version: by folder, so both name.test and localhost/name use it.
+    // Later <FilesMatch> sections win, so this overrides the default PHP handler.
+    for (name, php_port) in php_ports {
+        if host_label(name).is_none() {
+            continue;
+        }
+        first.push_str(&format!(
+            "\n<Directory \"{}\">\n    <FilesMatch \"\\.php$\">\n        SetHandler \"proxy:fcgi://127.0.0.1:{php_port}/\"\n    </FilesMatch>\n</Directory>\n",
+            conf_path(&www.join(name))
+        ));
+    }
     crate::configure::write_file(&dir.join("00-localhost.conf"), &first)?;
     for p in list(www, port) {
         let Some(host) = &p.host else { continue };
@@ -387,7 +406,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let www = dir.path().join("www");
         fs::create_dir_all(www.join("site/public")).unwrap();
-        write_vhosts(&dir.path().join("etc"), &www, 80, None).unwrap();
+        write_vhosts(&dir.path().join("etc"), &www, 80, None, &Default::default()).unwrap();
         let sites = dir.path().join("etc/apache/sites-enabled");
         assert!(fs::read_to_string(sites.join("00-localhost.conf")).unwrap().contains("ServerName localhost"));
         let site = fs::read_to_string(sites.join("site.conf")).unwrap();
@@ -395,9 +414,11 @@ mod tests {
         assert!(!site.contains("SSLEngine"));
 
         let (cert, key) = (dir.path().join("sites.crt"), dir.path().join("sites.key"));
-        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key })).unwrap();
+        let php_ports = [("site".to_string(), 9087u16)].into_iter().collect();
+        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key }), &php_ports).unwrap();
         let first = fs::read_to_string(sites.join("00-localhost.conf")).unwrap();
         assert!(first.contains("Listen 443") && first.contains("mod_ssl.so"), "{first}");
+        assert!(first.contains("/site\">") && first.contains("proxy:fcgi://127.0.0.1:9087/"), "{first}");
         let site = fs::read_to_string(sites.join("site.conf")).unwrap();
         assert!(site.contains("<VirtualHost *:80>") && site.contains("<VirtualHost *:443>"), "{site}");
         assert_eq!(site.matches("SSLEngine on").count(), 1, "only the HTTPS block has TLS");
@@ -455,6 +476,63 @@ mod tests {
         assert!(get("nothing.test:8098", "/").contains("root index"));
         sup.stop_all();
         assert!(!crate::supervisor::port_listening(8098));
+    }
+
+    /// Two projects on two PHP versions behind one Apache: the project set to another installed
+    /// version gets it, by name.test and by localhost/name, and the other keeps the default.
+    /// Needs a second PHP version installed in C:\NexDB.
+    /// `cargo test real_php_per_project -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_php_per_project() {
+        use crate::supervisor::{Supervisor, specs_for};
+        use std::io::{Read, Write};
+        use std::net::TcpStream;
+
+        let base = crate::settings::load(Path::new(r"C:\NexDB")).expect("NexDB must be installed in C:/NexDB");
+        let default = crate::phpver::default_version(&base).unwrap();
+        let other = crate::phpver::installed(Path::new(r"C:\NexDB"), &base)
+            .into_keys()
+            .find(|v| *v != default)
+            .expect("install a second PHP version on the Versions page");
+        let dir = tempfile::tempdir().unwrap();
+        let www = dir.path().join("www");
+        for name in ["older", "newer"] {
+            fs::create_dir_all(www.join(name)).unwrap();
+            fs::write(www.join(name).join("index.php"), "<?php echo 'v=', PHP_VERSION;").unwrap();
+        }
+        let mut settings = base.clone();
+        settings.www_dir = www.display().to_string();
+        settings.apache_port = Some(8096);
+        settings.php_fastcgi_port = 9196;
+        settings.nginx_port = None;
+        settings.mysql = None;
+        settings.preferences.https = false;
+        settings.preferences.project_php = [("older".to_string(), other.clone())].into_iter().collect();
+        crate::installer::refresh_configs(dir.path(), &settings).unwrap();
+
+        let specs = specs_for(dir.path(), &settings);
+        let ids: Vec<String> = specs.iter().map(|s| s.id.clone()).collect();
+        println!("services: {ids:?}");
+        let sup = Supervisor::new(specs);
+        for id in &ids {
+            sup.start(id).unwrap();
+        }
+        let get = |host: &str, path: &str| {
+            let mut s = TcpStream::connect(("127.0.0.1", 8096)).unwrap();
+            s.write_all(format!("GET {path} HTTP/1.0\r\nHost: {host}\r\n\r\n").as_bytes()).unwrap();
+            let mut out = String::new();
+            s.read_to_string(&mut out).unwrap();
+            out
+        };
+        let older = get("older.test:8096", "/");
+        let local = get("localhost:8096", "/older/");
+        let newer = get("newer.test:8096", "/");
+        sup.stop_all();
+        println!("older: {}\nlocal: {}\nnewer: {}", older.lines().last().unwrap(), local.lines().last().unwrap(), newer.lines().last().unwrap());
+        assert!(older.ends_with(&format!("v={other}")), "{older}");
+        assert!(local.ends_with(&format!("v={other}")), "{local}");
+        assert!(newer.ends_with(&format!("v={default}")), "{newer}");
     }
 
     /// The real Apache serving a project over HTTPS with a certificate from NexDB's local CA,

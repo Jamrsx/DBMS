@@ -83,13 +83,30 @@ fn split_complete(bytes: &[u8]) -> usize {
 }
 
 /// PowerShell in the projects folder with NexDB's tools on PATH; `extra` are added to its arguments.
-fn shell_command(root: &Path, settings: &Settings, extra: &[&str], cwd: Option<&Path>) -> CommandBuilder {
+/// `php` is the project's own PHP version when it doesn't use the default.
+fn shell_command(
+    root: &Path,
+    settings: &Settings,
+    extra: &[&str],
+    cwd: Option<&Path>,
+    php: Option<&crate::phpver::Extra>,
+) -> CommandBuilder {
     let mut cmd = CommandBuilder::new("powershell.exe");
     cmd.args(["-NoLogo", "-NoExit"]);
     cmd.args(extra);
     let existing = std::env::var("PATH").unwrap_or_default();
-    cmd.env("PATH", path_with(&tool_dirs(root, settings), &existing));
-    let php_ini = root.join("etc").join("php");
+    let mut dirs = tool_dirs(root, settings);
+    let php_ini = match php {
+        Some(p) => {
+            // This project's PHP comes first, and Composer follows it (see the composer shim).
+            dirs.insert(0, p.dir.clone());
+            cmd.env("NEXDB_PHP_EXE", p.dir.join("php.exe"));
+            cmd.env("NEXDB_PHP_INI", p.ini_dir.join("php-cli.ini"));
+            p.ini_dir.clone()
+        }
+        None => root.join("etc").join("php"),
+    };
+    cmd.env("PATH", path_with(&dirs, &existing));
     if php_ini.join("php.ini").is_file() {
         cmd.env("PHPRC", php_ini);
     }
@@ -112,6 +129,7 @@ impl Terminals {
         root: &Path,
         settings: &Settings,
         cwd: Option<&Path>,
+        php: Option<&crate::phpver::Extra>,
         cols: u16,
         rows: u16,
     ) -> Result<u32, String> {
@@ -119,7 +137,7 @@ impl Terminals {
             .openpty(PtySize { rows: rows.max(2), cols: cols.max(10), pixel_width: 0, pixel_height: 0 })
             .map_err(|e| format!("Couldn't open a terminal: {e}"))?;
 
-        let cmd = shell_command(root, settings, &[], cwd);
+        let cmd = shell_command(root, settings, &[], cwd, php);
 
         let child = pair.slave.spawn_command(cmd).map_err(|e| format!("Couldn't start PowerShell: {e}"))?;
         drop(pair.slave);
@@ -228,7 +246,7 @@ mod tests {
             Write-Output ('NODE=' + (node -v)); Write-Output ('NPM=' + (npm -v)); \
             Write-Output ('MYSQL=' + ((mysql --version) -join ' ')); \
             Write-Output ('GIT=' + ((git --version) -join ' ')); exit";
-        let cmd = shell_command(root, &settings, &["-Command", script], None);
+        let cmd = shell_command(root, &settings, &["-Command", script], None, None);
         let mut child = pair.slave.spawn_command(cmd).unwrap();
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().unwrap();

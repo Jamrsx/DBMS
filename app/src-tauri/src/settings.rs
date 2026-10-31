@@ -53,6 +53,9 @@ pub struct Preferences {
     /// How many automatic backups to keep per database.
     #[serde(default = "default_auto_backup_keep")]
     pub auto_backup_keep: u32,
+    /// Projects that use another installed PHP version than the default: project -> version.
+    #[serde(default)]
+    pub project_php: std::collections::BTreeMap<String, String>,
 }
 
 impl Default for Preferences {
@@ -63,6 +66,7 @@ impl Default for Preferences {
             https_port: default_https_port(),
             auto_backup: default_auto_backup(),
             auto_backup_keep: default_auto_backup_keep(),
+            project_php: Default::default(),
         }
     }
 }

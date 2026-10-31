@@ -8,6 +8,8 @@ mod editors;
 mod installer;
 mod phpmyadmin;
 mod phpfix;
+mod phpver;
+mod projectops;
 mod projects;
 mod quickstart;
 mod scan;
@@ -271,6 +273,10 @@ pub fn run() {
             project_create,
             project_quickstart,
             project_fix_php,
+            project_details,
+            project_set_php,
+            project_rename,
+            project_delete,
             editors_list,
             project_open_in,
             projects_sync_hosts,
@@ -382,6 +388,142 @@ async fn project_create(stack: tauri::State<'_, Stack>, name: String, kind: Stri
     .await
 }
 
+/// Saves a settings change that alters which services exist (PHP per project), then rebuilds
+/// the services and starts again what was running, plus any new PHP service when Apache runs.
+async fn apply_service_change(
+    app: &tauri::AppHandle,
+    stack: &Stack,
+    change: impl FnOnce(&mut serde_json::Value) -> Result<(), String> + Send + 'static,
+) -> Result<(), String> {
+    let (root, _, sup) = stack.get()?;
+    let was_running: Vec<String> = sup
+        .status()
+        .into_iter()
+        .filter(|s| s.state == supervisor::State::Running && s.managed)
+        .map(|s| s.id)
+        .collect();
+    let root2 = root.clone();
+    blocking(move || {
+        sup.stop_all();
+        settings::edit(&root2, change)
+    })
+    .await?;
+    stack.load(app);
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        let mut ids = was_running;
+        if ids.iter().any(|i| i == "apache") {
+            for s in sup.status() {
+                if s.id.starts_with("php-") && !ids.contains(&s.id) {
+                    ids.push(s.id);
+                }
+            }
+        }
+        // PHP before Apache, so the first page already works.
+        ids.sort_by_key(|i| i == "apache");
+        let errors: Vec<String> = ids.iter().filter_map(|id| sup.start(id).err()).collect();
+        if errors.is_empty() { Ok(()) } else { Err(format!("Saved, but some services didn't start again: {}", errors.join(" "))) }
+    })
+    .await
+}
+
+#[tauri::command]
+async fn project_details(stack: tauri::State<'_, Stack>, name: String) -> Result<projectops::Details, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || projectops::details(&root, &settings, &name)).await
+}
+
+/// Picks the PHP version a project runs on; None goes back to NexDB's default.
+#[tauri::command]
+async fn project_set_php(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    name: String,
+    version: Option<String>,
+) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    if projects::host_label(&name).is_none() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    let version = version.filter(|v| Some(v) != phpver::default_version(&settings).as_ref());
+    if let Some(v) = &version {
+        if !phpver::installed(&root, &settings).contains_key(v) {
+            return Err(format!("PHP {v} isn't installed. Install it on the Versions page first."));
+        }
+    }
+    apply_service_change(&app, &stack, move |v| {
+        let map = v["preferences"]["project_php"].as_object_mut().map(std::mem::take).unwrap_or_default();
+        let mut map = map;
+        match version {
+            Some(ver) => {
+                map.insert(name, ver.into());
+            }
+            None => {
+                map.remove(&name);
+            }
+        }
+        v["preferences"]["project_php"] = map.into();
+        Ok(())
+    })
+    .await
+}
+
+/// Moves a project's own settings (its PHP version) from one name to another, or drops them.
+async fn move_project_settings(app: &tauri::AppHandle, stack: &Stack, old: String, new: Option<String>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    if settings.preferences.project_php.contains_key(&old) {
+        return apply_service_change(app, stack, move |v| {
+            if let Some(map) = v["preferences"]["project_php"].as_object_mut() {
+                if let Some(ver) = map.remove(&old) {
+                    if let Some(new) = new {
+                        map.insert(new, ver);
+                    }
+                }
+            }
+            Ok(())
+        })
+        .await;
+    }
+    blocking(move || apply_vhosts(&root, &settings, &sup)).await
+}
+
+#[tauri::command]
+async fn project_rename(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, name: String, new_name: String) -> Result<(), String> {
+    let (_, settings, _) = stack.get()?;
+    let (old, new) = (name.clone(), new_name.trim().to_string());
+    let new2 = new.clone();
+    blocking(move || projectops::rename(std::path::Path::new(&settings.www_dir), &old, &new2)).await?;
+    move_project_settings(&app, &stack, name, Some(new)).await
+}
+
+/// Moves a project to the Recycle Bin; with `drop_database`, also deletes its database and user.
+#[tauri::command]
+async fn project_delete(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    name: String,
+    drop_database: bool,
+) -> Result<(), String> {
+    let (_, settings, _) = stack.get()?;
+    let password = db.inner().clone_handle().password();
+    let port = settings.mysql.as_ref().map(|m| m.port);
+    let n = name.clone();
+    blocking(move || {
+        let www = std::path::Path::new(&settings.www_dir);
+        let database = projectops::database_of(&www.join(&n));
+        projectops::recycle(www, &n)?;
+        if let (true, Some(database), Some(port)) = (drop_database, database, port) {
+            projectops::drop_database(port, password.as_deref(), &database)
+                .map_err(|e| format!("The project went to the Recycle Bin, but its database wasn't deleted: {e}"))?;
+        }
+        Ok(())
+    })
+    .await?;
+    move_project_settings(&app, &stack, name, None).await
+}
+
 /// Code editors found on this PC.
 #[tauri::command]
 fn editors_list() -> Vec<editors::Editor> {
@@ -489,10 +631,10 @@ fn terminal_open(
 ) -> Result<u32, String> {
     let (root, settings, _) = stack.get()?;
     // Only a project folder inside the projects folder.
-    let cwd = project
-        .filter(|p| projects::host_label(p).is_some())
-        .map(|p| std::path::Path::new(&settings.www_dir).join(p));
-    terminals.open(&app, window.label(), &root, &settings, cwd.as_deref(), cols, rows)
+    let project = project.filter(|p| projects::host_label(p).is_some());
+    let cwd = project.as_ref().map(|p| std::path::Path::new(&settings.www_dir).join(p));
+    let php = project.as_deref().and_then(|p| phpver::for_project(&root, &settings, p));
+    terminals.open(&app, window.label(), &root, &settings, cwd.as_deref(), php.as_ref(), cols, rows)
 }
 
 /// Opens the terminal in a window of its own, which can be moved and resized freely.

@@ -344,14 +344,20 @@ impl Layout {
     /// Writes php.ini for the selected PHP, if any, plus php-cli.ini for the terminal.
     fn write_php_ini(&self) -> Result<(), String> {
         let Some(php) = &self.php else { return Ok(()) };
+        write_php_inis(php, &self.etc.join("php"), &self.logs)
+    }
+}
+
+/// php.ini for a PHP install, plus php-cli.ini for its command line, in `dir`.
+fn write_php_inis(php: &Path, dir: &Path, logs: &Path) -> Result<(), String> {
+    {
         let ini = configure::php_ini(php);
-        let dir = self.etc.join("php");
         configure::write_file(&dir.join("php.ini"), &ini)?;
         // The command line (which reads php-cli.ini first) shows each warning once on screen and
         // keeps its log in a file; otherwise PHP prints every warning twice, once to stderr.
         let cli = format!(
             "{ini}\r\n; Added by NexDB for the command line\r\nerror_log = \"{}\"\r\n",
-            configure::conf_path(&self.logs.join("php_cli_errors.log"))
+            configure::conf_path(&logs.join("php_cli_errors.log"))
         );
         configure::write_file(&dir.join("php-cli.ini"), &cli)
     }
@@ -386,6 +392,9 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
         mysql: if mysql_existing { None } else { dir_for("mysql") },
     };
     layout.write_php_ini()?;
+    for extra in crate::phpver::extras(root, settings) {
+        write_php_inis(&extra.dir, &extra.ini_dir, &layout.logs)?;
+    }
     // Keep `composer` pointed at the PHP in use, which may have just been switched.
     let composer_dir = root.join("bin").join("composer");
     if composer_dir.join("composer.phar").is_file() {
@@ -863,15 +872,16 @@ fn cli_ini(etc: &Path) -> PathBuf {
 
 /// `composer.bat` running Composer with the chosen PHP and DevManager's php.ini,
 /// falling back to `php` on PATH when no PHP is configured.
+/// A terminal opened for a project on another PHP version sets NEXDB_PHP_EXE and NEXDB_PHP_INI,
+/// so Composer runs with that project's PHP too.
 pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
-    match php {
-        Some(php) => format!(
-            "@\"{}\" -c \"{}\" \"%~dp0composer.phar\" %*\r\n",
-            php.display(),
-            ini.display()
-        ),
-        None => "@php \"%~dp0composer.phar\" %*\r\n".into(),
-    }
+    let default = match php {
+        Some(php) => format!("\"{}\" -c \"{}\" \"%~dp0composer.phar\" %*", php.display(), ini.display()),
+        None => "php \"%~dp0composer.phar\" %*".into(),
+    };
+    format!(
+        "@if defined NEXDB_PHP_EXE (\"%NEXDB_PHP_EXE%\" -c \"%NEXDB_PHP_INI%\" \"%~dp0composer.phar\" %*) else ({default})\r\n"
+    )
 }
 
 /// Composer is a single `.phar`; add a `composer.bat` so `composer` works in a terminal.
@@ -1003,8 +1013,9 @@ mod tests {
     #[test]
     fn composer_shim_uses_the_chosen_php() {
         let shim = composer_shim(Some(Path::new(r"C:\P\php.exe")), Path::new(r"C:\D\etc\php\php.ini"));
-        assert_eq!(shim, "@\"C:\\P\\php.exe\" -c \"C:\\D\\etc\\php\\php.ini\" \"%~dp0composer.phar\" %*\r\n");
-        assert!(composer_shim(None, Path::new("x")).starts_with("@php "));
+        assert!(shim.ends_with("else (\"C:\\P\\php.exe\" -c \"C:\\D\\etc\\php\\php.ini\" \"%~dp0composer.phar\" %*)\r\n"), "{shim}");
+        assert!(shim.starts_with("@if defined NEXDB_PHP_EXE (\"%NEXDB_PHP_EXE%\""), "{shim}");
+        assert!(composer_shim(None, Path::new("x")).contains("else (php "));
     }
 
     #[test]

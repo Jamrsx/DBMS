@@ -200,3 +200,47 @@ const preview = (() => {
     },
   };
 })();
+
+export interface ProjectDetails {
+  name: string;
+  path: string;
+  kind: Project["kind"];
+  url: string;
+  local_url: string;
+  /** The database the project's own config points at. */
+  database: string | null;
+  git: { branch: string; changes: number } | null;
+  php: { current: string | null; default: string | null; chosen: string | null; installed: string[] };
+}
+
+export async function projectDetails(name: string): Promise<ProjectDetails> {
+  if (inDesktopApp) return invoke<ProjectDetails>("project_details", { name });
+  await new Promise((r) => setTimeout(r, 200));
+  return {
+    name,
+    path: `C:\\NexDB\\www\\${name}`,
+    kind: "laravel",
+    url: `http://${name}.test/`,
+    local_url: `http://localhost/${name}/`,
+    database: name.replace(/-/g, "_"),
+    git: { branch: "main", changes: 3 },
+    php: { current: "8.5.12", default: "8.5.12", chosen: null, installed: ["8.4.27", "8.5.12"] },
+  };
+}
+
+/** Picks the PHP version a project runs on; null goes back to the default. Services restart. */
+export async function setProjectPhp(name: string, version: string | null): Promise<void> {
+  if (inDesktopApp) return invoke("project_set_php", { name, version });
+  await new Promise((r) => setTimeout(r, 600));
+}
+
+export async function renameProject(name: string, newName: string): Promise<void> {
+  if (inDesktopApp) return invoke("project_rename", { name, newName });
+  await new Promise((r) => setTimeout(r, 400));
+}
+
+/** Moves the project to the Recycle Bin; optionally deletes its database and user too. */
+export async function deleteProject(name: string, dropDatabase: boolean): Promise<void> {
+  if (inDesktopApp) return invoke("project_delete", { name, dropDatabase });
+  await new Promise((r) => setTimeout(r, 400));
+}

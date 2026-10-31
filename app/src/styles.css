@@ -3557,6 +3557,135 @@ h1 {
   outline: none;
 }
 
+/* Project details */
+.details {
+  flex: none;
+  display: grid;
+  gap: 18px;
+}
+
+.details-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.details-head .btn-quiet {
+  margin-left: -10px;
+  gap: 6px;
+}
+
+.details-head h2 {
+  margin: 0;
+  font: 650 18px/1.2 var(--font-display);
+}
+
+.details-addr {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.details-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.details-actions .btn {
+  gap: 6px;
+}
+
+.details-facts {
+  display: grid;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.details-facts > div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.details-facts > div:first-child {
+  border-top: 0;
+}
+
+.details-facts dt {
+  font-size: 13px;
+  color: var(--text-3);
+}
+
+.details-facts dd {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details-facts code {
+  font-size: 12.5px;
+}
+
+.details-section {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.details-section h3 {
+  margin: 0;
+  font: 600 14px/1.3 var(--font);
+}
+
+.details-section p {
+  margin: 0;
+}
+
+.details-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.details-row .input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 13.5px var(--font);
+}
+
+.project-name.cell-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 600 14px var(--font);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.project-name.cell-link:hover {
+  color: var(--accent-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 /* Asking before a MySQL switch */
 .ver-confirm {
   display: grid;
