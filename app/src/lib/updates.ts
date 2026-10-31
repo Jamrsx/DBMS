@@ -14,7 +14,10 @@ interface Updates {
 }
 
 const FIRST_CHECK_MS = 8_000;
-const EVERY_MS = 6 * 60 * 60 * 1000;
+const EVERY_MS = 60 * 60 * 1000;
+/** Opening the window checks again when the last check is older than this. */
+const ON_SHOW_MS = 15 * 60 * 1000;
+let lastCheck = 0;
 
 let current: Updates = { state: { kind: "idle" }, dismissed: null, installing: false };
 const listeners = new Set<() => void>();
@@ -39,6 +42,7 @@ export async function checkUpdates(quiet = false) {
   const busy = current.state.kind === "downloading" || current.state.kind === "ready";
   if (busy) return;
   if (!quiet) set({ state: { kind: "checking" } });
+  lastCheck = Date.now();
   const result = await checkForUpdate();
   if (quiet && result.kind === "error") return;
   set({ state: result });
@@ -63,5 +67,9 @@ export function startUpdateChecks() {
   if (started) return;
   started = true;
   setTimeout(() => void checkUpdates(true), FIRST_CHECK_MS);
-  setInterval(() => document.visibilityState === "visible" && void checkUpdates(true), EVERY_MS);
+  // Keep checking while NexDB sits in the tray too, and again whenever its window is opened.
+  setInterval(() => void checkUpdates(true), EVERY_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && Date.now() - lastCheck > ON_SHOW_MS) void checkUpdates(true);
+  });
 }

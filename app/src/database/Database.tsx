@@ -34,6 +34,15 @@ export function Database({ active }: { active: boolean }) {
   const [connecting, setConnecting] = useState(false);
   const [dbs, setDbs] = useState<DatabaseInfo[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
+  // The selected database's table list; clicking that database again folds it away.
+  const [listOpen, setListOpen] = useState(true);
+  const choose = (name: string) => {
+    if (name === selected) setListOpen((open) => !open);
+    else {
+      setListOpen(true);
+      void pick(name);
+    }
+  };
   const [tables, setTables] = useState<TableInfo[]>([]);
   const [table, setTable] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("sql");
@@ -156,8 +165,8 @@ export function Database({ active }: { active: boolean }) {
         {version && (
           <div className="db-layout">
             <nav className="db-tree" aria-label="Databases">
-              <DbGroup label="Your databases" dbs={userDbs} selected={selected} tables={tables} table={table} onPick={pick} onTable={openTable} />
-              <DbGroup label="MySQL built-in" dbs={systemDbs} selected={selected} tables={tables} table={table} onPick={pick} onTable={openTable} />
+              <DbGroup label="Your databases" dbs={userDbs} selected={selected} open={listOpen} tables={tables} table={table} onPick={choose} onTable={openTable} />
+              <DbGroup label="MySQL built-in" dbs={systemDbs} selected={selected} open={listOpen} tables={tables} table={table} onPick={choose} onTable={openTable} />
             </nav>
 
             <section className="db-main" aria-label="Database contents">
@@ -268,6 +277,7 @@ function DbGroup({
   label,
   dbs,
   selected,
+  open,
   tables,
   table,
   onPick,
@@ -276,6 +286,7 @@ function DbGroup({
   label: string;
   dbs: DatabaseInfo[];
   selected: string | null;
+  open: boolean;
   tables: TableInfo[];
   table: string | null;
   onPick: (name: string) => void;
@@ -290,14 +301,14 @@ function DbGroup({
           <li key={d.name}>
             <button
               className={d.name === selected ? "db-item current" : "db-item"}
-              aria-expanded={d.name === selected}
+              aria-expanded={d.name === selected && open}
               onClick={() => onPick(d.name)}
             >
               <ChevronRight size={14} className="db-chevron" aria-hidden="true" />
               <span className="db-name">{d.name}</span>
               <span className="db-count">{d.tables}</span>
             </button>
-            {d.name === selected && tables.length > 0 && (
+            {d.name === selected && open && tables.length > 0 && (
               <ul className="db-tables">
                 {tables.map((t) => (
                   <li key={t.name}>

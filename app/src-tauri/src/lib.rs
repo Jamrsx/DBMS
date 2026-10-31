@@ -7,6 +7,7 @@ mod db;
 mod installer;
 mod phpmyadmin;
 mod projects;
+mod quickstart;
 mod scan;
 mod settings;
 mod supervisor;
@@ -266,6 +267,7 @@ pub fn run() {
             tray::autostart_set,
             projects_list,
             project_create,
+            project_quickstart,
             projects_sync_hosts,
             project_open,
             terminal_open,
@@ -372,6 +374,30 @@ async fn project_create(stack: tauri::State<'_, Stack>, name: String, kind: Stri
     .await
 }
 
+/// Makes a ready-to-run project from a starter (Laravel, WordPress, Vite, Next.js). Progress
+/// arrives as `quickstart` events; the new site gets its virtual host when it's done.
+#[tauri::command]
+async fn project_quickstart(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    name: String,
+    kind: String,
+) -> Result<quickstart::Created, String> {
+    let starter = quickstart::Starter::parse(&kind).ok_or("That kind of project isn't available.")?;
+    let (root, settings, sup) = stack.get()?;
+    let password = db.inner().clone_handle().password();
+    blocking(move || {
+        let emit = |e: quickstart::Event| {
+            let _ = app.emit("quickstart", e);
+        };
+        let created = quickstart::create(&emit, &root, &settings, &sup, password, &name, starter)?;
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(created)
+    })
+    .await
+}
+
 /// Adds every project address to the Windows hosts file (one administrator approval), then
 /// refreshes Apache's virtual hosts.
 #[tauri::command]
@@ -423,8 +449,10 @@ fn terminal_open(
 }
 
 /// Opens the terminal in a window of its own, which can be moved and resized freely.
+/// Async on purpose: building a window inside a synchronous command deadlocks on Windows
+/// (WebView2), which left the new window frozen.
 #[tauri::command]
-fn terminal_window(app: tauri::AppHandle) -> Result<(), String> {
+async fn terminal_window(app: tauri::AppHandle) -> Result<(), String> {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     tauri::WebviewWindowBuilder::new(&app, format!("terminal-{n}"), tauri::WebviewUrl::App("index.html?view=terminal".into()))

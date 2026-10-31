@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
-import { ExternalLink, FolderOpen, FolderPlus, ShieldCheck } from "lucide-react";
+import { Check, Circle, ExternalLink, FolderOpen, FolderPlus, LoaderCircle, ShieldCheck, SquareTerminal, X } from "lucide-react";
 import {
   createProject,
+  isStarter,
   listProjects,
   nameProblem,
+  onQuickstart,
   openProject,
+  quickstart,
+  STARTERS,
   syncHosts,
+  type Created,
   type NewKind,
+  type Starter,
   type Project,
   type ProjectsInfo,
 } from "../lib/projects";
@@ -91,10 +97,9 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
         {creating && (
           <NewProject
             existing={projects.map((p) => p.name)}
-            onDone={async () => {
-              setCreating(false);
-              await refresh();
-            }}
+            onCreated={refresh}
+            onClose={() => setCreating(false)}
+            onOpenTerminal={onOpenTerminal}
           />
         )}
 
@@ -159,25 +164,85 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   );
 }
 
-function NewProject({ existing, onDone }: { existing: string[]; onDone: () => Promise<void> }) {
+type Kind = NewKind | Starter;
+
+interface Progress {
+  steps: string[];
+  /** Index of the step running now; steps before it are done. */
+  at: number;
+  lines: string[];
+  outcome: { ok: true; created: Created } | { ok: false; error: string } | null;
+}
+
+function NewProject({
+  existing,
+  onCreated,
+  onClose,
+  onOpenTerminal,
+}: {
+  existing: string[];
+  onCreated: () => Promise<void>;
+  onClose: () => void;
+  onOpenTerminal: () => void;
+}) {
   const [name, setName] = useState("");
-  const [kind, setKind] = useState<NewKind>("php");
+  const [kind, setKind] = useState<Kind>("php");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<Progress | null>(null);
   const problem = nameProblem(name, existing);
+  const starter = isStarter(kind) ? STARTERS.find((s) => s.id === kind) : null;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name || problem) return;
     setBusy(true);
     setError(null);
+    if (isStarter(kind)) {
+      setProgress({ steps: [], at: 0, lines: [], outcome: null });
+      // Listen before starting, so the first steps aren't missed.
+      const unlisten = await onQuickstart((ev) => {
+        if (ev.name !== name) return;
+        setProgress((p) => {
+          if (!p) return p;
+          if (ev.kind === "plan") return { ...p, steps: ev.steps, at: 0 };
+          if (ev.kind === "step") return { ...p, at: ev.status === "done" ? ev.index + 1 : ev.index };
+          return { ...p, lines: [...p.lines.slice(-400), ev.text] };
+        });
+      });
+      try {
+        const created = await quickstart(name, kind);
+        setProgress((p) => p && { ...p, at: p.steps.length, outcome: { ok: true, created } });
+        await onCreated();
+      } catch (err) {
+        setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
+      } finally {
+        unlisten();
+        setBusy(false);
+      }
+      return;
+    }
     try {
       await createProject(name, kind);
-      await onDone();
+      await onCreated();
+      onClose();
     } catch (err) {
       setError(String(err));
       setBusy(false);
     }
+  }
+
+  if (progress) {
+    return (
+      <QuickstartProgress
+        name={name}
+        label={starter?.label ?? kind}
+        progress={progress}
+        onOpenTerminal={onOpenTerminal}
+        onClose={onClose}
+        onBack={() => setProgress(null)}
+      />
+    );
   }
 
   return (
@@ -200,20 +265,123 @@ function NewProject({ existing, onDone }: { existing: string[]; onDone: () => Pr
       </label>
       <label className="field">
         <span className="field-label">Starts as</span>
-        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as NewKind)}>
-          <option value="php">PHP page</option>
-          <option value="html">HTML page</option>
-          <option value="empty">Empty folder</option>
+        <select className="input" value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
+          <optgroup label="Simple">
+            <option value="php">PHP page</option>
+            <option value="html">HTML page</option>
+            <option value="empty">Empty folder</option>
+          </optgroup>
+          <optgroup label="Ready-to-run starters">
+            {STARTERS.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </optgroup>
         </select>
       </label>
       <button className="btn btn-primary" type="submit" disabled={!name || !!problem || busy}>
         {busy ? "Creating…" : "Create"}
       </button>
+      {starter && (
+        <p className="field-hint new-project-note">
+          NexDB downloads {starter.label} and sets it up for you; this takes a few minutes and needs the internet. Uses{" "}
+          {starter.needs}.
+          {(kind.startsWith("laravel") || kind === "wordpress") &&
+            " It gets its own database and MySQL user, so your MySQL password is never written into the project."}
+        </p>
+      )}
       {error && (
         <p className="field-error" role="alert">
           {error}
         </p>
       )}
     </form>
+  );
+}
+
+function QuickstartProgress({
+  name,
+  label,
+  progress,
+  onOpenTerminal,
+  onClose,
+  onBack,
+}: {
+  name: string;
+  label: string;
+  progress: Progress;
+  onOpenTerminal: () => void;
+  onClose: () => void;
+  onBack: () => void;
+}) {
+  const [details, setDetails] = useState(false);
+  const { steps, at, lines, outcome } = progress;
+  const failed = outcome && !outcome.ok;
+  return (
+    <section className="quickstart" aria-live="polite">
+      <h2 className="quickstart-title">
+        {outcome?.ok ? `${name} is ready` : failed ? `${name} couldn't be made` : `Making ${name} (${label})…`}
+      </h2>
+      <ol className="quickstart-steps">
+        {steps.map((step, i) => {
+          const state = i < at ? "done" : i === at && failed ? "failed" : i === at && !outcome ? "running" : "waiting";
+          return (
+            <li key={step} className={`quickstart-step ${state}`}>
+              {state === "done" && <Check size={14} aria-hidden="true" />}
+              {state === "running" && <LoaderCircle size={14} className="status-spin" aria-hidden="true" />}
+              {state === "failed" && <X size={14} aria-hidden="true" />}
+              {state === "waiting" && <Circle size={14} aria-hidden="true" />}
+              <span>{step}</span>
+            </li>
+          );
+        })}
+        {steps.length === 0 && !outcome && <li className="quickstart-step running">Getting ready…</li>}
+      </ol>
+
+      {failed && (
+        <p className="field-error" role="alert">
+          {outcome.error} Nothing was left behind, so you can try again.
+        </p>
+      )}
+      {outcome?.ok && (
+        <p className="set-ok quickstart-done">
+          {outcome.created.run_hint
+            ? `Start it from the Terminal: open the ${name} folder and run ${outcome.created.run_hint}.`
+            : `Open http://${name}.test/ in your browser.`}
+          {outcome.created.database && ` Its database is ${outcome.created.database}.`}
+        </p>
+      )}
+
+      <div className="quickstart-actions">
+        {lines.length > 0 && (
+          <button className="btn btn-small btn-quiet" onClick={() => setDetails((d) => !d)} aria-expanded={details}>
+            {details ? "Hide details" : "Show details"}
+          </button>
+        )}
+        <span className="quickstart-spacer" />
+        {failed && (
+          <button className="btn btn-small" onClick={onBack}>
+            Back
+          </button>
+        )}
+        {outcome?.ok && outcome.created.run_hint && (
+          <button className="btn btn-small" onClick={onOpenTerminal}>
+            <SquareTerminal size={13} aria-hidden="true" /> Open terminal
+          </button>
+        )}
+        {outcome?.ok && !outcome.created.run_hint && (
+          <button className="btn btn-small" onClick={() => void openProject(name, "url")}>
+            <ExternalLink size={13} aria-hidden="true" /> Open site
+          </button>
+        )}
+        {outcome && (
+          <button className="btn btn-small btn-primary" onClick={onClose}>
+            Done
+          </button>
+        )}
+      </div>
+      {details && <pre className="quickstart-log">{lines.join("\n")}</pre>}
+    </section>
   );
 }

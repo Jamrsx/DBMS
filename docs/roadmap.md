@@ -72,11 +72,16 @@ HTTPS for `.test` sites:
 
 ### 0.2.5: Quick-start projects
 
-- "New project" choices: Empty, Laravel, WordPress, Vite (React/Vue), plain PHP.
-- NexDB creates the folder, downloads the starter, creates a matching database, fills in `.env` or
+- "New project" choices: Empty, PHP, HTML, Laravel, Laravel + React or Vue (Inertia starter
+  kits), WordPress, React or Vue (Vite), Next.js.
+- NexDB creates the folder, downloads the starter, creates a matching database with its own MySQL
+  user (the root password is never written into the project), fills in `.env` or
   `wp-config.php`, and opens `<name>.test` when it is ready.
 - Progress in plain steps ("Downloading Laravel…", "Creating the database…"), with the raw output
   one click away.
+- Fixes: updates are checked automatically (hourly, also from the tray and when the window opens);
+  the terminal window no longer freezes; the open database in the Database page folds away on a
+  second click.
 
 ### 0.2.6: Project details
 
