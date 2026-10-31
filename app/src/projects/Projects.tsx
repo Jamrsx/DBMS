@@ -29,6 +29,7 @@ import {
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
+import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
 import { NewProjectWizard } from "./NewProjectWizard";
 import { ProjectDetails } from "./ProjectDetails";
@@ -96,6 +97,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
     try {
       const n = await fixPhpWarnings(p.name);
       setNotice(`Fixed ${p.name}: updated ${n} line${n === 1 ? "" : "s"}, so the "Deprecated" warnings are gone.`);
+      nexCelebrate(`${p.name} is fixed. No more "Deprecated" warnings!`);
     } catch (e) {
       setError(String(e));
     }
@@ -174,6 +176,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
             onChanged={async (renamedTo, message) => {
               setOpened(renamedTo);
               if (message) setNotice(message);
+              if (message) nexSay(renamedTo ? "success" : "idle", renamedTo ? `Now it's ${renamedTo}.` : "Moved to the Recycle Bin. You can bring it back anytime.");
               await refresh();
               loadBin();
             }}
@@ -189,6 +192,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
               try {
                 const name = await restoreProject(item.path);
                 setNotice(`${name} is back in your projects.`);
+                nexCelebrate(`${name} is back!`);
                 setShowBin(false);
               } catch (e) {
                 setError(String(e));

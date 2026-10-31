@@ -3,6 +3,14 @@ import { AppWindow, Plus, SquareTerminal, X } from "lucide-react";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
+import { Nex, type NexState } from "../components/Nex";
+import { nexSay } from "../lib/nex";
+
+/** Nex in the header follows the open tab: busy starting, idle when ready, asleep when it ended. */
+const TAB_MOOD: Record<SessionState, NexState> = { starting: "loading", open: "idle", closed: "sleeping" };
+
+/** Nex says hi the first time the Terminal page opens in a launch. */
+let greeted = false;
 
 interface Tab {
   key: number;
@@ -19,6 +27,16 @@ const startProject = new URLSearchParams(location.search).get("project") ?? unde
 
 export function TerminalPage({ active, standalone = false }: { active: boolean; standalone?: boolean }) {
   const [popError, setPopError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!active || greeted || !inDesktopApp) return;
+    greeted = true;
+    nexSay(
+      "hello",
+      "Hi! This is PowerShell in your projects folder. Try git clone, composer or npm. Select text and press Ctrl+C to copy; Ctrl+V pastes.",
+      7000,
+    );
+  }, [active]);
   const count = useRef(1);
   const [tabs, setTabs] = useState<Tab[]>(() => [
     standalone && startProject
@@ -74,6 +92,7 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
   return (
     <main className="panel">
       <header className="panel-head dash-head">
+        {shown && <Nex state={TAB_MOOD[shown.state]} size={52} />}
         <div>
           <h1>Terminal</h1>
           <p className="dash-summary">

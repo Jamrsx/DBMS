@@ -1,5 +1,9 @@
 import { useSyncExternalStore } from "react";
 import { checkForUpdate, installUpdate, type UpdateState } from "./appsettings";
+import { nexCelebrate, nexOops, nexSay } from "./nex";
+
+/** The newest version Nex already announced, so an hourly check doesn't repeat itself. */
+let announced: string | null = null;
 
 /**
  * One update state for the whole app, so the notice, the Settings dot and the Settings page
@@ -46,12 +50,20 @@ export async function checkUpdates(quiet = false) {
   const result = await checkForUpdate();
   if (quiet && result.kind === "error") return;
   set({ state: result });
+  if (result.kind === "available" && result.version !== announced) {
+    announced = result.version;
+    nexSay("hello", `NexDB ${result.version} is out! Update from the card on the left whenever you like.`, 6000);
+  } else if (!quiet && result.kind === "current") {
+    nexCelebrate("You have the latest NexDB.");
+  }
 }
 
 export async function installUpdates() {
   set({ installing: true, state: { kind: "downloading", percent: 0 } });
   const result = await installUpdate((percent) => set({ state: { kind: "downloading", percent } }));
   set({ state: result });
+  if (result.kind === "ready") nexCelebrate("Update installed! Restart NexDB to use it.");
+  if (result.kind === "error") nexOops("The update didn't install. Settings says why.");
 }
 
 export function dismissUpdate() {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ArrowUpCircle, Download } from "lucide-react";
 import { createBackup } from "../lib/backups";
+import { nexCelebrate } from "../lib/nex";
 import {
   formatMb,
   installVersion,
@@ -73,6 +74,7 @@ export function VersionsPage({ active }: { active: boolean }) {
                 ? `${c.name} ${version} was removed.`
                 : `${c.name} ${version} is now in use. Running services restarted with it.`;
       setDone(note ? `${message} ${note}` : message);
+      if (what !== "remove") nexCelebrate(message);
     } catch (e) {
       setError(String(e));
     } finally {

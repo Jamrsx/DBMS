@@ -2,14 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Download, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
+import { Nex, type NexState } from "../components/Nex";
+import { nexCelebrate } from "../lib/nex";
 import { StartupToggle } from "../components/StartupToggle";
-import {
-  getAppSettings,
-  restartApp,
-  savePorts,
-  setStartServicesOnLaunch,
-  type AppSettings,
-} from "../lib/appsettings";
+import { getAppSettings, restartApp, savePorts, setStartServicesOnLaunch, type AppSettings } from "../lib/appsettings";
 import { checkUpdates, installUpdates, useUpdates } from "../lib/updates";
 
 export function SettingsPage({ active }: { active: boolean }) {
@@ -184,10 +180,7 @@ function HttpsCard({ active }: { active: boolean }) {
   if (!info) return null;
   const port = info.port === 443 ? "" : `:${info.port}`;
   return (
-    <Card
-      title="HTTPS"
-      lede="Open localhost and your .test sites with https://, the way they run on a real server."
-    >
+    <Card title="HTTPS" lede="Open localhost and your .test sites with https://, the way they run on a real server.">
       <div className="set-rows">
         <div className="set-row">
           <label className="set-check">
@@ -211,11 +204,7 @@ function HttpsCard({ active }: { active: boolean }) {
 
         {info.enabled && (
           <div className={info.trusted ? "set-trust ok" : "set-trust"}>
-            {info.trusted ? (
-              <ShieldCheck size={18} aria-hidden="true" />
-            ) : (
-              <ShieldAlert size={18} aria-hidden="true" />
-            )}
+            {info.trusted ? <ShieldCheck size={18} aria-hidden="true" /> : <ShieldAlert size={18} aria-hidden="true" />}
             <div>
               <p className="set-trust-title">
                 {info.trusted ? "Windows trusts NexDB's certificate" : "Windows doesn't trust NexDB's certificate yet"}
@@ -230,7 +219,11 @@ function HttpsCard({ active }: { active: boolean }) {
               <button
                 className="btn"
                 disabled={!!busy}
-                onClick={() => void act("Waiting for Windows…", trustHttps)}
+                onClick={() =>
+                  void act("Waiting for Windows…", async () => {
+                    if (await trustHttps()) nexCelebrate("Windows trusts your sites now. Enjoy the padlock!");
+                  })
+                }
               >
                 Trust certificate…
               </button>
@@ -306,20 +299,36 @@ function PortsCard({ settings, onSaved }: { settings: AppSettings; onSaved: () =
 
   const num = (v: string) => (/^\d{1,5}$/.test(v) && +v >= 1 && +v <= 65535 ? +v : null);
   const fields = [
-    settings.apache_port !== null && { label: "Web server (Apache)", value: apache, set: setApache, hint: "Your sites open at localhost on this port. 80 means no number is needed in the address." },
+    settings.apache_port !== null && {
+      label: "Web server (Apache)",
+      value: apache,
+      set: setApache,
+      hint: "Your sites open at localhost on this port. 80 means no number is needed in the address.",
+    },
     { label: "PHP", value: php, set: setPhp, hint: "Used only inside NexDB, between Apache and PHP." },
-    settings.mysql_port !== null && { label: "MySQL", value: mysql, set: setMysql, hint: "Apps and phpMyAdmin connect to MySQL on this port. 3306 is the usual one." },
+    settings.mysql_port !== null && {
+      label: "MySQL",
+      value: mysql,
+      set: setMysql,
+      hint: "Apps and phpMyAdmin connect to MySQL on this port. 3306 is the usual one.",
+    },
   ].filter(Boolean) as { label: string; value: string; set: (v: string) => void; hint: string }[];
 
   const invalid = fields.find((f) => num(f.value) === null);
   const changed =
-    apache !== String(settings.apache_port ?? "") || php !== String(settings.php_port) || mysql !== String(settings.mysql_port ?? "");
+    apache !== String(settings.apache_port ?? "") ||
+    php !== String(settings.php_port) ||
+    mysql !== String(settings.mysql_port ?? "");
 
   async function save() {
     setBusy(true);
     setMessage(null);
     try {
-      await savePorts(settings.apache_port === null ? null : num(apache), num(php)!, settings.mysql_port === null ? null : num(mysql));
+      await savePorts(
+        settings.apache_port === null ? null : num(apache),
+        num(php)!,
+        settings.mysql_port === null ? null : num(mysql),
+      );
       setMessage({ ok: true, text: "Saved. Any services that were running have restarted on the new ports." });
       onSaved();
     } catch (err) {
@@ -330,7 +339,10 @@ function PortsCard({ settings, onSaved }: { settings: AppSettings; onSaved: () =
   }
 
   return (
-    <Card title="Ports" lede="Change a port when another program already uses it. Running services restart when you save.">
+    <Card
+      title="Ports"
+      lede="Change a port when another program already uses it. Running services restart when you save."
+    >
       <div className="set-ports">
         {fields.map((f) => (
           <label key={f.label} className="field">
@@ -392,6 +404,17 @@ function FoldersCard({ settings }: { settings: AppSettings }) {
   );
 }
 
+/** Nex's mood for each update state. */
+const UPDATE_MOOD: Record<string, NexState> = {
+  idle: "idle",
+  checking: "thinking",
+  current: "success",
+  available: "hello",
+  downloading: "loading",
+  ready: "success",
+  error: "error",
+};
+
 function UpdatesCard({ version }: { version: string }) {
   const { state } = useUpdates();
   const check = () => void checkUpdates();
@@ -399,65 +422,75 @@ function UpdatesCard({ version }: { version: string }) {
 
   return (
     <Card title="NexDB updates" lede={`You have NexDB ${version}.`}>
-      <div className="set-update" aria-live="polite">
-        {state.kind === "idle" && (
-          <button className="btn" onClick={check}>
-            <RefreshCw size={14} aria-hidden="true" /> Check for updates
-          </button>
-        )}
-        {state.kind === "checking" && <p className="field-hint">Checking for a newer NexDB…</p>}
-        {state.kind === "current" && (
-          <>
-            <p className="set-ok">
-              <CheckCircle2 size={15} aria-hidden="true" /> You have the latest NexDB.
-            </p>
-            <button className="btn btn-small" onClick={check}>
-              Check again
+      <div className="set-update-row">
+        <Nex state={UPDATE_MOOD[state.kind]} size={64} />
+        <div className="set-update" aria-live="polite">
+          {state.kind === "idle" && (
+            <button className="btn" onClick={check}>
+              <RefreshCw size={14} aria-hidden="true" /> Check for updates
             </button>
-          </>
-        )}
-        {state.kind === "available" && (
-          <div className="set-available">
-            <p>
-              <strong>NexDB {state.version} is available.</strong> It downloads and installs here; you don't need a browser.
-            </p>
-            {state.notes && <p className="set-notes">{state.notes}</p>}
-            <button className="btn btn-primary" onClick={install}>
-              <Download size={14} aria-hidden="true" /> Download and install
-            </button>
-          </div>
-        )}
-        {state.kind === "downloading" && (
-          <div className="set-progress">
-            <p className="field-hint">
-              Downloading the update{state.percent === null ? "…" : ` · ${state.percent}%`}
-            </p>
-            <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={state.percent ?? undefined}>
-              <span className="bar-fill" style={{ width: `${state.percent ?? 30}%` }} />
+          )}
+          {state.kind === "checking" && <p className="field-hint">Checking for a newer NexDB…</p>}
+          {state.kind === "current" && (
+            <>
+              <p className="set-ok">
+                <CheckCircle2 size={15} aria-hidden="true" /> You have the latest NexDB.
+              </p>
+              <button className="btn btn-small" onClick={check}>
+                Check again
+              </button>
+            </>
+          )}
+          {state.kind === "available" && (
+            <div className="set-available">
+              <p>
+                <strong>NexDB {state.version} is available.</strong> It downloads and installs here; you don't need a
+                browser.
+              </p>
+              {state.notes && <p className="set-notes">{state.notes}</p>}
+              <button className="btn btn-primary" onClick={install}>
+                <Download size={14} aria-hidden="true" /> Download and install
+              </button>
             </div>
-          </div>
-        )}
-        {state.kind === "ready" && (
-          <div className="set-available">
-            <p>
-              <strong>The update is installed.</strong> Restart NexDB to start using it. Your services start again if you
-              chose that above.
-            </p>
-            <button className="btn btn-primary" onClick={() => void restartApp()}>
-              <RotateCw size={14} aria-hidden="true" /> Restart NexDB
-            </button>
-          </div>
-        )}
-        {state.kind === "error" && (
-          <>
-            <p className="field-error" role="alert">
-              {state.message}
-            </p>
-            <button className="btn btn-small" onClick={check}>
-              Try again
-            </button>
-          </>
-        )}
+          )}
+          {state.kind === "downloading" && (
+            <div className="set-progress">
+              <p className="field-hint">
+                Downloading the update{state.percent === null ? "…" : ` · ${state.percent}%`}
+              </p>
+              <div
+                className="bar"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={state.percent ?? undefined}
+              >
+                <span className="bar-fill" style={{ width: `${state.percent ?? 30}%` }} />
+              </div>
+            </div>
+          )}
+          {state.kind === "ready" && (
+            <div className="set-available">
+              <p>
+                <strong>The update is installed.</strong> Restart NexDB to start using it. Your services start again if
+                you chose that above.
+              </p>
+              <button className="btn btn-primary" onClick={() => void restartApp()}>
+                <RotateCw size={14} aria-hidden="true" /> Restart NexDB
+              </button>
+            </div>
+          )}
+          {state.kind === "error" && (
+            <>
+              <p className="field-error" role="alert">
+                {state.message}
+              </p>
+              <button className="btn btn-small" onClick={check}>
+                Try again
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </Card>
   );

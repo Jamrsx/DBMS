@@ -28,6 +28,7 @@ import {
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
 import { Nex } from "../components/Nex";
+import { nexCelebrate, nexOops } from "../lib/nex";
 
 type Kind = NewKind | Starter;
 
@@ -178,6 +179,7 @@ export function NewProjectWizard({
         await createProject(name, kind as NewKind);
         await onCreated();
         setProgress((p) => p && { ...p, outcome: { ok: true, created: null } });
+        nexCelebrate(`${name} is ready!`);
       } catch (err) {
         setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
       }
@@ -200,9 +202,11 @@ export function NewProjectWizard({
         ai: starter.startsWith("laravel") && ai,
       });
       setProgress((p) => p && { ...p, at: p.steps.length, outcome: { ok: true, created } });
+      nexCelebrate(`${name} is ready! Let's build something.`);
       await onCreated();
     } catch (err) {
       setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
+      nexOops(`${name} couldn't be made. The details say why.`);
     } finally {
       unlisten();
     }
@@ -386,9 +390,11 @@ function Making({
   const run = (p: Promise<unknown>) => p.catch((e) => setProblem(String(e)));
 
   return (
-    <div className="wizard-body" aria-live="polite">
+    <div className="wizard-body making" aria-live="polite">
+      <div className="making-nex">
+        <Nex state={done ? "success" : failed ? "error" : "loading"} size={150} />
+      </div>
       <div className="quickstart-head">
-        <Nex state={done ? "success" : failed ? "error" : "loading"} size={64} />
         <h2 className="quickstart-title">
           {done ? `${name} is ready` : failed ? `${name} couldn't be made` : `Making ${name}…`}
         </h2>

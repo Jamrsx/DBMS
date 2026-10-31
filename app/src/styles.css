@@ -3753,6 +3753,129 @@ h1 {
   gap: 6px;
 }
 
+/* Nex in the new-project progress: big, in the free space on the right. */
+.wizard-body.making {
+  position: relative;
+  padding-right: 210px;
+}
+
+.making-nex {
+  position: absolute;
+  top: 14px;
+  right: 36px;
+}
+
+@media (max-width: 1000px) {
+  .wizard-body.making {
+    padding-right: 18px;
+  }
+
+  .making-nex {
+    position: static;
+    justify-self: center;
+  }
+}
+
+/* Header buttons keep their label on one line. */
+.dash-actions .btn {
+  white-space: nowrap;
+}
+
+/* Nex peeking up from the bottom-right corner with a speech bubble. */
+.nex-corner {
+  position: fixed;
+  right: 22px;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.nex-peek {
+  margin-bottom: -14px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  pointer-events: auto;
+  animation: nex-peek-in 0.5s var(--ease-out);
+}
+
+.nex-bubble {
+  position: relative;
+  max-width: 280px;
+  margin-bottom: 64px;
+  padding: 10px 28px 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 4px 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.06), 0 10px 28px rgb(0 0 0 / 0.18);
+  pointer-events: auto;
+  animation: nex-bubble-in 0.35s var(--ease-out) 0.2s backwards;
+}
+
+.nex-bubble p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.nex-corner-success .nex-bubble {
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+}
+
+.nex-corner-error .nex-bubble {
+  border-color: var(--bad-border);
+}
+
+.nex-bubble-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.nex-bubble-close:hover {
+  background: var(--nav-hover);
+  color: var(--text);
+}
+
+@keyframes nex-peek-in {
+  from {
+    transform: translateY(110%);
+  }
+}
+
+@keyframes nex-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nex-peek,
+  .nex-bubble {
+    animation: none;
+  }
+}
+
+.set-update-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 /* Asking before a MySQL switch */
 .ver-confirm {
   display: grid;

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
+import { nexCelebrate, nexOops, nexSay } from "../lib/nex";
 import { readable, type LogLevel } from "../lib/logs";
 import { missingComponents, type MissingPart } from "../lib/versions";
 import {
@@ -78,8 +79,21 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
         for (const id of ids) delete next[id];
         return next;
       });
-      await refresh();
+      const now = await listServices().catch(() => null);
+      if (now) setServices(now);
+      else await refresh();
       setActionCount((n) => n + 1);
+      if (now) {
+        const touched = now.filter((s) => ids.includes(s.id));
+        const failed = touched.filter((s) => s.state === "failed");
+        if (failed.length > 0) {
+          nexOops(`${failed.map((s) => s.name).join(" and ")} couldn't start. The reason is under the services list.`);
+        } else if (kind === "starting" && touched.every((s) => s.state === "running")) {
+          nexCelebrate(ids.length > 1 ? "Everything's running! Your sites are live." : `${touched[0]?.name ?? "It"} is running!`);
+        } else if (kind === "stopping" && ids.length > 1) {
+          nexSay("sleeping", "Everything's stopped. I'll nap until you need me.");
+        }
+      }
     }
   }
 

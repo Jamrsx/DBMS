@@ -14,6 +14,7 @@ import {
 } from "../lib/backups";
 import { dbNameProblem, formatSize } from "../lib/db";
 import { Nex } from "../components/Nex";
+import { nexCelebrate } from "../lib/nex";
 
 type Pending =
   | { kind: "restore"; file: BackupFile; target: string }
@@ -48,7 +49,9 @@ export function Backups({
     setBusy(label);
     setMessage(null);
     try {
-      setMessage({ ok: true, text: await work() });
+      const text = await work();
+      setMessage({ ok: true, text });
+      nexCelebrate(text);
       setPending(null);
       onChanged();
     } catch (e) {

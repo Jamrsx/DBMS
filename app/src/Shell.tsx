@@ -13,6 +13,8 @@ import { BrandMark } from "./components/BrandMark";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { UpdateNotice } from "./components/UpdateNotice";
 import { startUpdateChecks, useUpdates } from "./lib/updates";
+import { NexCorner } from "./components/NexCorner";
+import { nexGreet } from "./lib/nex";
 import { Dashboard } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
@@ -48,6 +50,7 @@ export function Shell() {
   const updateReady = updates.state.kind === "available";
 
   useEffect(startUpdateChecks, []);
+  useEffect(nexGreet, []);
 
   function toggle() {
     const next = !collapsed;
@@ -136,6 +139,7 @@ export function Shell() {
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
+      <NexCorner />
     </div>
   );
 }
