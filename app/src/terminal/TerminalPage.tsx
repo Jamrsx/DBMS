@@ -1,125 +1,63 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Terminal } from "@xterm/xterm";
-import { FitAddon } from "@xterm/addon-fit";
-import "@xterm/xterm/css/xterm.css";
+import { useEffect, useRef, useState } from "react";
+import { Plus, SquareTerminal, X } from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
-import {
-  closeTerminal,
-  onTerminalExit,
-  onTerminalOutput,
-  openTerminal,
-  resizeTerminal,
-  writeTerminal,
-} from "../lib/terminal";
+import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
 
-/** Colours come from the app's own tokens, so the terminal follows the light/dark theme. */
-function themeFromTokens() {
-  const css = getComputedStyle(document.documentElement);
-  const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
-  return {
-    background: v("--surface", "#ffffff"),
-    foreground: v("--text", "#1b1f27"),
-    cursor: v("--accent", "#2563eb"),
-    selectionBackground: v("--accent-soft", "#bfdbfe"),
-  };
+interface Tab {
+  key: number;
+  name: string;
+  state: SessionState;
+  restart: number;
 }
 
 export function TerminalPage({ active }: { active: boolean }) {
-  const host = useRef<HTMLDivElement>(null);
-  const term = useRef<Terminal | null>(null);
-  const fit = useRef<FitAddon | null>(null);
-  const session = useRef<number | null>(null);
-  const [state, setState] = useState<"starting" | "open" | "closed">("starting");
-  const [error, setError] = useState<string | null>(null);
+  const count = useRef(1);
+  const [tabs, setTabs] = useState<Tab[]>([{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }]);
+  const [current, setCurrent] = useState(1);
+  const [editing, setEditing] = useState<number | null>(null);
 
-  const refit = useCallback(() => {
-    const t = term.current;
-    const f = fit.current;
-    if (!t || !f || !host.current || host.current.offsetParent === null) return;
-    f.fit();
-    if (session.current !== null) void resizeTerminal(session.current, t.cols, t.rows).catch(() => {});
-  }, []);
+  const shown = tabs.find((t) => t.key === current) ?? tabs[0];
+  const update = (key: number, change: Partial<Tab>) =>
+    setTabs((all) => all.map((t) => (t.key === key ? { ...t, ...change } : t)));
 
-  const start = useCallback(async () => {
-    const t = term.current;
-    if (!t) return;
-    setError(null);
-    setState("starting");
-    try {
-      if (session.current !== null) {
-        const old = session.current;
-        session.current = null;
-        await closeTerminal(old);
-      }
-      t.clear();
-      session.current = await openTerminal(t.cols, t.rows);
-      setState("open");
-      t.focus();
-    } catch (e) {
-      setError(String(e));
-      setState("closed");
-    }
-  }, []);
+  function add() {
+    const key = ++count.current;
+    setTabs((all) => [...all, { key, name: `Terminal ${key}`, state: "starting", restart: 0 }]);
+    setCurrent(key);
+  }
 
+  function close(key: number) {
+    const i = tabs.findIndex((t) => t.key === key);
+    const rest = tabs.filter((t) => t.key !== key);
+    setTabs(rest);
+    if (key === current && rest.length) setCurrent(rest[Math.min(i, rest.length - 1)].key);
+  }
+
+  function rename(key: number, name: string) {
+    const clean = name.trim();
+    if (clean) update(key, { name: clean.slice(0, 40) });
+    setEditing(null);
+  }
+
+  // Ctrl+Shift+T opens, Ctrl+Shift+W closes, Ctrl+Tab and Ctrl+Shift+Tab switch.
+  const keys = useRef({ add, close, tabs, current });
+  keys.current = { add, close, tabs, current };
   useEffect(() => {
-    if (!inDesktopApp || !host.current) return;
-    const t = new Terminal({
-      fontFamily: '"Cascadia Mono", Consolas, monospace',
-      fontSize: 13,
-      cursorBlink: true,
-      scrollback: 5000,
-      theme: themeFromTokens(),
-    });
-    const f = new FitAddon();
-    t.loadAddon(f);
-    t.open(host.current);
-    term.current = t;
-    fit.current = f;
-
-    const data = t.onData((d) => {
-      if (session.current !== null) void writeTerminal(session.current, d).catch(() => {});
-    });
-    const unlisten = [
-      onTerminalOutput((id, text) => {
-        if (id === session.current) t.write(text);
-      }),
-      onTerminalExit((id) => {
-        if (id === session.current) {
-          session.current = null;
-          setState("closed");
-        }
-      }),
-    ];
-
-    const retheme = () => {
-      t.options.theme = themeFromTokens();
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!isTabShortcut(e)) return;
+      e.preventDefault();
+      const { add, close, tabs, current } = keys.current;
+      if (e.key === "Tab") {
+        if (tabs.length < 2) return;
+        const i = tabs.findIndex((t) => t.key === current);
+        setCurrent(tabs[(i + (e.shiftKey ? -1 : 1) + tabs.length) % tabs.length].key);
+      } else if (e.key.toLowerCase() === "t") add();
+      else if (tabs.length) close(current);
     };
-    const mo = new MutationObserver(retheme);
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-    const mq = matchMedia("(prefers-color-scheme: dark)");
-    mq.addEventListener("change", retheme);
-    const ro = new ResizeObserver(refit);
-    ro.observe(host.current);
-
-    void start();
-
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      mq.removeEventListener("change", retheme);
-      data.dispose();
-      unlisten.forEach((u) => void u.then((fn) => fn()));
-      if (session.current !== null) void closeTerminal(session.current);
-      t.dispose();
-    };
-  }, [refit, start]);
-
-  useEffect(() => {
-    if (active) {
-      refit();
-      term.current?.focus();
-    }
-  }, [active, refit]);
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [active]);
 
   return (
     <main className="panel">
@@ -130,27 +68,92 @@ export function TerminalPage({ active }: { active: boolean }) {
             PowerShell in your projects folder, with NexDB's PHP, Composer, Node and MySQL ready to use.
           </p>
         </div>
-        <div className="dash-actions">
-          <button className="btn" onClick={start} disabled={state === "starting" || !inDesktopApp}>
-            {state === "closed" ? "Start a new session" : "Restart"}
-          </button>
-        </div>
+        {shown && (
+          <div className="dash-actions">
+            <button
+              className="btn"
+              onClick={() => update(shown.key, { restart: shown.restart + 1 })}
+              disabled={shown.state === "starting" || !inDesktopApp}
+            >
+              {shown.state === "closed" ? "Start a new session" : "Restart"}
+            </button>
+          </div>
+        )}
       </header>
       <div className="panel-body terminal-body">
-        {!inDesktopApp ? (
+        <div className="term-tabs">
+          <div className="term-tablist" role="tablist" aria-label="Terminals">
+            {tabs.map((t) => {
+              const selected = t.key === shown?.key;
+              return (
+                <div key={t.key} className="term-tab" data-selected={selected || undefined}>
+                  {editing === t.key ? (
+                    <input
+                      className="term-tab-input"
+                      defaultValue={t.name}
+                      aria-label="Terminal name"
+                      maxLength={40}
+                      autoFocus
+                      spellCheck={false}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onBlur={(e) => rename(t.key, e.currentTarget.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") rename(t.key, e.currentTarget.value);
+                        if (e.key === "Escape") setEditing(null);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      role="tab"
+                      aria-selected={selected}
+                      className="term-tab-name"
+                      title={`${t.name}. Double-click or press F2 to rename.`}
+                      onClick={() => setCurrent(t.key)}
+                      onDoubleClick={() => setEditing(t.key)}
+                      onKeyDown={(e) => e.key === "F2" && setEditing(t.key)}
+                      onAuxClick={(e) => e.button === 1 && close(t.key)}
+                    >
+                      <SquareTerminal size={14} aria-hidden="true" />
+                      <span className={t.state === "closed" ? "term-tab-label ended" : "term-tab-label"}>{t.name}</span>
+                    </button>
+                  )}
+                  <button
+                    className="term-tab-close"
+                    aria-label={`Close ${t.name}`}
+                    title="Close (Ctrl+Shift+W)"
+                    onClick={() => close(t.key)}
+                  >
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <button className="term-tab-add" aria-label="New terminal" title="New terminal (Ctrl+Shift+T)" onClick={add}>
+            <Plus size={15} aria-hidden="true" />
+          </button>
+        </div>
+
+        {tabs.length === 0 ? (
+          <div className="terminal-empty">
+            <p>No terminals are open.</p>
+            <button className="btn btn-primary" onClick={add}>
+              <Plus size={14} aria-hidden="true" /> New terminal
+            </button>
+          </div>
+        ) : !inDesktopApp ? (
           <p className="notice" role="note">
             The terminal is only available in the desktop app.
           </p>
         ) : (
-          <>
-            {error && (
-              <div className="error-box" role="alert">
-                <p>{error}</p>
-              </div>
-            )}
-            <div className="terminal-host" ref={host} />
-            {state === "closed" && !error && <p className="terminal-note">The session ended.</p>}
-          </>
+          tabs.map((t) => (
+            <TerminalView
+              key={t.key}
+              active={active && t.key === shown?.key}
+              restartToken={t.restart}
+              onState={(state) => update(t.key, { state })}
+            />
+          ))
         )}
       </div>
     </main>
