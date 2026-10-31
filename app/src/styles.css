@@ -1850,6 +1850,10 @@ button.nav-item:hover:not(.current) {
   gap: 10px;
 }
 
+.confirm-delete .backup-first {
+  flex-basis: 100%;
+}
+
 .btn-danger {
   background: var(--bad);
   border-color: var(--bad);
@@ -3107,6 +3111,87 @@ h1 {
 
 .term-tab[data-selected] {
   box-shadow: var(--shadow-sm);
+}
+
+/* A terminal in its own window: the panel fills it edge to edge. */
+.terminal-window {
+  display: flex;
+  height: 100%;
+  background: var(--surface);
+}
+
+.terminal-window .panel {
+  flex: 1;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.terminal-window .panel-head {
+  padding: 16px 20px 0;
+}
+
+.terminal-window h1 {
+  font-size: 18px;
+}
+
+.terminal-window .panel-body {
+  padding: 12px 20px 16px;
+}
+
+.terminal-window .panel-body > * {
+  max-width: none;
+}
+
+/* Asking before a MySQL switch */
+.ver-confirm {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.ver-confirm p {
+  margin: 0;
+}
+
+.ver-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Automatic backups in Settings */
+.field select {
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 14px var(--font);
+}
+
+.field select:focus-visible {
+  border-color: var(--accent);
+}
+
+.set-auto {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.set-auto .field {
+  min-width: 160px;
+}
+
+.tag-auto {
+  margin-left: 8px;
+  vertical-align: 1px;
 }
 
 /* HTTPS trust state in Settings */

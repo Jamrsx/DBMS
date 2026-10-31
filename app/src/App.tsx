@@ -1,12 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
+import { TerminalPage } from "./terminal/TerminalPage";
 import { markPreviewInstalled, setupInfo } from "./lib/services";
 
 type View = "loading" | "setup" | "dashboard";
 
 /** Opens the app when an install exists, otherwise the setup wizard. */
+/** Set on a terminal window opened from the Terminal page. */
+const terminalWindow = new URLSearchParams(location.search).get("view") === "terminal";
+
 export default function App() {
+  if (terminalWindow) {
+    return (
+      <div className="terminal-window">
+        <TerminalPage active standalone />
+      </div>
+    );
+  }
+  return <MainApp />;
+}
+
+function MainApp() {
   const [view, setView] = useState<View>("loading");
   const [repairRoot, setRepairRoot] = useState<string | null>(null);
 

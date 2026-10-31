@@ -15,6 +15,8 @@ use tauri::{AppHandle, Emitter};
 use crate::settings::Settings;
 
 struct Session {
+    /// Label of the window the session belongs to; it closes with that window.
+    owner: String,
     writer: Box<dyn Write + Send>,
     master: Box<dyn MasterPty + Send>,
     child: Box<dyn portable_pty::Child + Send + Sync>,
@@ -97,7 +99,7 @@ fn shell_command(root: &Path, settings: &Settings, extra: &[&str]) -> CommandBui
 }
 
 impl Terminals {
-    pub fn open(&self, app: &AppHandle, root: &Path, settings: &Settings, cols: u16, rows: u16) -> Result<u32, String> {
+    pub fn open(&self, app: &AppHandle, owner: &str, root: &Path, settings: &Settings, cols: u16, rows: u16) -> Result<u32, String> {
         let pair = native_pty_system()
             .openpty(PtySize { rows: rows.max(2), cols: cols.max(10), pixel_width: 0, pixel_height: 0 })
             .map_err(|e| format!("Couldn't open a terminal: {e}"))?;
@@ -131,7 +133,7 @@ impl Terminals {
             let _ = app.emit("terminal-exit", Exited { id });
         });
 
-        self.sessions.lock().unwrap().insert(id, Session { writer, master: pair.master, child });
+        self.sessions.lock().unwrap().insert(id, Session { owner: owner.to_string(), writer, master: pair.master, child });
         Ok(id)
     }
 
@@ -152,6 +154,15 @@ impl Terminals {
     pub fn close(&self, id: u32) {
         if let Some(mut s) = self.sessions.lock().unwrap().remove(&id) {
             let _ = s.child.kill();
+        }
+    }
+
+    /// Closes every session a window opened, when that window goes away.
+    pub fn close_owner(&self, owner: &str) {
+        let ids: Vec<u32> =
+            self.sessions.lock().unwrap().iter().filter(|(_, s)| s.owner == owner).map(|(id, _)| *id).collect();
+        for id in ids {
+            self.close(id);
         }
     }
 

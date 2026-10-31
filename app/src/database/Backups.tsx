@@ -156,7 +156,14 @@ export function Backups({
           <tbody>
             {files.map((f) => (
               <tr key={f.name}>
-                <td title={f.name}>{f.database ?? f.name}</td>
+                <td title={f.name}>
+                  {f.database ?? f.name}
+                  {f.auto && (
+                    <span className="kind tag-auto" title="Made by the automatic schedule in Settings">
+                      Automatic
+                    </span>
+                  )}
+                </td>
                 <td>{formatWhen(f.created)}</td>
                 <td className="num">{formatSize(f.size_bytes)}</td>
                 <td className="backups-row-actions">

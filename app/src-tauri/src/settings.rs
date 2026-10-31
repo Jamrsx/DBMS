@@ -47,12 +47,32 @@ pub struct Preferences {
     pub https: bool,
     #[serde(default = "default_https_port")]
     pub https_port: u16,
+    /// Automatic database backups: "off", "daily" or "weekly".
+    #[serde(default = "default_auto_backup")]
+    pub auto_backup: String,
+    /// How many automatic backups to keep per database.
+    #[serde(default = "default_auto_backup_keep")]
+    pub auto_backup_keep: u32,
 }
 
 impl Default for Preferences {
     fn default() -> Self {
-        Self { start_services_on_launch: false, https: false, https_port: default_https_port() }
+        Self {
+            start_services_on_launch: false,
+            https: false,
+            https_port: default_https_port(),
+            auto_backup: default_auto_backup(),
+            auto_backup_keep: default_auto_backup_keep(),
+        }
     }
+}
+
+fn default_auto_backup() -> String {
+    "off".into()
+}
+
+fn default_auto_backup_keep() -> u32 {
+    7
 }
 
 fn default_https_port() -> u16 {

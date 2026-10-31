@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CheckCircle2, Download, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
+import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
 import { StartupToggle } from "../components/StartupToggle";
 import {
   getAppSettings,
@@ -48,6 +49,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             <StartupCard settings={settings} onChanged={load} />
             <PortsCard settings={settings} onSaved={load} />
             <HttpsCard active={active} />
+            <AutoBackupCard active={active} />
             <FoldersCard settings={settings} />
             <UpdatesCard version={settings.app_version} />
           </>
@@ -64,6 +66,90 @@ function Card({ title, lede, children }: { title: string; lede?: string; childre
       {lede && <p className="set-lede">{lede}</p>}
       {children}
     </section>
+  );
+}
+
+function AutoBackupCard({ active }: { active: boolean }) {
+  const [info, setInfo] = useState<AutoBackup | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    getAutoBackup()
+      .then(setInfo)
+      .catch((e) => setError(String(e)));
+  }, []);
+
+  useEffect(() => {
+    if (active) load();
+  }, [active, load]);
+
+  async function save(schedule: AutoBackup["schedule"], keep: number) {
+    setError(null);
+    try {
+      await setAutoBackup(schedule, keep);
+    } catch (e) {
+      setError(String(e));
+    }
+    load();
+  }
+
+  if (!info) return null;
+  const on = info.schedule !== "off";
+  return (
+    <Card
+      title="Automatic backups"
+      lede="NexDB backs up all your databases on a schedule while it's open, into the same backups folder as the ones you make."
+    >
+      <div className="set-rows">
+        <div className="set-auto">
+          <label className="field">
+            <span className="field-label">Back up</span>
+            <select
+              className="input"
+              value={info.schedule}
+              onChange={(e) => void save(e.target.value as AutoBackup["schedule"], info.keep)}
+            >
+              <option value="off">Never</option>
+              <option value="daily">Every day</option>
+              <option value="weekly">Every week</option>
+            </select>
+          </label>
+          <label className="field">
+            <span className="field-label">Keep the newest</span>
+            <input
+              className="input input-short"
+              type="number"
+              min={1}
+              max={90}
+              value={info.keep}
+              disabled={!on}
+              onChange={(e) => setInfo({ ...info, keep: Number(e.target.value) || 1 })}
+              onBlur={() => void save(info.schedule, info.keep)}
+            />
+          </label>
+        </div>
+        {on && (
+          <p className="field-hint">
+            Older automatic backups of each database are deleted once there are more than {info.keep}. Backups you make
+            yourself are never deleted.
+          </p>
+        )}
+        {on && (
+          <p className={info.problem ? "field-warn" : "field-hint"} role="status">
+            {info.problem
+              ? info.problem
+              : info.last_ok
+                ? `Last automatic backup: ${formatWhen(info.last_ok)} (${info.last_count} ${info.last_count === 1 ? "database" : "databases"}).`
+                : "The first automatic backup runs within a few minutes while MySQL is running."}
+          </p>
+        )}
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    </Card>
   );
 }
 

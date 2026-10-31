@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, ArrowUpCircle, Download } from "lucide-react";
+import { createBackup } from "../lib/backups";
 import {
   formatMb,
   installVersion,
@@ -132,6 +133,10 @@ function ComponentCard({
   const others = c.available.filter((a) => !a.installed);
   const hintInstalled = c.hint && c.installed.some((i) => i.version === c.hint!.version);
   const toolToInstall = c.kind === "tool" && !c.active ? c.available[0] : null;
+  const [confirmSwitch, setConfirmSwitch] = useState<{ version: string; what: Action } | null>(null);
+  // Switching MySQL asks first and offers a backup; everything else runs straight away.
+  const ask = (version: string, what: Action) =>
+    c.id === "mysql" && (what === "use" || what === "update") ? setConfirmSwitch({ version, what }) : onRun(c, version, what);
 
   return (
     <section className="set-card ver-card" aria-labelledby={`ver-${c.id}`}>
@@ -183,12 +188,24 @@ function ComponentCard({
             <button
               className="btn btn-primary"
               disabled={locked}
-              onClick={() => onRun(c, c.hint!.version, hintInstalled ? "use" : "update")}
+              onClick={() => ask(c.hint!.version, hintInstalled ? "use" : "update")}
             >
               {hintInstalled ? `Use ${c.hint.version}` : `Update to ${c.hint.version}`}
             </button>
           )}
         </div>
+      )}
+
+      {confirmSwitch && (
+        <SwitchConfirm
+          name={c.name}
+          version={confirmSwitch.version}
+          onCancel={() => setConfirmSwitch(null)}
+          onSwitch={() => {
+            onRun(c, confirmSwitch.version, confirmSwitch.what);
+            setConfirmSwitch(null);
+          }}
+        />
       )}
 
       {mine && (
@@ -221,7 +238,7 @@ function ComponentCard({
                 </span>
               ) : (
                 <span className="ver-actions">
-                  <button className="btn btn-small" disabled={locked} onClick={() => onRun(c, i.version, "use")}>
+                  <button className="btn btn-small" disabled={locked} onClick={() => ask(i.version, "use")}>
                     Use this
                   </button>
                   <button className="btn btn-small" disabled={locked} onClick={() => setConfirmRemove(i.version)}>
@@ -295,6 +312,80 @@ function Progress({ name, busy }: { name: string; busy: NonNullable<Busy> }) {
           <span className="bar-fill" style={{ width: `${busy.percent ?? 30}%` }} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** Asks before switching MySQL, with a backup of every database ticked by default. */
+function SwitchConfirm({
+  name,
+  version,
+  onCancel,
+  onSwitch,
+}: {
+  name: string;
+  version: string;
+  onCancel: () => void;
+  onSwitch: () => void;
+}) {
+  const [backupFirst, setBackupFirst] = useState(true);
+  const [working, setWorking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function go() {
+    setError(null);
+    if (backupFirst) {
+      setWorking(true);
+      try {
+        await createBackup(null);
+      } catch (e) {
+        const text = String(e);
+        // Nothing of the user's own to lose: go ahead.
+        if (!/no databases of your own/i.test(text)) {
+          setWorking(false);
+          setError(
+            /NOT_CONNECTED|NEEDS_PASSWORD/.test(text)
+              ? "NexDB needs to be connected to MySQL to back up. Open the Database page and connect, then try again."
+              : `The backup didn't work, so nothing was switched. ${text}`,
+          );
+          return;
+        }
+      }
+      setWorking(false);
+    }
+    onSwitch();
+  }
+
+  return (
+    <div className="ver-confirm" role="group" aria-label={`Switch ${name} to ${version}`}>
+      <p>
+        <strong>
+          Switch {name} to {version}?
+        </strong>{" "}
+        Your databases stay where they are. {name} stops for a moment and starts again with the new version.
+      </p>
+      <label className="set-check">
+        <input type="checkbox" checked={backupFirst} disabled={working} onChange={(e) => setBackupFirst(e.target.checked)} />
+        <span>Back up all my databases first (recommended)</span>
+      </label>
+      {working && (
+        <p className="field-hint" role="status">
+          Backing up your databases…
+        </p>
+      )}
+      {error && (
+        <p className="field-error" role="alert">
+          {error} You can also untick the box to switch without a backup.
+        </p>
+      )}
+      <div className="ver-confirm-actions">
+        <button className="btn" disabled={working} onClick={onCancel}>
+          Cancel
+        </button>
+        <button className="btn btn-primary" disabled={working} onClick={() => void go()}>
+          Switch to {version}
+        </button>
+      </div>
     </div>
   );
 }

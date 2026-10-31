@@ -22,6 +22,7 @@ import {
 import { inDesktopApp } from "../lib/scan";
 import { PhpMyAdmin } from "./PhpMyAdmin";
 import { Backups } from "./Backups";
+import { createBackup } from "../lib/backups";
 
 type Tab = "browse" | "structure" | "sql" | "backups";
 const PAGE_SIZE = 50;
@@ -402,6 +403,8 @@ function Overview({
   const [confirming, setConfirming] = useState(false);
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [backupFirst, setBackupFirst] = useState(true);
+  const [working, setWorking] = useState<string | null>(null);
 
   return (
     <div className="db-overview">
@@ -448,11 +451,23 @@ function Overview({
               className="confirm-delete"
               onSubmit={async (e) => {
                 e.preventDefault();
+                setError(null);
                 try {
+                  if (backupFirst) {
+                    setWorking(`Backing up ${db}…`);
+                    try {
+                      await createBackup(db);
+                    } catch (err) {
+                      throw `The backup didn't work, so nothing was deleted. ${err} Untick “Back up first” to delete without one.`;
+                    }
+                  }
+                  setWorking(`Deleting ${db}…`);
                   await dbDrop(db);
                   await onDropped();
                 } catch (err) {
                   setError(String(err));
+                } finally {
+                  setWorking(null);
                 }
               }}
             >
@@ -465,7 +480,16 @@ function Overview({
               <button className="btn" type="button" onClick={() => { setConfirming(false); setTyped(""); }}>
                 Cancel
               </button>
-              <button className="btn btn-danger" type="submit" disabled={typed !== db}>
+              <label className="set-check backup-first">
+                <input type="checkbox" checked={backupFirst} onChange={(e) => setBackupFirst(e.target.checked)} />
+                <span>Back up {db} first (recommended)</span>
+              </label>
+              {working && (
+                <p className="field-hint" role="status">
+                  {working}
+                </p>
+              )}
+              <button className="btn btn-danger" type="submit" disabled={typed !== db || !!working}>
                 Delete forever
               </button>
               {error && (

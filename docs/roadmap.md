@@ -60,11 +60,15 @@ HTTPS for `.test` sites:
 - Settings: remove the certificate authority from Windows (clean uninstall).
 - Real test: `https://<name>.test` answers with a certificate Windows trusts.
 
-### 0.2.4: Back up before risky changes
+### 0.2.4: Back up before risky changes, and a better terminal
 
 - Switching or updating MySQL offers "Back up all databases first" (checked by default).
-- Dropping a database or table in the Database page offers a backup first.
+- Deleting a database in the Database page offers a backup first.
 - Scheduled backups in Settings: off, daily or weekly, keeping the last N.
+- Terminal: open it in its own resizable window; links (like `php artisan serve`'s address)
+  are clickable; Ctrl+C copies a selection (and only stops the command when nothing is
+  selected), Ctrl+V pastes.
+- PHP warnings in the terminal print once instead of twice.
 
 ### 0.2.5: Quick-start projects
 

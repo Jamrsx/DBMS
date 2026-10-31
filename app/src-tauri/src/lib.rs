@@ -1,4 +1,5 @@
 mod admin;
+mod autobackup;
 mod backup;
 mod catalog;
 mod configure;
@@ -208,13 +209,21 @@ pub fn run() {
             if !std::env::args().any(|a| a == tray::TRAY_ARG) {
                 tray::show_window(app.handle());
             }
+            autobackup::spawn(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Closing the window keeps NexDB and its services running in the tray.
-            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+            match event {
+                // Closing the main window keeps NexDB and its services running in the tray.
+                tauri::WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+                // A closed terminal window takes its PowerShell sessions with it.
+                tauri::WindowEvent::Destroyed => {
+                    window.state::<terminal::Terminals>().close_owner(window.label());
+                }
+                _ => {}
             }
         })
         .manage(Stack::default())
@@ -239,6 +248,8 @@ pub fn run() {
             https_status,
             set_https,
             https_trust,
+            auto_backup_status,
+            set_auto_backup,
             versions_overview,
             missing_components,
             backups_list,
@@ -258,6 +269,7 @@ pub fn run() {
             projects_sync_hosts,
             project_open,
             terminal_open,
+            terminal_window,
             terminal_write,
             terminal_resize,
             terminal_close,
@@ -400,13 +412,30 @@ fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String,
 #[tauri::command]
 fn terminal_open(
     app: tauri::AppHandle,
+    window: tauri::Window,
     stack: tauri::State<Stack>,
     terminals: tauri::State<terminal::Terminals>,
     cols: u16,
     rows: u16,
 ) -> Result<u32, String> {
     let (root, settings, _) = stack.get()?;
-    terminals.open(&app, &root, &settings, cols, rows)
+    terminals.open(&app, window.label(), &root, &settings, cols, rows)
+}
+
+/// Opens the terminal in a window of its own, which can be moved and resized freely.
+#[tauri::command]
+fn terminal_window(app: tauri::AppHandle) -> Result<(), String> {
+    static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    tauri::WebviewWindowBuilder::new(&app, format!("terminal-{n}"), tauri::WebviewUrl::App("index.html?view=terminal".into()))
+        .title("NexDB Terminal")
+        .inner_size(960.0, 600.0)
+        .min_inner_size(520.0, 320.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map(|_| ())
+        .map_err(|e| format!("Couldn't open a terminal window: {e}"))
 }
 
 #[tauri::command]
@@ -735,6 +764,44 @@ async fn https_trust() -> Result<bool, String> {
 }
 
 #[derive(serde::Serialize)]
+struct AutoBackupInfo {
+    schedule: String,
+    keep: u32,
+    #[serde(flatten)]
+    status: autobackup::Status,
+}
+
+#[tauri::command]
+fn auto_backup_status(stack: tauri::State<Stack>) -> Result<AutoBackupInfo, String> {
+    let (root, settings, _) = stack.get()?;
+    Ok(AutoBackupInfo {
+        schedule: settings.preferences.auto_backup.clone(),
+        keep: settings.preferences.auto_backup_keep,
+        status: autobackup::load_status(&root),
+    })
+}
+
+/// Saves the backup schedule; the background check picks it up within minutes.
+#[tauri::command]
+fn set_auto_backup(stack: tauri::State<Stack>, schedule: String, keep: u32) -> Result<(), String> {
+    if autobackup::interval(&schedule).is_none() && schedule != "off" {
+        return Err("Pick off, every day or every week.".into());
+    }
+    let keep = keep.clamp(1, 90);
+    let (root, _, _) = stack.get()?;
+    settings::edit(&root, |v| {
+        v["preferences"]["auto_backup"] = schedule.clone().into();
+        v["preferences"]["auto_backup_keep"] = keep.into();
+        Ok(())
+    })?;
+    if let Some(loaded) = stack.current.lock().unwrap().as_mut() {
+        loaded.settings.preferences.auto_backup = schedule;
+        loaded.settings.preferences.auto_backup_keep = keep;
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
 struct VersionsInfo {
     /// When the bundled list of versions was made.
     catalog_date: String,
@@ -926,7 +993,7 @@ async fn backup_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::
         if names.is_empty() {
             return Err("There are no databases of your own to back up yet.".into());
         }
-        names.iter().map(|n| backup::export(&bin, &root, port, password.as_deref(), n)).collect()
+        names.iter().map(|n| backup::export(&bin, &root, port, password.as_deref(), n, false)).collect()
     })
     .await
 }

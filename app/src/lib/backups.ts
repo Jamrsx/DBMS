@@ -8,6 +8,30 @@ export interface BackupFile {
   /** Seconds since 1970. */
   created: number;
   path: string;
+  /** Made by the automatic schedule; only these are ever cleaned up. */
+  auto: boolean;
+}
+
+export interface AutoBackup {
+  schedule: "off" | "daily" | "weekly";
+  keep: number;
+  /** Seconds since 1970 of the last good automatic run. */
+  last_ok: number | null;
+  last_count: number;
+  /** Why the latest attempt didn't back up, in plain words. */
+  problem: string | null;
+}
+
+const previewAuto: AutoBackup = { schedule: "off", keep: 7, last_ok: null, last_count: 0, problem: null };
+
+export async function getAutoBackup(): Promise<AutoBackup> {
+  if (inDesktopApp) return invoke<AutoBackup>("auto_backup_status");
+  return { ...previewAuto };
+}
+
+export async function setAutoBackup(schedule: AutoBackup["schedule"], keep: number): Promise<void> {
+  if (inDesktopApp) return invoke("set_auto_backup", { schedule, keep });
+  Object.assign(previewAuto, { schedule, keep });
 }
 
 export async function listBackups(): Promise<BackupFile[]> {
@@ -66,7 +90,7 @@ function fake(db: string, created: number): BackupFile {
   const p = (n: number) => String(n).padStart(2, "0");
   const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
   const name = `${db}__${stamp}.sql`;
-  return { name, database: db, size_bytes: 48_000 + db.length * 1000, created, path: `C:\\NexDB\\backups\\${name}` };
+  return { name, database: db, size_bytes: 48_000 + db.length * 1000, created, path: `C:\\NexDB\\backups\\${name}`, auto: false };
 }
 
 let preview: BackupFile[] = [fake("shop", Date.now() / 1000 - 86_400 * 2), fake("blog", Date.now() / 1000 - 3600)];

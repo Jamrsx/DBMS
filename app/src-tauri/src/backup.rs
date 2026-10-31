@@ -19,7 +19,11 @@ pub struct BackupFile {
     /// Seconds since 1970, when the file was written.
     pub created: u64,
     pub path: String,
+    /// Made by the automatic schedule (`…__auto.sql`); only these are ever cleaned up.
+    pub auto: bool,
 }
+
+const AUTO_SUFFIX: &str = "__auto.sql";
 
 pub fn backups_dir(root: &Path) -> PathBuf {
     root.join("backups")
@@ -53,7 +57,8 @@ pub fn list(root: &Path) -> Vec<BackupFile> {
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
-            Some(BackupFile { name, database, size_bytes: meta.len(), created, path: e.path().display().to_string() })
+            let auto = name.to_ascii_lowercase().ends_with(AUTO_SUFFIX);
+            Some(BackupFile { name, database, size_bytes: meta.len(), created, path: e.path().display().to_string(), auto })
         })
         .collect();
     files.sort_by(|a, b| b.created.cmp(&a.created).then(b.name.cmp(&a.name)));
@@ -118,14 +123,35 @@ fn mysql_error(stderr: &str) -> String {
     line.to_string()
 }
 
-/// Writes `database` to a new `.sql` file in the backups folder.
-pub fn export(mysql_bin: &Path, root: &Path, port: u16, password: Option<&str>, database: &str) -> Result<BackupFile, String> {
+/// Deletes all but the newest `keep` automatic backups of `database`. Backups the user made
+/// are never touched. Returns how many files were removed.
+pub fn prune_auto(root: &Path, database: &str, keep: usize) -> usize {
+    list(root)
+        .into_iter()
+        .filter(|b| b.auto && b.database.as_deref() == Some(database))
+        .skip(keep)
+        .filter(|b| fs::remove_file(&b.path).is_ok())
+        .count()
+}
+
+/// Writes `database` to a new `.sql` file in the backups folder; `auto` marks it as made by
+/// the schedule.
+pub fn export(
+    mysql_bin: &Path,
+    root: &Path,
+    port: u16,
+    password: Option<&str>,
+    database: &str,
+    auto: bool,
+) -> Result<BackupFile, String> {
     if !valid_name(database) {
         return Err(format!("\"{database}\" can't be backed up from here."));
     }
     let dir = backups_dir(root);
     fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the backups folder: {e}"))?;
-    let target = dir.join(file_name(database, &now_stamp()));
+    let name = file_name(database, &now_stamp());
+    let name = if auto { name.replace(".sql", AUTO_SUFFIX) } else { name };
+    let target = dir.join(name);
     let partial = target.with_extension("sql.part");
     let options = ClientOptions::new(root, port, password)?;
     let out = hidden(
@@ -203,6 +229,28 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pruning_keeps_the_newest_automatic_backups_and_never_the_users_own() {
+        let dir = tempfile::tempdir().unwrap();
+        let backups = backups_dir(dir.path());
+        fs::create_dir_all(&backups).unwrap();
+        for day in 1..=5 {
+            fs::write(backups.join(format!("shop__2026-10-0{day}_09-00-00__auto.sql")), "a").unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(15));
+        }
+        fs::write(backups.join("shop__2026-10-01_10-00-00.sql"), "mine").unwrap();
+        fs::write(backups.join("blog__2026-10-01_09-00-00__auto.sql"), "other db").unwrap();
+
+        assert_eq!(prune_auto(dir.path(), "shop", 2), 3);
+        let left: Vec<String> = list(dir.path()).into_iter().map(|b| b.name).collect();
+        assert!(left.contains(&"shop__2026-10-05_09-00-00__auto.sql".to_string()));
+        assert!(left.contains(&"shop__2026-10-04_09-00-00__auto.sql".to_string()));
+        assert!(!left.contains(&"shop__2026-10-03_09-00-00__auto.sql".to_string()));
+        assert!(left.contains(&"shop__2026-10-01_10-00-00.sql".to_string()), "the user's own backup stays");
+        assert!(left.contains(&"blog__2026-10-01_09-00-00__auto.sql".to_string()), "other databases untouched");
+        assert!(list(dir.path()).iter().find(|b| b.name.starts_with("blog")).unwrap().auto);
+    }
+
+    #[test]
     fn lists_backups_newest_first_and_reads_the_database() {
         let dir = tempfile::tempdir().unwrap();
         let backups = backups_dir(dir.path());
@@ -269,7 +317,7 @@ mod tests {
             INSERT INTO items VALUES (1,'Café ☕','line1\nline2'),(2,'O''Brien',NULL),(3,'emoji 🎉','x');").unwrap();
 
         let bin = mysql_dir.join("bin");
-        let made = export(&bin, root, port, db.password().as_deref(), "shop").unwrap();
+        let made = export(&bin, root, port, db.password().as_deref(), "shop", false).unwrap();
         println!("backup: {} ({} bytes)", made.name, made.size_bytes);
         assert_eq!(made.database.as_deref(), Some("shop"));
         assert!(made.size_bytes > 100);
@@ -288,7 +336,7 @@ mod tests {
         assert_eq!(r[2][1], serde_json::json!("emoji 🎉"));
 
         // A wrong password and a bad file give readable errors.
-        assert!(export(&bin, root, port, Some("wrong"), "shop_restored").unwrap_err().contains("password"));
+        assert!(export(&bin, root, port, Some("wrong"), "shop_restored", false).unwrap_err().contains("password"));
         let bad = root.join("bad.sql");
         fs::write(&bad, "SELEKT nonsense;").unwrap();
         let err = import(&bin, root, port, db.password().as_deref(), "shop_restored", &bad).unwrap_err();

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
+import { WebLinksAddon } from "@xterm/addon-web-links";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import "@xterm/xterm/css/xterm.css";
 import {
   closeTerminal,
@@ -95,7 +97,23 @@ export function TerminalView({
     const f = new FitAddon();
     t.loadAddon(f);
     t.open(host.current);
-    t.attachCustomKeyEventHandler((e) => !isTabShortcut(e));
+    // Links like http://127.0.0.1:8000 from "php artisan serve" open in the browser on click.
+    t.loadAddon(new WebLinksAddon((_event, uri) => void openUrl(uri).catch(() => {})));
+    t.attachCustomKeyEventHandler((e) => {
+      if (isTabShortcut(e)) return false;
+      if (e.type !== "keydown" || !e.ctrlKey || e.altKey) return true;
+      const key = e.key.toLowerCase();
+      // Ctrl+C copies when text is selected; with nothing selected it stops the running command.
+      if (key === "c" && (e.shiftKey || t.hasSelection())) {
+        if (t.hasSelection()) void navigator.clipboard.writeText(t.getSelection()).catch(() => {});
+        t.clearSelection();
+        e.preventDefault();
+        return false;
+      }
+      // Ctrl+V (and Ctrl+Shift+V) paste: let the browser fire its paste event, which xterm handles.
+      if (key === "v") return false;
+      return true;
+    });
     term.current = t;
     fit.current = f;
     // Size it before the shell starts, so the first prompt is laid out at the real width.

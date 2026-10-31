@@ -341,12 +341,19 @@ impl Layout {
         }
     }
 
-    /// Writes php.ini for the selected PHP, if any.
+    /// Writes php.ini for the selected PHP, if any, plus php-cli.ini for the terminal.
     fn write_php_ini(&self) -> Result<(), String> {
-        match &self.php {
-            Some(php) => configure::write_file(&self.etc.join("php").join("php.ini"), &configure::php_ini(php)),
-            None => Ok(()),
-        }
+        let Some(php) = &self.php else { return Ok(()) };
+        let ini = configure::php_ini(php);
+        let dir = self.etc.join("php");
+        configure::write_file(&dir.join("php.ini"), &ini)?;
+        // The command line (which reads php-cli.ini first) shows each warning once on screen and
+        // keeps its log in a file; otherwise PHP prints every warning twice, once to stderr.
+        let cli = format!(
+            "{ini}\r\n; Added by NexDB for the command line\r\nerror_log = \"{}\"\r\n",
+            configure::conf_path(&self.logs.join("php_cli_errors.log"))
+        );
+        configure::write_file(&dir.join("php-cli.ini"), &cli)
     }
 }
 
@@ -383,7 +390,7 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
     let composer_dir = root.join("bin").join("composer");
     if composer_dir.join("composer.phar").is_file() {
         let php = layout.php.as_ref().map(|dir| dir.join("php.exe"));
-        let ini = layout.etc.join("php").join("php.ini");
+        let ini = cli_ini(&layout.etc);
         configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
     }
     if let Some(server_root) = &layout.apache {
@@ -558,7 +565,7 @@ fn save_settings(l: &Layout, settings: &SavedSettings) -> Result<Option<String>,
     let composer_dir = l.root.join("bin").join("composer");
     if composer_dir.join("composer.phar").is_file() {
         let php = l.php.as_ref().map(|dir| dir.join("php.exe"));
-        let ini = l.etc.join("php").join("php.ini");
+        let ini = cli_ini(&l.etc);
         configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
     }
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
@@ -845,6 +852,13 @@ fn single_top_folder(zip: &mut zip::ZipArchive<File>) -> Option<PathBuf> {
         }
     }
     (top_dirs.len() == 1).then(|| top_dirs.into_iter().next().unwrap())
+}
+
+/// The ini the command line uses: php-cli.ini when NexDB wrote one, else php.ini.
+fn cli_ini(etc: &Path) -> PathBuf {
+    let dir = etc.join("php");
+    let cli = dir.join("php-cli.ini");
+    if cli.is_file() { cli } else { dir.join("php.ini") }
 }
 
 /// `composer.bat` running Composer with the chosen PHP and DevManager's php.ini,

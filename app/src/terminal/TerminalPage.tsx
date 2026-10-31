@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, SquareTerminal, X } from "lucide-react";
+import { AppWindow, Plus, SquareTerminal, X } from "lucide-react";
+import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
 
@@ -10,7 +11,9 @@ interface Tab {
   restart: number;
 }
 
-export function TerminalPage({ active }: { active: boolean }) {
+/** `standalone` is the page inside its own window, opened with "Open in new window". */
+export function TerminalPage({ active, standalone = false }: { active: boolean; standalone?: boolean }) {
+  const [popError, setPopError] = useState<string | null>(null);
   const count = useRef(1);
   const [tabs, setTabs] = useState<Tab[]>([{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }]);
   const [current, setCurrent] = useState(1);
@@ -67,16 +70,32 @@ export function TerminalPage({ active }: { active: boolean }) {
           <p className="dash-summary">
             PowerShell in your projects folder, with NexDB's PHP, Composer, Node and MySQL ready to use.
           </p>
+          {popError && (
+            <p className="field-error" role="alert">
+              {popError}
+            </p>
+          )}
         </div>
-        {shown && (
+        {(shown || !standalone) && (
           <div className="dash-actions">
-            <button
-              className="btn"
-              onClick={() => update(shown.key, { restart: shown.restart + 1 })}
-              disabled={shown.state === "starting" || !inDesktopApp}
-            >
-              {shown.state === "closed" ? "Start a new session" : "Restart"}
-            </button>
+            {!standalone && inDesktopApp && (
+              <button
+                className="btn"
+                title="Open a terminal in its own window that you can move and resize"
+                onClick={() => openTerminalWindow().catch((e) => setPopError(String(e)))}
+              >
+                <AppWindow size={14} aria-hidden="true" /> Open in new window
+              </button>
+            )}
+            {shown && (
+              <button
+                className="btn"
+                onClick={() => update(shown.key, { restart: shown.restart + 1 })}
+                disabled={shown.state === "starting" || !inDesktopApp}
+              >
+                {shown.state === "closed" ? "Start a new session" : "Restart"}
+              </button>
+            )}
           </div>
         )}
       </header>
