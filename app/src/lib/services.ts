@@ -21,6 +21,8 @@ export interface SetupInfo {
   installed: boolean;
   install_root: string | null;
   www_dir: string | null;
+  /** A NexDB folder whose settings file is missing; setup repairs it. */
+  repair_root?: string | null;
 }
 
 export async function setupInfo(): Promise<SetupInfo> {
@@ -65,7 +67,8 @@ const preview = (() => {
   const started: Record<string, number | null> = { php: null, apache: null };
   const errors: Record<string, string | null> = { php: null, apache: null };
   const logs = previewLogs;
-  const stamp = () => new Date().toTimeString().slice(0, 8);
+  // Apache-style timestamps, e.g. "Sat Oct 31 08:39:23.000000 2026", so the readable view can translate them.
+  const stamp = () => { const d = new Date(); return `${d.toDateString().slice(0, 10)} ${d.toTimeString().slice(0, 8)}.000000 ${d.getFullYear()}`; };
   const base: Omit<ServiceStatus, "state" | "pid" | "uptime_secs" | "message" | "listening">[] = [
     { id: "php", name: "PHP (FastCGI)", version: "8.4.5", port: 9085, managed: true },
     { id: "mysql", name: "MySQL", version: "8.0.30", port: 3306, managed: false },
@@ -99,8 +102,8 @@ const preview = (() => {
       for (const s of ids) {
         if (s === "apache") {
           errors.apache = PORT_80;
-          logs.apache.push(`[${stamp()}] (OS 10048) Only one usage of each socket address is normally permitted.  : AH00072: make_sock: could not bind to address 0.0.0.0:80`);
-          logs.apache.push(`[${stamp()}] AH00451: no listening sockets available, shutting down`);
+          logs.apache.push(`[${stamp()}] [core:error] [pid 9112:tid 1] (OS 10048) Only one usage of each socket address is normally permitted.  : AH00072: make_sock: could not bind to address 0.0.0.0:80`);
+          logs.apache.push(`[${stamp()}] [core:alert] [pid 9112:tid 1] AH00451: no listening sockets available, shutting down`);
           failures.push(PORT_80);
         } else if (s === "php") {
           started.php = Date.now();

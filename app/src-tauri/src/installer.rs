@@ -379,6 +379,13 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
         mysql: if mysql_existing { None } else { dir_for("mysql") },
     };
     layout.write_php_ini()?;
+    // Keep `composer` pointed at the PHP in use, which may have just been switched.
+    let composer_dir = root.join("bin").join("composer");
+    if composer_dir.join("composer.phar").is_file() {
+        let php = layout.php.as_ref().map(|dir| dir.join("php.exe"));
+        let ini = layout.etc.join("php").join("php.ini");
+        configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
+    }
     if let Some(server_root) = &layout.apache {
         configure_apache(&layout, server_root)?;
         crate::projects::write_vhosts(&layout.etc, &layout.www, layout.apache_port)?;
@@ -623,6 +630,26 @@ async fn install_item(
     Ok(reused.then(|| "Used an already-downloaded file".into()))
 }
 
+/// Downloads a file into `root\tmp\downloads`, checking its checksum; reuses a matching copy.
+pub async fn download_verified(download: &Download, root: &Path, step: &str, emit: &impl Fn(Progress)) -> Result<PathBuf, String> {
+    CANCEL.store(false, Ordering::SeqCst);
+    let client = reqwest::Client::builder()
+        .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
+    let file_name = download.url.rsplit('/').next().unwrap_or("download.bin");
+    let file = root.join("tmp").join("downloads").join(file_name);
+    fs::create_dir_all(file.parent().unwrap()).map_err(|e| e.to_string())?;
+    if !(file.is_file() && file_matches(&file, &download.checksum).unwrap_or(false)) {
+        fetch(&client, download, &file, step, emit).await.map_err(|e| match e {
+            StepError::Cancelled => "Cancelled.".to_string(),
+            StepError::Failed(msg) => msg,
+        })?;
+    }
+    Ok(file)
+}
+
 /// Downloads a verified zip into `root\tmp\downloads` and unpacks it into `target` (replacing it).
 pub async fn install_archive(
     download: &Download,
@@ -631,21 +658,8 @@ pub async fn install_archive(
     step: &str,
     emit: &impl Fn(Progress),
 ) -> Result<(), String> {
-    CANCEL.store(false, Ordering::SeqCst);
-    let client = reqwest::Client::builder()
-        .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
-        .connect_timeout(Duration::from_secs(20))
-        .build()
-        .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
-    let file_name = download.url.rsplit('/').next().unwrap_or("download.zip");
-    let archive = root.join("tmp").join("downloads").join(file_name);
-    fs::create_dir_all(archive.parent().unwrap()).map_err(|e| e.to_string())?;
-    if !(archive.is_file() && file_matches(&archive, &download.checksum).unwrap_or(false)) {
-        fetch(&client, download, &archive, step, emit).await.map_err(|e| match e {
-            StepError::Cancelled => "Cancelled.".to_string(),
-            StepError::Failed(msg) => msg,
-        })?;
-    }
+    let archive = download_verified(download, root, step, emit).await?;
+    let file_name = archive.file_name().unwrap_or_default().to_string_lossy().to_string();
     emit(Progress { step: step.into(), status: StepStatus::Running, message: Some("Unpacking".into()), bytes_done: 0, bytes_total: None });
     let (archive_path, target_path) = (archive.clone(), target.to_path_buf());
     tauri::async_runtime::spawn_blocking(move || extract_into(&archive_path, &target_path))
@@ -847,7 +861,7 @@ pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
 }
 
 /// Composer is a single `.phar`; add a `composer.bat` so `composer` works in a terminal.
-fn install_composer(phar: &Path, target: &Path) -> io::Result<()> {
+pub fn install_composer(phar: &Path, target: &Path) -> io::Result<()> {
     fs::create_dir_all(target)?;
     fs::copy(phar, target.join("composer.phar"))?;
     fs::write(target.join("composer.bat"), "@php \"%~dp0composer.phar\" %*\r\n")

@@ -227,7 +227,7 @@ impl Supervisor {
 
     fn launch(&self, spec: &ServiceSpec) -> Result<(), String> {
         if !spec.exe.is_file() {
-            return Err(format!("{} isn't installed at {}.", spec.name, spec.exe.display()));
+            return Err(format!("{} isn't installed: its files at {} are missing. Reinstall it on the Versions page.", spec.name, spec.exe.display()));
         }
         if port_listening(spec.port) {
             let owner = crate::scan::port_status(spec.port, &spec.name);

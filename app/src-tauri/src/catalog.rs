@@ -21,6 +21,9 @@ pub struct Catalog {
 pub struct Tools {
     pub composer: Tool,
     pub phpmyadmin: Tool,
+    /// Portable Git (MinGit). Older catalogs don't have it.
+    #[serde(default)]
+    pub git: Option<Tool>,
 }
 
 #[derive(Debug, Deserialize)]

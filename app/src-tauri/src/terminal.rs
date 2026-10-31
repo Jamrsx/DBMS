@@ -52,6 +52,10 @@ pub fn tool_dirs(root: &Path, settings: &Settings) -> Vec<PathBuf> {
     if let Some(mysql) = dir_of("mysql") {
         dirs.push(mysql.join("bin"));
     }
+    // NexDB's own Git, when installed, comes before any Git already on the PC.
+    if let Some(git) = dir_of("git") {
+        dirs.push(git.join("cmd"));
+    }
     if let Some(apache) = dir_of("apache") {
         dirs.push(apache.join("bin"));
     }

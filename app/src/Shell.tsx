@@ -10,20 +10,22 @@ import {
   SquareTerminal,
 } from "lucide-react";
 import { BrandMark } from "./components/BrandMark";
-import { StartupToggle } from "./components/StartupToggle";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Dashboard } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
 import { TerminalPage } from "./terminal/TerminalPage";
+import { SettingsPage } from "./settings/SettingsPage";
+import { VersionsPage } from "./versions/VersionsPage";
 
-type Page = "dashboard" | "projects" | "database" | "terminal";
+type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "settings";
 
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "projects", label: "Projects", Icon: FolderKanban },
   { id: "database", label: "Database", Icon: Database },
   { id: "terminal", label: "Terminal", Icon: SquareTerminal },
+  { id: "versions", label: "Versions", Icon: Layers },
 ];
 
 const RAIL_KEY = "nexdb.rail";
@@ -86,19 +88,26 @@ export function Shell() {
               <span className="nav-label">{label}</span>
             </button>
           ))}
-          <span className="nav-section">Coming soon</span>
-          <SoonItem Icon={Layers} label="Versions" collapsed={collapsed} />
-          <SoonItem Icon={Settings} label="Settings" collapsed={collapsed} />
+          <span className="nav-section">App</span>
+          <button
+            type="button"
+            className={page === "settings" ? "nav-item current" : "nav-item"}
+            aria-current={page === "settings" ? "page" : undefined}
+            title={collapsed ? "Settings" : undefined}
+            onClick={() => setPage("settings")}
+          >
+            <Settings size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="nav-label">Settings</span>
+          </button>
         </nav>
 
         <div className="rail-foot">
-          <StartupToggle />
           <ThemeToggle />
         </div>
       </aside>
 
       <div className="page" hidden={page !== "dashboard"}>
-        <Dashboard />
+        <Dashboard onOpenVersions={() => setPage("versions")} />
       </div>
       <div className="page" hidden={page !== "projects"}>
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} />
@@ -106,19 +115,15 @@ export function Shell() {
       <div className="page" hidden={page !== "database"}>
         <DatabasePage active={page === "database"} />
       </div>
+      <div className="page" hidden={page !== "versions"}>
+        <VersionsPage active={page === "versions"} />
+      </div>
+      <div className="page" hidden={page !== "settings"}>
+        <SettingsPage active={page === "settings"} />
+      </div>
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
     </div>
-  );
-}
-
-function SoonItem({ Icon, label, collapsed }: { Icon: typeof Settings; label: string; collapsed: boolean }) {
-  return (
-    <span className="nav-item soon" aria-disabled="true" title={collapsed ? `${label} (coming soon)` : undefined}>
-      <Icon size={16} strokeWidth={2} aria-hidden="true" />
-      <span className="nav-label">{label}</span>
-      <span className="nav-soon">Soon</span>
-    </span>
   );
 }

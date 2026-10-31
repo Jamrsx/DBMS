@@ -126,6 +126,15 @@ async function phpmyadminTool() {
   return { version, download: download(url, await headSize(url), "sha256", sha) };
 }
 
+/** Portable Git for Windows (MinGit); GitHub lists each file's SHA-256 as its digest. */
+async function gitTool() {
+  const release = await getJson("https://api.github.com/repos/git-for-windows/git/releases/latest");
+  const asset = release.assets.find((a) => /^MinGit-[d.]+-64-bit.zip$/.test(a.name));
+  const version = asset.name.match(/^MinGit-([d.]+)-64-bit/)[1];
+  const sha = (asset.digest ?? "").replace(/^sha256:/, "");
+  return { version, download: download(asset.browser_download_url, asset.size, "sha256", sha) };
+}
+
 /** endoflife.date fields are either a date string or a boolean. */
 const dateOrNull = (v) => (typeof v === "string" ? v : null);
 
@@ -184,9 +193,10 @@ const catalog = {
     "cdn.mysql.com",
     "getcomposer.org",
     "files.phpmyadmin.net",
+    "github.com/git-for-windows",
   ],
   components,
-  tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool() },
+  tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool() },
 };
 
 const out = new URL("./catalog.json", import.meta.url);

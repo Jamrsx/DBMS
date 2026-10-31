@@ -42,11 +42,11 @@ const STEPS = [
 const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "install"]);
 
 /** First-run setup. `onFinish` opens the dashboard once the install is done. */
-export function Wizard({ onFinish }: { onFinish: () => void }) {
+export function Wizard({ onFinish, repairRoot = null }: { onFinish: () => void; repairRoot?: string | null }) {
   const [step, setStep] = useState(0);
   const [settings, setSettings] = useState<Settings>({
-    installRoot: "C:\\NexDB",
-    wwwDir: "C:\\NexDB\\www",
+    installRoot: repairRoot ?? "C:\\NexDB",
+    wwwDir: repairRoot ? `${repairRoot}\\www` : "C:\\NexDB\\www",
   });
   const [choices, setChoices] = useState<Choices | null>(null);
   const [choicesError, setChoicesError] = useState<string | null>(null);
@@ -195,6 +195,7 @@ export function Wizard({ onFinish }: { onFinish: () => void }) {
         <div className="panel-body" key={current.id}>
           {current.id === "welcome" && (
             <Welcome
+              repairRoot={repairRoot}
               settings={settings}
               onChange={(s) => {
                 setSettings(s);

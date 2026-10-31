@@ -1,13 +1,24 @@
 import type { Settings } from "../Wizard";
 
 interface Props {
+  /** An earlier NexDB folder whose settings file is missing. */
+  repairRoot: string | null;
   settings: Settings;
   onChange: (settings: Settings) => void;
 }
 
-export function Welcome({ settings, onChange }: Props) {
+export function Welcome({ settings, onChange, repairRoot }: Props) {
   return (
     <>
+      {repairRoot && (
+        <div className="missing-banner" role="status">
+          <p>
+            <strong>NexDB found an earlier install in {repairRoot}, but its settings file is missing.</strong> Run setup
+            again to repair it: anything still on disk is kept, and only the missing parts are downloaded. Your projects
+            folder isn't touched.
+          </p>
+        </div>
+      )}
       <p className="lede">
         NexDB installs and runs PHP, Node.js, Apache and MySQL for local development. Pick
         only what you need; everything stays in one folder and never touches existing installs.

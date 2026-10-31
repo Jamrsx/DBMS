@@ -35,6 +35,8 @@ sha1 = "0.11.0"
 portable-pty = "0.9.0"
 mysql = { version = "28.0.4", features = ["native-tls"] }
 getrandom = "0.4.3"
+tauri-plugin-updater = "2.14.1"
+tauri-plugin-process = "2.4.0"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

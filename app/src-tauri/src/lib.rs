@@ -10,6 +10,7 @@ mod settings;
 mod supervisor;
 mod terminal;
 mod tray;
+mod versions;
 
 use std::sync::{Arc, Mutex};
 use tauri::{Emitter, Manager};
@@ -92,6 +93,13 @@ impl Stack {
         ok
     }
 
+    /// Changes the settings in memory without touching running services.
+    fn update_settings(&self, change: impl FnOnce(&mut settings::Settings)) {
+        if let Some(loaded) = self.current.lock().unwrap().as_mut() {
+            change(&mut loaded.settings);
+        }
+    }
+
     fn get(&self) -> Result<(PathBuf, settings::Settings, Arc<supervisor::Supervisor>), String> {
         let guard = self.current.lock().unwrap();
         let l = guard.as_ref().ok_or("Setup hasn't been completed yet.")?;
@@ -104,6 +112,8 @@ struct SetupInfo {
     installed: bool,
     install_root: Option<String>,
     www_dir: Option<String>,
+    /// A NexDB folder whose settings file is missing, so setup can say it is repairing it.
+    repair_root: Option<String>,
 }
 
 /// Whether a finished install exists, so the app opens on the dashboard instead of setup.
@@ -115,6 +125,11 @@ fn setup_info(app: tauri::AppHandle, stack: tauri::State<Stack>) -> SetupInfo {
         installed: guard.is_some(),
         install_root: guard.as_ref().map(|l| l.root.display().to_string()),
         www_dir: guard.as_ref().map(|l| l.settings.www_dir.clone()),
+        repair_root: guard
+            .is_none()
+            .then(|| settings::broken_install(app.path().app_config_dir().ok().as_deref()))
+            .flatten()
+            .map(|p| p.display().to_string()),
     }
 }
 
@@ -177,8 +192,16 @@ pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_window(app)))
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             tray::setup(app.handle())?;
+            // "Start services when NexDB opens", from Settings.
+            let handle = app.handle().clone();
+            let stack = handle.state::<Stack>();
+            if stack.load(&handle) && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
+                tray_services(&handle, true);
+            }
             // The Windows startup entry launches hidden in the tray; a normal launch shows the window.
             if !std::env::args().any(|a| a == tray::TRAY_ARG) {
                 tray::show_window(app.handle());
@@ -208,6 +231,14 @@ pub fn run() {
             stop_services,
             service_log,
             clear_service_log,
+            app_settings,
+            save_ports,
+            set_start_services_on_launch,
+            versions_overview,
+            missing_components,
+            version_install,
+            version_use,
+            version_remove,
             tray::autostart_get,
             tray::autostart_set,
             projects_list,
@@ -477,4 +508,257 @@ fn phpmyadmin_open(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<
 async fn clear_service_log(stack: tauri::State<'_, Stack>, id: String) -> Result<(), String> {
     let (_, _, sup) = stack.get()?;
     blocking(move || sup.clear_log(&id)).await
+}
+
+#[derive(serde::Serialize)]
+struct AppSettings {
+    app_version: String,
+    install_root: String,
+    www_dir: String,
+    apache_port: Option<u16>,
+    php_port: u16,
+    mysql_port: Option<u16>,
+    start_services_on_launch: bool,
+}
+
+#[tauri::command]
+fn app_settings(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<AppSettings, String> {
+    let (root, settings, _) = stack.get()?;
+    Ok(AppSettings {
+        app_version: app.package_info().version.to_string(),
+        install_root: root.display().to_string(),
+        www_dir: settings.www_dir.clone(),
+        apache_port: settings.apache_port,
+        php_port: settings.php_fastcgi_port,
+        mysql_port: settings.mysql.as_ref().map(|m| m.port),
+        start_services_on_launch: settings.preferences.start_services_on_launch,
+    })
+}
+
+/// Changes the ports: stops the services, checks the new ports are free, saves, rebuilds
+/// every config file and starts again whatever was running before.
+#[tauri::command]
+async fn save_ports(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    apache: Option<u16>,
+    php: u16,
+    mysql: Option<u16>,
+) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    let apache = settings.apache_port.and(apache);
+    let mysql = settings.mysql.as_ref().and(mysql);
+    settings::check_ports(apache, php, mysql)?;
+    let was_running: Vec<String> = sup
+        .status()
+        .into_iter()
+        .filter(|s| s.state == supervisor::State::Running && s.managed)
+        .map(|s| s.id)
+        .collect();
+    let root2 = root.clone();
+    blocking(move || {
+        sup.stop_all();
+        for (name, port) in [("Web server", apache), ("PHP", Some(php)), ("MySQL", mysql)] {
+            let Some(port) = port else { continue };
+            let status = scan::port_status(port, name);
+            if status.in_use {
+                let who = status.process.map(|o| format!(" by {o}")).unwrap_or_default();
+                return Err(format!("{name} can't use port {port}: it's already in use{who}. Pick another port."));
+            }
+        }
+        settings::edit(&root2, |v| {
+            if let Some(p) = apache {
+                v["apache_port"] = p.into();
+            }
+            v["php_fastcgi_port"] = php.into();
+            if let Some(p) = mysql {
+                v["mysql"]["port"] = p.into();
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.load(&app);
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        let mut errors = Vec::new();
+        for id in was_running {
+            if let Err(e) = sup.start(&id) {
+                errors.push(e);
+            }
+        }
+        if errors.is_empty() { Ok(()) } else { Err(format!("Saved, but some services didn't start again: {}", errors.join(" "))) }
+    })
+    .await
+}
+
+#[tauri::command]
+fn set_start_services_on_launch(stack: tauri::State<Stack>, on: bool) -> Result<(), String> {
+    let (root, _, _) = stack.get()?;
+    settings::edit(&root, |v| {
+        v["preferences"]["start_services_on_launch"] = on.into();
+        Ok(())
+    })?;
+    // Keep the running services; only the saved settings change.
+    let mut guard = stack.current.lock().unwrap();
+    if let Some(loaded) = guard.as_mut() {
+        loaded.settings.preferences.start_services_on_launch = on;
+    }
+    Ok(())
+}
+
+#[derive(serde::Serialize)]
+struct VersionsInfo {
+    /// When the bundled list of versions was made.
+    catalog_date: String,
+    components: Vec<versions::ComponentVersions>,
+}
+
+#[tauri::command]
+async fn versions_overview(stack: tauri::State<'_, Stack>) -> Result<VersionsInfo, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let choices = catalog::choices(&catalog::bundled(), catalog::today());
+        let mut components = versions::overview(&root, &settings, &choices.components);
+        components.extend(versions::tools(&root, &settings, &catalog::bundled()));
+        Ok(VersionsInfo {
+            components,
+            catalog_date: choices.catalog_date,
+        })
+    })
+    .await
+}
+
+/// Parts of the install whose files are gone, so the app can say what to reinstall.
+#[tauri::command]
+fn missing_components(stack: tauri::State<Stack>) -> Result<Vec<versions::Missing>, String> {
+    let (_, settings, _) = stack.get()?;
+    Ok(versions::missing(&settings))
+}
+
+/// Downloads a version (or reinstalls a missing one). Composer and Git become the ones in use
+/// straight away. Returns a note for the user when something extra happened.
+/// Progress arrives as `tool-progress`.
+#[tauri::command]
+async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<Option<String>, String> {
+    let (root, _, sup) = stack.get()?;
+    let catalog = catalog::bundled();
+    let tool = match id.as_str() {
+        "composer" => Some(&catalog.tools.composer),
+        "git" => catalog.tools.git.as_ref(),
+        _ => None,
+    };
+    if tool.is_none() && !versions::COMPONENTS.contains(&id.as_str()) {
+        return Err("That can't be installed here.".into());
+    }
+    let download = match tool {
+        Some(t) if t.version == version => t.download.clone(),
+        Some(_) => return Err(format!("{} {version} isn't available; only the newest version can be installed.", versions::name_of(&id))),
+        None => catalog
+            .download_for(&id, &version)
+            .ok_or_else(|| format!("There's no Windows download for {} {version} yet.", versions::name_of(&id)))?
+            .clone(),
+    };
+    let target = installer::target_dir(&root, &id, &version);
+    let emit_app = app.clone();
+    let emit = move |p| {
+        let _ = emit_app.emit("tool-progress", p);
+    };
+    if id == "composer" {
+        let phar = installer::download_verified(&download, &root, "get-composer", &emit).await?;
+        installer::install_composer(&phar, &target).map_err(|e| format!("Couldn't install Composer: {e}"))?;
+        let _ = std::fs::remove_file(&phar);
+    } else {
+        installer::install_archive(&download, &root, &target, &format!("get-{id}"), &emit).await?;
+    }
+    std::fs::write(target.join(versions::MARKER), &download.url).map_err(|e| format!("Couldn't record the install: {e}"))?;
+
+    // Tools are used as soon as they're installed; record them in the settings.
+    if tool.is_some() {
+        let dir = target.display().to_string();
+        let (id2, version2) = (id.clone(), version.clone());
+        settings::edit(&root, |v| {
+            let list = v["components"].as_array_mut().ok_or("The settings file has no component list.")?;
+            match list.iter_mut().find(|c| c["id"] == id2.as_str()) {
+                Some(c) => {
+                    c["path"] = dir.clone().into();
+                    c["version"] = version2.clone().into();
+                }
+                None => list.push(serde_json::json!({ "id": id2, "version": version2, "path": dir, "existing": false })),
+            }
+            Ok(())
+        })?;
+        stack.update_settings(|s| {
+            s.components.retain(|c| c.id != id);
+            s.components.push(settings::Component { id: id.clone(), version: Some(version.clone()), path: target.display().to_string() });
+        });
+    }
+
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        // MySQL reinstalled after its data folder was deleted too: start over with an empty one.
+        if id == "mysql" && versions::active_version(&settings, "mysql").as_deref() == Some(version.as_str()) {
+            if let Some(data) = settings.mysql.as_ref().and_then(|m| m.data_dir.clone()) {
+                let data = std::path::PathBuf::from(data);
+                let empty = std::fs::read_dir(&data).map(|mut d| d.next().is_none()).unwrap_or(true);
+                if empty && !sup.status().iter().any(|s| s.id == "mysql" && s.state == supervisor::State::Running) {
+                    let ini = root.join("etc").join("mysql").join("my.ini");
+                    let port = settings.mysql.as_ref().map(|m| m.port).unwrap_or(3306);
+                    configure::setup_mysql(&target, &ini, &data, port, None)?;
+                    return Ok(Some(
+                        "MySQL's data folder was missing too, so NexDB created a fresh, empty one. The root user has no password now; you can set one in phpMyAdmin.".into(),
+                    ));
+                }
+            }
+        }
+        Ok(None)
+    })
+    .await
+}
+
+/// Makes an installed version the one in use, restarting whatever was running.
+#[tauri::command]
+async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    let choices = catalog::choices(&catalog::bundled(), catalog::today());
+    let dir = versions::check_switch(&root, &settings, &id, &version, &choices.components)?;
+    let was_running: Vec<String> = sup
+        .status()
+        .into_iter()
+        .filter(|s| s.state == supervisor::State::Running && s.managed)
+        .map(|s| s.id)
+        .collect();
+    let root2 = root.clone();
+    blocking(move || {
+        sup.stop_all();
+        settings::edit(&root2, |v| {
+            let list = v["components"].as_array_mut().ok_or("The settings file has no component list.")?;
+            match list.iter_mut().find(|c| c["id"] == id.as_str()) {
+                Some(c) => {
+                    c["path"] = dir.display().to_string().into();
+                    c["version"] = version.clone().into();
+                    c["existing"] = false.into();
+                }
+                None => list.push(serde_json::json!({ "id": id, "version": version, "path": dir.display().to_string(), "existing": false })),
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.load(&app);
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        let errors: Vec<String> = was_running.iter().filter_map(|id| sup.start(id).err()).collect();
+        if errors.is_empty() { Ok(()) } else { Err(format!("Switched, but some services didn't start again: {}", errors.join(" "))) }
+    })
+    .await
+}
+
+#[tauri::command]
+async fn version_remove(stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || versions::remove(&root, &settings, &id, &version)).await
 }

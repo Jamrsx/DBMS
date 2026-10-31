@@ -10,7 +10,8 @@
     "nginx.org",
     "cdn.mysql.com",
     "getcomposer.org",
-    "files.phpmyadmin.net"
+    "files.phpmyadmin.net",
+    "github.com/git-for-windows"
   ],
   "components": [
     {
@@ -325,6 +326,18 @@
         "checksum": {
           "algo": "sha256",
           "value": "2d2e13c735366d318425c78e4ee2cc8fc648d77faba3ddea2cd516e43885733f"
+        },
+        "file_version": null
+      }
+    },
+    "git": {
+      "version": "2.56.0.4",
+      "download": {
+        "url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip",
+        "size": 39846926,
+        "checksum": {
+          "algo": "sha256",
+          "value": "e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877"
         },
         "file_version": null
       }

@@ -8,10 +8,14 @@ type View = "loading" | "setup" | "dashboard";
 /** Opens the app when an install exists, otherwise the setup wizard. */
 export default function App() {
   const [view, setView] = useState<View>("loading");
+  const [repairRoot, setRepairRoot] = useState<string | null>(null);
 
   const check = useCallback(() => {
     setupInfo()
-      .then((info) => setView(info.installed ? "dashboard" : "setup"))
+      .then((info) => {
+        setRepairRoot(info.repair_root ?? null);
+        setView(info.installed ? "dashboard" : "setup");
+      })
       .catch(() => setView("setup"));
   }, []);
 
@@ -21,6 +25,7 @@ export default function App() {
   if (view === "dashboard") return <Shell />;
   return (
     <Wizard
+      repairRoot={repairRoot}
       onFinish={() => {
         markPreviewInstalled();
         check();

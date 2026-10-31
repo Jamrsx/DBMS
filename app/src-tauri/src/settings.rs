@@ -16,6 +16,8 @@ pub struct Settings {
     pub apache_port: Option<u16>,
     pub nginx_port: Option<u16>,
     pub mysql: Option<MysqlSettings>,
+    #[serde(default)]
+    pub preferences: Preferences,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,6 +36,46 @@ pub struct MysqlSettings {
     pub data_dir: Option<String>,
 }
 
+/// Choices made in the Settings page.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct Preferences {
+    /// Start every service when NexDB opens.
+    #[serde(default)]
+    pub start_services_on_launch: bool,
+}
+
+/// Ports for the web server, PHP and MySQL: each between 1 and 65535 and all different.
+pub fn check_ports(apache: Option<u16>, php: u16, mysql: Option<u16>) -> Result<(), String> {
+    let named: Vec<(&str, u16)> = [("Web server", apache), ("PHP", Some(php)), ("MySQL", mysql)]
+        .into_iter()
+        .filter_map(|(n, p)| p.map(|p| (n, p)))
+        .collect();
+    for (name, port) in &named {
+        if *port == 0 {
+            return Err(format!("{name} needs a port between 1 and 65535."));
+        }
+    }
+    for (i, (a, pa)) in named.iter().enumerate() {
+        if let Some((b, _)) = named[i + 1..].iter().find(|(_, pb)| pb == pa) {
+            return Err(format!("{a} and {b} can't share port {pa}. Give each its own port."));
+        }
+    }
+    Ok(())
+}
+
+/// Changes `devmanager.json` in place, keeping every field this code doesn't know about.
+pub fn edit(root: &Path, change: impl FnOnce(&mut serde_json::Value) -> Result<(), String>) -> Result<(), String> {
+    let path = root.join("etc").join("devmanager.json");
+    let text = fs::read_to_string(&path).map_err(|e| format!("Couldn't read the settings: {e}"))?;
+    let mut value: serde_json::Value = serde_json::from_str(&text).map_err(|e| format!("The settings file is damaged: {e}"))?;
+    change(&mut value)?;
+    let out = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    // Write next to it first, so a crash can't leave a half-written settings file.
+    let temp = path.with_extension("json.new");
+    fs::write(&temp, out).map_err(|e| format!("Couldn't save the settings: {e}"))?;
+    fs::rename(&temp, &path).map_err(|e| format!("Couldn't save the settings: {e}"))
+}
+
 #[derive(Serialize, Deserialize)]
 struct Pointer {
     install_root: String,
@@ -49,6 +91,19 @@ pub fn write_pointer(config_dir: &Path, install_root: &Path) -> Result<(), Strin
     let json = serde_json::to_string_pretty(&Pointer { install_root: install_root.display().to_string() })
         .map_err(|e| e.to_string())?;
     fs::write(pointer_path(config_dir), json).map_err(|e| format!("Couldn't save the install location: {e}"))
+}
+
+/// An earlier NexDB folder whose settings file is gone (for example deleted by hand): its `bin`
+/// folder is still there, so setup can repair it instead of starting from nothing.
+pub fn broken_install(config_dir: Option<&Path>) -> Option<PathBuf> {
+    let from_pointer = config_dir
+        .and_then(|dir| fs::read_to_string(pointer_path(dir)).ok())
+        .and_then(|text| serde_json::from_str::<Pointer>(&text).ok())
+        .map(|p| PathBuf::from(p.install_root));
+    from_pointer
+        .into_iter()
+        .chain([PathBuf::from(DEFAULT_ROOT)])
+        .find(|root| root.join("bin").is_dir() && load(root).is_none())
 }
 
 /// The saved install, if there is one: the pointer's root first, then the default folder.
@@ -71,6 +126,38 @@ pub fn load(root: &Path) -> Option<Settings> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ports_must_be_set_and_different() {
+        assert!(check_ports(Some(80), 9085, Some(3306)).is_ok());
+        assert!(check_ports(None, 9085, None).is_ok());
+        assert!(check_ports(Some(0), 9085, Some(3306)).unwrap_err().contains("between 1 and 65535"));
+        let err = check_ports(Some(3306), 9085, Some(3306)).unwrap_err();
+        assert!(err.contains("Web server and MySQL") && err.contains("3306"), "{err}");
+    }
+
+    #[test]
+    fn edits_keep_unknown_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("etc")).unwrap();
+        let file = dir.path().join("etc").join("devmanager.json");
+        fs::write(&file, r#"{"schema":1,"install_root":"x","www_dir":"y","php_fastcgi_port":9085,"components":[],
+            "apache_port":80,"nginx_port":null,"mysql":{"port":3306,"existing":false,"data_dir":"d","autostart":true}}"#).unwrap();
+        assert!(!load(dir.path()).unwrap().preferences.start_services_on_launch, "older files default to off");
+        edit(dir.path(), |v| {
+            v["apache_port"] = 8080.into();
+            v["mysql"]["port"] = 3307.into();
+            v["preferences"] = serde_json::json!({ "start_services_on_launch": true });
+            Ok(())
+        })
+        .unwrap();
+        let text = fs::read_to_string(&file).unwrap();
+        assert!(text.contains("\"schema\": 1") && text.contains("\"autostart\": true"), "{text}");
+        let s = load(dir.path()).unwrap();
+        assert_eq!((s.apache_port, s.mysql.unwrap().port), (Some(8080), 3307));
+        assert!(s.preferences.start_services_on_launch);
+        assert!(!dir.path().join("etc").join("devmanager.json.new").exists());
+    }
 
     #[test]
     fn reads_settings_from_both_install_kinds() {
