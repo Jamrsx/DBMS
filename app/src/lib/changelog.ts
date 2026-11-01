@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.3",
+    title: "A tidier Dashboard and mail setup help",
+    changes: [
+      "Services are grouped into Web, Database and Extras, and every row keeps its buttons on one line.",
+      "Open inbox moved under the mail catcher's name, so it no longer squeezes the other buttons.",
+      "\"Use it in your project\" shows how to point Laravel, plain PHP, WordPress, PHPMailer, Symfony or Node.js at the mail catcher, with settings to copy.",
+      "The same guide for Redis, including the Predis package Laravel needs on Windows.",
+    ],
+  },
+  {
     version: "0.3.2",
     title: "Mail catcher, Redis and a smarter SQL tab",
     changes: [

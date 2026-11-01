@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { ServiceGuide, type GuideId } from "./ServiceGuide";
 import { inDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops, nexSay } from "../lib/nex";
@@ -41,6 +42,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>({});
   const [selected, setSelected] = useState<string | null>(null);
+  const [guide, setGuide] = useState<GuideId | null>(null);
   // Bumped after every Start/Stop so the log reloads right away instead of on its timer.
   const [actionCount, setActionCount] = useState(0);
 
@@ -93,7 +95,9 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
         if (failed.length > 0) {
           nexOops(`${failed.map((s) => s.name).join(" and ")} couldn't start. The reason is under the services list.`);
         } else if (kind === "starting" && touched.every((s) => s.state === "running")) {
-          nexCelebrate(ids.length > 1 ? "Everything's running! Your sites are live." : `${touched[0]?.name ?? "It"} is running!`);
+          nexCelebrate(
+            ids.length > 1 ? "Everything's running! Your sites are live." : `${touched[0]?.name ?? "It"} is running!`,
+          );
         } else if (kind === "stopping" && ids.length > 1) {
           nexSay("sleeping", "Everything's stopped. I'll nap until you need me.");
         }
@@ -168,17 +172,30 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                 Services
               </h2>
               <ul className="svc-list">
-                {ordered(services).map((s) => (
-                  <ServiceRow
-                    key={s.id}
-                    service={s}
-                    busy={busy[s.id]}
-                    selected={selected === s.id}
-                    onSelect={() => setSelected(s.id)}
-                    onStart={() => run([s.id], "starting", () => startServices(s.id))}
-                    onStop={() => run([s.id], "stopping", () => stopServices(s.id))}
-                  />
-                ))}
+                {grouped(services).map(([group, list], _i, groups) => [
+                  groups.length > 1 && (
+                    <li key={`group-${group}`} className="svc-group" aria-hidden="true">
+                      {group}
+                    </li>
+                  ),
+                  ...list.map((s) => (
+                    <ServiceRow
+                      key={s.id}
+                      service={s}
+                      busy={busy[s.id]}
+                      selected={selected === s.id}
+                      guideOpen={guide === s.id}
+                      onSelect={() => setSelected(s.id)}
+                      onGuide={
+                        s.id === "mailpit" || s.id === "redis"
+                          ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
+                          : undefined
+                      }
+                      onStart={() => run([s.id], "starting", () => startServices(s.id))}
+                      onStop={() => run([s.id], "stopping", () => stopServices(s.id))}
+                    />
+                  )),
+                ])}
               </ul>
             </section>
 
@@ -193,6 +210,10 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                   ))}
                 </div>
               </div>
+            )}
+
+            {guide && services.some((s) => s.id === guide) && (
+              <ServiceGuide key={guide} id={guide} onClose={() => setGuide(null)} />
             )}
 
             <LogPanel
@@ -216,8 +237,8 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   nginx: { role: "Web server for localhost and .test sites", Icon: Globe },
   php: { role: "Runs your PHP code for the web server", Icon: FileCode2 },
   mysql: { role: "Database server", Icon: DatabaseIcon },
-  mailpit: { role: "Catches the emails your apps send, so they never reach real people", Icon: Mail },
-  redis: { role: "Fast store for cache, sessions and queues", Icon: Zap },
+  mailpit: { role: "Catches the emails your apps send", Icon: Mail },
+  redis: { role: "Cache, sessions and queues for your apps", Icon: Zap },
 };
 
 /** The mail catcher's inbox, served by Mailpit itself. */
@@ -232,14 +253,19 @@ function ServiceRow({
   service: s,
   busy,
   selected,
+  guideOpen,
   onSelect,
+  onGuide,
   onStart,
   onStop,
 }: {
   service: ServiceStatus;
   busy: "starting" | "stopping" | undefined;
   selected: boolean;
+  guideOpen: boolean;
   onSelect: () => void;
+  /** Shows how to use this service in a project (mail catcher, Redis). */
+  onGuide?: () => void;
   onStart: () => void;
   onStop: () => void;
 }) {
@@ -263,6 +289,28 @@ function ServiceRow({
           {s.version && <code className="svc-version">{s.version}</code>}
         </h3>
         <p>{role}</p>
+        {(onGuide || s.id === "mailpit") && (
+          <p className="svc-links">
+            {s.id === "mailpit" && (
+              <button
+                type="button"
+                className="link-btn"
+                onClick={openInbox}
+                disabled={s.state !== "running"}
+                title={
+                  s.state === "running" ? `Open the inbox at ${MAIL_INBOX}` : "Start the mail catcher to open its inbox"
+                }
+              >
+                <Inbox size={13} strokeWidth={2} aria-hidden="true" /> Open inbox
+              </button>
+            )}
+            {onGuide && (
+              <button type="button" className="link-btn" onClick={onGuide} aria-expanded={guideOpen}>
+                {guideOpen ? "Hide setup" : "Use it in your project"}
+              </button>
+            )}
+          </p>
+        )}
         {/* Port and uptime move here when the window is too narrow for their own column. */}
         <p className="svc-inline-facts">
           Port <code>{s.port}</code>
@@ -292,11 +340,6 @@ function ServiceRow({
         {view.label}
       </span>
       <div className="svc-actions">
-        {s.id === "mailpit" && s.state === "running" && (
-          <button className="btn btn-small" onClick={openInbox} title={`Open the inbox at ${MAIL_INBOX}`}>
-            <Inbox size={13} strokeWidth={2} aria-hidden="true" /> Open inbox
-          </button>
-        )}
         {s.managed &&
           (up ? (
             <button className="btn btn-small" onClick={onStop} disabled={!!busy}>
@@ -505,8 +548,31 @@ function LogPanel({
 }
 
 function ordered(services: ServiceStatus[]) {
-  const rank = (id: string) => (id.startsWith("php-") ? PATH_ORDER.indexOf("php") + 0.5 : PATH_ORDER.indexOf(id));
+  // Services NexDB doesn't list (the mail catcher, Redis) come after the stack itself.
+  const rank = (id: string) => {
+    if (id.startsWith("php-")) return PATH_ORDER.indexOf("php") + 0.5;
+    const i = PATH_ORDER.indexOf(id);
+    return i < 0 ? PATH_ORDER.length : i;
+  };
   return [...services].sort((a, b) => rank(a.id) - rank(b.id) || a.id.localeCompare(b.id));
+}
+
+/** Services in groups a beginner recognises: web, database, then extras. */
+function grouped(services: ServiceStatus[]): [string, ServiceStatus[]][] {
+  const groupOf = (id: string) =>
+    id === "apache" || id === "nginx" || id === "php" || id.startsWith("php-")
+      ? "Web"
+      : id === "mysql"
+        ? "Database"
+        : "Extras";
+  const groups: [string, ServiceStatus[]][] = [];
+  for (const s of ordered(services)) {
+    const name = groupOf(s.id);
+    const last = groups[groups.length - 1];
+    if (last && last[0] === name) last[1].push(s);
+    else groups.push([name, [s]]);
+  }
+  return groups;
 }
 
 function isUp(s: ServiceStatus) {

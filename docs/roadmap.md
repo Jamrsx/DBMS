@@ -35,6 +35,7 @@ Rules every release follows:
 | 0.3.0 | Database part 2: edit, add and delete rows; MySQL users; CSV export |
 | 0.3.1 | Clearer Database page; SQL templates; WHERE safety check; .sql export and import |
 | 0.3.2 | Mail catcher (Mailpit) and Redis; table columns beside the SQL editor; What's new in Settings |
+| 0.3.3 | Dashboard grouped into Web, Database and Extras; setup guides for the mail catcher and Redis |
 
 ## Next
 
@@ -172,24 +173,31 @@ Mail catcher (with 0.3.2's services):
 - SQL tab: the selected table's columns (or the database's tables) beside the editor; click to insert.
 - Settings → What's new: what each update brought, in plain words.
 
-### 0.3.3: More services
+### 0.3.3: A tidier Dashboard, and mail setup help
+
+- Services grouped into Web, Database and Extras in one list; buttons stay on one line.
+- Open inbox and "Use it in your project" sit under the service's name.
+- Setup guides with copyable settings: mail catcher (Laravel, plain PHP, WordPress, PHPMailer,
+  Symfony, Node.js) and Redis (Laravel with Predis, plain PHP, Node.js).
+
+### 0.3.4: More services
 
 - PostgreSQL on the Versions page, with start/stop on the Dashboard and logs.
 - nginx as an Apache alternative.
 - Python (with pip) for the terminal.
 
-### 0.3.4: Share a site
+### 0.3.5: Share a site
 
 - Open a project on your phone on the same Wi-Fi (LAN address with a QR code).
 - Optional public link through a tunnel service the user chooses and signs in to themselves.
 
-### 0.3.5: Health and diagnostics
+### 0.3.6: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.6: Polish and accessibility
+### 0.3.7: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

@@ -5,7 +5,6 @@ import {
   Check,
   Circle,
   Code2,
-  Copy,
   ExternalLink,
   LoaderCircle,
   SquareTerminal,
@@ -29,6 +28,7 @@ import {
 import { openTerminalWindow } from "../lib/terminal";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops } from "../lib/nex";
+import { CopyButton } from "../components/CopyButton";
 
 type Kind = NewKind | Starter;
 
@@ -525,21 +525,3 @@ function Making({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      className="btn btn-small btn-icon"
-      title={copied ? "Copied" : "Copy"}
-      aria-label={copied ? "Copied" : `Copy ${text}`}
-      onClick={() =>
-        void navigator.clipboard.writeText(text).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        })
-      }
-    >
-      {copied ? <Check size={13} aria-hidden="true" /> : <Copy size={13} aria-hidden="true" />}
-    </button>
-  );
-}
