@@ -18,7 +18,7 @@ export interface Available {
 export interface ComponentVersions {
   id: string;
   name: string;
-  kind: "runtime" | "tool";
+  kind: "runtime" | "tool" | "service";
   about: string;
   /** The version in use was deleted from disk. */
   missing: boolean;
@@ -94,7 +94,7 @@ const preview = {
   installed: { php: ["8.5.12"], apache: ["2.4.69"], mysql: ["9.7.4"], node: [], composer: [], git: [] } as Record<string, string[]>,
 };
 
-const NAMES: Record<string, string> = { php: "PHP", apache: "Apache", mysql: "MySQL", node: "Node.js", composer: "Composer", git: "Git" };
+const NAMES: Record<string, string> = { php: "PHP", apache: "Apache", mysql: "MySQL", node: "Node.js", composer: "Composer", git: "Git", mailpit: "Mail catcher (Mailpit)", redis: "Redis" };
 const ABOUT: Record<string, string> = {
   php: "Runs your PHP sites and tools like Laravel and WordPress.",
   apache: "The web server that opens your projects at localhost and .test addresses.",
@@ -102,6 +102,8 @@ const ABOUT: Record<string, string> = {
   node: "Runs JavaScript tools: npm, Vite and front-end builds.",
   composer: "Installs PHP packages, for example to create a Laravel project.",
   git: "Downloads and versions code, for example with git clone in the Terminal.",
+  mailpit: "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
+  redis: "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
 };
 
 function previewMissing(): MissingPart[] {
@@ -118,6 +120,8 @@ function previewInfo(): VersionsInfo {
     node: [["26", "26.13.0", ["latest"], 34], ["24", "24.15.0", ["recommended", "lts"], 33]],
     composer: [["2.11.0", "2.11.0", ["latest"], 3]],
     git: [["2.56.0.4", "2.56.0.4", ["latest"], 38]],
+    mailpit: [["1.33.0", "1.33.0", ["latest"], 11]],
+    redis: [["8.10.3", "8.10.3", ["latest"], 13]],
   };
   return {
     catalog_date: "2026-10-30",
@@ -126,11 +130,11 @@ function previewInfo(): VersionsInfo {
       const installed = (preview.installed[id] ?? []).map((v) => ({ version: v, active: v === active }));
       const missing = active !== null && !installed.some((i) => i.active);
       const activeLine = active ? rows.find(([line]) => active.startsWith(line + "."))?.[0] : undefined;
-      const tool = id === "composer" || id === "git";
+      const kind = id === "composer" || id === "git" ? "tool" : id === "mailpit" || id === "redis" ? "service" : "runtime";
       return {
         id,
         name: NAMES[id],
-        kind: tool ? "tool" : "runtime",
+        kind,
         about: ABOUT[id],
         missing,
         active,

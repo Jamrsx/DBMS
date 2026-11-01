@@ -65,9 +65,11 @@ export function VersionsPage({ active }: { active: boolean }) {
       }
       const message =
         what === "reinstall"
-          ? `${c.name} ${version} is back. ${c.kind === "runtime" ? "Press Start on the Dashboard to run it." : "It's ready to use in the Terminal."}`
+          ? `${c.name} ${version} is back. ${c.kind === "tool" ? "It's ready to use in the Terminal." : "Press Start on the Dashboard to run it."}`
           : what === "install" && c.kind === "tool"
             ? `${c.name} ${version} is installed and ready to use in the Terminal.`
+            : what === "install" && c.kind === "service"
+              ? `${c.name} ${version} is installed and added to the Dashboard. Press Start there to run it.`
             : what === "install"
               ? `${c.name} ${version} is installed. Press "Use this" to switch to it.`
               : what === "remove"
@@ -115,6 +117,15 @@ export function VersionsPage({ active }: { active: boolean }) {
         {info?.components
           .filter((c) => c.kind === "tool")
           .map((c) => <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />)}
+        {info && info.components.some((c) => c.kind === "service") && (
+          <>
+            <h2 className="ver-section">Extra services</h2>
+            <p className="set-lede ver-section-lede">Optional helpers. Once installed they show on the Dashboard with the others.</p>
+          </>
+        )}
+        {info?.components
+          .filter((c) => c.kind === "service")
+          .map((c) => <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />)}
       </div>
     </main>
   );
@@ -134,7 +145,7 @@ function ComponentCard({
   const mine = busy?.id === c.id ? busy : null;
   const others = c.available.filter((a) => !a.installed);
   const hintInstalled = c.hint && c.installed.some((i) => i.version === c.hint!.version);
-  const toolToInstall = c.kind === "tool" && !c.active ? c.available[0] : null;
+  const toolToInstall = c.kind !== "runtime" && !c.active ? c.available[0] : null;
   const [confirmSwitch, setConfirmSwitch] = useState<{ version: string; what: Action } | null>(null);
   // Switching MySQL asks first and offers a backup; everything else runs straight away.
   const ask = (version: string, what: Action) =>
@@ -161,7 +172,7 @@ function ComponentCard({
             <strong>
               {c.name} {c.active} is missing.
             </strong>{" "}
-            Its files were deleted, so {c.kind === "runtime" ? "it can't start" : "the Terminal can't use it"}. Reinstall it to
+            Its files were deleted, so {c.kind === "tool" ? "the Terminal can't use it" : "it can't start"}. Reinstall it to
             fix this; your settings and projects are kept.
           </p>
           <button className="btn btn-primary" disabled={locked} onClick={() => onRun(c, c.active!, "reinstall")}>

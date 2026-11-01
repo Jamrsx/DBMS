@@ -492,6 +492,13 @@ fn run(
             ] {
                 env = set_env(&env, k, &v);
             }
+            // Mail goes to NexDB's mail catcher when it's installed. (Laravel's Redis defaults
+            // already point at 127.0.0.1:6379.)
+            if settings.components.iter().any(|c| c.id == "mailpit") {
+                for (k, v) in [("MAIL_MAILER", "smtp"), ("MAIL_HOST", "127.0.0.1"), ("MAIL_PORT", "1025")] {
+                    env = set_env(&env, k, v);
+                }
+            }
             std::fs::write(&env_path, env).map_err(|e| format!("Couldn't write .env: {e}"))?;
             finish(&r, i);
 

@@ -4,6 +4,7 @@ import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
 import { Nex, type NexState } from "../components/Nex";
 import { nexCelebrate } from "../lib/nex";
+import { CHANGELOG, type Release } from "../lib/changelog";
 import { StartupToggle } from "../components/StartupToggle";
 import { getAppSettings, restartApp, savePorts, setStartServicesOnLaunch, type AppSettings } from "../lib/appsettings";
 import { checkUpdates, installUpdates, useUpdates } from "../lib/updates";
@@ -48,6 +49,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             <AutoBackupCard active={active} />
             <FoldersCard settings={settings} />
             <UpdatesCard version={settings.app_version} />
+            <WhatsNewCard version={settings.app_version} />
           </>
         )}
       </div>
@@ -414,6 +416,40 @@ const UPDATE_MOOD: Record<string, NexState> = {
   ready: "success",
   error: "error",
 };
+
+/** What this version brought, with earlier versions one click away. */
+function WhatsNewCard({ version }: { version: string }) {
+  const [more, setMore] = useState(false);
+  const at = Math.max(0, CHANGELOG.findIndex((r) => r.version === version));
+  const shown = CHANGELOG.slice(at);
+  const [latest, ...earlier] = shown;
+  if (!latest) return null;
+  const release = (r: Release) => (
+    <div key={r.version} className="whatsnew-release">
+      <p className="whatsnew-title">
+        <span className="kind">{r.version}</span> {r.title}
+      </p>
+      <ul>
+        {r.changes.map((c) => (
+          <li key={c}>{c}</li>
+        ))}
+      </ul>
+    </div>
+  );
+  return (
+    <Card title="What's new" lede={`What NexDB ${latest.version} brought.`}>
+      <div className="whatsnew">
+        {release(latest)}
+        {earlier.length > 0 && (
+          <button className="btn btn-small btn-quiet whatsnew-more" onClick={() => setMore((m) => !m)} aria-expanded={more}>
+            {more ? "Hide earlier versions" : `Earlier versions (${earlier.length})`}
+          </button>
+        )}
+        {more && earlier.map(release)}
+      </div>
+    </Card>
+  );
+}
 
 function UpdatesCard({ version }: { version: string }) {
   const { state } = useUpdates();

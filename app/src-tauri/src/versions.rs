@@ -12,6 +12,10 @@ use std::path::{Path, PathBuf};
 /// Components shown on the Versions page, in this order.
 pub const COMPONENTS: [&str; 5] = ["php", "apache", "mysql", "node", "nginx"];
 pub const MARKER: &str = ".devmanager-installed";
+/// Tools shown on the Versions page, in this order.
+pub const TOOLS: [&str; 4] = ["composer", "git", "mailpit", "redis"];
+/// Tools that run as services on the Dashboard once installed.
+pub const SERVICE_TOOLS: [&str; 2] = ["mailpit", "redis"];
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Installed {
@@ -44,7 +48,8 @@ pub struct Hint {
 pub struct ComponentVersions {
     pub id: String,
     pub name: String,
-    /// "runtime" (PHP, Apache, MySQL, Node.js, nginx) or "tool" (Composer, Git).
+    /// "runtime" (PHP, Apache, MySQL, Node.js, nginx), "tool" (Composer, Git) or
+    /// "service" (the mail catcher and Redis: tools that run on the Dashboard).
     pub kind: &'static str,
     /// One plain sentence on what it's for.
     pub about: &'static str,
@@ -102,6 +107,8 @@ pub fn name_of(id: &str) -> &str {
         "nginx" => "nginx",
         "composer" => "Composer",
         "git" => "Git",
+        "mailpit" => "Mail catcher (Mailpit)",
+        "redis" => "Redis",
         other => other,
     }
 }
@@ -115,6 +122,8 @@ fn about(id: &str) -> &'static str {
         "nginx" => "An alternative web server.",
         "composer" => "Installs PHP packages, for example to create a Laravel project.",
         "git" => "Downloads and versions code, for example with git clone in the Terminal.",
+        "mailpit" => "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
+        "redis" => "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
         _ => "",
     }
 }
@@ -129,6 +138,8 @@ pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
         "nginx" => dir.join("nginx.exe"),
         "composer" => dir.join("composer.phar"),
         "git" => dir.join("cmd").join("git.exe"),
+        "mailpit" => dir.join("mailpit.exe"),
+        "redis" => dir.join("redis-server.exe"),
         _ => dir.to_path_buf(),
     }
 }
@@ -161,11 +172,11 @@ pub fn missing(settings: &Settings) -> Vec<Missing> {
         .collect()
 }
 
-/// Composer and Git: one version each, from the catalog.
+/// Composer, Git, the mail catcher and Redis: one version each, from the catalog.
 pub fn tools(root: &Path, settings: &Settings, catalog: &crate::catalog::Catalog) -> Vec<ComponentVersions> {
     let mut list = Vec::new();
-    let entries: [(&str, Option<&crate::catalog::Tool>); 2] = [("composer", Some(&catalog.tools.composer)), ("git", catalog.tools.git.as_ref())];
-    for (id, tool) in entries {
+    for id in TOOLS {
+        let tool = catalog.tools.get(id);
         let Some(tool) = tool else { continue };
         let active = active_version(settings, id).or_else(|| {
             // An install from before Composer kept its version.
@@ -183,7 +194,7 @@ pub fn tools(root: &Path, settings: &Settings, catalog: &crate::catalog::Catalog
         list.push(ComponentVersions {
             id: id.into(),
             name: name_of(id).into(),
-            kind: "tool",
+            kind: if SERVICE_TOOLS.contains(&id) { "service" } else { "tool" },
             about: about(id),
             missing,
             available: vec![Available {

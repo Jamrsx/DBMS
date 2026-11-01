@@ -24,7 +24,7 @@ import { RowEditor } from "./RowEditor";
 import { Users } from "./Users";
 import { dbSaveCsv } from "../lib/db";
 import { nexCelebrate } from "../lib/nex";
-import { sqlTemplates, touchesEveryRow, type SqlTemplate } from "../lib/sqlTemplates";
+import { plainType, sqlTemplates, touchesEveryRow, type SqlTemplate } from "../lib/sqlTemplates";
 import { dbExportSql } from "../lib/db";
 import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
@@ -260,7 +260,12 @@ export function Database({ active }: { active: boolean }) {
                 </p>
               )}
               {tab === "sql" && (
-                <SqlRunner db={selected} table={table} onChanged={() => selected && pick(selected).then(loadDbs)} />
+                <SqlRunner
+                  db={selected}
+                  table={table}
+                  tables={tables}
+                  onChanged={() => selected && pick(selected).then(loadDbs)}
+                />
               )}
               {tab === "backups" && (
                 <Backups
@@ -682,8 +687,21 @@ function Structure({ db, table }: { db: string; table: string }) {
   );
 }
 
-function SqlRunner({ db, table, onChanged }: { db: string | null; table: string | null; onChanged: () => void }) {
-  const [sql, setSql] = useState("SHOW DATABASES;");
+function SqlRunner({
+  db,
+  table,
+  tables,
+  onChanged,
+}: {
+  db: string | null;
+  table: string | null;
+  /** Tables of the selected database, listed beside the editor. */
+  tables: TableInfo[];
+  onChanged: () => void;
+}) {
+  const [sql, setSql] = useState(table ? `SELECT * FROM \`${table}\`\nLIMIT 100;` : "SHOW DATABASES;");
+  // Once the user types, NexDB stops replacing the editor when another table is picked.
+  const [typed, setTyped] = useState(false);
   const [out, setOut] = useState<QueryOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -700,13 +718,29 @@ function SqlRunner({ db, table, onChanged }: { db: string | null; table: string 
     dbColumns(db, table)
       .then(setCols)
       .catch(() => setCols([]));
+    if (!typed) setSql(`SELECT * FROM \`${table}\`\nLIMIT 100;`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, table]);
+
+  /** Puts a column or table name where the cursor is, keeping Ctrl+Z. */
+  function insertName(name: string) {
+    const el = editor.current;
+    const text = `\`${name}\``;
+    setTyped(true);
+    if (el) {
+      el.focus();
+      if (!document.execCommand("insertText", false, text)) setSql((v) => v + text);
+    } else {
+      setSql((v) => v + text);
+    }
+  }
 
   const groups = sqlTemplates(db, table, cols);
 
   /** Puts a template in the editor in a way Ctrl+Z can undo. */
   function applyTemplate(t: SqlTemplate) {
     setPicked(t);
+    setTyped(true);
     setConfirmAll(false);
     const el = editor.current;
     if (el) {
@@ -767,27 +801,74 @@ function SqlRunner({ db, table, onChanged }: { db: string | null; table: string 
             ? `Pick a ready-made command above; it's filled in with ${table} and its columns. Then edit it and press Run.`
             : "Pick a ready-made command above, or type your own. Pick a table on the left and the commands use its columns."}
       </p>
-      <label className="visually-hidden" htmlFor="sql-input">
-        SQL
-      </label>
-      <textarea
-        id="sql-input"
-        ref={editor}
-        className="sql-input"
-        value={sql}
-        spellCheck={false}
-        onChange={(e) => {
-          setSql(e.target.value);
-          setConfirmAll(false);
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
-            e.preventDefault();
-            void run();
-          }
-        }}
-        rows={6}
-      />
+      <div className="sql-editor-row">
+        <div className="sql-editor">
+          <label className="visually-hidden" htmlFor="sql-input">
+            SQL
+          </label>
+          <textarea
+            id="sql-input"
+            ref={editor}
+            className="sql-input"
+            value={sql}
+            spellCheck={false}
+            onChange={(e) => {
+              setSql(e.target.value);
+              setTyped(true);
+              setConfirmAll(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                void run();
+              }
+            }}
+            rows={8}
+          />
+        </div>
+        <aside className="sql-schema" aria-label={table ? `Columns of ${table}` : "Tables"}>
+          {table && cols.length > 0 ? (
+            <>
+              <p className="sql-schema-title">
+                <code>{table}</code> columns
+              </p>
+              <ul>
+                {cols.map((c) => (
+                  <li key={c.name}>
+                    <button
+                      type="button"
+                      onClick={() => insertName(c.name)}
+                      title={`Insert ${c.name} (${c.column_type})`}
+                    >
+                      <span className="sql-schema-name">{c.name}</span>
+                      {c.key === "PRI" && <span className="kind rows-key">key</span>}
+                      <span className="sql-schema-type">{plainType(c)}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : db && tables.length > 0 ? (
+            <>
+              <p className="sql-schema-title">
+                Tables in <code>{db}</code>
+              </p>
+              <ul>
+                {tables.map((t) => (
+                  <li key={t.name}>
+                    <button type="button" onClick={() => insertName(t.name)} title={`Insert ${t.name}`}>
+                      <span className="sql-schema-name">{t.name}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="field-hint">Pick a database and a table on the left to see their names here.</p>
+          )}
+          {(table || db) && <p className="field-hint sql-schema-tip">Click a name to put it in the editor.</p>}
+        </aside>
+      </div>
       <div className="sql-bar">
         <button className="btn btn-primary" onClick={run} disabled={busy || !sql.trim()}>
           <Play size={14} aria-hidden="true" /> {busy ? "Running…" : "Run"}

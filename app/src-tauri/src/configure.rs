@@ -23,6 +23,9 @@ const PHP_SETTINGS: &[(&str, &str)] = &[
     ("upload_max_filesize", "64M"),
     ("post_max_size", "64M"),
     ("max_execution_time", "120"),
+    // mail() goes to NexDB's mail catcher instead of a real mail server.
+    ("SMTP", "127.0.0.1"),
+    ("smtp_port", "1025"),
 ];
 
 /// Forward-slash path for config files (Apache, nginx and MySQL all accept it on Windows).

@@ -34,6 +34,7 @@ Rules every release follows:
 | 0.2.9 | Nex comes alive: greetings, celebrations and heads-ups from the corner |
 | 0.3.0 | Database part 2: edit, add and delete rows; MySQL users; CSV export |
 | 0.3.1 | Clearer Database page; SQL templates; WHERE safety check; .sql export and import |
+| 0.3.2 | Mail catcher (Mailpit) and Redis; table columns beside the SQL editor; What's new in Settings |
 
 ## Next
 
@@ -163,24 +164,32 @@ Mail catcher (with 0.3.2's services):
 - Sidebar: MySQL's built-in databases fold away; table counts are labelled. Browse and Structure
   tabs always open and say what to pick.
 
-### 0.3.2: More services
+### 0.3.2: Mail catcher, Redis, and a smarter SQL tab
 
-- Optional components on the Versions page: Redis, PostgreSQL, nginx (as an Apache alternative).
-- Each one gets start/stop on the dashboard, logs, ports in Settings and a plain-language log view.
+- Mail catcher (Mailpit) on the Versions page under Extra services: PHP's `mail()` and new Laravel
+  projects send to it, and the Dashboard has an Open inbox button.
+- Redis under Extra services, started and stopped from the Dashboard like the others.
+- SQL tab: the selected table's columns (or the database's tables) beside the editor; click to insert.
+- Settings → What's new: what each update brought, in plain words.
+
+### 0.3.3: More services
+
+- PostgreSQL on the Versions page, with start/stop on the Dashboard and logs.
+- nginx as an Apache alternative.
 - Python (with pip) for the terminal.
 
-### 0.3.3: Share a site
+### 0.3.4: Share a site
 
 - Open a project on your phone on the same Wi-Fi (LAN address with a QR code).
 - Optional public link through a tunnel service the user chooses and signs in to themselves.
 
-### 0.3.4: Health and diagnostics
+### 0.3.5: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.5: Polish and accessibility
+### 0.3.6: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

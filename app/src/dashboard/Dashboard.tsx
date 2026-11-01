@@ -4,13 +4,17 @@ import {
   Database as DatabaseIcon,
   FileCode2,
   Globe,
+  Inbox,
   LoaderCircle,
+  Mail,
   Play,
   ScrollText,
   Server,
   Square,
   Trash2,
+  Zap,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { inDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops, nexSay } from "../lib/nex";
@@ -212,7 +216,17 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   nginx: { role: "Web server for localhost and .test sites", Icon: Globe },
   php: { role: "Runs your PHP code for the web server", Icon: FileCode2 },
   mysql: { role: "Database server", Icon: DatabaseIcon },
+  mailpit: { role: "Catches the emails your apps send, so they never reach real people", Icon: Mail },
+  redis: { role: "Fast store for cache, sessions and queues", Icon: Zap },
 };
+
+/** The mail catcher's inbox, served by Mailpit itself. */
+const MAIL_INBOX = "http://127.0.0.1:8025";
+
+function openInbox() {
+  if (inDesktopApp) void openUrl(MAIL_INBOX).catch(() => {});
+  else window.open(MAIL_INBOX, "_blank", "noopener");
+}
 
 function ServiceRow({
   service: s,
@@ -278,6 +292,11 @@ function ServiceRow({
         {view.label}
       </span>
       <div className="svc-actions">
+        {s.id === "mailpit" && s.state === "running" && (
+          <button className="btn btn-small" onClick={openInbox} title={`Open the inbox at ${MAIL_INBOX}`}>
+            <Inbox size={13} strokeWidth={2} aria-hidden="true" /> Open inbox
+          </button>
+        )}
         {s.managed &&
           (up ? (
             <button className="btn btn-small" onClick={onStop} disabled={!!busy}>

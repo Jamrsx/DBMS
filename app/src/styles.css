@@ -3082,6 +3082,14 @@ h1 {
   border-top: 1px solid var(--border);
 }
 
+.ver-section-lede {
+  margin: 6px 0 0;
+}
+
+.ver-section-lede + .set-card {
+  border-top: 0;
+}
+
 .ver-hint {
   border-color: transparent;
   border-radius: 10px;
@@ -4084,6 +4092,120 @@ h1 {
 .db-transfer .field-hint {
   flex: 1 1 240px;
   overflow-wrap: anywhere;
+}
+
+/* Settings → What's new */
+.whatsnew {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+}
+
+.whatsnew-release {
+  display: grid;
+  gap: 4px;
+}
+
+.whatsnew-title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.whatsnew-title .kind {
+  margin-right: 6px;
+  font: 11px var(--mono);
+}
+
+.whatsnew ul {
+  margin: 0;
+  padding-left: 20px;
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.whatsnew-more {
+  margin-left: -10px;
+}
+
+/* SQL editor with the table's columns beside it */
+.sql-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.sql-editor {
+  min-width: 0;
+  display: grid;
+}
+
+.sql-schema {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  max-height: 260px;
+  padding: 10px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.sql-schema-title {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.sql-schema ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.sql-schema li button {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 2px 6px;
+  width: 100%;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sql-schema li button:hover {
+  background: var(--nav-hover);
+}
+
+.sql-schema-name {
+  font: 12.5px var(--mono);
+}
+
+.sql-schema-type {
+  grid-column: 1 / -1;
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.sql-schema-tip {
+  margin: 4px 0 0;
+}
+
+@media (max-width: 980px) {
+  .sql-editor-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* SQL templates */

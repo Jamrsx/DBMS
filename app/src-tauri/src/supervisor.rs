@@ -25,6 +25,8 @@ pub enum StopMethod {
     MysqlEvent,
     /// `nginx -s quit` with the same prefix and config.
     NginxQuit,
+    /// `redis-cli shutdown`, so Redis saves its data before it exits.
+    RedisShutdown,
     /// Stateless (php-cgi): end the process.
     Kill,
 }
@@ -206,8 +208,58 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             });
         }
     }
+
+    // Helpers installed from the Versions page: the mail catcher and Redis.
+    let data = root.join("data");
+    if let Some(dir) = component("mailpit").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "mailpit".into(),
+            name: "Mail catcher".into(),
+            version: component("mailpit").and_then(|c| c.version.clone()),
+            exe: dir.join("mailpit.exe"),
+            args: vec![
+                "--smtp".into(),
+                format!("127.0.0.1:{MAIL_SMTP_PORT}"),
+                "--listen".into(),
+                format!("127.0.0.1:{MAIL_WEB_PORT}"),
+                "--database".into(),
+                crate::configure::conf_path(&data.join("mailpit.db")),
+            ],
+            cwd: dir,
+            port: MAIL_WEB_PORT,
+            managed: true,
+            stop: StopMethod::Kill,
+            log: logs.join("mailpit.log"),
+        });
+    }
+    if let Some(dir) = component("redis").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "redis".into(),
+            name: "Redis".into(),
+            version: component("redis").and_then(|c| c.version.clone()),
+            exe: dir.join("redis-server.exe"),
+            args: vec![
+                "--port".into(),
+                REDIS_PORT.to_string(),
+                "--bind".into(),
+                "127.0.0.1".into(),
+                "--dir".into(),
+                crate::configure::conf_path(&data.join("redis")),
+            ],
+            cwd: dir,
+            port: REDIS_PORT,
+            managed: true,
+            stop: StopMethod::RedisShutdown,
+            log: logs.join("redis.log"),
+        });
+    }
     specs
 }
+
+/// Where apps send mail (SMTP) and where the inbox opens in the browser.
+pub const MAIL_SMTP_PORT: u16 = 1025;
+pub const MAIL_WEB_PORT: u16 = 8025;
+pub const REDIS_PORT: u16 = 6379;
 
 impl Supervisor {
     pub fn new(specs: Vec<ServiceSpec>) -> Self {
@@ -336,6 +388,16 @@ impl Supervisor {
                 args.extend(spec.args.iter().cloned());
                 let mut cmd = Command::new(&spec.exe);
                 cmd.args(&args).current_dir(&spec.cwd).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+                crate::scan::hide_console(&mut cmd);
+                cmd.status().is_ok_and(|s| s.success())
+            }
+            StopMethod::RedisShutdown => {
+                let mut cmd = Command::new(spec.exe.with_file_name("redis-cli.exe"));
+                cmd.args(["-p", &spec.port.to_string(), "shutdown"])
+                    .current_dir(&spec.cwd)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
                 crate::scan::hide_console(&mut cmd);
                 cmd.status().is_ok_and(|s| s.success())
             }

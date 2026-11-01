@@ -392,6 +392,10 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
         mysql: if mysql_existing { None } else { dir_for("mysql") },
     };
     layout.write_php_ini()?;
+    // Redis won't start without its data folder; the mail catcher keeps its inbox beside it.
+    if settings.components.iter().any(|c| crate::versions::SERVICE_TOOLS.contains(&c.id.as_str())) {
+        fs::create_dir_all(root.join("data").join("redis")).map_err(|e| format!("Couldn't create the data folder: {e}"))?;
+    }
     for extra in crate::phpver::extras(root, settings) {
         write_php_inis(&extra.dir, &extra.ini_dir, &layout.logs)?;
     }

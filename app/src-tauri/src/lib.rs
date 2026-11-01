@@ -1215,11 +1215,11 @@ fn missing_components(stack: tauri::State<Stack>) -> Result<Vec<versions::Missin
 async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<Option<String>, String> {
     let (root, _, sup) = stack.get()?;
     let catalog = catalog::bundled();
-    let tool = match id.as_str() {
-        "composer" => Some(&catalog.tools.composer),
-        "git" => catalog.tools.git.as_ref(),
-        _ => None,
-    };
+    let tool = catalog.tools.get(&id);
+    // Reinstalling a running helper: its files are in use, so stop it first.
+    if versions::SERVICE_TOOLS.contains(&id.as_str()) {
+        let _ = sup.stop(&id);
+    }
     if tool.is_none() && !versions::COMPONENTS.contains(&id.as_str()) {
         return Err("That can't be installed here.".into());
     }
@@ -1264,6 +1264,10 @@ async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, 
             s.components.retain(|c| c.id != id);
             s.components.push(settings::Component { id: id.clone(), version: Some(version.clone()), path: target.display().to_string() });
         });
+    }
+    // The mail catcher and Redis become Dashboard services: rebuild the service list.
+    if versions::SERVICE_TOOLS.contains(&id.as_str()) {
+        apply_service_change(&app, &stack, |_| Ok(())).await?;
     }
 
     let (root, settings, _) = stack.get()?;

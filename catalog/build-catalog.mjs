@@ -135,6 +135,15 @@ async function gitTool() {
   return { version, download: download(asset.browser_download_url, asset.size, "sha256", sha) };
 }
 
+/** The newest GitHub release asset whose name matches `pattern`, with its SHA-256 digest. */
+async function githubTool(repo, pattern) {
+  const release = await getJson(`https://api.github.com/repos/${repo}/releases/latest`);
+  const asset = release.assets.find((a) => pattern.test(a.name));
+  const version = release.tag_name.replace(/^v/, "");
+  const sha = (asset.digest ?? "").replace(/^sha256:/, "");
+  return { version, download: download(asset.browser_download_url, asset.size, "sha256", sha) };
+}
+
 /** endoflife.date fields are either a date string or a boolean. */
 const dateOrNull = (v) => (typeof v === "string" ? v : null);
 
@@ -194,9 +203,14 @@ const catalog = {
     "getcomposer.org",
     "files.phpmyadmin.net",
     "github.com/git-for-windows",
+    "github.com/axllent/mailpit",
+    "github.com/redis-windows/redis-windows",
   ],
   components,
-  tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool() },
+  tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool(),
+    mailpit: await githubTool("axllent/mailpit", /^mailpit-windows-amd64\.zip$/),
+    redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
+  },
 };
 
 const out = new URL("./catalog.json", import.meta.url);

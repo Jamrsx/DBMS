@@ -24,6 +24,25 @@ pub struct Tools {
     /// Portable Git (MinGit). Older catalogs don't have it.
     #[serde(default)]
     pub git: Option<Tool>,
+    /// Mailpit, the mail catcher.
+    #[serde(default)]
+    pub mailpit: Option<Tool>,
+    /// Redis for Windows (msys2 build).
+    #[serde(default)]
+    pub redis: Option<Tool>,
+}
+
+impl Tools {
+    /// The tools the Versions page installs, by id (phpMyAdmin comes with setup instead).
+    pub fn get(&self, id: &str) -> Option<&Tool> {
+        match id {
+            "composer" => Some(&self.composer),
+            "git" => self.git.as_ref(),
+            "mailpit" => self.mailpit.as_ref(),
+            "redis" => self.redis.as_ref(),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,11 +92,8 @@ pub struct CatalogLine {
 impl Catalog {
     /// The download for an exact component version, if the catalog has one.
     pub fn download_for(&self, id: &str, version: &str) -> Option<&Download> {
-        if id == "composer" {
-            return (self.tools.composer.version == version).then_some(&self.tools.composer.download);
-        }
-        if id == "git" {
-            return self.tools.git.as_ref().filter(|g| g.version == version).map(|g| &g.download);
+        if let Some(tool) = self.tools.get(id) {
+            return (tool.version == version).then_some(&tool.download);
         }
         self.components
             .iter()
