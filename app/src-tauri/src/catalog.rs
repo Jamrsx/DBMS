@@ -30,6 +30,12 @@ pub struct Tools {
     /// Redis for Windows (msys2 build).
     #[serde(default)]
     pub redis: Option<Tool>,
+    /// PostgreSQL server binaries (EnterpriseDB's zip).
+    #[serde(default)]
+    pub postgres: Option<Tool>,
+    /// Python with pip (python.org's NuGet package).
+    #[serde(default)]
+    pub python: Option<Tool>,
 }
 
 impl Tools {
@@ -40,6 +46,8 @@ impl Tools {
             "git" => self.git.as_ref(),
             "mailpit" => self.mailpit.as_ref(),
             "redis" => self.redis.as_ref(),
+            "postgres" => self.postgres.as_ref(),
+            "python" => self.python.as_ref(),
             _ => None,
         }
     }
@@ -57,6 +65,9 @@ pub struct Download {
     pub url: String,
     pub size: Option<u64>,
     pub checksum: Checksum,
+    /// Only this folder of the archive is unpacked (Python's package keeps it in `tools`).
+    #[serde(default)]
+    pub subdir: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -296,6 +307,7 @@ mod tests {
                 url: format!("https://example.test/{latest}.zip"),
                 size: Some(1),
                 checksum: Checksum { algo: "sha256".into(), value: "00".into() },
+                subdir: None,
             }),
         }
     }

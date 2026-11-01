@@ -53,7 +53,11 @@ export async function missingComponents(): Promise<MissingPart[]> {
 }
 
 /** Downloads a version (or reinstalls a missing one). Resolves with an extra note for the user, if any. */
-export async function installVersion(id: string, version: string, onProgress: (percent: number | null) => void): Promise<string | null> {
+export async function installVersion(
+  id: string,
+  version: string,
+  onProgress: (percent: number | null) => void,
+): Promise<string | null> {
   if (!inDesktopApp) {
     for (let p = 20; p <= 100; p += 40) {
       onProgress(p);
@@ -90,11 +94,28 @@ export function formatMb(bytes: number | null): string {
 
 // Browser preview: an install where Node.js and Composer were deleted and Git isn't installed yet.
 const preview = {
-  active: { php: "8.5.12", apache: "2.4.69", mysql: "9.7.4", node: "26.13.0", composer: "2.11.0" } as Record<string, string>,
-  installed: { php: ["8.5.12"], apache: ["2.4.69"], mysql: ["9.7.4"], node: [], composer: [], git: [] } as Record<string, string[]>,
+  active: { php: "8.5.12", apache: "2.4.69", mysql: "9.7.4", node: "26.13.0", composer: "2.11.0" } as Record<
+    string,
+    string
+  >,
+  installed: { php: ["8.5.12"], apache: ["2.4.69"], mysql: ["9.7.4"], node: [], composer: [], git: [] } as Record<
+    string,
+    string[]
+  >,
 };
 
-const NAMES: Record<string, string> = { php: "PHP", apache: "Apache", mysql: "MySQL", node: "Node.js", composer: "Composer", git: "Git", mailpit: "Mail catcher (Mailpit)", redis: "Redis" };
+const NAMES: Record<string, string> = {
+  php: "PHP",
+  apache: "Apache",
+  mysql: "MySQL",
+  node: "Node.js",
+  composer: "Composer",
+  git: "Git",
+  mailpit: "Mail catcher (Mailpit)",
+  redis: "Redis",
+  postgres: "PostgreSQL",
+  python: "Python",
+};
 const ABOUT: Record<string, string> = {
   php: "Runs your PHP sites and tools like Laravel and WordPress.",
   apache: "The web server that opens your projects at localhost and .test addresses.",
@@ -104,6 +125,8 @@ const ABOUT: Record<string, string> = {
   git: "Downloads and versions code, for example with git clone in the Terminal.",
   mailpit: "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
   redis: "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
+  postgres: "A second database server, for apps built on PostgreSQL instead of MySQL.",
+  python: "Runs Python scripts and installs packages with pip in the Terminal.",
 };
 
 function previewMissing(): MissingPart[] {
@@ -114,12 +137,24 @@ function previewMissing(): MissingPart[] {
 
 function previewInfo(): VersionsInfo {
   const catalog: Record<string, [string, string, VersionLabel[], number][]> = {
-    php: [["8.5", "8.5.13", ["recommended", "latest"], 32], ["8.4", "8.4.20", [], 31], ["8.3", "8.3.28", ["ends-soon"], 30]],
+    php: [
+      ["8.5", "8.5.13", ["recommended", "latest"], 32],
+      ["8.4", "8.4.20", [], 31],
+      ["8.3", "8.3.28", ["ends-soon"], 30],
+    ],
     apache: [["2.4", "2.4.69", ["recommended", "latest"], 12]],
-    mysql: [["9.7", "9.7.4", ["recommended", "lts", "latest"], 330], ["8.4", "8.4.9", ["lts"], 310]],
-    node: [["26", "26.13.0", ["latest"], 34], ["24", "24.15.0", ["recommended", "lts"], 33]],
+    mysql: [
+      ["9.7", "9.7.4", ["recommended", "lts", "latest"], 330],
+      ["8.4", "8.4.9", ["lts"], 310],
+    ],
+    node: [
+      ["26", "26.13.0", ["latest"], 34],
+      ["24", "24.15.0", ["recommended", "lts"], 33],
+    ],
     composer: [["2.11.0", "2.11.0", ["latest"], 3]],
     git: [["2.56.0.4", "2.56.0.4", ["latest"], 38]],
+    python: [["3.14.10", "3.14.10", ["latest"], 15]],
+    postgres: [["18.6", "18.6", ["latest"], 328]],
     mailpit: [["1.33.0", "1.33.0", ["latest"], 11]],
     redis: [["8.10.3", "8.10.3", ["latest"], 13]],
   };
@@ -130,7 +165,11 @@ function previewInfo(): VersionsInfo {
       const installed = (preview.installed[id] ?? []).map((v) => ({ version: v, active: v === active }));
       const missing = active !== null && !installed.some((i) => i.active);
       const activeLine = active ? rows.find(([line]) => active.startsWith(line + "."))?.[0] : undefined;
-      const kind = id === "composer" || id === "git" ? "tool" : id === "mailpit" || id === "redis" ? "service" : "runtime";
+      const kind = ["composer", "git", "python"].includes(id)
+        ? "tool"
+        : ["postgres", "mailpit", "redis"].includes(id)
+          ? "service"
+          : "runtime";
       return {
         id,
         name: NAMES[id],
@@ -141,7 +180,12 @@ function previewInfo(): VersionsInfo {
         installed,
         hint:
           id === "php" && active === "8.5.12"
-            ? { kind: "update", version: "8.5.13", message: "PHP 8.5.13 is out. It fixes bugs and security issues in the 8.5 line you use, so it's safe to update." }
+            ? {
+                kind: "update",
+                version: "8.5.13",
+                message:
+                  "PHP 8.5.13 is out. It fixes bugs and security issues in the 8.5 line you use, so it's safe to update.",
+              }
             : null,
         note: id === "mysql" ? "Your databases stay where they are when you switch within the same MySQL line." : null,
         available: rows.map(([line, version, labels, mb]) => ({

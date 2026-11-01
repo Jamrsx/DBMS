@@ -10,6 +10,7 @@ mod installer;
 mod phpmyadmin;
 mod phpfix;
 mod phpver;
+mod postgres;
 mod projectops;
 mod projects;
 mod recyclebin;
@@ -250,6 +251,7 @@ pub fn run() {
             service_log,
             clear_service_log,
             app_settings,
+            web_server_use,
             save_ports,
             set_start_services_on_launch,
             https_status,
@@ -360,7 +362,7 @@ struct ProjectsInfo {
 async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, String> {
     let (_, settings, _) = stack.get()?;
     blocking(move || {
-        let port = settings.apache_port.unwrap_or(80);
+        let port = settings.web().map_or(80, |w| w.1);
         let mut projects = projects::list(std::path::Path::new(&settings.www_dir), port);
         for p in projects.iter_mut().filter(|p| p.kind == "laravel" || p.kind == "php") {
             p.php_warnings = phpfix::scan(std::path::Path::new(&p.path)).len();
@@ -372,7 +374,7 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
         let hosts = std::fs::read_to_string(projects::hosts_path()).unwrap_or_default();
         Ok(ProjectsInfo {
             www_dir: settings.www_dir.clone(),
-            web_server: settings.apache_port.is_some(),
+            web_server: settings.web().is_some(),
             missing_hosts: projects::missing_hosts(&wanted, &hosts),
             projects,
         })
@@ -380,17 +382,15 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
     .await
 }
 
-/// Rewrites the virtual hosts and restarts Apache when it is running so it picks them up.
+/// Rewrites the virtual hosts and restarts the web server when it is running so it picks them up.
 fn apply_vhosts(root: &std::path::Path, settings: &settings::Settings, sup: &supervisor::Supervisor) -> Result<(), String> {
-    if settings.apache_port.is_none() {
-        return Ok(());
-    }
+    let Some((web, _)) = settings.web() else { return Ok(()) };
     projects::write_site_configs(root, settings)?;
-    let running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+    let running = sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running);
     if running {
         installer::refresh_configs(root, settings)?;
-        sup.stop("apache")?;
-        sup.start("apache")?;
+        sup.stop(web)?;
+        sup.start(web)?;
     }
     Ok(())
 }
@@ -430,15 +430,15 @@ async fn apply_service_change(
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
         let mut ids = was_running;
-        if ids.iter().any(|i| i == "apache") {
+        if ids.iter().any(|i| i == "apache" || i == "nginx") {
             for s in sup.status() {
                 if s.id.starts_with("php-") && !ids.contains(&s.id) {
                     ids.push(s.id);
                 }
             }
         }
-        // PHP before Apache, so the first page already works.
-        ids.sort_by_key(|i| i == "apache");
+        // PHP before the web server, so the first page already works.
+        ids.sort_by_key(|i| i == "apache" || i == "nginx");
         let errors: Vec<String> = ids.iter().filter_map(|id| sup.start(id).err()).collect();
         if errors.is_empty() { Ok(()) } else { Err(format!("Saved, but some services didn't start again: {}", errors.join(" "))) }
     })
@@ -639,7 +639,7 @@ async fn project_quickstart(
 async fn projects_sync_hosts(stack: tauri::State<'_, Stack>) -> Result<(), String> {
     let (root, settings, sup) = stack.get()?;
     blocking(move || {
-        let port = settings.apache_port.unwrap_or(80);
+        let port = settings.web().map_or(80, |w| w.1);
         let hosts: Vec<String> = projects::list(std::path::Path::new(&settings.www_dir), port)
             .into_iter()
             .filter_map(|p| p.host)
@@ -656,7 +656,7 @@ async fn projects_sync_hosts(stack: tauri::State<'_, Stack>) -> Result<(), Strin
 fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String, what: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let (_, settings, _) = stack.get()?;
-    let port = settings.apache_port.unwrap_or(80);
+    let port = settings.web().map_or(80, |w| w.1);
     let mut found = projects::list(std::path::Path::new(&settings.www_dir), port);
     if settings.preferences.https {
         projects::use_https(&mut found, settings.preferences.https_port);
@@ -889,7 +889,7 @@ async fn db_save_csv(
 #[tauri::command]
 fn phpmyadmin_status(stack: tauri::State<Stack>) -> Result<phpmyadmin::Status, String> {
     let (root, settings, _) = stack.get()?;
-    Ok(phpmyadmin::status(&root, settings.apache_port))
+    Ok(phpmyadmin::status(&root, settings.web().map(|w| w.1)))
 }
 
 /// Downloads phpMyAdmin, sets it up for NexDB's MySQL and restarts Apache if it is running.
@@ -897,9 +897,9 @@ fn phpmyadmin_status(stack: tauri::State<Stack>) -> Result<phpmyadmin::Status, S
 #[tauri::command]
 async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<(), String> {
     let (root, settings, sup) = stack.get()?;
-    if settings.apache_port.is_none() {
-        return Err("phpMyAdmin needs the Apache web server, which isn't part of this install.".into());
-    }
+    let Some((web, _)) = settings.web() else {
+        return Err("phpMyAdmin needs a web server (Apache or nginx), which isn't part of this install.".into());
+    };
     let catalog = catalog::bundled();
     let emit_app = app.clone();
     phpmyadmin::install(&catalog.tools.phpmyadmin.download, &root, settings.mysql.as_ref().map(|m| m.port), &move |p| {
@@ -908,10 +908,10 @@ async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack
     .await?;
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
-        let running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+        let running = sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running);
         if running {
-            sup.stop("apache")?;
-            sup.start("apache")?;
+            sup.stop(web)?;
+            sup.start(web)?;
         }
         Ok(())
     })
@@ -922,7 +922,7 @@ async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack
 fn phpmyadmin_open(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let (root, settings, _) = stack.get()?;
-    let status = phpmyadmin::status(&root, settings.apache_port);
+    let status = phpmyadmin::status(&root, settings.web().map(|w| w.1));
     if !status.installed {
         return Err("phpMyAdmin isn't installed yet.".into());
     }
@@ -944,6 +944,10 @@ struct AppSettings {
     php_port: u16,
     mysql_port: Option<u16>,
     start_services_on_launch: bool,
+    /// "apache" or "nginx": the one serving localhost and the .test sites.
+    web_server: Option<&'static str>,
+    /// Web servers installed, so Settings can offer a switch.
+    web_servers_installed: Vec<&'static str>,
 }
 
 #[tauri::command]
@@ -953,11 +957,66 @@ fn app_settings(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<App
         app_version: app.package_info().version.to_string(),
         install_root: root.display().to_string(),
         www_dir: settings.www_dir.clone(),
-        apache_port: settings.apache_port,
+        apache_port: settings.web().map(|w| w.1),
         php_port: settings.php_fastcgi_port,
         mysql_port: settings.mysql.as_ref().map(|m| m.port),
         start_services_on_launch: settings.preferences.start_services_on_launch,
+        web_server: settings.web().map(|w| w.0),
+        web_servers_installed: ["apache", "nginx"]
+            .into_iter()
+            .filter(|id| settings.components.iter().any(|c| c.id == *id))
+            .collect(),
     })
+}
+
+/// Makes Apache or nginx the web server for localhost and the .test sites. The other one is
+/// switched off (it stays installed) and the chosen one takes over its port. If the web server
+/// was running, the new one starts straight away.
+#[tauri::command]
+async fn web_server_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, server: String) -> Result<(), String> {
+    let (_, settings, sup) = stack.get()?;
+    let (server, other): (&'static str, &'static str) = match server.as_str() {
+        "apache" => ("apache", "nginx"),
+        "nginx" => ("nginx", "apache"),
+        _ => return Err("NexDB only knows Apache and nginx.".into()),
+    };
+    if !settings.components.iter().any(|c| c.id == server) {
+        return Err(format!("{} isn't installed yet. Install it on the Versions page first.", versions::name_of(server)));
+    }
+    let current = settings.web();
+    if current.is_some_and(|w| w.0 == server) {
+        return Ok(());
+    }
+    let port = current.map_or(80, |w| w.1);
+    let was_running = sup.status().iter().any(|s| (s.id == "apache" || s.id == "nginx") && s.state == supervisor::State::Running);
+    // The old web server stops first, so it isn't restarted under a name that no longer exists.
+    blocking(move || {
+        for id in ["apache", "nginx"] {
+            let _ = sup.stop(id);
+        }
+        Ok(())
+    })
+    .await?;
+    apply_service_change(&app, &stack, move |v| {
+        v[format!("{server}_port")] = port.into();
+        v[format!("{other}_port")] = serde_json::Value::Null;
+        Ok(())
+    })
+    .await?;
+    if was_running {
+        let (_, _, sup) = stack.get()?;
+        blocking(move || {
+            // PHP first (every version projects use), then the web server.
+            for s in sup.status() {
+                if s.id.starts_with("php") && s.state != supervisor::State::Running {
+                    sup.start(&s.id)?;
+                }
+            }
+            sup.start(server)
+        })
+        .await?;
+    }
+    Ok(())
 }
 
 /// Changes the ports: stops the services, checks the new ports are free, saves, rebuilds
@@ -971,7 +1030,9 @@ async fn save_ports(
     mysql: Option<u16>,
 ) -> Result<(), String> {
     let (root, settings, sup) = stack.get()?;
-    let apache = settings.apache_port.and(apache);
+    // The port field is for whichever web server serves the sites.
+    let web_key = if settings.apache_port.is_some() { "apache_port" } else { "nginx_port" };
+    let apache = settings.web().and(apache);
     let mysql = settings.mysql.as_ref().and(mysql);
     settings::check_ports(apache, php, mysql)?;
     let was_running: Vec<String> = sup
@@ -993,7 +1054,7 @@ async fn save_ports(
         }
         settings::edit(&root2, |v| {
             if let Some(p) = apache {
-                v["apache_port"] = p.into();
+                v[web_key] = p.into();
             }
             v["php_fastcgi_port"] = php.into();
             if let Some(p) = mysql {
@@ -1052,7 +1113,7 @@ async fn https_status(stack: tauri::State<'_, Stack>) -> Result<HttpsInfo, Strin
             enabled: settings.preferences.https,
             port: settings.preferences.https_port,
             trusted: admin::is_trusted(&ca.thumbprint),
-            web_server: settings.apache_port.is_some(),
+            web_server: settings.web().is_some(),
         })
     })
     .await
@@ -1063,12 +1124,12 @@ async fn https_status(stack: tauri::State<'_, Stack>) -> Result<HttpsInfo, Strin
 #[tauri::command]
 async fn set_https(stack: tauri::State<'_, Stack>, on: bool) -> Result<(), String> {
     let (root, settings, sup) = stack.get()?;
-    if settings.apache_port.is_none() {
-        return Err("HTTPS needs NexDB's Apache web server. Install Apache on the Versions page first.".into());
-    }
+    let Some((web, _)) = settings.web() else {
+        return Err("HTTPS needs a web server. Install Apache or nginx on the Versions page first.".into());
+    };
     let port = settings.preferences.https_port;
     let was_on = settings.preferences.https;
-    let apache_running = sup.status().iter().any(|s| s.id == "apache" && s.state == supervisor::State::Running);
+    let apache_running = sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running);
     let save = |root: &std::path::Path, on: bool| {
         settings::edit(root, |v| {
             v["preferences"]["https"] = on.into();
@@ -1103,8 +1164,8 @@ async fn set_https(stack: tauri::State<'_, Stack>, on: bool) -> Result<(), Strin
         move || {
             installer::refresh_configs(&root, &settings)?;
             if apache_running {
-                sup.stop("apache")?;
-                sup.start("apache")?;
+                sup.stop(web)?;
+                sup.start(web)?;
             }
             Ok(())
         }
@@ -1118,7 +1179,7 @@ async fn set_https(stack: tauri::State<'_, Stack>, on: bool) -> Result<(), Strin
             let _ = blocking(move || {
                 installer::refresh_configs(&root, &settings)?;
                 if apache_running {
-                    sup.start("apache")?;
+                    sup.start(web)?;
                 }
                 Ok(())
             })
@@ -1265,7 +1326,18 @@ async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, 
             s.components.push(settings::Component { id: id.clone(), version: Some(version.clone()), path: target.display().to_string() });
         });
     }
-    // The mail catcher and Redis become Dashboard services: rebuild the service list.
+    if id == "python" {
+        // `pip` on PATH, running this Python's own pip.
+        std::fs::write(target.join("pip.bat"), "@\"%~dp0python.exe\" -m pip %*\r\n").map_err(|e| format!("Couldn't add pip: {e}"))?;
+    }
+    if id == "postgres" {
+        let data = root.join("data").join("postgres");
+        if !data.join("PG_VERSION").is_file() {
+            let bin = target.join("bin");
+            blocking(move || postgres::init(&bin, &data)).await?;
+        }
+    }
+    // PostgreSQL, the mail catcher and Redis become Dashboard services: rebuild the service list.
     if versions::SERVICE_TOOLS.contains(&id.as_str()) {
         apply_service_change(&app, &stack, |_| Ok(())).await?;
     }

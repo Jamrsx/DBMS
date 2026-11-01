@@ -27,6 +27,8 @@ pub enum StopMethod {
     NginxQuit,
     /// `redis-cli shutdown`, so Redis saves its data before it exits.
     RedisShutdown,
+    /// `pg_ctl stop -m fast` on the same data folder: a clean PostgreSQL shutdown.
+    PgCtl,
     /// Stateless (php-cgi): end the process.
     Kill,
 }
@@ -209,8 +211,29 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
         }
     }
 
-    // Helpers installed from the Versions page: the mail catcher and Redis.
+    // Helpers installed from the Versions page: PostgreSQL, the mail catcher and Redis.
     let data = root.join("data");
+    if let Some(dir) = component("postgres").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "postgres".into(),
+            name: "PostgreSQL".into(),
+            version: component("postgres").and_then(|c| c.version.clone()),
+            exe: dir.join("bin").join("postgres.exe"),
+            args: vec![
+                "-D".into(),
+                data.join("postgres").display().to_string(),
+                "-p".into(),
+                POSTGRES_PORT.to_string(),
+                "-c".into(),
+                "listen_addresses=127.0.0.1".into(),
+            ],
+            cwd: dir,
+            port: POSTGRES_PORT,
+            managed: true,
+            stop: StopMethod::PgCtl,
+            log: logs.join("postgres.log"),
+        });
+    }
     if let Some(dir) = component("mailpit").and_then(|c| dir_of(&c.path)) {
         specs.push(ServiceSpec {
             id: "mailpit".into(),
@@ -260,6 +283,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
 pub const MAIL_SMTP_PORT: u16 = 1025;
 pub const MAIL_WEB_PORT: u16 = 8025;
 pub const REDIS_PORT: u16 = 6379;
+pub const POSTGRES_PORT: u16 = 5432;
 
 impl Supervisor {
     pub fn new(specs: Vec<ServiceSpec>) -> Self {
@@ -394,6 +418,17 @@ impl Supervisor {
             StopMethod::RedisShutdown => {
                 let mut cmd = Command::new(spec.exe.with_file_name("redis-cli.exe"));
                 cmd.args(["-p", &spec.port.to_string(), "shutdown"])
+                    .current_dir(&spec.cwd)
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::null())
+                    .stderr(Stdio::null());
+                crate::scan::hide_console(&mut cmd);
+                cmd.status().is_ok_and(|s| s.success())
+            }
+            StopMethod::PgCtl => {
+                let data = spec.args.iter().skip_while(|a| *a != "-D").nth(1).cloned().unwrap_or_default();
+                let mut cmd = Command::new(spec.exe.with_file_name("pg_ctl.exe"));
+                cmd.args(["stop", "-D", &data, "-m", "fast", "-s"])
                     .current_dir(&spec.cwd)
                     .stdin(Stdio::null())
                     .stdout(Stdio::null())

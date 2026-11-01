@@ -9,6 +9,9 @@ export interface AppSettings {
   php_port: number;
   mysql_port: number | null;
   start_services_on_launch: boolean;
+  /** The web server for localhost and the .test sites. */
+  web_server: "apache" | "nginx" | null;
+  web_servers_installed: ("apache" | "nginx")[];
 }
 
 const preview: AppSettings = {
@@ -19,6 +22,8 @@ const preview: AppSettings = {
   php_port: 9085,
   mysql_port: 3306,
   start_services_on_launch: false,
+  web_server: "apache",
+  web_servers_installed: ["apache", "nginx"],
 };
 
 export async function getAppSettings(): Promise<AppSettings> {
@@ -30,8 +35,16 @@ export async function getAppSettings(): Promise<AppSettings> {
 export async function savePorts(apache: number | null, php: number, mysql: number | null): Promise<void> {
   if (inDesktopApp) return invoke("save_ports", { apache, php, mysql });
   await new Promise((r) => setTimeout(r, 600));
-  if (apache !== null && apache === mysql) throw "Web server and MySQL can't share the same port. Give each its own port.";
+  if (apache !== null && apache === mysql)
+    throw "Web server and MySQL can't share the same port. Give each its own port.";
   Object.assign(preview, { apache_port: apache, php_port: php, mysql_port: mysql });
+}
+
+/** Makes Apache or nginx serve the sites; the running web server restarts as the new one. */
+export async function switchWebServer(server: string): Promise<void> {
+  if (inDesktopApp) return invoke("web_server_use", { server });
+  await new Promise((r) => setTimeout(r, 800));
+  preview.web_server = server as "apache" | "nginx";
 }
 
 export async function setStartServicesOnLaunch(on: boolean): Promise<void> {

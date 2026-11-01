@@ -274,6 +274,7 @@ async fn ensure_vc_runtime(
         url: admin::VC_REDIST_URL.into(),
         size: None,
         checksum: Checksum { algo: AUTHENTICODE.into(), value: String::new() },
+        subdir: None,
     };
     let installer = root.join("tmp").join("downloads").join("vc_redist.x64.exe");
     fetch(client, &download, &installer, step, emit).await?;
@@ -412,6 +413,11 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
         crate::phpmyadmin::write_config(root, settings.mysql.as_ref().map(|m| m.port))?;
     }
     if let Some(nginx_dir) = &layout.nginx {
+        // nginx serves the sites when there is no Apache; its config is checked after they're written.
+        if layout.apache.is_none() {
+            crate::projects::write_site_configs(root, settings)?;
+            crate::phpmyadmin::write_config(root, settings.mysql.as_ref().map(|m| m.port))?;
+        }
         configure_nginx(&layout, nginx_dir)?;
     }
     if let (Some(base), Some(mysql)) = (&layout.mysql, &settings.mysql) {
@@ -460,6 +466,7 @@ fn configure_nginx(l: &Layout, nginx_dir: &Path) -> Result<Option<String>, Strin
         fs::create_dir_all(temp.join(dir)).map_err(|e| e.to_string())?;
     }
     fs::create_dir_all(l.etc.join("nginx").join("sites-enabled")).map_err(|e| e.to_string())?;
+    fs::create_dir_all(l.etc.join("nginx").join("localhost.d")).map_err(|e| e.to_string())?;
     fs::create_dir_all(&l.logs).map_err(|e| e.to_string())?;
     let conf = l.etc.join("nginx").join("nginx.conf");
     configure::write_file(
@@ -681,8 +688,8 @@ pub async fn install_archive(
     let archive = download_verified(download, root, step, emit).await?;
     let file_name = archive.file_name().unwrap_or_default().to_string_lossy().to_string();
     emit(Progress { step: step.into(), status: StepStatus::Running, message: Some("Unpacking".into()), bytes_done: 0, bytes_total: None });
-    let (archive_path, target_path) = (archive.clone(), target.to_path_buf());
-    tauri::async_runtime::spawn_blocking(move || extract_into(&archive_path, &target_path))
+    let (archive_path, target_path, subdir) = (archive.clone(), target.to_path_buf(), download.subdir.clone());
+    tauri::async_runtime::spawn_blocking(move || extract_part(&archive_path, &target_path, subdir.as_deref()))
         .await
         .map_err(|err| format!("Unpacking stopped unexpectedly: {err}"))?
         .map_err(|err| format!("Couldn't unpack {file_name}: {err}"))?;
@@ -807,8 +814,16 @@ fn file_matches(path: &Path, checksum: &Checksum) -> io::Result<bool> {
 /// (`node-v26.13.0-win-x64\`, `Apache24\`) its contents go straight into `target`.
 /// Unpacks into a staging folder first so a failed unpack never leaves a half-installed version.
 pub fn extract_into(archive: &Path, target: &Path) -> io::Result<()> {
+    extract_part(archive, target, None)
+}
+
+/// Like `extract_into`, but with `subdir` only that folder of the archive is unpacked.
+pub fn extract_part(archive: &Path, target: &Path, subdir: Option<&str>) -> io::Result<()> {
     let mut zip = zip::ZipArchive::new(File::open(archive)?).map_err(io::Error::other)?;
-    let strip = single_top_folder(&mut zip);
+    let strip = match subdir {
+        Some(sub) => Some(PathBuf::from(sub)),
+        None => single_top_folder(&mut zip),
+    };
 
     let staging = target.with_extension("staging");
     if staging.exists() {
@@ -1118,6 +1133,32 @@ mod tests {
         let layout = Layout::new(dir.path(), &request);
         let message = configure_nginx(&layout, &target).unwrap();
         println!("config-nginx: {message:?}");
+
+        // nginx as the main web server: project sites, phpMyAdmin and a project on another PHP.
+        let www = dir.path().join("www");
+        fs::create_dir_all(www.join("shop").join("public")).unwrap();
+        fs::create_dir_all(www.join("blog")).unwrap();
+        let pma = dir.path().join("tools").join("phpmyadmin");
+        fs::create_dir_all(&pma).unwrap();
+        let etc = dir.path().join("etc");
+        let php_ports = std::collections::BTreeMap::from([("blog".to_string(), 9086u16)]);
+        crate::projects::write_nginx_sites(&crate::projects::NginxSites {
+            etc: &etc,
+            www: &www,
+            port: layout.nginx_port,
+            https: None,
+            php_ports: &php_ports,
+            fcgi_port: 9085,
+            nginx_dir: &target,
+            phpmyadmin: Some(pma),
+        })
+        .unwrap();
+        let shop = fs::read_to_string(etc.join("nginx/sites-enabled/shop.conf")).unwrap();
+        assert!(shop.contains("server_name shop.test;") && shop.contains("try_files $uri $uri/ /index.php?$query_string;"));
+        let blog = fs::read_to_string(etc.join("nginx/sites-enabled/blog.conf")).unwrap();
+        assert!(blog.contains("fastcgi_pass 127.0.0.1:9086;"), "{blog}");
+        configure::check_nginx(&target, &etc.join("nginx/nginx.conf")).unwrap();
+        println!("nginx sites: config checked");
     }
 
     /// Nothing from Laragon or any other install: downloads PHP, Apache and MySQL, installs them
@@ -1225,5 +1266,26 @@ mod tests {
         let settings = crate::settings::load(dir.path()).unwrap();
         assert!(settings.components.iter().any(|c| c.id == "git" && c.version.as_deref() == Some(version.as_str())));
         assert!(crate::versions::missing(&settings).is_empty(), "Git counts as installed");
+    }
+}
+
+#[cfg(test)]
+mod python_tests {
+    use std::time::Duration;
+
+    /// Python's NuGet package unpacks only its `tools` folder, and pip works from it.
+    /// `cargo test real_python -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_python() {
+        let dir = tempfile::tempdir().unwrap();
+        let tool = crate::catalog::bundled().tools.python.expect("catalog has Python");
+        let target = dir.path().join("bin").join("python").join(format!("python-{}", tool.version));
+        tauri::async_runtime::block_on(crate::installer::install_archive(&tool.download, dir.path(), &target, "get-python", &|_| {}))
+            .unwrap();
+        assert!(target.join("python.exe").is_file() && !target.join("python.nuspec").exists());
+        let out = crate::configure::run_quiet(&target.join("python.exe"), &["-m", "pip", "--version"], Duration::from_secs(60)).unwrap();
+        println!("pip: {}", out.text.trim());
+        assert!(out.success && out.text.starts_with("pip "), "{}", out.text);
     }
 }

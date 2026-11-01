@@ -61,6 +61,15 @@ pub fn tool_dirs(root: &Path, settings: &Settings) -> Vec<PathBuf> {
     if let Some(apache) = dir_of("apache") {
         dirs.push(apache.join("bin"));
     }
+    // Python and the commands pip installs; psql; redis-cli.
+    if let Some(python) = dir_of("python") {
+        dirs.push(python.join("Scripts"));
+        dirs.push(python);
+    }
+    if let Some(postgres) = dir_of("postgres") {
+        dirs.push(postgres.join("bin"));
+    }
+    dirs.extend(dir_of("redis"));
     dirs.push(root.join("bin"));
     dirs.retain(|d| d.is_dir());
     dirs

@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 pub const COMPONENTS: [&str; 5] = ["php", "apache", "mysql", "node", "nginx"];
 pub const MARKER: &str = ".devmanager-installed";
 /// Tools shown on the Versions page, in this order.
-pub const TOOLS: [&str; 4] = ["composer", "git", "mailpit", "redis"];
+pub const TOOLS: [&str; 6] = ["composer", "git", "python", "postgres", "mailpit", "redis"];
 /// Tools that run as services on the Dashboard once installed.
-pub const SERVICE_TOOLS: [&str; 2] = ["mailpit", "redis"];
+pub const SERVICE_TOOLS: [&str; 3] = ["postgres", "mailpit", "redis"];
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Installed {
@@ -109,6 +109,8 @@ pub fn name_of(id: &str) -> &str {
         "git" => "Git",
         "mailpit" => "Mail catcher (Mailpit)",
         "redis" => "Redis",
+        "postgres" => "PostgreSQL",
+        "python" => "Python",
         other => other,
     }
 }
@@ -124,6 +126,8 @@ fn about(id: &str) -> &'static str {
         "git" => "Downloads and versions code, for example with git clone in the Terminal.",
         "mailpit" => "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
         "redis" => "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
+        "postgres" => "A second database server, for apps built on PostgreSQL instead of MySQL.",
+        "python" => "Runs Python scripts and installs packages with pip in the Terminal.",
         _ => "",
     }
 }
@@ -140,6 +144,8 @@ pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
         "git" => dir.join("cmd").join("git.exe"),
         "mailpit" => dir.join("mailpit.exe"),
         "redis" => dir.join("redis-server.exe"),
+        "postgres" => dir.join("bin").join("postgres.exe"),
+        "python" => dir.join("python.exe"),
         _ => dir.to_path_buf(),
     }
 }

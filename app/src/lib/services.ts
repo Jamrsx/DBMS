@@ -58,14 +58,20 @@ export function markPreviewInstalled() {
   preview.installed = true;
 }
 
-const previewLogs: Record<string, string[]> = { php: [], apache: [], mysql: [], mailpit: [], redis: [] };
+const previewLogs: Record<string, string[]> = { php: [], apache: [], mysql: [], mailpit: [], redis: [], postgres: [] };
 
 // Browser preview: a simulated stack shaped like a real one (Apache blocked by another
 // program on port 80, PHP startable, an existing MySQL that is only watched).
 const preview = (() => {
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const started: Record<string, number | null> = { php: null, apache: null, mailpit: null, redis: null };
-  const errors: Record<string, string | null> = { php: null, apache: null, mailpit: null, redis: null };
+  const started: Record<string, number | null> = {
+    php: null,
+    apache: null,
+    postgres: null,
+    mailpit: null,
+    redis: null,
+  };
+  const errors: Record<string, string | null> = { php: null, apache: null, postgres: null, mailpit: null, redis: null };
   const logs = previewLogs;
   // Apache-style timestamps, e.g. "Sat Oct 31 08:39:23.000000 2026", so the readable view can translate them.
   const stamp = () => {
@@ -76,6 +82,7 @@ const preview = (() => {
     { id: "php", name: "PHP (FastCGI)", version: "8.4.5", port: 9085, managed: true },
     { id: "mysql", name: "MySQL", version: "8.0.30", port: 3306, managed: false },
     { id: "apache", name: "Apache", version: "2.4.63", port: 80, managed: true },
+    { id: "postgres", name: "PostgreSQL", version: "18.6", port: 5432, managed: true },
     { id: "mailpit", name: "Mail catcher", version: "1.33.0", port: 8025, managed: true },
     { id: "redis", name: "Redis", version: "8.10.3", port: 6379, managed: true },
   ];
@@ -108,7 +115,7 @@ const preview = (() => {
     },
     async start(id?: string) {
       await sleep(700);
-      const ids = id ? [id] : ["php", "apache", "mailpit", "redis"];
+      const ids = id ? [id] : ["php", "apache", "postgres", "mailpit", "redis"];
       const failures: string[] = [];
       for (const s of ids) {
         if (s === "apache") {
@@ -130,7 +137,7 @@ const preview = (() => {
     },
     async stop(id?: string) {
       await sleep(400);
-      for (const s of id ? [id] : ["apache", "php", "mailpit", "redis"]) {
+      for (const s of id ? [id] : ["apache", "php", "postgres", "mailpit", "redis"]) {
         started[s] = null;
         errors[s] = null;
       }

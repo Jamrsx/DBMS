@@ -33,7 +33,7 @@ import {
 const POLL_MS = 1500;
 
 /** Order along the request path: web servers, then PHP, then MySQL. */
-const PATH_ORDER = ["apache", "nginx", "php", "mysql"];
+const PATH_ORDER = ["apache", "nginx", "php", "mysql", "postgres"];
 
 type Busy = Record<string, "starting" | "stopping">;
 
@@ -187,7 +187,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                       guideOpen={guide === s.id}
                       onSelect={() => setSelected(s.id)}
                       onGuide={
-                        s.id === "mailpit" || s.id === "redis"
+                        s.id === "postgres" || s.id === "mailpit" || s.id === "redis"
                           ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
                           : undefined
                       }
@@ -237,6 +237,7 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   nginx: { role: "Web server for localhost and .test sites", Icon: Globe },
   php: { role: "Runs your PHP code for the web server", Icon: FileCode2 },
   mysql: { role: "Database server", Icon: DatabaseIcon },
+  postgres: { role: "PostgreSQL database server", Icon: DatabaseIcon },
   mailpit: { role: "Catches the emails your apps send", Icon: Mail },
   redis: { role: "Cache, sessions and queues for your apps", Icon: Zap },
 };
@@ -562,7 +563,7 @@ function grouped(services: ServiceStatus[]): [string, ServiceStatus[]][] {
   const groupOf = (id: string) =>
     id === "apache" || id === "nginx" || id === "php" || id.startsWith("php-")
       ? "Web"
-      : id === "mysql"
+      : id === "mysql" || id === "postgres"
         ? "Database"
         : "Extras";
   const groups: [string, ServiceStatus[]][] = [];

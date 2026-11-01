@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.4",
+    title: "PostgreSQL, Python and nginx",
+    changes: [
+      "PostgreSQL under Versions → Extra services: it sets itself up, runs on the Dashboard, and psql works in the Terminal.",
+      "Python with pip for the Terminal, under Versions → Tools.",
+      "Settings → Web server: switch between Apache and nginx. Your .test sites, phpMyAdmin, HTTPS and PHP per project keep working.",
+      "Redis's redis-cli now works in the Terminal too.",
+    ],
+  },
+  {
     version: "0.3.3",
     title: "A tidier Dashboard and mail setup help",
     changes: [

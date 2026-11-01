@@ -144,6 +144,42 @@ async function githubTool(repo, pattern) {
   return { version, download: download(asset.browser_download_url, asset.size, "sha256", sha) };
 }
 
+/** SHA-256 of a download, hashed as it streams (for sources that publish no checksum). */
+async function hashUrl(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
+  const hash = createHash("sha256");
+  let size = 0;
+  for await (const chunk of res.body) {
+    hash.update(chunk);
+    size += chunk.length;
+  }
+  return { size, sha: hash.digest("hex") };
+}
+
+/** PostgreSQL's newest supported line, as EnterpriseDB's Windows binaries zip. */
+async function postgresTool() {
+  const cycles = await getJson("https://endoflife.date/api/postgresql.json");
+  for (const cy of cycles) {
+    const url = `https://get.enterprisedb.com/postgresql/postgresql-${cy.latest}-1-windows-x64-binaries.zip`;
+    if (!(await headSize(url))) continue;
+    const { size, sha } = await hashUrl(url);
+    return { version: cy.latest, download: download(url, size, "sha256", sha) };
+  }
+  throw new Error("No PostgreSQL Windows binaries found");
+}
+
+/** Python from python.org's NuGet package: the newest release of the newest line that is a
+ * year old, so common packages have Windows wheels. pip comes included, under `tools`. */
+async function pythonTool() {
+  const cutoff = new Date(Date.now() - 365 * 864e5).toISOString().slice(0, 10);
+  const cycle = (await getJson("https://endoflife.date/api/python.json")).find((c) => c.releaseDate <= cutoff);
+  const version = cycle.latest;
+  const url = `https://api.nuget.org/v3-flatcontainer/python/${version}/python.${version}.nupkg`;
+  const { size, sha } = await hashUrl(url);
+  return { version, download: { ...download(url, size, "sha256", sha), subdir: "tools" } };
+}
+
 /** endoflife.date fields are either a date string or a boolean. */
 const dateOrNull = (v) => (typeof v === "string" ? v : null);
 
@@ -205,10 +241,14 @@ const catalog = {
     "github.com/git-for-windows",
     "github.com/axllent/mailpit",
     "github.com/redis-windows/redis-windows",
+    "get.enterprisedb.com",
+    "api.nuget.org (python)",
   ],
   components,
   tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool(),
     mailpit: await githubTool("axllent/mailpit", /^mailpit-windows-amd64\.zip$/),
+    postgres: await postgresTool(),
+    python: await pythonTool(),
     redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
   },
 };

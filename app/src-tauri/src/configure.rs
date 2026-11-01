@@ -38,11 +38,15 @@ pub fn conf_path(path: &Path) -> String {
 pub fn php_ini(php_dir: &Path) -> String {
     let template = fs::read_to_string(php_dir.join("php.ini-development")).unwrap_or_default();
     let ext_dir = php_dir.join("ext");
-    let available: Vec<&str> = PHP_EXTENSIONS
+    let mut available: Vec<&str> = PHP_EXTENSIONS
         .iter()
         .copied()
         .filter(|name| ext_dir.join(format!("php_{name}.dll")).is_file())
         .collect();
+    // PostgreSQL for PHP needs libpq.dll beside php.exe; without it PHP would warn on every run.
+    if ext_dir.join("php_pdo_pgsql.dll").is_file() && php_dir.join("libpq.dll").is_file() {
+        available.push("pdo_pgsql");
+    }
     render_php_ini(&template, &ext_dir, &available)
 }
 
@@ -224,6 +228,7 @@ http {{
         index index.php index.html index.htm;
         autoindex on;
 {php}
+        include "{etc}/nginx/localhost.d/*.conf";
     }}
 
     include "{etc}/nginx/sites-enabled/*.conf";

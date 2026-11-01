@@ -20,6 +20,14 @@ pub struct Settings {
     pub preferences: Preferences,
 }
 
+impl Settings {
+    /// The web server that serves localhost and the .test sites: Apache when it is set up,
+    /// otherwise nginx. Its service id and port.
+    pub fn web(&self) -> Option<(&'static str, u16)> {
+        self.apache_port.map(|p| ("apache", p)).or(self.nginx_port.map(|p| ("nginx", p)))
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Component {
     pub id: String,

@@ -133,21 +133,172 @@ pub struct Https<'a> {
     pub key: &'a Path,
 }
 
-/// Writes the virtual hosts for the saved settings, making the HTTPS certificate first when
-/// HTTPS is on. Nothing to do without Apache.
+/// Writes the sites for the saved settings, for whichever web server serves them (Apache, else
+/// nginx), making the HTTPS certificate first when HTTPS is on. The other server's site files
+/// are removed, so switching never leaves old ones behind.
 pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> Result<(), String> {
-    let Some(port) = settings.apache_port else { return Ok(()) };
+    let Some((web, port)) = settings.web() else { return Ok(()) };
     let www = Path::new(&settings.www_dir);
     let etc = root.join("etc");
     let php_ports = crate::phpver::project_ports(root, settings);
-    if !settings.preferences.https {
-        return write_vhosts(&etc, www, port, None, &php_ports);
+    if web == "apache" {
+        clear_confs(&etc.join("nginx").join("sites-enabled"))?;
+        clear_confs(&etc.join("nginx").join("localhost.d"))?;
+    } else {
+        clear_confs(&etc.join("apache").join("sites-enabled"))?;
     }
-    let mut names: Vec<String> = vec!["localhost".into(), "127.0.0.1".into(), "::1".into()];
-    names.extend(list(www, port).into_iter().filter_map(|p| p.host));
-    let cert = crate::admin::site_certificate(&crate::admin::ca_dir(), &etc.join("ssl"), &names)?;
-    let https = Https { port: settings.preferences.https_port, cert: &cert.cert_path, key: &cert.key_path };
-    write_vhosts(&etc, www, port, Some(&https), &php_ports)
+    let cert = if settings.preferences.https {
+        let mut names: Vec<String> = vec!["localhost".into(), "127.0.0.1".into(), "::1".into()];
+        names.extend(list(www, port).into_iter().filter_map(|p| p.host));
+        Some(crate::admin::site_certificate(&crate::admin::ca_dir(), &etc.join("ssl"), &names)?)
+    } else {
+        None
+    };
+    let https = cert.as_ref().map(|c| Https { port: settings.preferences.https_port, cert: &c.cert_path, key: &c.key_path });
+    if web == "apache" {
+        return write_vhosts(&etc, www, port, https.as_ref(), &php_ports);
+    }
+    let nginx_dir = settings
+        .components
+        .iter()
+        .find(|c| c.id == "nginx")
+        .map(|c| PathBuf::from(&c.path))
+        .ok_or("nginx isn't installed.")?;
+    write_nginx_sites(&NginxSites {
+        etc: &etc,
+        www,
+        port,
+        https: https.as_ref(),
+        php_ports: &php_ports,
+        fcgi_port: settings.php_fastcgi_port,
+        nginx_dir: &nginx_dir,
+        phpmyadmin: crate::phpmyadmin::installed(root).then(|| crate::phpmyadmin::dir(root)),
+    })
+}
+
+/// Removes the generated `.conf` files in `dir`, if it exists.
+fn clear_confs(dir: &Path) -> Result<(), String> {
+    let Ok(entries) = fs::read_dir(dir) else { return Ok(()) };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.extension().is_some_and(|e| e == "conf") {
+            fs::remove_file(&p).map_err(|e| format!("Couldn't remove {}: {e}", p.display()))?;
+        }
+    }
+    Ok(())
+}
+
+/// What nginx needs to serve the projects.
+pub struct NginxSites<'a> {
+    pub etc: &'a Path,
+    pub www: &'a Path,
+    pub port: u16,
+    pub https: Option<&'a Https<'a>>,
+    pub php_ports: &'a std::collections::BTreeMap<String, u16>,
+    /// The default PHP's FastCGI port.
+    pub fcgi_port: u16,
+    pub nginx_dir: &'a Path,
+    /// phpMyAdmin's folder, when it is installed.
+    pub phpmyadmin: Option<PathBuf>,
+}
+
+/// nginx's version of `write_vhosts`: one server block per project in `sites-enabled`, and
+/// extras for the localhost server (HTTPS, phpMyAdmin, other PHP versions) in `localhost.d`.
+/// Laravel's pretty URLs work through `try_files`, as Apache's .htaccess does.
+pub fn write_nginx_sites(s: &NginxSites) -> Result<(), String> {
+    let sites = s.etc.join("nginx").join("sites-enabled");
+    let local = s.etc.join("nginx").join("localhost.d");
+    for dir in [&sites, &local] {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        clear_confs(dir)?;
+    }
+    let params = conf_path(&s.nginx_dir.join("conf").join("fastcgi_params"));
+    let tls = s
+        .https
+        .map(|h| {
+            format!(
+                "    listen {} ssl;\n    ssl_certificate \"{}\";\n    ssl_certificate_key \"{}\";\n",
+                h.port,
+                conf_path(h.cert),
+                conf_path(h.key)
+            )
+        })
+        .unwrap_or_default();
+    // PHP files go to the FastCGI port of the PHP version in use there.
+    let php = |port: u16| {
+        format!(
+            r#"    location ~ \.php$ {{
+        try_files $uri =404;
+        fastcgi_pass 127.0.0.1:{port};
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include "{params}";
+    }}
+"#
+        )
+    };
+
+    let mut first = String::from("# Generated by NexDB. Included in nginx.conf's localhost server.\n");
+    first.push_str(&tls);
+    if let Some(pma) = &s.phpmyadmin {
+        first.push_str(&format!(
+            r#"
+# phpMyAdmin, only reachable from this PC.
+location = /phpmyadmin {{
+    return 301 /phpmyadmin/;
+}}
+location ^~ /phpmyadmin/ {{
+    alias "{dir}/";
+    index index.php;
+    allow 127.0.0.1;
+    allow ::1;
+    deny all;
+    location ~ \.php$ {{
+        if (!-f $request_filename) {{ return 404; }}
+        fastcgi_pass 127.0.0.1:{port};
+        fastcgi_param SCRIPT_FILENAME $request_filename;
+        include "{params}";
+    }}
+}}
+"#,
+            dir = conf_path(pma),
+            port = s.fcgi_port
+        ));
+    }
+    // Projects on another PHP version, so localhost/name uses it too.
+    for (name, php_port) in s.php_ports {
+        if host_label(name).is_none() {
+            continue;
+        }
+        first.push_str(&format!("\nlocation ^~ /{name}/ {{\n{}}}\n", php(*php_port)));
+    }
+    crate::configure::write_file(&local.join("00-localhost.conf"), &first)?;
+
+    for p in list(s.www, s.port) {
+        let Some(host) = &p.host else { continue };
+        let port = s.php_ports.get(&p.name).copied().unwrap_or(s.fcgi_port);
+        let body = format!(
+            r#"# Generated by NexDB for {name}
+server {{
+    listen {listen};
+{tls}    server_name {host};
+    root "{root}";
+    index index.php index.html index.htm;
+    autoindex on;
+
+    location / {{
+        try_files $uri $uri/ /index.php?$query_string;
+    }}
+{php}}}
+"#,
+            name = p.name,
+            listen = s.port,
+            root = conf_path(Path::new(&p.doc_root)),
+            php = php(port),
+        );
+        crate::configure::write_file(&sites.join(format!("{}.conf", p.name)), &body)?;
+    }
+    Ok(())
 }
 
 /// One virtual host per project, plus a first one that keeps `http://localhost/` on the www folder.

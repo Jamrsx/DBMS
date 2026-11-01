@@ -6,7 +6,14 @@ import { Nex, type NexState } from "../components/Nex";
 import { nexCelebrate } from "../lib/nex";
 import { CHANGELOG, type Release } from "../lib/changelog";
 import { StartupToggle } from "../components/StartupToggle";
-import { getAppSettings, restartApp, savePorts, setStartServicesOnLaunch, type AppSettings } from "../lib/appsettings";
+import {
+  getAppSettings,
+  restartApp,
+  savePorts,
+  setStartServicesOnLaunch,
+  switchWebServer,
+  type AppSettings,
+} from "../lib/appsettings";
 import { checkUpdates, installUpdates, useUpdates } from "../lib/updates";
 
 export function SettingsPage({ active }: { active: boolean }) {
@@ -44,6 +51,7 @@ export function SettingsPage({ active }: { active: boolean }) {
         {settings && (
           <>
             <StartupCard settings={settings} onChanged={load} />
+            <WebServerCard settings={settings} onChanged={load} />
             <PortsCard settings={settings} onSaved={load} />
             <HttpsCard active={active} />
             <AutoBackupCard active={active} />
@@ -199,8 +207,8 @@ function HttpsCard({ active }: { active: boolean }) {
           </label>
           <p className="field-hint">
             {info.web_server
-              ? `Uses port ${info.port}. Sites keep working over http:// as well. Apache restarts if it's running.`
-              : "HTTPS needs NexDB's Apache web server. Install it on the Versions page first."}
+              ? `Uses port ${info.port}. Sites keep working over http:// as well. The web server restarts if it's running.`
+              : "HTTPS needs a web server. Install Apache or nginx on the Versions page first."}
           </p>
         </div>
 
@@ -245,6 +253,73 @@ function HttpsCard({ active }: { active: boolean }) {
           </p>
         )}
       </div>
+    </Card>
+  );
+}
+
+const WEB_SERVERS = [
+  {
+    id: "apache",
+    name: "Apache",
+    about: "Reads each project's .htaccess file. The usual choice for WordPress and older PHP apps.",
+  },
+  { id: "nginx", name: "nginx", about: "Lighter and fast. Laravel works out of the box; .htaccess files are ignored." },
+] as const;
+
+/** Apache or nginx for localhost and the .test sites. */
+function WebServerCard({ settings, onChanged }: { settings: AppSettings; onChanged: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const installed = settings.web_servers_installed;
+  if (!settings.web_server && installed.length === 0) return null;
+
+  async function choose(id: string) {
+    setBusy(id);
+    setError(null);
+    try {
+      await switchWebServer(id);
+      nexCelebrate(`${id === "nginx" ? "nginx" : "Apache"} is serving your sites now.`);
+      onChanged();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <Card
+      title="Web server"
+      lede="Which server opens localhost and your .test sites. Projects, phpMyAdmin, HTTPS and PHP per project work with both."
+    >
+      <div className="set-rows" role="radiogroup" aria-label="Web server">
+        {WEB_SERVERS.map((w) => {
+          const has = installed.includes(w.id);
+          return (
+            <div className="set-row" key={w.id}>
+              <label className="set-check">
+                <input
+                  type="radio"
+                  name="web-server"
+                  checked={settings.web_server === w.id}
+                  disabled={!has || busy !== null}
+                  onChange={() => void choose(w.id)}
+                />
+                <span>
+                  {w.name}
+                  {busy === w.id && " · switching…"}
+                </span>
+              </label>
+              <p className="field-hint">{has ? w.about : `${w.about} Install it on the Versions page to use it.`}</p>
+            </div>
+          );
+        })}
+      </div>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </Card>
   );
 }
@@ -302,12 +377,12 @@ function PortsCard({ settings, onSaved }: { settings: AppSettings; onSaved: () =
   const num = (v: string) => (/^\d{1,5}$/.test(v) && +v >= 1 && +v <= 65535 ? +v : null);
   const fields = [
     settings.apache_port !== null && {
-      label: "Web server (Apache)",
+      label: settings.web_server === "nginx" ? "Web server (nginx)" : "Web server (Apache)",
       value: apache,
       set: setApache,
       hint: "Your sites open at localhost on this port. 80 means no number is needed in the address.",
     },
-    { label: "PHP", value: php, set: setPhp, hint: "Used only inside NexDB, between Apache and PHP." },
+    { label: "PHP", value: php, set: setPhp, hint: "Used only inside NexDB, between the web server and PHP." },
     settings.mysql_port !== null && {
       label: "MySQL",
       value: mysql,
@@ -420,7 +495,10 @@ const UPDATE_MOOD: Record<string, NexState> = {
 /** What this version brought, with earlier versions one click away. */
 function WhatsNewCard({ version }: { version: string }) {
   const [more, setMore] = useState(false);
-  const at = Math.max(0, CHANGELOG.findIndex((r) => r.version === version));
+  const at = Math.max(
+    0,
+    CHANGELOG.findIndex((r) => r.version === version),
+  );
   const shown = CHANGELOG.slice(at);
   const [latest, ...earlier] = shown;
   if (!latest) return null;
@@ -441,7 +519,11 @@ function WhatsNewCard({ version }: { version: string }) {
       <div className="whatsnew">
         {release(latest)}
         {earlier.length > 0 && (
-          <button className="btn btn-small btn-quiet whatsnew-more" onClick={() => setMore((m) => !m)} aria-expanded={more}>
+          <button
+            className="btn btn-small btn-quiet whatsnew-more"
+            onClick={() => setMore((m) => !m)}
+            aria-expanded={more}
+          >
             {more ? "Hide earlier versions" : `Earlier versions (${earlier.length})`}
           </button>
         )}

@@ -36,6 +36,7 @@ Rules every release follows:
 | 0.3.1 | Clearer Database page; SQL templates; WHERE safety check; .sql export and import |
 | 0.3.2 | Mail catcher (Mailpit) and Redis; table columns beside the SQL editor; What's new in Settings |
 | 0.3.3 | Dashboard grouped into Web, Database and Extras; setup guides for the mail catcher and Redis |
+| 0.3.4 | PostgreSQL service; Python with pip; switch between Apache and nginx |
 
 ## Next
 
@@ -180,11 +181,15 @@ Mail catcher (with 0.3.2's services):
 - Setup guides with copyable settings: mail catcher (Laravel, plain PHP, WordPress, PHPMailer,
   Symfony, Node.js) and Redis (Laravel with Predis, plain PHP, Node.js).
 
-### 0.3.4: More services
+### 0.3.4: PostgreSQL, Python and nginx
 
-- PostgreSQL on the Versions page, with start/stop on the Dashboard and logs.
-- nginx as an Apache alternative.
-- Python (with pip) for the terminal.
+- PostgreSQL (EnterpriseDB's binaries) under Extra services: initdb on install (user `postgres`,
+  local only), start/stop and logs on the Dashboard, clean stop through pg_ctl, `psql` on the
+  Terminal PATH and a setup guide. PHP's pdo_pgsql is turned on when libpq.dll is there.
+- Python (python.org's NuGet package, pip included) under Tools, with `pip` on the Terminal PATH.
+- Settings → Web server: Apache or nginx. nginx gets the same .test sites (Laravel URLs through
+  try_files), phpMyAdmin, HTTPS and PHP per project.
+- Later: PostgreSQL in the Database page.
 
 ### 0.3.5: Share a site
 

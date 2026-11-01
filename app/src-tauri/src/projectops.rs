@@ -91,7 +91,7 @@ fn git_status(root: &Path, settings: &Settings, dir: &Path) -> Option<Git> {
 
 pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, String> {
     let www = PathBuf::from(&settings.www_dir);
-    let port = settings.apache_port.unwrap_or(80);
+    let port = settings.web().map_or(80, |w| w.1);
     let mut project = crate::projects::list(&www, port)
         .into_iter()
         .find(|p| p.name == name)

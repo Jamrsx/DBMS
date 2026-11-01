@@ -86,7 +86,7 @@ function guideFor(kind: Kind): Guide {
     case "laravel":
       return {
         opens: "site",
-        intro: "NexDB's Apache already serves it, so there's no need for php artisan serve.",
+        intro: "NexDB's web server already serves it, so there's no need for php artisan serve.",
         commands: laravel,
       };
     case "laravel-react":
@@ -94,7 +94,7 @@ function guideFor(kind: Kind): Guide {
     case "laravel-livewire":
       return {
         opens: "site",
-        intro: "NexDB's Apache serves the site. While you edit pages, run the dev server so changes show instantly.",
+        intro: "NexDB's web server serves the site. While you edit pages, run the dev server so changes show instantly.",
         commands: [
           { cmd: "npm run dev", why: "Keep running while you edit; the page updates by itself" },
           { cmd: "npm run build", why: "Build the final files before sharing or deploying" },

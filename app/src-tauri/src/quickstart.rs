@@ -544,6 +544,7 @@ fn run(
                 url: "https://wordpress.org/latest.zip".into(),
                 size: None,
                 checksum: crate::catalog::Checksum { algo: "md5".into(), value: md5 },
+                subdir: None,
             };
             r.line("Downloading https://wordpress.org/latest.zip (checked against wordpress.org's checksum)");
             let report = |p: crate::installer::Progress| {

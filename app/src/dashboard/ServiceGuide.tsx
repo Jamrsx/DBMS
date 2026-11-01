@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { CopyButton } from "../components/CopyButton";
 
 /** Services that come with a "use it in your project" guide. */
-export type GuideId = "mailpit" | "redis";
+export type GuideId = "postgres" | "mailpit" | "redis";
 
 interface Recipe {
   /** Tab name: the framework or language. */
@@ -18,6 +18,44 @@ interface Recipe {
 }
 
 const GUIDES: Record<GuideId, { title: string; lede: string; recipes: Recipe[] }> = {
+  postgres: {
+    title: "Use PostgreSQL in your project",
+    lede: "PostgreSQL listens on 127.0.0.1, port 5432. Sign in as postgres with no password; only this PC can connect.",
+    recipes: [
+      {
+        name: "Laravel",
+        intro: "Create the database once in the Terminal, then set these in your project's .env.",
+        where: "Terminal",
+        code: 'psql -U postgres -c "CREATE DATABASE my_app;"',
+        then: "In .env: DB_CONNECTION=pgsql, DB_HOST=127.0.0.1, DB_PORT=5432, DB_DATABASE=my_app, DB_USERNAME=postgres and an empty DB_PASSWORD=. Then run php artisan migrate.",
+      },
+      {
+        name: "Plain PHP",
+        intro: "Connect with PDO. NexDB's PHP has the PostgreSQL driver turned on.",
+        where: "PHP",
+        code: "$pdo = new PDO('pgsql:host=127.0.0.1;port=5432;dbname=postgres', 'postgres', '');",
+      },
+      {
+        name: "Terminal",
+        intro: "psql, PostgreSQL's command line, is ready in NexDB's Terminal.",
+        where: "Terminal",
+        code: "psql -U postgres",
+        then: "Type \\l to list databases and \\q to leave.",
+      },
+      {
+        name: "Node.js",
+        intro: "With the pg package, connect like this.",
+        where: "JavaScript",
+        code: 'const pool = new pg.Pool({ host: "127.0.0.1", port: 5432, user: "postgres", database: "postgres" });',
+      },
+      {
+        name: "Python",
+        intro: 'Install the driver with pip install "psycopg[binary]", then connect.',
+        where: "Python",
+        code: 'conn = psycopg.connect("host=127.0.0.1 port=5432 user=postgres dbname=postgres")',
+      },
+    ],
+  },
   mailpit: {
     title: "Send your project's email to the mail catcher",
     lede: "Point your app's mail settings at 127.0.0.1, port 1025. No username, password or encryption. Every email then shows up under Open inbox instead of reaching anyone.",
