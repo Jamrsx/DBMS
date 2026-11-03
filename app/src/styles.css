@@ -3800,6 +3800,105 @@ h1 {
   gap: 8px;
 }
 
+/* Share: the address, its QR code, and the public link. */
+.share .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 75ch;
+  font-size: 13px;
+  color: var(--warn);
+}
+
+.share-note svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.share-firewall {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  color: var(--text-2);
+}
+
+.share-firewall p {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.share-qr {
+  flex: none;
+  width: 148px;
+  height: 148px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.share-qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.share-link-text {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.share-url {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.share-url code {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font: 13px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.share-public {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+  width: 100%;
+  margin: 4px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.share-public h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font: 600 13px/1.3 var(--font);
+}
+
 .details-row .input {
   height: 32px;
   padding: 0 10px;

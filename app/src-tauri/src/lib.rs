@@ -17,6 +17,7 @@ mod recyclebin;
 mod quickstart;
 mod scan;
 mod settings;
+mod share;
 mod supervisor;
 mod terminal;
 mod tray;
@@ -237,6 +238,7 @@ pub fn run() {
         .manage(Stack::default())
         .manage(terminal::Terminals::default())
         .manage(db::Db::default())
+        .manage(Arc::new(share::Tunnels::default()))
         .invoke_handler(tauri::generate_handler![
             system_scan,
             component_choices,
@@ -252,6 +254,12 @@ pub fn run() {
             clear_service_log,
             app_settings,
             web_server_use,
+            share_info,
+            share_start,
+            share_stop,
+            share_allow_firewall,
+            share_public_start,
+            share_public_stop,
             save_ports,
             set_start_services_on_launch,
             https_status,
@@ -441,6 +449,160 @@ async fn apply_service_change(
         ids.sort_by_key(|i| i == "apache" || i == "nginx");
         let errors: Vec<String> = ids.iter().filter_map(|id| sup.start(id).err()).collect();
         if errors.is_empty() { Ok(()) } else { Err(format!("Saved, but some services didn't start again: {}", errors.join(" "))) }
+    })
+    .await
+}
+
+/// What the Share panel shows for one project.
+#[derive(serde::Serialize)]
+struct ShareInfo {
+    /// The project's own port while it is shared on the local network.
+    port: Option<u16>,
+    lan_ip: Option<String>,
+    lan_url: Option<String>,
+    /// QR code of `lan_url`, as SVG.
+    lan_qr: Option<String>,
+    firewall_ready: bool,
+    /// False on a network Windows calls public, where phones are kept out.
+    network_private: Option<bool>,
+    web_server: bool,
+    web_running: bool,
+    tunnel_installed: bool,
+    /// The cloudflared version and download size the Share panel can install.
+    tunnel_version: Option<String>,
+    tunnel_size: Option<u64>,
+    public_url: Option<String>,
+    public_qr: Option<String>,
+}
+
+fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
+    let port = settings.preferences.shared.get(name).copied();
+    let lan_ip = share::lan_ip();
+    let lan_url = port.zip(lan_ip.as_ref()).map(|(p, ip)| format!("http://{ip}:{p}/"));
+    let public_url = tunnels.url(name);
+    let web = settings.web().map(|w| w.0);
+    let tool = catalog::bundled().tools.cloudflared;
+    ShareInfo {
+        port,
+        lan_qr: lan_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+        lan_url,
+        lan_ip,
+        firewall_ready: share::firewall_ready(),
+        network_private: share::network_private(),
+        web_server: web.is_some(),
+        web_running: sup.status().iter().any(|s| Some(s.id.as_str()) == web && s.state == supervisor::State::Running),
+        tunnel_installed: cloudflared_exe(settings).is_some(),
+        tunnel_version: tool.as_ref().map(|t| t.version.clone()),
+        tunnel_size: tool.as_ref().and_then(|t| t.download.size),
+        public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+        public_url,
+    }
+}
+
+/// NexDB's cloudflared, once installed from the Versions page or the Share panel.
+fn cloudflared_exe(settings: &settings::Settings) -> Option<PathBuf> {
+    let c = settings.components.iter().find(|c| c.id == "cloudflared")?;
+    let exe = PathBuf::from(&c.path).join("cloudflared.exe");
+    exe.is_file().then_some(exe)
+}
+
+#[tauri::command]
+async fn share_info(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    let (_, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || Ok(share_info_for(&settings, &sup, &tunnels, &name))).await
+}
+
+/// Puts a project on its own port for phones on the same network, and rewrites the web
+/// server's sites (restarting it when it runs).
+#[tauri::command]
+async fn share_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    let (root, settings, _) = stack.get()?;
+    if settings.web().is_none() {
+        return Err("Sharing needs a web server. Install Apache or nginx on the Versions page first.".into());
+    }
+    let www = std::path::Path::new(&settings.www_dir);
+    if !projects::list(www, 80).iter().any(|p| p.name == name) {
+        return Err("That project doesn't exist any more.".into());
+    }
+    if !settings.preferences.shared.contains_key(&name) {
+        let port = share::free_port(&settings.preferences.shared)
+            .ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?;
+        let (root2, name2) = (root.clone(), name.clone());
+        blocking(move || {
+            settings::edit(&root2, |v| {
+                v["preferences"]["shared"][name2.as_str()] = port.into();
+                Ok(())
+            })
+        })
+        .await?;
+        stack.update_settings(|s| {
+            s.preferences.shared.insert(name.clone(), port);
+        });
+    }
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+/// Stops sharing a project, on the network and through its public link.
+#[tauri::command]
+async fn share_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    tunnels.stop(&name);
+    let (root, _, _) = stack.get()?;
+    let (root2, name2) = (root.clone(), name.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            if let Some(map) = v["preferences"]["shared"].as_object_mut() {
+                map.remove(&name2);
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| {
+        s.preferences.shared.remove(&name);
+    });
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+/// Lets phones reach the share ports on private networks (one Windows approval).
+#[tauri::command]
+async fn share_allow_firewall() -> Result<(), String> {
+    blocking(share::allow_firewall).await
+}
+
+/// Opens a temporary public link to a shared project through Cloudflare.
+#[tauri::command]
+async fn share_public_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    let (_, settings, sup) = stack.get()?;
+    let port = *settings.preferences.shared.get(&name).ok_or("Share the project on your network first.")?;
+    let exe = cloudflared_exe(&settings).ok_or("Install public links first.")?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        tunnels.start(&exe, &name, port)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn share_public_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    let (_, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        tunnels.stop(&name);
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
 }

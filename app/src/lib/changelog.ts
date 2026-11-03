@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.5",
+    title: "Share a project",
+    changes: [
+      "Open a project on your phone: Projects → Details → Share on my Wi-Fi gives an address and a QR code to scan.",
+      "One Windows Firewall rule lets phones in, on home and office networks only.",
+      "Public link: show a project to anyone, anywhere, through Cloudflare's free quick tunnels (no account).",
+    ],
+  },
+  {
     version: "0.3.4",
     title: "PostgreSQL, Python and nginx",
     changes: [

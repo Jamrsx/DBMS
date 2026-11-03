@@ -12,6 +12,7 @@ import {
   type ProjectDetails as Details,
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
+import { SharePanel } from "./SharePanel";
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -90,7 +91,12 @@ export function ProjectDetails({
           <button className="btn btn-small" onClick={() => void run(openProject(name, addressReady ? "url" : "local"))}>
             <ExternalLink size={13} aria-hidden="true" /> Open site
           </button>
-          <button className="btn btn-small btn-icon" title="Show the folder" aria-label="Show the folder" onClick={() => void run(openProject(name, "folder"))}>
+          <button
+            className="btn btn-small btn-icon"
+            title="Show the folder"
+            aria-label="Show the folder"
+            onClick={() => void run(openProject(name, "folder"))}
+          >
             <FolderOpen size={13} aria-hidden="true" />
           </button>
         </div>
@@ -122,7 +128,9 @@ export function ProjectDetails({
           </div>
           <div>
             <dt>Database</dt>
-            <dd>{info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}</dd>
+            <dd>
+              {info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}
+            </dd>
           </div>
           <div>
             <dt>Git</dt>
@@ -132,7 +140,10 @@ export function ProjectDetails({
                   <GitBranch size={13} aria-hidden="true" /> <code>{info.git.branch}</code>
                   <span className="muted">
                     {" "}
-                    · {info.git.changes === 0 ? "nothing to commit" : `${info.git.changes} changed file${info.git.changes === 1 ? "" : "s"}`}
+                    ·{" "}
+                    {info.git.changes === 0
+                      ? "nothing to commit"
+                      : `${info.git.changes} changed file${info.git.changes === 1 ? "" : "s"}`}
                   </span>
                 </>
               ) : (
@@ -150,7 +161,12 @@ export function ProjectDetails({
             The website, its terminal and Composer all use this version. Install more versions on the Versions page.
           </p>
           <div className="details-row">
-            <select className="input input-medium" value={php} onChange={(e) => setPhp(e.target.value)} disabled={!!busy}>
+            <select
+              className="input input-medium"
+              value={php}
+              onChange={(e) => setPhp(e.target.value)}
+              disabled={!!busy}
+            >
               <option value="">NexDB default{info.php.default ? ` (PHP ${info.php.default})` : ""}</option>
               {info.php.installed
                 .filter((v) => v !== info.php.default)
@@ -178,10 +194,14 @@ export function ProjectDetails({
             </button>
           </div>
           {info.php.installed.length < 2 && (
-            <p className="field-hint">Only one PHP version is installed. Add another on the Versions page to choose here.</p>
+            <p className="field-hint">
+              Only one PHP version is installed. Add another on the Versions page to choose here.
+            </p>
           )}
         </div>
       )}
+
+      <SharePanel name={name} />
 
       <div className="details-section">
         <h3>Rename</h3>
@@ -240,14 +260,20 @@ export function ProjectDetails({
               <span className="field-label">
                 Moves <strong>{name}</strong> to the Recycle Bin. Type its name to confirm.
               </span>
-              <input className="input" value={typed} onChange={(e) => setTyped(e.target.value)} autoFocus spellCheck={false} />
+              <input
+                className="input"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                autoFocus
+                spellCheck={false}
+              />
             </label>
             {info?.database && (
               <label className="set-check backup-first">
                 <input type="checkbox" checked={dropDb} onChange={(e) => setDropDb(e.target.checked)} />
                 <span>
-                  Also delete its database <code>{info.database}</code> and its MySQL user (this can't be undone; back it
-                  up first on the Database page if you might need it)
+                  Also delete its database <code>{info.database}</code> and its MySQL user (this can't be undone; back
+                  it up first on the Database page if you might need it)
                 </span>
               </label>
             )}

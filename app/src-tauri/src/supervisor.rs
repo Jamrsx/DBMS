@@ -593,7 +593,7 @@ fn signal_event(_names: &[String]) -> bool {
 }
 
 #[cfg(windows)]
-mod job {
+pub(crate) mod job {
     use std::os::windows::io::AsRawHandle;
     use std::process::Child;
     use windows_sys::Win32::Foundation::{CloseHandle, HANDLE};

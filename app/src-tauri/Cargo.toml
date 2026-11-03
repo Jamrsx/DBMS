@@ -1,6 +1,6 @@
 [package]
 name = "devmanager"
-version = "0.3.4"
+version = "0.3.5"
 description = "Local development environment manager"
 authors = ["Jamrsx"]
 edition = "2024"
@@ -35,6 +35,7 @@ sha1 = "0.11.0"
 portable-pty = "0.9.0"
 mysql = { version = "28.0.4", features = ["native-tls"] }
 getrandom = "0.4.3"
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 tauri-plugin-updater = "2.14.1"
 tauri-plugin-process = "2.4.0"
 tauri-plugin-dialog = "2.8.4"

@@ -36,6 +36,9 @@ pub struct Tools {
     /// Python with pip (python.org's NuGet package).
     #[serde(default)]
     pub python: Option<Tool>,
+    /// Cloudflare's tunnel client, for public links to shared projects.
+    #[serde(default)]
+    pub cloudflared: Option<Tool>,
 }
 
 impl Tools {
@@ -48,6 +51,7 @@ impl Tools {
             "redis" => self.redis.as_ref(),
             "postgres" => self.postgres.as_ref(),
             "python" => self.python.as_ref(),
+            "cloudflared" => self.cloudflared.as_ref(),
             _ => None,
         }
     }
@@ -68,6 +72,9 @@ pub struct Download {
     /// Only this folder of the archive is unpacked (Python's package keeps it in `tools`).
     #[serde(default)]
     pub subdir: Option<String>,
+    /// The download is a program, not an archive: it is saved into the folder under this name.
+    #[serde(default)]
+    pub file: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -308,6 +315,7 @@ mod tests {
                 size: Some(1),
                 checksum: Checksum { algo: "sha256".into(), value: "00".into() },
                 subdir: None,
+                file: None,
             }),
         }
     }

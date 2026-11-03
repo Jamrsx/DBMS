@@ -115,6 +115,7 @@ const NAMES: Record<string, string> = {
   redis: "Redis",
   postgres: "PostgreSQL",
   python: "Python",
+  cloudflared: "Public links (Cloudflare Tunnel)",
 };
 const ABOUT: Record<string, string> = {
   php: "Runs your PHP sites and tools like Laravel and WordPress.",
@@ -127,6 +128,7 @@ const ABOUT: Record<string, string> = {
   redis: "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
   postgres: "A second database server, for apps built on PostgreSQL instead of MySQL.",
   python: "Runs Python scripts and installs packages with pip in the Terminal.",
+  cloudflared: "Gives a shared project a temporary public link, so anyone can open it from anywhere.",
 };
 
 function previewMissing(): MissingPart[] {
@@ -154,6 +156,7 @@ function previewInfo(): VersionsInfo {
     composer: [["2.11.0", "2.11.0", ["latest"], 3]],
     git: [["2.56.0.4", "2.56.0.4", ["latest"], 38]],
     python: [["3.14.10", "3.14.10", ["latest"], 15]],
+    cloudflared: [["2026.10.7", "2026.10.7", ["latest"], 53]],
     postgres: [["18.6", "18.6", ["latest"], 328]],
     mailpit: [["1.33.0", "1.33.0", ["latest"], 11]],
     redis: [["8.10.3", "8.10.3", ["latest"], 13]],
@@ -165,7 +168,7 @@ function previewInfo(): VersionsInfo {
       const installed = (preview.installed[id] ?? []).map((v) => ({ version: v, active: v === active }));
       const missing = active !== null && !installed.some((i) => i.active);
       const activeLine = active ? rows.find(([line]) => active.startsWith(line + "."))?.[0] : undefined;
-      const kind = ["composer", "git", "python"].includes(id)
+      const kind = ["composer", "git", "python", "cloudflared"].includes(id)
         ? "tool"
         : ["postgres", "mailpit", "redis"].includes(id)
           ? "service"

@@ -15,7 +15,8 @@
     "github.com/axllent/mailpit",
     "github.com/redis-windows/redis-windows",
     "get.enterprisedb.com",
-    "api.nuget.org (python)"
+    "api.nuget.org (python)",
+    "github.com/cloudflare/cloudflared"
   ],
   "components": [
     {
@@ -393,6 +394,19 @@
         },
         "file_version": null,
         "subdir": "tools"
+      }
+    },
+    "cloudflared": {
+      "version": "2026.10.7",
+      "download": {
+        "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe",
+        "size": 55390512,
+        "checksum": {
+          "algo": "sha256",
+          "value": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+        },
+        "file_version": null,
+        "file": "cloudflared.exe"
       }
     }
   }

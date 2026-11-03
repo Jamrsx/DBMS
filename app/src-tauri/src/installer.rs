@@ -275,6 +275,7 @@ async fn ensure_vc_runtime(
         size: None,
         checksum: Checksum { algo: AUTHENTICODE.into(), value: String::new() },
         subdir: None,
+        file: None,
     };
     let installer = root.join("tmp").join("downloads").join("vc_redist.x64.exe");
     fetch(client, &download, &installer, step, emit).await?;
@@ -686,6 +687,13 @@ pub async fn install_archive(
     emit: &impl Fn(Progress),
 ) -> Result<(), String> {
     let archive = download_verified(download, root, step, emit).await?;
+    if let Some(name) = &download.file {
+        // A single program: it goes into the folder as it is.
+        fs::create_dir_all(target).map_err(|e| format!("Couldn't create {}: {e}", target.display()))?;
+        fs::copy(&archive, target.join(name)).map_err(|e| format!("Couldn't install {name}: {e}"))?;
+        let _ = fs::remove_file(&archive);
+        return Ok(());
+    }
     let file_name = archive.file_name().unwrap_or_default().to_string_lossy().to_string();
     emit(Progress { step: step.into(), status: StepStatus::Running, message: Some("Unpacking".into()), bytes_done: 0, bytes_total: None });
     let (archive_path, target_path, subdir) = (archive.clone(), target.to_path_buf(), download.subdir.clone());
@@ -1151,12 +1159,14 @@ mod tests {
             fcgi_port: 9085,
             nginx_dir: &target,
             phpmyadmin: Some(pma),
+            shared: &std::collections::BTreeMap::from([("shop".to_string(), 8181u16)]),
         })
         .unwrap();
         let shop = fs::read_to_string(etc.join("nginx/sites-enabled/shop.conf")).unwrap();
         assert!(shop.contains("server_name shop.test;") && shop.contains("try_files $uri $uri/ /index.php?$query_string;"));
         let blog = fs::read_to_string(etc.join("nginx/sites-enabled/blog.conf")).unwrap();
         assert!(blog.contains("fastcgi_pass 127.0.0.1:9086;"), "{blog}");
+        assert!(fs::read_to_string(etc.join("nginx/sites-enabled/zz-shared.conf")).unwrap().contains("listen 8181;"));
         configure::check_nginx(&target, &etc.join("nginx/nginx.conf")).unwrap();
         println!("nginx sites: config checked");
     }

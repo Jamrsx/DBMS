@@ -64,6 +64,9 @@ pub struct Preferences {
     /// Projects that use another installed PHP version than the default: project -> version.
     #[serde(default)]
     pub project_php: std::collections::BTreeMap<String, String>,
+    /// Projects shared on the local network: project -> its own port.
+    #[serde(default)]
+    pub shared: std::collections::BTreeMap<String, u16>,
 }
 
 impl Default for Preferences {
@@ -75,6 +78,7 @@ impl Default for Preferences {
             auto_backup: default_auto_backup(),
             auto_backup_keep: default_auto_backup_keep(),
             project_php: Default::default(),
+            shared: Default::default(),
         }
     }
 }

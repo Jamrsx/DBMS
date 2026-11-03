@@ -243,12 +243,18 @@ const catalog = {
     "github.com/redis-windows/redis-windows",
     "get.enterprisedb.com",
     "api.nuget.org (python)",
+    "github.com/cloudflare/cloudflared",
   ],
   components,
   tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool(),
     mailpit: await githubTool("axllent/mailpit", /^mailpit-windows-amd64\.zip$/),
     postgres: await postgresTool(),
     python: await pythonTool(),
+    // A single program, saved as it is rather than unpacked.
+    cloudflared: await githubTool("cloudflare/cloudflared", /^cloudflared-windows-amd64.exe$/).then((t) => ({
+      ...t,
+      download: { ...t.download, file: "cloudflared.exe" },
+    })),
     redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
   },
 };

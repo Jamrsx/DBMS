@@ -37,6 +37,7 @@ Rules every release follows:
 | 0.3.2 | Mail catcher (Mailpit) and Redis; table columns beside the SQL editor; What's new in Settings |
 | 0.3.3 | Dashboard grouped into Web, Database and Extras; setup guides for the mail catcher and Redis |
 | 0.3.4 | PostgreSQL service; Python with pip; switch between Apache and nginx |
+| 0.3.5 | Share a project on the Wi-Fi with a QR code; public links through Cloudflare quick tunnels |
 
 ## Next
 
@@ -193,8 +194,13 @@ Mail catcher (with 0.3.2's services):
 
 ### 0.3.5: Share a site
 
-- Open a project on your phone on the same Wi-Fi (LAN address with a QR code).
-- Optional public link through a tunnel service the user chooses and signs in to themselves.
+- Each shared project gets its own port (8181 to 8199) on Apache or nginx, so a phone on the same
+  Wi-Fi opens it at the PC's address; the Share panel shows the address and a QR code.
+- One Windows Firewall rule for those ports, private networks only, added with one approval.
+  A Wi-Fi Windows calls public gets a plain explanation instead.
+- Public link through Cloudflare's quick tunnels (no account, link changes each time), with a
+  clear warning; it ends when sharing stops or NexDB closes.
+- Later: named tunnels for users who sign in to their own Cloudflare or ngrok account.
 
 ### 0.3.6: Health and diagnostics
 

@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 pub const COMPONENTS: [&str; 5] = ["php", "apache", "mysql", "node", "nginx"];
 pub const MARKER: &str = ".devmanager-installed";
 /// Tools shown on the Versions page, in this order.
-pub const TOOLS: [&str; 6] = ["composer", "git", "python", "postgres", "mailpit", "redis"];
+pub const TOOLS: [&str; 7] = ["composer", "git", "python", "cloudflared", "postgres", "mailpit", "redis"];
 /// Tools that run as services on the Dashboard once installed.
 pub const SERVICE_TOOLS: [&str; 3] = ["postgres", "mailpit", "redis"];
 
@@ -111,6 +111,7 @@ pub fn name_of(id: &str) -> &str {
         "redis" => "Redis",
         "postgres" => "PostgreSQL",
         "python" => "Python",
+        "cloudflared" => "Public links (Cloudflare Tunnel)",
         other => other,
     }
 }
@@ -128,6 +129,7 @@ fn about(id: &str) -> &'static str {
         "redis" => "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
         "postgres" => "A second database server, for apps built on PostgreSQL instead of MySQL.",
         "python" => "Runs Python scripts and installs packages with pip in the Terminal.",
+        "cloudflared" => "Gives a shared project a temporary public link, so anyone can open it from anywhere.",
         _ => "",
     }
 }
@@ -146,6 +148,7 @@ pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
         "redis" => dir.join("redis-server.exe"),
         "postgres" => dir.join("bin").join("postgres.exe"),
         "python" => dir.join("python.exe"),
+        "cloudflared" => dir.join("cloudflared.exe"),
         _ => dir.to_path_buf(),
     }
 }
