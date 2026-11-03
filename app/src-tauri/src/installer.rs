@@ -1123,11 +1123,14 @@ mod tests {
         let catalog = crate::catalog::bundled();
         let nginx = catalog.components.iter().find(|c| c.id == "nginx").unwrap();
         let version = nginx.lines.last().unwrap().latest.clone();
-        let (dir, _) = real_install("nginx", &version);
+        // Unpacked directly rather than through the setup run, which checks nginx on port 80:
+        // that port may belong to a web server already running on this PC.
+        let dir = tempfile::tempdir().unwrap();
+        let download = catalog.download_for("nginx", &version).unwrap().clone();
         let target = dir.path().join("bin").join("nginx").join(format!("nginx-{version}"));
+        tauri::async_runtime::block_on(install_archive(&download, dir.path(), &target, "get-nginx", &|_| {})).unwrap();
         assert!(target.join("nginx.exe").is_file(), "nginx.exe should be at the top of the target");
         assert!(target.join("conf").join("nginx.conf").is_file());
-        assert!(target.join(".devmanager-installed").is_file());
         assert!(!dir.path().join("tmp/downloads").read_dir().unwrap().any(|_| true), "archive cleaned up");
 
         // The generated config must pass `nginx -t` with the real binary.
@@ -1138,7 +1141,9 @@ mod tests {
             existing: vec![],
             mysql: None,
         };
-        let layout = Layout::new(dir.path(), &request);
+        let mut layout = Layout::new(dir.path(), &request);
+        // A spare port: 80 may belong to a running web server, and nginx -t binds it.
+        layout.nginx_port = 8099;
         let message = configure_nginx(&layout, &target).unwrap();
         println!("config-nginx: {message:?}");
 
@@ -1159,14 +1164,19 @@ mod tests {
             fcgi_port: 9085,
             nginx_dir: &target,
             phpmyadmin: Some(pma),
-            shared: &std::collections::BTreeMap::from([("shop".to_string(), 8181u16)]),
+            shared: &std::collections::BTreeMap::from([("shop".to_string(), 8188u16)]),
+            share_dev: &std::collections::BTreeMap::from([(
+                "shop".to_string(),
+                crate::settings::DevShare { port: 8189, target: 5173 },
+            )]),
+            site_roots: &std::collections::BTreeMap::from([("blog".to_string(), "public".to_string())]),
         })
         .unwrap();
         let shop = fs::read_to_string(etc.join("nginx/sites-enabled/shop.conf")).unwrap();
         assert!(shop.contains("server_name shop.test;") && shop.contains("try_files $uri $uri/ /index.php?$query_string;"));
         let blog = fs::read_to_string(etc.join("nginx/sites-enabled/blog.conf")).unwrap();
         assert!(blog.contains("fastcgi_pass 127.0.0.1:9086;"), "{blog}");
-        assert!(fs::read_to_string(etc.join("nginx/sites-enabled/zz-shared.conf")).unwrap().contains("listen 8181;"));
+        assert!(fs::read_to_string(etc.join("nginx/sites-enabled/zz-shared.conf")).unwrap().contains("listen 8188;"));
         configure::check_nginx(&target, &etc.join("nginx/nginx.conf")).unwrap();
         println!("nginx sites: config checked");
     }

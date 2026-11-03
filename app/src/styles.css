@@ -3541,6 +3541,10 @@ h1 {
   color: var(--text);
 }
 
+.input-small {
+  width: 96px;
+}
+
 .input-medium {
   max-width: 320px;
 }

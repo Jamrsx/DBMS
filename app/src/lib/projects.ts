@@ -25,14 +25,7 @@ export type NewKind = "php" | "html" | "empty";
 
 /** Ready-to-run starters NexDB downloads and sets up. */
 export type Starter =
-  | "laravel"
-  | "laravel-react"
-  | "laravel-vue"
-  | "laravel-livewire"
-  | "wordpress"
-  | "vite-react"
-  | "vite-vue"
-  | "nextjs";
+  "laravel" | "laravel-react" | "laravel-vue" | "laravel-livewire" | "wordpress" | "vite-react" | "vite-vue" | "nextjs";
 
 export const STARTERS: { id: Starter; label: string; needs: string }[] = [
   { id: "laravel", label: "Laravel", needs: "PHP, Composer and MySQL" },
@@ -157,7 +150,9 @@ const preview = (() => {
   const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node")];
   let synced = false;
   const listeners = new Set<(e: QuickstartEvent) => void>();
-  let bin: DeletedProject[] = [{ name: "old-site", deleted: Date.now() / 1000 - 86400, path: "C:\$Recycle.Bin\S-1\$R1" }];
+  let bin: DeletedProject[] = [
+    { name: "old-site", deleted: Date.now() / 1000 - 86400, path: "C:\$Recycle.Bin\S-1\$R1" },
+  ];
   const send = (e: QuickstartEvent) => listeners.forEach((l) => l(e));
   return {
     listeners,
@@ -228,7 +223,41 @@ export interface ProjectDetails {
   database: string | null;
   git: { branch: string; changes: number } | null;
   php: { current: string | null; default: string | null; chosen: string | null; installed: string[] };
+  site: SiteChoice;
 }
+
+/** A folder inside a project that can be its website. */
+export interface SiteFolder {
+  /** Relative to the project ("Backend/public"). */
+  path: string;
+  label: string;
+}
+
+/** A front-end app with its own dev server (Vite, Next.js…). */
+export interface DevApp {
+  /** Relative to the project; empty for the project folder itself. */
+  path: string;
+  label: string;
+  port: number;
+}
+
+export interface SiteChoice {
+  /** The subfolder the project uses as its website, when one was chosen. */
+  chosen: string | null;
+  folders: SiteFolder[];
+  /** The project folder has no page of its own, so without a choice only a file list shows. */
+  needs_choice: boolean;
+  dev_apps: DevApp[];
+}
+
+/** Picks which folder of the project is its website; null goes back to the project folder. */
+export async function setProjectSite(name: string, folder: string | null): Promise<void> {
+  if (inDesktopApp) return invoke("project_set_site", { name, folder });
+  await new Promise((r) => setTimeout(r, 500));
+  previewSites[name] = folder;
+}
+
+const previewSites: Record<string, string | null> = {};
 
 export async function projectDetails(name: string): Promise<ProjectDetails> {
   if (inDesktopApp) return invoke<ProjectDetails>("project_details", { name });
@@ -242,6 +271,16 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
     database: name.replace(/-/g, "_"),
     git: { branch: "main", changes: 3 },
     php: { current: "8.5.12", default: "8.5.12", chosen: null, installed: ["8.4.27", "8.5.12"] },
+    // The preview's blog is a monorepo like parish: an API, a Vite app and a mobile app.
+    site:
+      name === "blog"
+        ? {
+            chosen: previewSites[name] ?? null,
+            folders: [{ path: "Backend/public", label: "Laravel app" }],
+            needs_choice: true,
+            dev_apps: [{ path: "web", label: "Vite", port: 5173 }],
+          }
+        : { chosen: null, folders: [], needs_choice: false, dev_apps: [] },
   };
 }
 

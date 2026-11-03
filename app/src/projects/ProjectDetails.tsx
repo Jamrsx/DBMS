@@ -8,6 +8,7 @@ import {
   projectDetails,
   renameProject,
   setProjectPhp,
+  setProjectSite,
   type Editor,
   type ProjectDetails as Details,
 } from "../lib/projects";
@@ -36,6 +37,7 @@ export function ProjectDetails({
   const [busy, setBusy] = useState<string | null>(null);
   const [saved, setSaved] = useState<string | null>(null);
   const [php, setPhp] = useState<string>("");
+  const [siteFolder, setSiteFolder] = useState<string>("");
   const [newName, setNewName] = useState(name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [typed, setTyped] = useState("");
@@ -46,6 +48,7 @@ export function ProjectDetails({
       .then((d) => {
         setInfo(d);
         setPhp(d.php.chosen ?? "");
+        setSiteFolder(d.site.chosen ?? "");
       })
       .catch((e) => setError(String(e)));
   }, [name]);
@@ -154,6 +157,58 @@ export function ProjectDetails({
         </dl>
       )}
 
+      {info && (info.site.needs_choice || info.site.folders.length > 0 || info.site.chosen) && (
+        <div className="details-section">
+          <h3>Site folder</h3>
+          <p className={info.site.needs_choice && !info.site.chosen ? "share-note" : "field-hint"}>
+            {info.site.needs_choice && !info.site.chosen
+              ? `${name} keeps its apps in subfolders, so its address only lists files. Pick the folder that is the website.`
+              : `The folder ${name}.test and its shared address open. The rest of the project stays out of reach.`}
+          </p>
+          <div className="details-row">
+            <select
+              className="input input-medium"
+              value={siteFolder}
+              onChange={(e) => setSiteFolder(e.target.value)}
+              disabled={!!busy}
+              aria-label="Site folder"
+            >
+              <option value="">The project folder{info.kind === "laravel" ? " (its public folder)" : ""}</option>
+              {info.site.folders.map((f) => (
+                <option key={f.path} value={f.path}>
+                  {f.path} · {f.label}
+                </option>
+              ))}
+              {info.site.chosen && !info.site.folders.some((f) => f.path === info.site.chosen) && (
+                <option value={info.site.chosen}>{info.site.chosen}</option>
+              )}
+            </select>
+            <button
+              className="btn"
+              disabled={!!busy || siteFolder === (info.site.chosen ?? "")}
+              onClick={() =>
+                void act(
+                  "Saving; the web server restarts…",
+                  async () => {
+                    await setProjectSite(name, siteFolder || null);
+                    load();
+                  },
+                  siteFolder ? `${name} now opens ${siteFolder}.` : `${name} opens its project folder again.`,
+                )
+              }
+            >
+              Use this folder
+            </button>
+          </div>
+          {info.site.dev_apps.length > 0 && (
+            <p className="field-hint">
+              {info.site.dev_apps.map((d) => `${d.path || name} is a ${d.label} app`).join(", ")}: it runs on its own
+              dev server. Start it in the Terminal, then share it below with "Share a dev server".
+            </p>
+          )}
+        </div>
+      )}
+
       {info && (
         <div className="details-section">
           <h3>PHP version</h3>
@@ -201,7 +256,7 @@ export function ProjectDetails({
         </div>
       )}
 
-      <SharePanel name={name} />
+      <SharePanel name={name} devApps={info?.site.dev_apps ?? []} />
 
       <div className="details-section">
         <h3>Rename</h3>

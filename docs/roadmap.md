@@ -38,6 +38,7 @@ Rules every release follows:
 | 0.3.3 | Dashboard grouped into Web, Database and Extras; setup guides for the mail catcher and Redis |
 | 0.3.4 | PostgreSQL service; Python with pip; switch between Apache and nginx |
 | 0.3.5 | Share a project on the Wi-Fi with a QR code; public links through Cloudflare quick tunnels |
+| 0.3.6 | Site folder per project; share a running dev server; public links serve https pages correctly |
 
 ## Next
 
@@ -202,13 +203,22 @@ Mail catcher (with 0.3.2's services):
   clear warning; it ends when sharing stops or NexDB closes.
 - Later: named tunnels for users who sign in to their own Cloudflare or ngrok account.
 
-### 0.3.6: Health and diagnostics
+### 0.3.6: Site folders and dev servers
+
+- Site folder per project, for monorepos that keep the website in a subfolder (`Backend/public`,
+  `web/dist`); NexDB suggests the folders that look like a site.
+- Share a running dev server (Vite, Next.js, Nuxt, Angular) through a share port, websockets
+  included, with the Host header the dev server's host check expects.
+- Public links: the share site tells PHP when the visitor used https (X-Forwarded-Proto), so
+  Laravel links its assets with https instead of being blocked as mixed content.
+
+### 0.3.7: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.7: Polish and accessibility
+### 0.3.8: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

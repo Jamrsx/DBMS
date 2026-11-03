@@ -55,6 +55,11 @@ pub fn detect_kind(dir: &Path) -> &'static str {
 }
 
 pub fn list(www: &Path, port: u16) -> Vec<Project> {
+    list_with(www, port, &SiteRoots::new())
+}
+
+/// Like `list`, with the site folders projects chose (a subfolder that is the website).
+pub fn list_with(www: &Path, port: u16, roots: &SiteRoots) -> Vec<Project> {
     let Ok(entries) = fs::read_dir(www) else { return vec![] };
     let suffix = if port == 80 { String::new() } else { format!(":{port}") };
     let mut projects: Vec<Project> = entries
@@ -67,7 +72,8 @@ pub fn list(www: &Path, port: u16) -> Vec<Project> {
             }
             let path = e.path();
             let kind = detect_kind(&path);
-            let doc_root = if path.join("public").is_dir() { path.join("public") } else { path.clone() };
+            let chosen = roots.get(&name).map(|r| path.join(r)).filter(|d| d.is_dir());
+            let doc_root = chosen.unwrap_or_else(|| if path.join("public").is_dir() { path.join("public") } else { path.clone() });
             let host = host_label(&name).map(|h| format!("{h}.{TLD}"));
             Some(Project {
                 url: host.as_ref().map(|h| format!("http://{h}{suffix}/")).unwrap_or_default(),
@@ -83,6 +89,107 @@ pub fn list(www: &Path, port: u16) -> Vec<Project> {
         .collect();
     projects.sort_by_key(|p| p.name.to_lowercase());
     projects
+}
+
+/// Project -> the subfolder that is its website, relative to the project ("Backend/public").
+pub type SiteRoots = std::collections::BTreeMap<String, String>;
+
+/// A folder inside a project that can be its website.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SiteFolder {
+    /// Relative to the project, with forward slashes ("Backend/public").
+    pub path: String,
+    /// What it looks like, in plain words ("Laravel app").
+    pub label: String,
+}
+
+/// A front-end app inside a project that runs on its own dev server (Vite, Next.js…).
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct DevApp {
+    /// Relative to the project; empty for the project folder itself.
+    pub path: String,
+    pub label: String,
+    /// The port its dev server usually uses.
+    pub port: u16,
+}
+
+fn subfolders(dir: &Path) -> Vec<String> {
+    let mut subs: Vec<String> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|n| !n.starts_with('.') && !["node_modules", "vendor"].contains(&n.as_str()))
+        .collect();
+    subs.sort_by_key(|n| n.to_lowercase());
+    subs
+}
+
+/// Folders one level down that look like a website, for projects that keep their app in a
+/// subfolder (an API in `Backend/public`, a built front end in `web/dist`).
+pub fn site_folders(dir: &Path) -> Vec<SiteFolder> {
+    let mut out = Vec::new();
+    for sub in subfolders(dir) {
+        let base = dir.join(&sub);
+        let (path, label) = if base.join("public").join("index.php").is_file() {
+            (format!("{sub}/public"), if base.join("artisan").is_file() { "Laravel app" } else { "PHP app" })
+        } else if base.join("index.php").is_file() {
+            (sub, "PHP site")
+        } else if base.join("dist").join("index.html").is_file() {
+            (format!("{sub}/dist"), "Built front end")
+        } else if base.join("index.html").is_file() && !base.join("package.json").is_file() {
+            (sub, "Static site")
+        } else {
+            continue;
+        };
+        out.push(SiteFolder { path, label: label.into() });
+    }
+    out
+}
+
+/// True when the project folder itself has no page to show, so the web server would only list
+/// its files.
+pub fn needs_site_folder(dir: &Path) -> bool {
+    !["index.php", "index.html", "public"].iter().any(|f| dir.join(f).exists())
+}
+
+/// Front-end apps with a dev server, in the project folder or one level down.
+pub fn dev_apps(dir: &Path) -> Vec<DevApp> {
+    let mut found = Vec::new();
+    let candidates = std::iter::once(String::new()).chain(subfolders(dir));
+    for sub in candidates {
+        let Ok(text) = fs::read_to_string(dir.join(&sub).join("package.json")) else { continue };
+        let has = |dep: &str| text.contains(&format!("\"{dep}\""));
+        let (label, port) = if has("next") {
+            ("Next.js", 3000)
+        } else if has("nuxt") {
+            ("Nuxt", 3000)
+        } else if has("@angular/core") {
+            ("Angular", 4200)
+        } else if has("vite") {
+            ("Vite", 5173)
+        } else {
+            continue;
+        };
+        found.push(DevApp { path: sub, label: label.into(), port });
+    }
+    found
+}
+
+/// Checks a site folder the user picked: inside the project, no `..`, and it exists.
+/// Returns it with forward slashes.
+pub fn clean_site_folder(project: &Path, folder: &str) -> Result<String, String> {
+    let folder = folder.trim().trim_matches(['/', '\\']).replace('\\', "/");
+    let parts: Vec<&str> = folder.split('/').filter(|p| !p.is_empty()).collect();
+    if parts.is_empty() || parts.iter().any(|p| *p == ".." || *p == "." || p.contains(':')) {
+        return Err("Pick a folder inside the project.".into());
+    }
+    let joined = parts.join("/");
+    if !project.join(&joined).is_dir() {
+        return Err(format!("There's no folder named {joined} in this project."));
+    }
+    Ok(joined)
 }
 
 /// Creates a new project folder with a small starter page.
@@ -155,9 +262,10 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         None
     };
     let https = cert.as_ref().map(|c| Https { port: settings.preferences.https_port, cert: &c.cert_path, key: &c.key_path });
+    let roots = &settings.preferences.site_root;
     if web == "apache" {
-        write_vhosts(&etc, www, port, https.as_ref(), &php_ports)?;
-        return write_apache_shares(&etc, www, port, &settings.preferences.shared);
+        write_vhosts(&etc, www, port, https.as_ref(), &php_ports, roots)?;
+        return write_apache_shares(&etc, www, port, &settings.preferences, roots);
     }
     let nginx_dir = settings
         .components
@@ -175,14 +283,17 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         nginx_dir: &nginx_dir,
         phpmyadmin: crate::phpmyadmin::installed(root).then(|| crate::phpmyadmin::dir(root)),
         shared: &settings.preferences.shared,
+        share_dev: &settings.preferences.share_dev,
+        site_roots: roots,
     })
 }
 
 /// Shared projects for Apache: each on its own port with the project as the whole site, so a
 /// phone on the same network can open it at the PC's address. Plain HTTP. A project on another
 /// PHP version keeps it, through the folder rules in 00-localhost.conf.
-fn write_apache_shares(etc: &Path, www: &Path, port: u16, shared: &std::collections::BTreeMap<String, u16>) -> Result<(), String> {
-    let projects = list(www, port);
+fn write_apache_shares(etc: &Path, www: &Path, port: u16, prefs: &crate::settings::Preferences, roots: &SiteRoots) -> Result<(), String> {
+    let projects = list_with(www, port, roots);
+    let shared = &prefs.shared;
     let mut out = String::from("# Generated by NexDB: projects shared on the local network.\n");
     for (name, share_port) in shared {
         let Some(p) = projects.iter().find(|p| &p.name == name) else { continue };
@@ -193,6 +304,8 @@ Listen {share_port}
 <VirtualHost *:{share_port}>
     ServerName {name}.share
     DocumentRoot "{root}"
+    # Through a public link the visitor uses https; tell PHP, so the page's links use it too.
+    SetEnvIf X-Forwarded-Proto "^https$" HTTPS=on
     <Directory "{root}">
         Options Indexes FollowSymLinks
         AllowOverride All
@@ -200,6 +313,24 @@ Listen {share_port}
     </Directory>
 </VirtualHost>
 "#
+        ));
+    }
+    // Dev servers: passed through, websockets too (Vite's live reload), with the Host the dev
+    // server expects so its host check lets the request in.
+    for (name, dev) in &prefs.share_dev {
+        out.push_str(&format!(
+            r#"
+# {name}'s dev server
+Listen {port}
+<VirtualHost *:{port}>
+    ServerName {name}.dev-share
+    ProxyPreserveHost Off
+    ProxyPass "/" "http://127.0.0.1:{target}/" upgrade=websocket
+    ProxyPassReverse "/" "http://127.0.0.1:{target}/"
+</VirtualHost>
+"#,
+            port = dev.port,
+            target = dev.target
         ));
     }
     crate::configure::write_file(&etc.join("apache").join("sites-enabled").join("zz-shared.conf"), &out)
@@ -232,6 +363,9 @@ pub struct NginxSites<'a> {
     pub phpmyadmin: Option<PathBuf>,
     /// Projects shared on the local network, each on its own port.
     pub shared: &'a std::collections::BTreeMap<String, u16>,
+    /// Dev servers shared on the local network.
+    pub share_dev: &'a std::collections::BTreeMap<String, crate::settings::DevShare>,
+    pub site_roots: &'a SiteRoots,
 }
 
 /// nginx's version of `write_vhosts`: one server block per project in `sites-enabled`, and
@@ -306,7 +440,7 @@ location ^~ /phpmyadmin/ {{
     }
     crate::configure::write_file(&local.join("00-localhost.conf"), &first)?;
 
-    for p in list(s.www, s.port) {
+    for p in list_with(s.www, s.port, s.site_roots) {
         let Some(host) = &p.host else { continue };
         let port = s.php_ports.get(&p.name).copied().unwrap_or(s.fcgi_port);
         let body = format!(
@@ -332,8 +466,15 @@ server {{
     }
 
     // Shared projects: each on its own port, for phones on the same network. Plain HTTP.
-    let projects = list(s.www, s.port);
-    let mut shares = String::from("# Generated by NexDB: projects shared on the local network.\n");
+    let projects = list_with(s.www, s.port, s.site_roots);
+    // Through a public link the visitor uses https while the tunnel talks plain http; PHP is
+    // told, so the page's links (CSS, scripts) use https too.
+    let mut shares = String::from(
+        "# Generated by NexDB: projects shared on the local network.\nmap $http_x_forwarded_proto $nexdb_https {\n    default \"\";\n    https on;\n}\n",
+    );
+    let include = format!("include \"{params}\";\n");
+    let php_share =
+        |port: u16| php(port).replacen(&include, &format!("{include}        fastcgi_param HTTPS $nexdb_https if_not_empty;\n"), 1);
     for (name, share_port) in s.shared {
         let Some(p) = projects.iter().find(|p| &p.name == name) else { continue };
         let port = s.php_ports.get(name).copied().unwrap_or(s.fcgi_port);
@@ -351,7 +492,27 @@ server {{
 {php}}}
 "#,
             root = conf_path(Path::new(&p.doc_root)),
-            php = php(port),
+            php = php_share(port),
+        ));
+    }
+    for (name, dev) in s.share_dev {
+        shares.push_str(&format!(
+            r#"
+# {name}'s dev server
+server {{
+    listen {port};
+    location / {{
+        proxy_pass http://127.0.0.1:{target};
+        proxy_http_version 1.1;
+        proxy_set_header Host 127.0.0.1:{target};
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 1h;
+    }}
+}}
+"#,
+            port = dev.port,
+            target = dev.target
         ));
     }
     crate::configure::write_file(&sites.join("zz-shared.conf"), &shares)?;
@@ -368,6 +529,7 @@ pub fn write_vhosts(
     port: u16,
     https: Option<&Https>,
     php_ports: &std::collections::BTreeMap<String, u16>,
+    roots: &SiteRoots,
 ) -> Result<(), String> {
     let dir = etc.join("apache").join("sites-enabled");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -421,7 +583,7 @@ pub fn write_vhosts(
         ));
     }
     crate::configure::write_file(&dir.join("00-localhost.conf"), &first)?;
-    for p in list(www, port) {
+    for p in list_with(www, port, roots) {
         let Some(host) = &p.host else { continue };
         let body = format!("# Generated by NexDB for {}\n{}", p.name, vhost(host, Path::new(&p.doc_root), ""));
         crate::configure::write_file(&dir.join(format!("{}.conf", p.name)), &body)?;
@@ -540,6 +702,57 @@ pub fn sync_hosts_elevated(_: &[String]) -> Result<(), String> {
 mod tests {
     use super::*;
 
+    /// A monorepo like parish/: an API in Backend/public, a Vite app in web, a built site in docs/dist.
+    fn monorepo() -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        fs::create_dir_all(p.join("Backend/public")).unwrap();
+        fs::write(p.join("Backend/public/index.php"), "<?php").unwrap();
+        fs::write(p.join("Backend/artisan"), "").unwrap();
+        fs::create_dir_all(p.join("web")).unwrap();
+        fs::write(p.join("web/index.html"), "<div id=app>").unwrap();
+        fs::write(p.join("web/package.json"), r#"{"devDependencies":{"vite":"^8"}}"#).unwrap();
+        fs::create_dir_all(p.join("docs/dist")).unwrap();
+        fs::write(p.join("docs/dist/index.html"), "built").unwrap();
+        fs::create_dir_all(p.join("node_modules/x/public")).unwrap();
+        fs::write(p.join("node_modules/x/public/index.php"), "").unwrap();
+        dir
+    }
+
+    #[test]
+    fn finds_site_folders_and_dev_apps_in_a_monorepo() {
+        let dir = monorepo();
+        assert!(needs_site_folder(dir.path()));
+        let folders = site_folders(dir.path());
+        let paths: Vec<&str> = folders.iter().map(|f| f.path.as_str()).collect();
+        assert_eq!(paths, ["Backend/public", "docs/dist"], "a Vite source folder is not a site, node_modules is skipped");
+        assert_eq!(folders[0].label, "Laravel app");
+        let dev = dev_apps(dir.path());
+        assert_eq!(dev, [DevApp { path: "web".into(), label: "Vite".into(), port: 5173 }]);
+    }
+
+    #[test]
+    fn site_folder_must_stay_inside_the_project() {
+        let dir = monorepo();
+        assert_eq!(clean_site_folder(dir.path(), "\\Backend\\public\\").unwrap(), "Backend/public");
+        assert!(clean_site_folder(dir.path(), "../other").is_err());
+        assert!(clean_site_folder(dir.path(), "C:/Windows").is_err());
+        assert!(clean_site_folder(dir.path(), "missing").is_err());
+    }
+
+    #[test]
+    fn chosen_site_folder_becomes_the_document_root() {
+        let www = tempfile::tempdir().unwrap();
+        let parish = www.path().join("parish");
+        fs::create_dir_all(parish.join("Backend/public")).unwrap();
+        let roots = SiteRoots::from([("parish".to_string(), "Backend/public".to_string())]);
+        let p = list_with(www.path(), 80, &roots).pop().unwrap();
+        assert_eq!(Path::new(&p.doc_root), parish.join("Backend/public"));
+        // A folder that's gone falls back to the usual choice.
+        let gone = SiteRoots::from([("parish".to_string(), "nope".to_string())]);
+        assert_eq!(Path::new(&list_with(www.path(), 80, &gone).pop().unwrap().doc_root), parish);
+    }
+
     #[test]
     fn host_labels() {
         assert_eq!(host_label("my-shop2").as_deref(), Some("my-shop2"));
@@ -615,7 +828,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let www = dir.path().join("www");
         fs::create_dir_all(www.join("site/public")).unwrap();
-        write_vhosts(&dir.path().join("etc"), &www, 80, None, &Default::default()).unwrap();
+        write_vhosts(&dir.path().join("etc"), &www, 80, None, &Default::default(), &Default::default()).unwrap();
         let sites = dir.path().join("etc/apache/sites-enabled");
         assert!(fs::read_to_string(sites.join("00-localhost.conf")).unwrap().contains("ServerName localhost"));
         let site = fs::read_to_string(sites.join("site.conf")).unwrap();
@@ -624,7 +837,7 @@ mod tests {
 
         let (cert, key) = (dir.path().join("sites.crt"), dir.path().join("sites.key"));
         let php_ports = [("site".to_string(), 9087u16)].into_iter().collect();
-        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key }), &php_ports).unwrap();
+        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key }), &php_ports, &Default::default()).unwrap();
         let first = fs::read_to_string(sites.join("00-localhost.conf")).unwrap();
         assert!(first.contains("Listen 443") && first.contains("mod_ssl.so"), "{first}");
         assert!(first.contains("/site\">") && first.contains("proxy:fcgi://127.0.0.1:9087/"), "{first}");
@@ -652,6 +865,7 @@ mod tests {
             fs::write(www.join(name).join(file), body).unwrap();
         }
         fs::write(www.join("beta/artisan"), "x").unwrap();
+        fs::write(www.join("beta/public/scheme.php"), "<?php echo empty($_SERVER['HTTPS']) ? 'http' : 'https';").unwrap();
         fs::write(www.join("index.php"), "<?php echo 'root index';").unwrap();
 
         let mut settings = base.clone();
@@ -663,6 +877,23 @@ mod tests {
         settings.preferences.https = false;
         settings.preferences.project_php.clear();
         settings.preferences.shared = std::collections::BTreeMap::from([("beta".to_string(), 8195u16)]);
+        // gamma's website is a subfolder; a pretend dev server is passed through 8196.
+        fs::create_dir_all(www.join("gamma/site")).unwrap();
+        fs::write(www.join("gamma/site/index.html"), "gamma subfolder site").unwrap();
+        settings.preferences.site_root = std::collections::BTreeMap::from([("gamma".to_string(), "site".to_string())]);
+        settings.preferences.share_dev =
+            std::collections::BTreeMap::from([("alpha".to_string(), crate::settings::DevShare { port: 8196, target: 5899 })]);
+        let dev = std::net::TcpListener::bind("127.0.0.1:5899").unwrap();
+        std::thread::spawn(move || {
+            for mut c in dev.incoming().flatten() {
+                let mut buf = [0u8; 2048];
+                let n = c.read(&mut buf).unwrap_or(0);
+                let req = String::from_utf8_lossy(&buf[..n]).to_string();
+                let host = req.lines().find(|l| l.to_lowercase().starts_with("host:")).unwrap_or("").to_string();
+                let body = format!("dev server saw {host}");
+                let _ = c.write_all(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes());
+            }
+        });
         crate::installer::refresh_configs(dir.path(), &settings).unwrap();
 
         let sup = Supervisor::new(specs_for(dir.path(), &settings));
@@ -677,7 +908,26 @@ mod tests {
         let mut shared = String::new();
         s.read_to_string(&mut shared).unwrap();
         println!("shared via {ip}: {}", shared.lines().last().unwrap_or(""));
+        // The dev server gets the request with the Host it expects (Vite's host check).
+        let mut s = TcpStream::connect((ip.as_str(), 8196)).unwrap();
+        s.write_all(format!("GET / HTTP/1.0\r\nHost: {ip}:8196\r\n\r\n").as_bytes()).unwrap();
+        let mut proxied = String::new();
+        s.read_to_string(&mut proxied).unwrap();
+        println!("dev share: {}", proxied.lines().last().unwrap_or(""));
+        assert!(proxied.contains("dev server saw Host: 127.0.0.1:5899"), "{proxied}");
         assert!(shared.contains("hello from beta/public"), "{shared}");
+        // Through Cloudflare's tunnel (X-Forwarded-Proto: https) PHP sees HTTPS, so Laravel
+        // links its CSS and scripts with https and the browser doesn't block them.
+        let scheme = |forwarded: &str| {
+            let mut s = TcpStream::connect(("127.0.0.1", 8195)).unwrap();
+            s.write_all(format!("GET /scheme.php HTTP/1.0\r\nHost: x.trycloudflare.com\r\n{forwarded}\r\n").as_bytes()).unwrap();
+            let mut out = String::new();
+            s.read_to_string(&mut out).unwrap();
+            out.lines().last().unwrap_or("").to_string()
+        };
+        assert_eq!(scheme("X-Forwarded-Proto: https\r\n"), "https");
+        assert_eq!(scheme(""), "http");
+        println!("public link: PHP sees https");
 
         let get = |host: &str, path: &str| {
             let mut s = TcpStream::connect(("127.0.0.1", 8098)).unwrap();
@@ -690,7 +940,7 @@ mod tests {
         assert!(alpha.contains("200 OK") && alpha.contains("hello from alpha alpha.test:8098"), "{alpha}");
         let beta = get("beta.test:8098", "/");
         assert!(beta.contains("hello from beta/public beta.test:8098"), "beta is served from public/: {beta}");
-        assert!(get("gamma.test:8098", "/").contains("plain gamma"));
+        assert!(get("gamma.test:8098", "/").contains("gamma subfolder site"), "gamma is served from its chosen site folder");
         // localhost and unknown names keep going to the www folder.
         assert!(get("localhost:8098", "/").contains("root index"));
         assert!(get("127.0.0.1:8098", "/").contains("root index"));

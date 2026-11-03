@@ -260,6 +260,9 @@ pub fn run() {
             share_allow_firewall,
             share_public_start,
             share_public_stop,
+            share_dev_start,
+            share_dev_stop,
+            project_set_site,
             save_ports,
             set_start_services_on_launch,
             https_status,
@@ -371,7 +374,7 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
     let (_, settings, _) = stack.get()?;
     blocking(move || {
         let port = settings.web().map_or(80, |w| w.1);
-        let mut projects = projects::list(std::path::Path::new(&settings.www_dir), port);
+        let mut projects = projects::list_with(std::path::Path::new(&settings.www_dir), port, &settings.preferences.site_root);
         for p in projects.iter_mut().filter(|p| p.kind == "laravel" || p.kind == "php") {
             p.php_warnings = phpfix::scan(std::path::Path::new(&p.path)).len();
         }
@@ -473,6 +476,18 @@ struct ShareInfo {
     tunnel_size: Option<u64>,
     public_url: Option<String>,
     public_qr: Option<String>,
+    /// The project's dev server, when it is passed through a share port.
+    dev: Option<DevShareInfo>,
+}
+
+#[derive(serde::Serialize)]
+struct DevShareInfo {
+    port: u16,
+    target: u16,
+    url: Option<String>,
+    qr: Option<String>,
+    /// Whether something answers on the dev server's port right now.
+    running: bool,
 }
 
 fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
@@ -496,6 +511,16 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         tunnel_size: tool.as_ref().and_then(|t| t.download.size),
         public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
         public_url,
+        dev: settings.preferences.share_dev.get(name).map(|d| {
+            let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", d.port));
+            DevShareInfo {
+                port: d.port,
+                target: d.target,
+                qr: url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+                url,
+                running: supervisor::port_listening(d.target),
+            }
+        }),
     }
 }
 
@@ -526,7 +551,11 @@ async fn share_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, A
         return Err("That project doesn't exist any more.".into());
     }
     if !settings.preferences.shared.contains_key(&name) {
-        let port = share::free_port(&settings.preferences.shared)
+        let mut used = settings.preferences.shared.clone();
+        for (n, d) in &settings.preferences.share_dev {
+            used.insert(format!("{n} (dev)"), d.port);
+        }
+        let port = share::free_port(&used)
             .ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?;
         let (root2, name2) = (root.clone(), name.clone());
         blocking(move || {
@@ -566,6 +595,113 @@ async fn share_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Ar
     .await?;
     stack.update_settings(|s| {
         s.preferences.shared.remove(&name);
+    });
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+/// Chooses which folder of a project is its website (None: the project folder, or its public
+/// folder), then rewrites the sites and restarts the web server if it runs.
+#[tauri::command]
+async fn project_set_site(stack: tauri::State<'_, Stack>, name: String, folder: Option<String>) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    let project = std::path::Path::new(&settings.www_dir).join(&name);
+    if !project.is_dir() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    let folder = folder.filter(|f| !f.trim().is_empty()).map(|f| projects::clean_site_folder(&project, &f)).transpose()?;
+    let (root2, name2, folder2) = (root.clone(), name.clone(), folder.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            match &folder2 {
+                Some(f) => v["preferences"]["site_root"][name2.as_str()] = f.clone().into(),
+                None => {
+                    if let Some(map) = v["preferences"]["site_root"].as_object_mut() {
+                        map.remove(&name2);
+                    }
+                }
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| match folder {
+        Some(f) => {
+            s.preferences.site_root.insert(name.clone(), f);
+        }
+        None => {
+            s.preferences.site_root.remove(&name);
+        }
+    });
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || apply_vhosts(&root, &settings, &sup)).await
+}
+
+/// Passes a project's running dev server (Vite on 5173…) through its own share port, so a
+/// phone on the same network can open it with live reload.
+#[tauri::command]
+async fn share_dev_start(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+    target: u16,
+) -> Result<ShareInfo, String> {
+    let (root, settings, _) = stack.get()?;
+    if settings.web().is_none() {
+        return Err("Sharing needs a web server. Install Apache or nginx on the Versions page first.".into());
+    }
+    if share::PORTS.contains(&target) || target < 1024 {
+        return Err(format!("Port {target} can't be a dev server here. Vite usually uses 5173."));
+    }
+    let mut used = settings.preferences.shared.clone();
+    for (n, d) in &settings.preferences.share_dev {
+        used.insert(format!("{n} (dev)"), d.port);
+    }
+    let port = match settings.preferences.share_dev.get(&name) {
+        Some(d) => d.port,
+        None => share::free_port(&used).ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?,
+    };
+    let dev = settings::DevShare { port, target };
+    let (root2, name2) = (root.clone(), name.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            v["preferences"]["share_dev"][name2.as_str()] = serde_json::json!({ "port": dev.port, "target": dev.target });
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| {
+        s.preferences.share_dev.insert(name.clone(), dev);
+    });
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn share_dev_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    let (root, _, _) = stack.get()?;
+    let (root2, name2) = (root.clone(), name.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            if let Some(map) = v["preferences"]["share_dev"].as_object_mut() {
+                map.remove(&name2);
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| {
+        s.preferences.share_dev.remove(&name);
     });
     let (root, settings, sup) = stack.get()?;
     let tunnels = tunnels.inner().clone();
@@ -650,20 +786,40 @@ async fn project_set_php(
 
 /// Moves a project's own settings (its PHP version) from one name to another, or drops them.
 async fn move_project_settings(app: &tauri::AppHandle, stack: &Stack, old: String, new: Option<String>) -> Result<(), String> {
-    let (root, settings, sup) = stack.get()?;
-    if settings.preferences.project_php.contains_key(&old) {
-        return apply_service_change(app, stack, move |v| {
-            if let Some(map) = v["preferences"]["project_php"].as_object_mut() {
-                if let Some(ver) = map.remove(&old) {
-                    if let Some(new) = new {
-                        map.insert(new, ver);
+    let (root, settings, _) = stack.get()?;
+    // Per-project settings follow a rename and go with a delete.
+    let move_all = {
+        let (old, new) = (old.clone(), new.clone());
+        move |v: &mut serde_json::Value| {
+            for key in ["project_php", "site_root", "shared", "share_dev"] {
+                if let Some(map) = v["preferences"][key].as_object_mut() {
+                    if let Some(value) = map.remove(&old) {
+                        if let Some(new) = &new {
+                            map.insert(new.clone(), value);
+                        }
                     }
                 }
             }
             Ok(())
-        })
-        .await;
+        }
+    };
+    if settings.preferences.project_php.contains_key(&old) {
+        return apply_service_change(app, stack, move_all).await;
     }
+    blocking(move || settings::edit(&root, move_all)).await?;
+    // The same move in memory; reloading would end the running services.
+    stack.update_settings(|s| {
+        let p = &mut s.preferences;
+        let site = p.site_root.remove(&old);
+        let shared = p.shared.remove(&old);
+        let dev = p.share_dev.remove(&old);
+        if let Some(new) = &new {
+            site.map(|v| p.site_root.insert(new.clone(), v));
+            shared.map(|v| p.shared.insert(new.clone(), v));
+            dev.map(|v| p.share_dev.insert(new.clone(), v));
+        }
+    });
+    let (root, settings, sup) = stack.get()?;
     blocking(move || apply_vhosts(&root, &settings, &sup)).await
 }
 
@@ -819,7 +975,7 @@ fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String,
     use tauri_plugin_opener::OpenerExt;
     let (_, settings, _) = stack.get()?;
     let port = settings.web().map_or(80, |w| w.1);
-    let mut found = projects::list(std::path::Path::new(&settings.www_dir), port);
+    let mut found = projects::list_with(std::path::Path::new(&settings.www_dir), port, &settings.preferences.site_root);
     if settings.preferences.https {
         projects::use_https(&mut found, settings.preferences.https_port);
     }

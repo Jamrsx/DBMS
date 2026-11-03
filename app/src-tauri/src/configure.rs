@@ -111,7 +111,7 @@ pub struct ApacheConf<'a> {
 
 const APACHE_MODULES: &[&str] = &[
     "alias", "authz_core", "authz_host", "autoindex", "dir", "env", "headers", "log_config", "mime",
-    "proxy", "proxy_fcgi", "rewrite", "setenvif",
+    "proxy", "proxy_fcgi", "proxy_http", "rewrite", "setenvif",
 ];
 
 pub fn apache_conf(c: &ApacheConf) -> String {

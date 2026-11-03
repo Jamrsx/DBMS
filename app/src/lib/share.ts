@@ -19,6 +19,8 @@ export interface ShareInfo {
   tunnel_size: number | null;
   public_url: string | null;
   public_qr: string | null;
+  /** The project's dev server, when it is passed through a share port. */
+  dev: { port: number; target: number; url: string | null; qr: string | null; running: boolean } | null;
 }
 
 // Browser preview: a pretend share on a home network.
@@ -39,6 +41,7 @@ const base = (): ShareInfo => ({
   tunnel_size: 55390512,
   public_url: null,
   public_qr: null,
+  dev: null,
 });
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -86,6 +89,22 @@ export async function stopPublicLink(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_public_stop", { name });
   const s = (preview[name] ??= base());
   Object.assign(s, { public_url: null, public_qr: null });
+  return { ...s };
+}
+
+/** Passes the project's running dev server (Vite on 5173…) through its own share port. */
+export async function startDevShare(name: string, target: number): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_dev_start", { name, target });
+  await pause(600);
+  const s = (preview[name] ??= base());
+  s.dev = { port: 8182, target, url: "http://192.168.1.20:8182/", qr, running: false };
+  return { ...s };
+}
+
+export async function stopDevShare(name: string): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_dev_stop", { name });
+  const s = (preview[name] ??= base());
+  s.dev = null;
   return { ...s };
 }
 

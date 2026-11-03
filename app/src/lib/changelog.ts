@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.6",
+    title: "Site folders, dev servers on your phone, and working public links",
+    changes: [
+      "Site folder: for projects that keep their app in a subfolder (like Backend/public), pick the folder that is the website.",
+      "Share a dev server: open a running Vite or Next.js app on your phone, with live reload.",
+      "Public links now load Laravel's styles and scripts; before, the page stayed blank.",
+    ],
+  },
+  {
     version: "0.3.5",
     title: "Share a project",
     changes: [

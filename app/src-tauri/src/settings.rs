@@ -67,6 +67,19 @@ pub struct Preferences {
     /// Projects shared on the local network: project -> its own port.
     #[serde(default)]
     pub shared: std::collections::BTreeMap<String, u16>,
+    /// Projects whose website is a subfolder: project -> folder ("Backend/public").
+    #[serde(default)]
+    pub site_root: std::collections::BTreeMap<String, String>,
+    /// Dev servers shared on the local network: project -> share port and dev server port.
+    #[serde(default)]
+    pub share_dev: std::collections::BTreeMap<String, DevShare>,
+}
+
+/// A running dev server (Vite on 5173…) reached through a share port.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct DevShare {
+    pub port: u16,
+    pub target: u16,
 }
 
 impl Default for Preferences {
@@ -79,6 +92,8 @@ impl Default for Preferences {
             auto_backup_keep: default_auto_backup_keep(),
             project_php: Default::default(),
             shared: Default::default(),
+            site_root: Default::default(),
+            share_dev: Default::default(),
         }
     }
 }

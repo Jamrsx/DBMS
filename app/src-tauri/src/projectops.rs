@@ -36,6 +36,20 @@ pub struct Details {
     pub database: Option<String>,
     pub git: Option<Git>,
     pub php: Php,
+    pub site: Site,
+}
+
+/// Which folder is the website, for projects that keep their app in a subfolder.
+#[derive(Serialize)]
+pub struct Site {
+    /// The subfolder the project uses, when one was chosen.
+    pub chosen: Option<String>,
+    /// Subfolders that look like a website.
+    pub folders: Vec<crate::projects::SiteFolder>,
+    /// The project folder itself has no page, so without a choice only a file list shows.
+    pub needs_choice: bool,
+    /// Front-end apps with their own dev server, which the Share panel can pass through.
+    pub dev_apps: Vec<crate::projects::DevApp>,
 }
 
 /// The database name in a Laravel `.env` (MySQL/MariaDB only) or WordPress `wp-config.php`.
@@ -92,7 +106,7 @@ fn git_status(root: &Path, settings: &Settings, dir: &Path) -> Option<Git> {
 pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, String> {
     let www = PathBuf::from(&settings.www_dir);
     let port = settings.web().map_or(80, |w| w.1);
-    let mut project = crate::projects::list(&www, port)
+    let mut project = crate::projects::list_with(&www, port, &settings.preferences.site_root)
         .into_iter()
         .find(|p| p.name == name)
         .ok_or("That project doesn't exist any more.")?;
@@ -107,6 +121,12 @@ pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, 
         database: database_of(&dir),
         git: git_status(root, settings, &dir),
         php: Php { current: chosen.clone().or(default.clone()), default, chosen, installed },
+        site: Site {
+            chosen: settings.preferences.site_root.get(name).cloned(),
+            folders: crate::projects::site_folders(&dir),
+            needs_choice: crate::projects::needs_site_folder(&dir),
+            dev_apps: crate::projects::dev_apps(&dir),
+        },
         name: project.name,
         path: project.path,
         kind: project.kind,
