@@ -234,11 +234,36 @@ Mail catcher (with 0.3.2's services):
 
 ### 0.3.9: Health and diagnostics
 
-- A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
-  with a plain fix button.
+- A "Check my setup" page: ports, trust store, PATH, firewall, network type (public or private),
+  disk space, broken configs, projects that still need setting up. Each problem gets a plain
+  fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.4.0: Polish and accessibility
+### 0.4.0: One-link share and Laravel tools
+
+- One link for a whole project: the front end (a dev server or a built folder) with `/api`,
+  `/sanctum` and `/storage` passed through to its Laravel backend, so the same link works on
+  the Wi-Fi and as a public link (for projects like parish: web + Backend).
+- Laravel buttons per project: migrate, seed, `storage:link`, clear caches, and its
+  `storage/logs` in plain language.
+- Queue worker and scheduler per project, started and stopped like Dashboard services.
+
+### 0.4.1: PostgreSQL on the Database page
+
+- Browse, edit rows, SQL with templates, users, export and import, as for MySQL.
+
+### 0.4.2: Tray menu and command palette
+
+- Tray menu: start or stop services, open a project, open its terminal.
+- Ctrl+K: jump to any project, database, table or action.
+- Notifications when a service stops unexpectedly or a backup fails.
+
+### 0.4.3: Import from Laragon and XAMPP
+
+- Copy their projects and databases into NexDB (never move or change the originals).
+- Clone a Git repository as a new project, then set it up in one go.
+
+### 0.4.4: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.
@@ -250,14 +275,40 @@ Before calling it 1.0.0:
 
 - Code-signing certificate so Windows SmartScreen stops showing "Unknown publisher".
 - Uninstaller that offers to keep or remove `C:\NexDB` (projects and databases).
-- Migration from an older install folder and from Laragon/XAMPP projects (copy, never move).
-- A short user guide and a changelog page inside the app.
+- Migration from an older install folder.
+- A short user guide inside the app.
 - Every feature covered by a real test, and a clean install tested on a fresh Windows PC.
 
 ## Ideas, not scheduled
 
+Projects:
+
 - Node version per project (`.nvmrc`).
-- Cron-like scheduled tasks per project (for Laravel's scheduler).
-- Queue worker manager (Laravel queues).
+- `.env` editor with secrets hidden.
+
+Database:
+
+- Visual table designer (columns and indexes without SQL).
+- Relationship diagram from foreign keys.
+- Query history and saved queries.
+- Compare two databases (schema differences).
+- Scheduled backups to another folder or USB drive; restore into a new database.
+
+Services:
+
+- Memcached, MongoDB and MariaDB as extra services.
+- Read caught emails inside NexDB.
+- Memory and CPU per service.
+
+Sharing:
+
+- Named tunnels with your own Cloudflare or ngrok account (a link that stays the same).
+- Password-protected public links.
+- A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
+
+Later:
+
+- Docker containers as services.
+- Share a project's setup (versions, services, `.env` template) as one file for a team.
 - Plugins or custom services defined by the user.
 - macOS or Linux version.
