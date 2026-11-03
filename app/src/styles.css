@@ -3827,6 +3827,55 @@ h1 {
   gap: 8px;
 }
 
+/* Set up a cloned project: its checklist and the last lines of output. */
+.setup-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.setup-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+}
+
+.setup-steps svg {
+  flex: none;
+  color: var(--text-3);
+}
+
+.setup-steps .setup-done svg {
+  color: var(--ok);
+}
+
+.setup-steps .setup-running {
+  color: var(--text);
+}
+
+.setup-log {
+  width: 100%;
+  max-height: 9em;
+  margin: 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  font: 12px/1.5 var(--mono);
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.setup .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Project details: Overview, Share, Rename or delete. */
 .details-tabs {
   align-self: start;

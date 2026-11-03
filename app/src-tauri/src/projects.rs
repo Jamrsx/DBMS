@@ -159,6 +159,10 @@ pub fn dev_apps(dir: &Path) -> Vec<DevApp> {
     let mut found = Vec::new();
     let candidates = std::iter::once(String::new()).chain(subfolders(dir));
     for sub in candidates {
+        // A Laravel app's Vite only builds its CSS and scripts; the site is the Laravel app.
+        if dir.join(&sub).join("artisan").is_file() {
+            continue;
+        }
         let Ok(text) = fs::read_to_string(dir.join(&sub).join("package.json")) else { continue };
         let has = |dep: &str| text.contains(&format!("\"{dep}\""));
         let (label, port) = if has("next") {

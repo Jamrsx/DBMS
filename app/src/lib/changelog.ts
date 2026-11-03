@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.8",
+    title: "Set up cloned projects",
+    changes: [
+      "Set up this project: for a project you cloned, one button installs its PHP and Node packages, creates its .env with a database user and generates the app key.",
+      "An existing database is kept as it is; a new one is made when the project needs it.",
+      "Laravel's own Vite isn't listed as a separate front end any more.",
+      "The Share tab says it's checking instead of showing an empty page.",
+    ],
+  },
+  {
     version: "0.3.7",
     title: "A tidier Dashboard and project page, and dev servers that open",
     changes: [

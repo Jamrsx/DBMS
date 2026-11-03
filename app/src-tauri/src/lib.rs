@@ -263,6 +263,7 @@ pub fn run() {
             share_dev_start,
             share_dev_stop,
             project_set_site,
+            project_setup,
             save_ports,
             set_start_services_on_launch,
             https_status,
@@ -975,6 +976,26 @@ async fn project_quickstart(
         let created = quickstart::create(&emit, &root, &settings, &sup, password, &name, starter, &options)?;
         apply_vhosts(&root, &settings, &sup)?;
         Ok(created)
+    })
+    .await
+}
+
+/// Gets an existing project (often a cloned one) ready: PHP and Node packages, its .env with a
+/// database and app key. Progress arrives as `quickstart` events. Returns notes for the user.
+#[tauri::command]
+async fn project_setup(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    name: String,
+) -> Result<Vec<String>, String> {
+    let (root, settings, sup) = stack.get()?;
+    let password = db.inner().clone_handle().password();
+    blocking(move || {
+        let emit = |e: quickstart::Event| {
+            let _ = app.emit("quickstart", e);
+        };
+        quickstart::setup(&emit, &root, &settings, &sup, password, &name)
     })
     .await
 }

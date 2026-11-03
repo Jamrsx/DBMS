@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Globe, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, Globe, LoaderCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
 import type { DevApp } from "../lib/projects";
 import { CopyButton } from "../components/CopyButton";
 import { nexCelebrate } from "../lib/nex";
@@ -55,7 +55,22 @@ export function SharePanel({
     }
   }
 
-  if (!info) return null;
+  // Reading the firewall and network takes a moment; say so instead of showing nothing.
+  if (!info)
+    return (
+      <div className="details-section share">
+        <h3>Share</h3>
+        {error ? (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <p className="field-hint" role="status">
+            <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> Checking your network and firewall…
+          </p>
+        )}
+      </div>
+    );
   const shared = info.port !== null;
   // What can keep phones out: a stopped web server, a public network, the firewall.
   const notes = (

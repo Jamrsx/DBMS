@@ -224,6 +224,39 @@ export interface ProjectDetails {
   git: { branch: string; changes: number } | null;
   php: { current: string | null; default: string | null; chosen: string | null; installed: string[] };
   site: SiteChoice;
+  /** What the project still needs before it runs, when it was cloned. */
+  setup: SetupTask[];
+}
+
+/** Something a cloned project still needs (PHP or Node packages, a .env, the app key). */
+export interface SetupTask {
+  folder: string;
+  kind: "composer" | "env" | "key" | "npm";
+  label: string;
+}
+
+/** Runs the project's setup; progress arrives through `onQuickstart`. Resolves to notes. */
+export async function setupProject(name: string): Promise<string[]> {
+  if (inDesktopApp) return invoke<string[]>("project_setup", { name });
+  const steps = previewSetup(name).map((t) => t.label);
+  for (const l of preview.listeners) l({ kind: "plan", name, steps });
+  for (let i = 0; i < steps.length; i++) {
+    for (const l of preview.listeners) l({ kind: "step", name, index: i, status: "running" });
+    await new Promise((r) => setTimeout(r, 500));
+    for (const l of preview.listeners) l({ kind: "step", name, index: i, status: "done" });
+  }
+  previewSetupDone.add(name);
+  return ["Backend uses your existing parish database, so NexDB didn't run migrations."];
+}
+
+const previewSetupDone = new Set<string>();
+function previewSetup(name: string): SetupTask[] {
+  if (name !== "blog" || previewSetupDone.has(name)) return [];
+  return [
+    { folder: "Backend", kind: "composer", label: "Backend: install its PHP packages (composer install)" },
+    { folder: "Backend", kind: "env", label: "Backend: create .env from .env.example, with its own database user" },
+    { folder: "Backend", kind: "key", label: "Backend: generate the app key" },
+  ];
 }
 
 /** A folder inside a project that can be its website. */
@@ -271,6 +304,7 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
     database: name.replace(/-/g, "_"),
     git: { branch: "main", changes: 3 },
     php: { current: "8.5.12", default: "8.5.12", chosen: null, installed: ["8.4.27", "8.5.12"] },
+    setup: previewSetup(name),
     // The preview's blog is a monorepo like parish: an API, a Vite app and a mobile app.
     site:
       name === "blog"

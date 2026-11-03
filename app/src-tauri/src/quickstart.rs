@@ -375,6 +375,201 @@ fn make_database(root_password: Option<&str>, port: u16, name: &str) -> Result<P
     Ok(ProjectDb { user: name.clone(), name, password, port })
 }
 
+/// Something a cloned project still needs before it runs, in one of its folders.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct SetupTask {
+    /// Relative to the project; empty for the project folder itself.
+    pub folder: String,
+    /// "composer", "env", "key", "npm".
+    pub kind: &'static str,
+    /// One plain line for the checklist.
+    pub label: String,
+}
+
+/// The app folders of a project: the project folder and the ones one level down.
+fn app_folders(dir: &Path) -> Vec<(String, PathBuf)> {
+    let mut found = vec![(String::new(), dir.to_path_buf())];
+    let mut subs: Vec<String> = std::fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+        .map(|e| e.file_name().to_string_lossy().to_string())
+        .filter(|n| !n.starts_with('.') && !["node_modules", "vendor"].contains(&n.as_str()))
+        .collect();
+    subs.sort_by_key(|n| n.to_lowercase());
+    found.extend(subs.into_iter().map(|s| (s.clone(), dir.join(s))));
+    found
+}
+
+/// What a project (often a cloned one) is missing: PHP packages, a `.env` with its database
+/// and app key, Node packages. Empty when it's ready.
+pub fn setup_plan(dir: &Path) -> Vec<SetupTask> {
+    let mut tasks = Vec::new();
+    for (folder, path) in app_folders(dir) {
+        let where_ = if folder.is_empty() { String::new() } else { format!("{folder}: ") };
+        let laravel = path.join("artisan").is_file() && path.join("composer.json").is_file();
+        if laravel {
+            if !path.join("vendor").join("autoload.php").is_file() {
+                tasks.push(SetupTask { folder: folder.clone(), kind: "composer", label: format!("{where_}install its PHP packages (composer install)") });
+            }
+            if !path.join(".env").is_file() && path.join(".env.example").is_file() {
+                tasks.push(SetupTask { folder: folder.clone(), kind: "env", label: format!("{where_}create .env from .env.example, with its own database user") });
+                tasks.push(SetupTask { folder: folder.clone(), kind: "key", label: format!("{where_}generate the app key") });
+            } else if let Ok(env) = std::fs::read_to_string(path.join(".env")) {
+                if env.lines().any(|l| l.trim() == "APP_KEY=") {
+                    tasks.push(SetupTask { folder: folder.clone(), kind: "key", label: format!("{where_}generate the app key") });
+                }
+            }
+        } else if folder.is_empty() && path.join("composer.json").is_file() && !path.join("vendor").is_dir() {
+            tasks.push(SetupTask { folder: folder.clone(), kind: "composer", label: format!("{where_}install its PHP packages (composer install)") });
+        }
+        if path.join("package.json").is_file() && !path.join("node_modules").is_dir() {
+            tasks.push(SetupTask { folder: folder.clone(), kind: "npm", label: format!("{where_}install its Node packages (npm install)") });
+        }
+    }
+    tasks
+}
+
+/// A `.env` value, without quotes.
+fn env_value(text: &str, key: &str) -> Option<String> {
+    text.lines().find_map(|l| {
+        let (k, v) = l.split_once('=')?;
+        (k.trim() == key).then(|| v.trim().trim_matches('"').trim_matches('\'').to_string())
+    })
+}
+
+/// The project's MySQL database: the one its `.env.example` names, made when it doesn't exist
+/// (kept as it is when it does), with a user of its own that can only use it.
+fn ensure_database(root_password: Option<&str>, port: u16, name: &str) -> Result<(ProjectDb, bool), String> {
+    let db = crate::db::Db::default();
+    db.connect(port, root_password).map_err(|e| {
+        if e == "NEEDS_PASSWORD" {
+            "NexDB needs your MySQL password to set up the project's database: open the Database page and connect once, then try again. The password isn't saved.".to_string()
+        } else {
+            e
+        }
+    })?;
+    if !crate::db::valid_name(name) || name.len() > 32 {
+        return Err(format!("\"{name}\" can't be a database name: use up to 32 letters, numbers and _."));
+    }
+    let existed = db.databases()?.iter().any(|d| d.name.eq_ignore_ascii_case(name));
+    if !existed {
+        db.create_database(name)?;
+    }
+    let password = random_password()?;
+    let sql = format!(
+        "CREATE USER IF NOT EXISTS '{name}'@'localhost' IDENTIFIED BY '{password}';\
+         CREATE USER IF NOT EXISTS '{name}'@'127.0.0.1' IDENTIFIED BY '{password}';\
+         ALTER USER '{name}'@'localhost' IDENTIFIED BY '{password}';\
+         ALTER USER '{name}'@'127.0.0.1' IDENTIFIED BY '{password}';\
+         GRANT ALL PRIVILEGES ON `{name}`.* TO '{name}'@'localhost';\
+         GRANT ALL PRIVILEGES ON `{name}`.* TO '{name}'@'127.0.0.1';"
+    );
+    db.query(None, &sql)?;
+    db.disconnect();
+    Ok((ProjectDb { user: name.to_string(), name: name.to_string(), password, port }, existed))
+}
+
+/// Runs the setup plan of an existing project. Progress goes out as `quickstart` events under
+/// the project's name, like a new project. Nothing is deleted on failure.
+pub fn setup(
+    emit: Emit,
+    root: &Path,
+    settings: &Settings,
+    sup: &crate::supervisor::Supervisor,
+    root_password: Option<String>,
+    name: &str,
+) -> Result<Vec<String>, String> {
+    let dir = PathBuf::from(&settings.www_dir).join(name);
+    if !dir.is_dir() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    let tasks = setup_plan(&dir);
+    emit(Event::Plan { name: name.into(), steps: tasks.iter().map(|t| t.label.clone()).collect() });
+    let r = Run {
+        emit,
+        name,
+        root,
+        settings,
+        locked: std::cell::Cell::new(false),
+        current: std::cell::Cell::new(0),
+        ops: std::cell::Cell::new((0, 0)),
+    };
+    let has = |id: &str| settings.components.iter().any(|c| c.id == id);
+    let mut notes = Vec::new();
+    for (i, task) in tasks.iter().enumerate() {
+        r.step(i, "running");
+        let path = dir.join(&task.folder);
+        match task.kind {
+            "composer" => {
+                if !has("composer") {
+                    return Err("Installing PHP packages needs Composer. Install it on the Versions page first.".into());
+                }
+                r.exec(&path, "composer install --no-interaction --prefer-dist")?;
+            }
+            "env" => {
+                let example = std::fs::read_to_string(path.join(".env.example")).map_err(|e| format!("Couldn't read .env.example: {e}"))?;
+                let mut env = example.clone();
+                let connection = env_value(&example, "DB_CONNECTION").unwrap_or_else(|| "mysql".into());
+                if matches!(connection.as_str(), "mysql" | "mariadb") {
+                    let port = settings.mysql.as_ref().map(|m| m.port).ok_or("This project uses MySQL, which isn't part of this install.")?;
+                    if !crate::supervisor::port_listening(port) {
+                        r.line("Starting MySQL…");
+                        sup.start("mysql").map_err(|e| format!("MySQL isn't running and didn't start: {e}"))?;
+                    }
+                    let wanted = env_value(&example, "DB_DATABASE").filter(|d| !d.is_empty()).unwrap_or_else(|| db_name(name));
+                    let (db, existed) = ensure_database(root_password.as_deref(), port, &wanted)?;
+                    for (k, v) in [
+                        ("DB_HOST", "127.0.0.1".to_string()),
+                        ("DB_PORT", db.port.to_string()),
+                        ("DB_DATABASE", db.name.clone()),
+                        ("DB_USERNAME", db.user.clone()),
+                        ("DB_PASSWORD", db.password.clone()),
+                    ] {
+                        env = set_env(&env, k, &v);
+                    }
+                    if existed {
+                        r.line(&format!("Using the existing database {}; its data stays as it is", db.name));
+                        notes.push(format!("{} uses your existing {} database, so NexDB didn't run migrations.", task.folder, db.name));
+                    } else {
+                        r.line(&format!("Made database {} with its own user", db.name));
+                        notes.push(format!("{} has a new, empty {} database: run php artisan migrate in its folder to create the tables.", task.folder, db.name));
+                    }
+                } else if connection == "sqlite" {
+                    let file = path.join("database").join("database.sqlite");
+                    if !file.exists() {
+                        let _ = std::fs::create_dir_all(path.join("database"));
+                        std::fs::write(&file, "").map_err(|e| format!("Couldn't create the SQLite file: {e}"))?;
+                    }
+                }
+                if has("mailpit") {
+                    for (k, v) in [("MAIL_MAILER", "smtp"), ("MAIL_HOST", "127.0.0.1"), ("MAIL_PORT", "1025")] {
+                        env = set_env(&env, k, v);
+                    }
+                }
+                std::fs::write(path.join(".env"), env).map_err(|e| format!("Couldn't write .env: {e}"))?;
+            }
+            "key" => r.exec(&path, "php artisan key:generate --force --no-interaction")?,
+            "npm" => {
+                if !has("node") {
+                    return Err("Installing Node packages needs Node.js. Install it on the Versions page first.".into());
+                }
+                r.exec_retry(&path, "npm install")?;
+            }
+            _ => {}
+        }
+        r.step(i, "done");
+    }
+    // Older configs use constants PHP 8.5 warns about.
+    if let Ok(n) = crate::phpfix::fix(&dir) {
+        if n > 0 {
+            r.line(&format!("Updated {n} line(s) for PHP 8.5, so no \"Deprecated\" warnings show"));
+        }
+    }
+    Ok(notes)
+}
+
 /// Makes the project. Progress goes out as `quickstart` events; on failure the half-made folder
 /// is removed so the same name can be tried again.
 pub fn create(
@@ -717,5 +912,81 @@ mod tests {
     fn colour_codes_are_removed() {
         assert_eq!(strip_ansi("\u{1b}[32mbuilt in 7.15s\u{1b}[39m\r"), "built in 7.15s");
         assert_eq!(strip_ansi("\u{1b}[2mpublic/build/\u{1b}[22m\u{1b}[36massets/app.js"), "public/build/assets/app.js");
+    }
+
+    /// A cloned monorepo like parish: a Laravel API without vendor or .env, a Vite app already
+    /// installed, and a mobile app without node_modules.
+    #[test]
+    fn setup_plan_lists_what_a_cloned_project_needs() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        for f in ["Backend", "web/node_modules", "mobile"] {
+            std::fs::create_dir_all(p.join(f)).unwrap();
+        }
+        for (f, body) in [
+            ("Backend/artisan", ""),
+            ("Backend/composer.json", "{}"),
+            ("Backend/package.json", "{}"),
+            ("Backend/.env.example", "APP_KEY=\nDB_CONNECTION=mysql\nDB_DATABASE=parish\n"),
+            ("web/package.json", "{}"),
+            ("mobile/package.json", "{}"),
+        ] {
+            std::fs::write(p.join(f), body).unwrap();
+        }
+        let plan = setup_plan(p);
+        let kinds: Vec<(&str, &str)> = plan.iter().map(|t| (t.folder.as_str(), t.kind)).collect();
+        assert_eq!(
+            kinds,
+            [("Backend", "composer"), ("Backend", "env"), ("Backend", "key"), ("Backend", "npm"), ("mobile", "npm")]
+        );
+        assert!(plan[0].label.starts_with("Backend: install its PHP packages"));
+
+        // Once set up, only a missing key would be asked for.
+        std::fs::create_dir_all(p.join("Backend/vendor")).unwrap();
+        std::fs::write(p.join("Backend/vendor/autoload.php"), "").unwrap();
+        std::fs::write(p.join("Backend/.env"), "APP_KEY=\n").unwrap();
+        std::fs::create_dir_all(p.join("Backend/node_modules")).unwrap();
+        std::fs::create_dir_all(p.join("mobile/node_modules")).unwrap();
+        let kinds: Vec<&str> = setup_plan(p).iter().map(|t| t.kind).collect();
+        assert_eq!(kinds, ["key"]);
+        assert_eq!(env_value("DB_DATABASE=\"parish\"\n", "DB_DATABASE").as_deref(), Some("parish"));
+    }
+
+    /// Sets up a copy of a real cloned Laravel app (C:\NexDB\www\parish\Backend) with SQLite:
+    /// composer install, .env and app key, then checks that artisan runs.
+    /// `cargo test real_setup_cloned_laravel -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_setup_cloned_laravel() {
+        let base = crate::settings::load(Path::new(r"C:\NexDB")).expect("NexDB must be installed in C:/NexDB");
+        let source = PathBuf::from(&base.www_dir).join("parish").join("Backend");
+        let www = tempfile::tempdir().unwrap();
+        let target = www.path().join("clone").join("Backend");
+        let out = Command::new("robocopy")
+            .args([source.to_str().unwrap(), target.to_str().unwrap(), "/E", "/XD", "vendor", "node_modules", "/XF", ".env", "/NFL", "/NDL", "/NJH", "/NJS"])
+            .output()
+            .unwrap();
+        assert!(out.status.code().unwrap_or(16) < 8, "robocopy failed");
+        let example = std::fs::read_to_string(target.join(".env.example")).unwrap();
+        std::fs::write(target.join(".env.example"), set_env(&example, "DB_CONNECTION", "sqlite")).unwrap();
+        // Node packages are left out of this test; it is about the PHP side.
+        std::fs::remove_file(target.join("package.json")).ok();
+
+        let mut settings = base.clone();
+        settings.www_dir = www.path().display().to_string();
+        let sup = crate::supervisor::Supervisor::new(vec![]);
+        let emit = |e: Event| {
+            if let Event::Line { text, .. } = e {
+                if text.starts_with('>') {
+                    println!("{text}");
+                }
+            }
+        };
+        let root = PathBuf::from(r"C:\NexDB");
+        setup(&emit, &root, &settings, &sup, None, "clone").unwrap();
+        assert!(target.join("vendor/autoload.php").is_file());
+        let env = std::fs::read_to_string(target.join(".env")).unwrap();
+        assert!(env.lines().any(|l| l.starts_with("APP_KEY=base64:")), "app key generated");
+        assert!(setup_plan(&target.parent().unwrap()).is_empty(), "nothing left to set up");
     }
 }

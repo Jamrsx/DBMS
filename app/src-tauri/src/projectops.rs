@@ -37,6 +37,8 @@ pub struct Details {
     pub git: Option<Git>,
     pub php: Php,
     pub site: Site,
+    /// What the project still needs before it runs (packages, .env), when it was cloned.
+    pub setup: Vec<crate::quickstart::SetupTask>,
 }
 
 /// Which folder is the website, for projects that keep their app in a subfolder.
@@ -121,6 +123,7 @@ pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, 
         database: database_of(&dir),
         git: git_status(root, settings, &dir),
         php: Php { current: chosen.clone().or(default.clone()), default, chosen, installed },
+        setup: crate::quickstart::setup_plan(&dir),
         site: Site {
             chosen: settings.preferences.site_root.get(name).cloned(),
             folders: crate::projects::site_folders(&dir),

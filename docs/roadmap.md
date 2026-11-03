@@ -40,6 +40,7 @@ Rules every release follows:
 | 0.3.5 | Share a project on the Wi-Fi with a QR code; public links through Cloudflare quick tunnels |
 | 0.3.6 | Site folder per project; share a running dev server; public links serve https pages correctly |
 | 0.3.7 | Grouped Dashboard; project page tabs; dev servers on IPv6 localhost; public links for dev servers |
+| 0.3.8 | Set up cloned projects: composer and npm install, .env with a database user, app key |
 
 ## Next
 
@@ -222,13 +223,22 @@ Mail catcher (with 0.3.2's services):
 - Dev servers are reached through `localhost`, so Vite and other Node servers that only listen on
   IPv6 `[::1]` open; shared dev servers get their own public link.
 
-### 0.3.8: Health and diagnostics
+### 0.3.8: Set up cloned projects
+
+- The project's Overview lists what a cloned project is missing, in the project folder and one
+  level down: PHP packages (vendor), a `.env` (from `.env.example`), the app key, Node packages.
+- Set up now runs it with progress: composer install, the `.env` with the database the example
+  names (kept when it already exists, made when not) and a MySQL user of its own, key:generate,
+  npm install. SQLite projects get their database file.
+- Laravel folders aren't offered as dev servers (their Vite only builds assets).
+
+### 0.3.9: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.9: Polish and accessibility
+### 0.4.0: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

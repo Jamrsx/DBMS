@@ -14,6 +14,7 @@ import {
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
 import { SharePanel } from "./SharePanel";
+import { SetupPanel } from "./SetupPanel";
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -116,7 +117,7 @@ export function ProjectDetails({
         ).map(([id, label]) => (
           <button key={id} role="tab" className="log-tab" aria-selected={tab === id} onClick={() => setTab(id)}>
             {label}
-            {id === "overview" && info?.site.needs_choice && !info.site.chosen && (
+            {id === "overview" && ((info?.site.needs_choice && !info.site.chosen) || !!info?.setup.length) && (
               <span className="details-tab-dot" aria-label="needs attention" />
             )}
           </button>
@@ -141,6 +142,7 @@ export function ProjectDetails({
 
       {tab === "overview" && (
         <>
+          {info && <SetupPanel name={name} tasks={info.setup} onDone={load} />}
           {info && (
             <dl className="details-facts">
               <div>
