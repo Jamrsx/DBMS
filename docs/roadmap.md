@@ -232,14 +232,7 @@ Mail catcher (with 0.3.2's services):
   npm install. SQLite projects get their database file.
 - Laravel folders aren't offered as dev servers (their Vite only builds assets).
 
-### 0.3.9: Health and diagnostics
-
-- A "Check my setup" page: ports, trust store, PATH, firewall, network type (public or private),
-  disk space, broken configs, projects that still need setting up. Each problem gets a plain
-  fix button.
-- Export a support report (configs and logs, passwords removed) as one `.zip`.
-
-### 0.4.0: One-link share and Laravel tools
+### 0.3.9: One-link share and Laravel tools
 
 - One link for a whole project: the front end (a dev server or a built folder) with `/api`,
   `/sanctum` and `/storage` passed through to its Laravel backend, so the same link works on
@@ -247,6 +240,13 @@ Mail catcher (with 0.3.2's services):
 - Laravel buttons per project: migrate, seed, `storage:link`, clear caches, and its
   `storage/logs` in plain language.
 - Queue worker and scheduler per project, started and stopped like Dashboard services.
+
+### 0.4.0: Health and diagnostics
+
+- A "Check my setup" page: ports, trust store, PATH, firewall, network type (public or private),
+  disk space, broken configs, projects that still need setting up. Each problem gets a plain
+  fix button.
+- Export a support report (configs and logs, passwords removed) as one `.zip`.
 
 ### 0.4.1: PostgreSQL on the Database page
 
