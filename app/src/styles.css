@@ -4007,7 +4007,42 @@ h1 {
   font: 600 13px/1.3 var(--font);
 }
 
-.details-row .input {
+.share-app-form {
+  display: grid;
+  grid-template-columns: auto minmax(0, 220px);
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.share-app-mode {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: 13.5px var(--font);
+  color: var(--text);
+}
+
+.share-app-mode legend {
+  margin-bottom: 4px;
+  padding: 0;
+}
+
+.share-app-mode label {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.share-app-mode .input-port {
+  width: 72px;
+  height: 28px;
+}
+
+.details-row .input,
+.share-app .input {
   height: 32px;
   padding: 0 10px;
   border: 1px solid var(--border-strong);
@@ -4905,4 +4940,311 @@ h1 {
 .update-close:hover {
   background: var(--nav-hover);
   color: var(--text);
+}
+
+/* Laravel tab: artisan buttons, background workers and the log. */
+.laravel-actions {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.laravel-action {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.laravel-action .btn {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.laravel-result {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.laravel-result p {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.laravel-result p svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.laravel-ok {
+  border-color: color-mix(in srgb, var(--ok) 28%, transparent);
+  background: var(--ok-soft);
+}
+
+.laravel-ok p svg {
+  color: var(--ok);
+}
+
+.laravel-bad {
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
+}
+
+.laravel-bad p svg {
+  color: var(--warn);
+}
+
+.laravel-result summary,
+.laravel-entry summary {
+  font-size: 12.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.laravel-result pre,
+.laravel-entry pre,
+.laravel-tail {
+  max-height: 220px;
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font: 12px/1.5 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.laravel-workers,
+.laravel-log {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.laravel-workers li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.laravel-worker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.laravel-worker-head .dot:not(.dot-ok) {
+  background: var(--text-3);
+}
+
+.laravel-worker-head .btn {
+  gap: 6px;
+  margin-left: auto;
+}
+
+.laravel-log-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.laravel-log-head label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.laravel-entry {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.laravel-entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.laravel-error {
+  border-color: color-mix(in srgb, var(--bad) 30%, var(--border));
+}
+
+.laravel-error .tag {
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  border-color: transparent;
+  color: var(--bad);
+}
+
+.laravel-warning {
+  border-color: var(--warn-border);
+}
+
+.laravel-warning .tag {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--warn);
+}
+
+.laravel-message {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .laravel-action {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+}
+
+/* Import from other tools: one card per tool, its projects and databases to pick. */
+.import {
+  display: grid;
+  gap: 12px;
+}
+
+.import-source h4 {
+  flex-wrap: wrap;
+}
+
+.import-source h4 .field-hint {
+  font-weight: 400;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.import-group {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 10px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  font: 13.5px var(--font);
+  color: var(--text);
+}
+
+.import-group legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 4px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.import-row {
+  display: grid;
+  grid-template-columns: minmax(180px, max-content) minmax(0, 1fr);
+  align-items: center;
+  gap: 6px 14px;
+  min-height: 32px;
+}
+
+.import-row label,
+.import-dbs label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.import-rename {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.import-rename .input {
+  width: 180px;
+}
+
+.import .input-medium {
+  width: 300px;
+  max-width: 100%;
+}
+
+.import .input {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 13.5px var(--font);
+}
+
+.import-dbs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 6px 14px;
+}
+
+.import-go {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.import-progress,
+.import-done {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+
+.import-line {
+  max-width: 100%;
+  font-size: 12px;
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+
+.import-notes {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 13.5px;
+}
+
+/* Nex on the Set up panel, with what it says beside it. */
+.setup-nex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.setup-nex .nex-wrap {
+  flex: none;
+}
+
+.setup-say {
+  position: relative;
+  max-width: 460px;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 12px 4px;
+  background: var(--surface-2);
+  font-size: 13.5px;
+  line-height: 1.45;
 }

@@ -336,11 +336,11 @@ impl Run<'_> {
 }
 
 /// The MySQL details a new project gets.
-struct ProjectDb {
-    name: String,
-    user: String,
-    password: String,
-    port: u16,
+pub(crate) struct ProjectDb {
+    pub name: String,
+    pub user: String,
+    pub password: String,
+    pub port: u16,
 }
 
 /// Creates the database and a user that can only use it.
@@ -432,7 +432,7 @@ pub fn setup_plan(dir: &Path) -> Vec<SetupTask> {
 }
 
 /// A `.env` value, without quotes.
-fn env_value(text: &str, key: &str) -> Option<String> {
+pub(crate) fn env_value(text: &str, key: &str) -> Option<String> {
     text.lines().find_map(|l| {
         let (k, v) = l.split_once('=')?;
         (k.trim() == key).then(|| v.trim().trim_matches('"').trim_matches('\'').to_string())
@@ -441,7 +441,7 @@ fn env_value(text: &str, key: &str) -> Option<String> {
 
 /// The project's MySQL database: the one its `.env.example` names, made when it doesn't exist
 /// (kept as it is when it does), with a user of its own that can only use it.
-fn ensure_database(root_password: Option<&str>, port: u16, name: &str) -> Result<(ProjectDb, bool), String> {
+pub(crate) fn ensure_database(root_password: Option<&str>, port: u16, name: &str) -> Result<(ProjectDb, bool), String> {
     let db = crate::db::Db::default();
     db.connect(port, root_password).map_err(|e| {
         if e == "NEEDS_PASSWORD" {

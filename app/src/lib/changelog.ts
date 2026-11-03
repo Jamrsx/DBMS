@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.9",
+    title: "One link for the whole app, Laravel tools and import",
+    changes: [
+      "Share a whole app on one link: the React (or other) front end, with /api, /sanctum and /storage going to its Laravel backend. On your Wi-Fi and as a public link.",
+      "New Laravel tab on each Laravel project: update tables, add sample data, link uploads and clear caches, with results in plain words.",
+      "Run a queue worker and the scheduler from the Laravel tab, and read the app's log as clear entries.",
+      "Import projects and databases from Laragon, XAMPP, WAMP and other MySQL, MariaDB or PostgreSQL installs. The originals stay where they are.",
+      "Nex now shows on Set up this project: worried while it isn't set up, hopping while it waits, happy when it's ready.",
+      "Fixed: projects whose folder name has capitals (like OCC-Admission) can pick their PHP version, open in an editor or terminal, and be deleted.",
+    ],
+  },
+  {
     version: "0.3.8",
     title: "Set up cloned projects",
     changes: [
@@ -60,7 +72,7 @@ export const CHANGELOG: Release[] = [
     changes: [
       "Services are grouped into Web, Database and Extras, and every row keeps its buttons on one line.",
       "Open inbox moved under the mail catcher's name, so it no longer squeezes the other buttons.",
-      "\"Use it in your project\" shows how to point Laravel, plain PHP, WordPress, PHPMailer, Symfony or Node.js at the mail catcher, with settings to copy.",
+      '"Use it in your project" shows how to point Laravel, plain PHP, WordPress, PHPMailer, Symfony or Node.js at the mail catcher, with settings to copy.',
       "The same guide for Redis, including the Predis package Laravel needs on Windows.",
     ],
   },
@@ -101,12 +113,20 @@ export const CHANGELOG: Release[] = [
   {
     version: "0.2.8",
     title: "Meet Nex, plus a Recycle Bin",
-    changes: ["Nex, the NexDB mascot.", "A Details button on every project.", "Recycle Bin page to bring deleted projects back."],
+    changes: [
+      "Nex, the NexDB mascot.",
+      "A Details button on every project.",
+      "Recycle Bin page to bring deleted projects back.",
+    ],
   },
   {
     version: "0.2.7",
     title: "Project details and PHP per project",
-    changes: ["A page for each project.", "Pick a PHP version per project.", "Rename projects, or delete them to the Recycle Bin."],
+    changes: [
+      "A page for each project.",
+      "Pick a PHP version per project.",
+      "Rename projects, or delete them to the Recycle Bin.",
+    ],
   },
   {
     version: "0.2.6",
@@ -114,7 +134,7 @@ export const CHANGELOG: Release[] = [
     changes: [
       "New project wizard with a getting-started guide.",
       "Laravel 13 with React, Vue or Livewire, and optional AI assistant support.",
-      "Open projects in your code editor, and fix PHP 8.5 \"Deprecated\" warnings in one click.",
+      'Open projects in your code editor, and fix PHP 8.5 "Deprecated" warnings in one click.',
     ],
   },
   {
@@ -125,7 +145,10 @@ export const CHANGELOG: Release[] = [
   {
     version: "0.2.4",
     title: "Safer changes, automatic backups and a better terminal",
-    changes: ["Backups before risky changes, and automatic backups.", "Terminal in its own window, clickable links, copy and paste."],
+    changes: [
+      "Backups before risky changes, and automatic backups.",
+      "Terminal in its own window, clickable links, copy and paste.",
+    ],
   },
   {
     version: "0.2.3",
@@ -137,6 +160,10 @@ export const CHANGELOG: Release[] = [
   {
     version: "0.2.0",
     title: "Versions, Settings and in-app updates",
-    changes: ["Install and switch versions of PHP, MySQL and more.", "Logs in plain language.", "Update NexDB from inside the app."],
+    changes: [
+      "Install and switch versions of PHP, MySQL and more.",
+      "Logs in plain language.",
+      "Update NexDB from inside the app.",
+    ],
   },
 ];

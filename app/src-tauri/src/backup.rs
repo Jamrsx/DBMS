@@ -66,14 +66,23 @@ pub fn list(root: &Path) -> Vec<BackupFile> {
 }
 
 /// A `[client]` options file with the connection details, removed when dropped.
-struct ClientOptions(PathBuf);
+pub(crate) struct ClientOptions(PathBuf);
 
 impl ClientOptions {
-    fn new(root: &Path, port: u16, password: Option<&str>) -> Result<Self, String> {
+    pub(crate) fn new(root: &Path, port: u16, password: Option<&str>) -> Result<Self, String> {
+        Self::for_user(root, port, "root", password)
+    }
+
+    /// Like `new`, for another user (another MySQL install's root, say).
+    pub(crate) fn for_user(root: &Path, port: u16, user: &str, password: Option<&str>) -> Result<Self, String> {
         let dir = root.join("tmp");
         fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let path = dir.join(format!("nexdb-client-{}.cnf", std::process::id()));
-        let mut text = format!("[client]\nuser=root\nhost=127.0.0.1\nport={port}\nprotocol=TCP\n");
+        // One file per use, so two at once (another install's and NexDB's) don't clash.
+        static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path = dir.join(format!("nexdb-client-{}-{n}.cnf", std::process::id()));
+        let user = user.replace('\\', "\\\\").replace('"', "\\\"");
+        let mut text = format!("[client]\nuser=\"{user}\"\nhost=127.0.0.1\nport={port}\nprotocol=TCP\n");
         if let Some(pw) = password.filter(|p| !p.is_empty()) {
             // Option files read quoted values literally apart from \\ and \".
             text.push_str(&format!("password=\"{}\"\n", pw.replace('\\', "\\\\").replace('"', "\\\"")));
@@ -82,7 +91,7 @@ impl ClientOptions {
         Ok(ClientOptions(path))
     }
 
-    fn arg(&self) -> String {
+    pub(crate) fn arg(&self) -> String {
         format!("--defaults-extra-file={}", self.0.display())
     }
 }
@@ -93,7 +102,7 @@ impl Drop for ClientOptions {
     }
 }
 
-fn hidden(cmd: &mut Command) -> &mut Command {
+pub(crate) fn hidden(cmd: &mut Command) -> &mut Command {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -103,7 +112,7 @@ fn hidden(cmd: &mut Command) -> &mut Command {
 }
 
 /// The last line MySQL printed on failure, made readable.
-fn mysql_error(stderr: &str) -> String {
+pub(crate) fn mysql_error(stderr: &str) -> String {
     let line = stderr
         .lines()
         .map(str::trim)

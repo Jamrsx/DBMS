@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Globe, LoaderCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, Globe, Layers, LoaderCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
 import type { DevApp } from "../lib/projects";
 import { CopyButton } from "../components/CopyButton";
 import { nexCelebrate } from "../lib/nex";
@@ -8,13 +8,16 @@ import {
   allowFirewall,
   previewTunnelInstalled,
   shareInfo,
+  startAppShare,
   startDevShare,
   startPublicLink,
   startShare,
+  stopAppShare,
   stopDevShare,
   stopPublicLink,
   stopShare,
   type ShareInfo,
+  type ShareKind,
 } from "../lib/share";
 
 /** Share a project with phones on the same Wi-Fi, and optionally with a public link. */
@@ -30,6 +33,11 @@ export function SharePanel({
 }) {
   const [info, setInfo] = useState<ShareInfo | null>(null);
   const [devPort, setDevPort] = useState(String(devApps[0]?.port ?? 5173));
+  // The whole-app form: folders, and whether the front end runs on its dev server or is built.
+  const [front, setFront] = useState<string | null>(null);
+  const [backend, setBackend] = useState<string | null>(null);
+  const [appDev, setAppDev] = useState<boolean | null>(null);
+  const [appPort, setAppPort] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -106,11 +114,11 @@ export function SharePanel({
     </>
   );
 
-  // A public link through Cloudflare, for the shared site or (dev) the shared dev server.
-  const publicLink = (dev: boolean, url: string | null, qr: string | null, ready: boolean) => {
-    const what = dev ? `${name}'s dev server` : name;
+  // A public link through Cloudflare, for the shared site, its dev server or its whole app.
+  const publicLink = (kind: ShareKind, url: string | null, qr: string | null, ready: boolean) => {
+    const what = kind === "dev" ? `${name}'s dev server` : name;
     return (
-      <div className={dev ? "share-sub" : "share-public"}>
+      <div className={kind ? "share-sub" : "share-public"}>
         <h4>
           <Globe size={14} aria-hidden="true" /> Public link
         </h4>
@@ -129,7 +137,7 @@ export function SharePanel({
               <button
                 className="btn btn-small"
                 disabled={!!busy}
-                onClick={() => void act("Stopping the public link…", () => stopPublicLink(name, dev))}
+                onClick={() => void act("Stopping the public link…", () => stopPublicLink(name, kind))}
               >
                 Stop public link
               </button>
@@ -145,7 +153,7 @@ export function SharePanel({
               <button
                 className="btn btn-small"
                 disabled={!!busy || !ready}
-                onClick={() => void act("Asking Cloudflare for a link…", () => startPublicLink(name, dev))}
+                onClick={() => void act("Asking Cloudflare for a link…", () => startPublicLink(name, kind))}
               >
                 Create public link
               </button>
@@ -174,10 +182,133 @@ export function SharePanel({
     );
   };
 
+  // Front end and Laravel backend on one link (projects like web + Backend).
+  const parts = info.app_parts;
+  const app = info.app;
+  const frontDir = front ?? parts?.front ?? "";
+  const backendDir = backend ?? parts?.backend ?? "";
+  const built = parts && frontDir === parts.front ? parts.built : null;
+  const useDev = appDev ?? !built;
+  const port = appPort ?? String(parts?.dev_port ?? 5173);
+  const wholeApp = (parts || app) && (
+    <div className="share-public share-app">
+      <h4>
+        <Layers size={14} aria-hidden="true" /> Whole app on one link
+      </h4>
+      {app ? (
+        <>
+          {notes}
+          {!app.front_ready && (
+            <p className="share-note" role="status">
+              <AlertTriangle size={14} aria-hidden="true" />{" "}
+              {app.dev !== null
+                ? `Nothing answers on port ${app.dev} yet. Start the front end's dev server in the Terminal (for Vite: npm run dev in ${app.front || name}).`
+                : `The built front end is gone. Run npm run build in ${app.front || name}.`}
+            </p>
+          )}
+          {app.url && (
+            <div className="share-link">
+              {app.qr && <div className="share-qr" aria-hidden="true" dangerouslySetInnerHTML={{ __html: app.qr }} />}
+              <div className="share-link-text">
+                <p className="field-hint">
+                  The front end in {app.front || name}
+                  {app.dev !== null ? ` (dev server on port ${app.dev})` : " (built)"}, with its API from{" "}
+                  {app.backend || name}:
+                </p>
+                <div className="share-url">
+                  <code>{app.url}</code>
+                  <CopyButton text={app.url} label="the app's address" />
+                </div>
+                <p className="field-hint">
+                  In the front end, call the API at <code>/api</code> instead of a fixed address, so it works on this
+                  link and the public one.
+                </p>
+              </div>
+            </div>
+          )}
+          {publicLink("app", app.public_url, app.public_qr, info.web_running && app.front_ready)}
+          <p className="field-hint">
+            Signing in with Sanctum cookies? Add this address to SANCTUM_STATEFUL_DOMAINS in{" "}
+            {app.backend ? `${app.backend}/.env` : ".env"}.
+          </p>
+          <button
+            className="btn btn-small"
+            disabled={!!busy}
+            onClick={() => void act("Stopping; the web server restarts…", () => stopAppShare(name))}
+          >
+            Stop sharing the whole app
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="field-hint">
+            One link for the front end and its Laravel backend: <code>/api</code>, <code>/sanctum</code> and{" "}
+            <code>/storage</code> go to the backend, every other page to the front end.
+          </p>
+          <div className="share-app-form">
+            <label className="field-hint" htmlFor={`app-front-${name}`}>
+              Front end folder
+            </label>
+            <input
+              id={`app-front-${name}`}
+              className="input input-small"
+              value={frontDir}
+              placeholder="the project folder"
+              onChange={(e) => setFront(e.target.value)}
+            />
+            <label className="field-hint" htmlFor={`app-backend-${name}`}>
+              Laravel folder
+            </label>
+            <input
+              id={`app-backend-${name}`}
+              className="input input-small"
+              value={backendDir}
+              placeholder="the project folder"
+              onChange={(e) => setBackend(e.target.value)}
+            />
+          </div>
+          <fieldset className="share-app-mode">
+            <legend className="field-hint">Front end</legend>
+            <label>
+              <input type="radio" checked={useDev} onChange={() => setAppDev(true)} /> Its dev server, with live reload,
+              on port{" "}
+              <input
+                className="input input-small input-port"
+                inputMode="numeric"
+                aria-label="Front end dev server port"
+                value={port}
+                disabled={!useDev}
+                onChange={(e) => setAppPort(e.target.value.replace(/\D/g, "").slice(0, 5))}
+              />
+            </label>
+            <label>
+              <input type="radio" checked={!useDev} onChange={() => setAppDev(false)} /> Its built files
+              {built ? ` (${built})` : `, after npm run build in ${frontDir || name}`}
+            </label>
+          </fieldset>
+          <button
+            className="btn"
+            disabled={!!busy || !info.web_server || (useDev && !port)}
+            onClick={() =>
+              void act("Sharing the whole app; the web server restarts…", async () => {
+                const next = await startAppShare(name, frontDir, backendDir, useDev ? Number(port) : null);
+                nexCelebrate(`${name} is shared on one link.`);
+                return next;
+              })
+            }
+          >
+            <Smartphone size={14} aria-hidden="true" /> Share the whole app
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <div className="details-section share">
       <h3>Share</h3>
-      {needsSite && (
+      {wholeApp}
+      {needsSite && !parts && (
         <p className="share-note" role="note">
           <AlertTriangle size={14} aria-hidden="true" /> {name}'s address only lists its files until you pick its Site
           folder on the Overview tab.
@@ -210,7 +341,7 @@ export function SharePanel({
         </>
       ) : (
         <>
-          {notes}
+          {!app && notes}
 
           {info.lan_url ? (
             <div className="share-link">
@@ -233,7 +364,7 @@ export function SharePanel({
             <p className="field-error">This PC isn't connected to a network, so there's no address to share yet.</p>
           )}
 
-          {publicLink(false, info.public_url, info.public_qr, info.web_running)}
+          {publicLink("", info.public_url, info.public_qr, info.web_running)}
 
           <button
             className="btn"
@@ -250,7 +381,7 @@ export function SharePanel({
         </h4>
         {info.dev ? (
           <>
-            {!shared && notes}
+            {!shared && !app && notes}
             {!info.dev.running && (
               <p className="share-note" role="status">
                 <AlertTriangle size={14} aria-hidden="true" /> Nothing answers on port {info.dev.target} yet. Start the
@@ -275,7 +406,7 @@ export function SharePanel({
                 </div>
               </div>
             )}
-            {publicLink(true, info.dev.public_url, info.dev.public_qr, info.web_running && info.dev.running)}
+            {publicLink("dev", info.dev.public_url, info.dev.public_qr, info.web_running && info.dev.running)}
             <button
               className="btn btn-small"
               disabled={!!busy}

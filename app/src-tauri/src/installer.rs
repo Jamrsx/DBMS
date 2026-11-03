@@ -1169,6 +1169,10 @@ mod tests {
                 "shop".to_string(),
                 crate::settings::DevShare { port: 8189, target: 5173 },
             )]),
+            share_app: &std::collections::BTreeMap::from([
+                ("shop".to_string(), crate::settings::AppShare { port: 8187, front: String::new(), backend: String::new(), dev: None }),
+                ("blog".to_string(), crate::settings::AppShare { port: 8186, front: String::new(), backend: String::new(), dev: Some(5173) }),
+            ]),
             site_roots: &std::collections::BTreeMap::from([("blog".to_string(), "public".to_string())]),
         })
         .unwrap();

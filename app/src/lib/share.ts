@@ -29,13 +29,41 @@ export interface ShareInfo {
     public_url: string | null;
     public_qr: string | null;
   } | null;
+  /** Its front end and Laravel backend on one link, when shared that way. */
+  app: {
+    port: number;
+    front: string;
+    backend: string;
+    /** The front end's dev server port; null serves its built folder. */
+    dev: number | null;
+    url: string | null;
+    qr: string | null;
+    /** Its dev server answers, or its built folder exists. */
+    front_ready: boolean;
+    public_url: string | null;
+    public_qr: string | null;
+  } | null;
+  /** The front end and backend folders found in the project. */
+  app_parts: AppParts | null;
 }
+
+export interface AppParts {
+  front: string;
+  front_label: string;
+  backend: string;
+  dev_port: number;
+  /** Its built folder ("web/dist"), once built. */
+  built: string | null;
+}
+
+/** Which of a project's shares a public link goes to: its site, dev server or whole app. */
+export type ShareKind = "" | "dev" | "app";
 
 // Browser preview: a pretend share on a home network.
 const qr =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21"><rect width="21" height="21" fill="#fff"/><path d="M1 1h7v7H1zM13 1h7v7h-7zM1 13h7v7H1zM10 10h2v2h-2zM14 14h3v3h-3z" fill="#000"/></svg>';
 const preview: Record<string, ShareInfo> = {};
-const base = (): ShareInfo => ({
+const base = (name: string): ShareInfo => ({
   port: null,
   lan_ip: "192.168.1.20",
   lan_url: null,
@@ -50,19 +78,25 @@ const base = (): ShareInfo => ({
   public_url: null,
   public_qr: null,
   dev: null,
+  app: null,
+  // The preview's blog is split like parish: a Vite app in web, its API in Backend.
+  app_parts:
+    name === "blog"
+      ? { front: "web", front_label: "Vite", backend: "Backend", dev_port: 5173, built: "web/dist" }
+      : null,
 });
 const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function shareInfo(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_info", { name });
-  return { ...(preview[name] ??= base()) };
+  return { ...(preview[name] ??= base(name)) };
 }
 
 /** Shares the project on its own port; the web server restarts if it runs. */
 export async function startShare(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_start", { name });
   await pause(600);
-  const s = (preview[name] ??= base());
+  const s = (preview[name] ??= base(name));
   Object.assign(s, { port: 8181, lan_url: "http://192.168.1.20:8181/", lan_qr: qr });
   return { ...s };
 }
@@ -71,7 +105,7 @@ export async function stopShare(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_stop", { name });
   await pause(400);
   preview[name] = {
-    ...base(),
+    ...base(name),
     firewall_ready: preview[name]?.firewall_ready ?? false,
     tunnel_installed: preview[name]?.tunnel_installed ?? false,
   };
@@ -85,23 +119,52 @@ export async function allowFirewall(): Promise<void> {
   for (const s of Object.values(preview)) s.firewall_ready = true;
 }
 
-/** A public link to the shared site, or with `dev` to the shared dev server. */
-export async function startPublicLink(name: string, dev = false): Promise<ShareInfo> {
-  if (inDesktopApp) return invoke("share_public_start", { name, dev });
+/** A public link to the shared site, its shared dev server ("dev") or its whole app ("app"). */
+export async function startPublicLink(name: string, what: ShareKind = ""): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_public_start", { name, what });
   await pause(1500);
-  const s = (preview[name] ??= base());
+  const s = (preview[name] ??= base(name));
   const link = { public_url: "https://brave-otter-sample.trycloudflare.com", public_qr: qr };
-  if (dev && s.dev) Object.assign(s.dev, link);
-  else Object.assign(s, link);
+  Object.assign((what && s[what]) || s, link);
   return { ...s };
 }
 
-export async function stopPublicLink(name: string, dev = false): Promise<ShareInfo> {
-  if (inDesktopApp) return invoke("share_public_stop", { name, dev });
-  const s = (preview[name] ??= base());
-  const none = { public_url: null, public_qr: null };
-  if (dev && s.dev) Object.assign(s.dev, none);
-  else Object.assign(s, none);
+export async function stopPublicLink(name: string, what: ShareKind = ""): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_public_stop", { name, what });
+  const s = (preview[name] ??= base(name));
+  Object.assign((what && s[what]) || s, { public_url: null, public_qr: null });
+  return { ...s };
+}
+
+/** Shares the front end and Laravel backend on one link; `dev` is the front end's dev server
+ * port, or null for its built folder. The web server restarts if it runs. */
+export async function startAppShare(
+  name: string,
+  front: string,
+  backend: string,
+  dev: number | null,
+): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_app_start", { name, front, backend, dev });
+  await pause(600);
+  const s = (preview[name] ??= base(name));
+  s.app = {
+    port: 8183,
+    front,
+    backend,
+    dev,
+    url: "http://192.168.1.20:8183/",
+    qr,
+    front_ready: true,
+    public_url: null,
+    public_qr: null,
+  };
+  return { ...s };
+}
+
+export async function stopAppShare(name: string): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_app_stop", { name });
+  const s = (preview[name] ??= base(name));
+  s.app = null;
   return { ...s };
 }
 
@@ -109,7 +172,7 @@ export async function stopPublicLink(name: string, dev = false): Promise<ShareIn
 export async function startDevShare(name: string, target: number): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_dev_start", { name, target });
   await pause(600);
-  const s = (preview[name] ??= base());
+  const s = (preview[name] ??= base(name));
   s.dev = {
     port: 8182,
     target,
@@ -124,12 +187,12 @@ export async function startDevShare(name: string, target: number): Promise<Share
 
 export async function stopDevShare(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_dev_stop", { name });
-  const s = (preview[name] ??= base());
+  const s = (preview[name] ??= base(name));
   s.dev = null;
   return { ...s };
 }
 
 /** Marks public links as installed in the browser preview (the real install goes through Versions). */
 export function previewTunnelInstalled(name: string) {
-  if (!inDesktopApp) (preview[name] ??= base()).tunnel_installed = true;
+  if (!inDesktopApp) (preview[name] ??= base(name)).tunnel_installed = true;
 }

@@ -73,6 +73,9 @@ pub struct Preferences {
     /// Dev servers shared on the local network: project -> share port and dev server port.
     #[serde(default)]
     pub share_dev: std::collections::BTreeMap<String, DevShare>,
+    /// Whole apps shared on one link: project -> its front end and Laravel backend.
+    #[serde(default)]
+    pub share_app: std::collections::BTreeMap<String, AppShare>,
 }
 
 /// A running dev server (Vite on 5173…) reached through a share port.
@@ -80,6 +83,19 @@ pub struct Preferences {
 pub struct DevShare {
     pub port: u16,
     pub target: u16,
+}
+
+/// A project's front end and its Laravel backend on one share port: the backend answers
+/// `/api`, `/sanctum` and `/storage`, the front end everything else.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AppShare {
+    pub port: u16,
+    /// The front end's folder, relative to the project ("web"; empty for the project folder).
+    pub front: String,
+    /// The Laravel app's folder, relative to the project ("Backend").
+    pub backend: String,
+    /// The front end's dev server port; None serves its built folder (dist).
+    pub dev: Option<u16>,
 }
 
 impl Default for Preferences {
@@ -94,6 +110,7 @@ impl Default for Preferences {
             shared: Default::default(),
             site_root: Default::default(),
             share_dev: Default::default(),
+            share_app: Default::default(),
         }
     }
 }

@@ -15,6 +15,7 @@ import {
 import { openTerminalWindow } from "../lib/terminal";
 import { SharePanel } from "./SharePanel";
 import { SetupPanel } from "./SetupPanel";
+import { LaravelPanel } from "./LaravelPanel";
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -39,7 +40,7 @@ export function ProjectDetails({
   const [saved, setSaved] = useState<string | null>(null);
   const [php, setPhp] = useState<string>("");
   const [siteFolder, setSiteFolder] = useState<string>("");
-  const [tab, setTab] = useState<"overview" | "share" | "manage">("overview");
+  const [tab, setTab] = useState<"overview" | "share" | "laravel" | "manage">("overview");
   const [newName, setNewName] = useState(name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [typed, setTyped] = useState("");
@@ -112,16 +113,19 @@ export function ProjectDetails({
           [
             ["overview", "Overview"],
             ["share", "Share"],
+            ["laravel", "Laravel"],
             ["manage", "Rename or delete"],
           ] as const
-        ).map(([id, label]) => (
-          <button key={id} role="tab" className="log-tab" aria-selected={tab === id} onClick={() => setTab(id)}>
-            {label}
-            {id === "overview" && ((info?.site.needs_choice && !info.site.chosen) || !!info?.setup.length) && (
-              <span className="details-tab-dot" aria-label="needs attention" />
-            )}
-          </button>
-        ))}
+        )
+          .filter(([id]) => id !== "laravel" || info?.laravel != null)
+          .map(([id, label]) => (
+            <button key={id} role="tab" className="log-tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+              {label}
+              {id === "overview" && ((info?.site.needs_choice && !info.site.chosen) || !!info?.setup.length) && (
+                <span className="details-tab-dot" aria-label="needs attention" />
+              )}
+            </button>
+          ))}
       </div>
 
       {error && (
@@ -287,6 +291,8 @@ export function ProjectDetails({
           needsSite={!!info?.site.needs_choice && !info.site.chosen}
         />
       )}
+
+      {tab === "laravel" && info?.laravel != null && <LaravelPanel name={name} folder={info.laravel} />}
 
       {tab === "manage" && (
         <>

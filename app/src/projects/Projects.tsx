@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Code2,
   ExternalLink,
+  FolderInput,
   FolderOpen,
   FolderPlus,
   RotateCcw,
@@ -32,6 +33,7 @@ import { Nex } from "../components/Nex";
 import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
 import { NewProjectWizard } from "./NewProjectWizard";
+import { ImportPanel } from "./ImportPanel";
 import { ProjectDetails } from "./ProjectDetails";
 
 const KIND_LABEL: Record<Project["kind"], string> = {
@@ -52,6 +54,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   const [syncing, setSyncing] = useState(false);
   const [opened, setOpened] = useState<string | null>(null);
   const [showBin, setShowBin] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [deleted, setDeleted] = useState<DeletedProject[]>([]);
 
   const loadBin = useCallback(() => {
@@ -126,10 +129,23 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
               setOpened(null);
               setNotice(null);
               setCreating(false);
+              setImporting(false);
               loadBin();
             }}
           >
             <Trash2 size={14} aria-hidden="true" /> Recycle Bin{deleted.length > 0 ? ` (${deleted.length})` : ""}
+          </button>
+          <button
+            className="btn"
+            aria-pressed={importing}
+            onClick={() => {
+              setImporting((v) => !v);
+              setOpened(null);
+              setShowBin(false);
+              setCreating(false);
+            }}
+          >
+            <FolderInput size={14} aria-hidden="true" /> Import
           </button>
           <button className="btn" onClick={onOpenTerminal}>
             Open terminal
@@ -140,6 +156,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
               setCreating((v) => !v);
               setOpened(null);
               setShowBin(false);
+              setImporting(false);
             }}
             aria-expanded={creating}
           >
@@ -176,11 +193,19 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
             onChanged={async (renamedTo, message) => {
               setOpened(renamedTo);
               if (message) setNotice(message);
-              if (message) nexSay(renamedTo ? "success" : "idle", renamedTo ? `Now it's ${renamedTo}.` : "Moved to the Recycle Bin. You can bring it back anytime.");
+              if (message)
+                nexSay(
+                  renamedTo ? "success" : "idle",
+                  renamedTo ? `Now it's ${renamedTo}.` : "Moved to the Recycle Bin. You can bring it back anytime.",
+                );
               await refresh();
               loadBin();
             }}
           />
+        )}
+
+        {importing && !opened && !showBin && (
+          <ImportPanel existing={projects.map((p) => p.name)} onBack={() => setImporting(false)} onDone={refresh} />
         )}
 
         {showBin && !opened && (
@@ -203,7 +228,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           />
         )}
 
-        {!opened && !showBin && creating && (
+        {!opened && !showBin && !importing && creating && (
           <NewProjectWizard
             existing={projects.map((p) => p.name)}
             editors={editors}
@@ -217,7 +242,9 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           <div className="addr-banner">
             <ShieldCheck size={18} aria-hidden="true" />
             <p>
-              <strong>{missing.size === 1 ? "One address isn't" : `${missing.size} addresses aren't`} set up yet.</strong>{" "}
+              <strong>
+                {missing.size === 1 ? "One address isn't" : `${missing.size} addresses aren't`} set up yet.
+              </strong>{" "}
               Each project gets a private <code>name.test</code> address that only this PC knows. Windows asks once to
               add them; until then, projects open at <code>localhost/name</code>.
             </p>
@@ -227,7 +254,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {!opened && !showBin && info && projects.length === 0 && !creating && (
+        {!opened && !showBin && !importing && info && projects.length === 0 && !creating && (
           <div className="empty empty-nex">
             <Nex state="idle" size={120} />
             <p className="lede">
@@ -237,7 +264,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {!opened && !showBin && projects.length > 0 && (
+        {!opened && !showBin && !importing && projects.length > 0 && (
           <ul className="project-list" aria-label="Projects">
             {projects.map((p) => {
               const ready = p.host !== null && !missing.has(p.host);
@@ -248,7 +275,9 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
                     <span className="kind">{KIND_LABEL[p.kind]}</span>
                   </div>
                   <code className="project-addr">
-                    {ready ? p.url.replace(/^https?:\/\//, "").replace(/\/$/, "") : p.local_url.replace(/^http:\/\//, "")}
+                    {ready
+                      ? p.url.replace(/^https?:\/\//, "").replace(/\/$/, "")
+                      : p.local_url.replace(/^http:\/\//, "")}
                   </code>
                   <div className="project-actions">
                     <button
@@ -293,8 +322,9 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
                       <AlertTriangle size={14} aria-hidden="true" />
                       <p>
                         <strong>Shows "Deprecated" warnings on PHP 8.5.</strong> It uses older PHP names that still work
-                        but print a warning on every page. NexDB can update {p.php_warnings === 1 ? "that line" : `those ${p.php_warnings} lines`}{" "}
-                        so it works on every PHP version.
+                        but print a warning on every page. NexDB can update{" "}
+                        {p.php_warnings === 1 ? "that line" : `those ${p.php_warnings} lines`} so it works on every PHP
+                        version.
                       </p>
                       <button className="btn btn-small" onClick={() => void fixPhp(p)}>
                         Fix it

@@ -41,6 +41,7 @@ Rules every release follows:
 | 0.3.6 | Site folder per project; share a running dev server; public links serve https pages correctly |
 | 0.3.7 | Grouped Dashboard; project page tabs; dev servers on IPv6 localhost; public links for dev servers |
 | 0.3.8 | Set up cloned projects: composer and npm install, .env with a database user, app key |
+| 0.3.9 | Whole app on one link (front end + Laravel API); Laravel tab with artisan buttons, queue worker, scheduler and readable log; import from Laragon, XAMPP, WAMP and other database servers |
 
 ## Next
 
@@ -234,16 +235,19 @@ Mail catcher (with 0.3.2's services):
 
 ### 0.3.9: One-link share and Laravel tools
 
-- One link for a whole project: the front end (a dev server or a built folder) with `/api`,
-  `/sanctum` and `/storage` passed through to its Laravel backend, so the same link works on
-  the Wi-Fi and as a public link (for projects like parish: web + Backend).
-- Laravel buttons per project: migrate, seed, `storage:link`, clear caches, and its
-  `storage/logs` in plain language.
-- Queue worker and scheduler per project, started and stopped like Dashboard services.
-- Import from other tools on the PC: find Laragon, XAMPP, WAMP and other MySQL, MariaDB or
-  PostgreSQL installs, list their projects and databases, and copy the chosen ones into NexDB
-  (each database dumped and loaded, each project copied and set up). The originals are never
-  moved or changed, and NexDB keeps running on its own stack afterwards.
+- One link for a whole project (Share tab, "Whole app on one link"): `/api`, `/sanctum`,
+  `/storage` and `/broadcasting` go to the Laravel backend's public folder, every other page to
+  the front end's dev server or its built folder (unknown paths get its `index.html`, for
+  client-side routes). Works on the Wi-Fi and as a public link; Apache and nginx.
+- Laravel tab per project: migrate, seed, `storage:link` and clear caches with plain-language
+  results; its `storage/logs` as entries (newest first, errors only on request, where it
+  happened); a queue worker and scheduler started and stopped there, ending with NexDB.
+- Import (Projects page): finds Laragon, XAMPP, WAMP and other MySQL, MariaDB or PostgreSQL
+  installs, lists their projects and databases, and copies the chosen ones into NexDB. Projects
+  are copied with robocopy; databases are dumped with the other server's own tools and loaded
+  into NexDB's. When the other MySQL isn't running, or uses NexDB's port, NexDB starts it
+  briefly on a spare port with its own program and data, then shuts it down cleanly. A copied
+  Laravel app whose database came along gets a MySQL user of its own in its `.env`.
 
 ### 0.4.0: Health and diagnostics
 

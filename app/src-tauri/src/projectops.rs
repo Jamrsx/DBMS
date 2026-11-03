@@ -39,6 +39,8 @@ pub struct Details {
     pub site: Site,
     /// What the project still needs before it runs (packages, .env), when it was cloned.
     pub setup: Vec<crate::quickstart::SetupTask>,
+    /// Its Laravel app's folder, relative to the project ("" for the project itself).
+    pub laravel: Option<String>,
 }
 
 /// Which folder is the website, for projects that keep their app in a subfolder.
@@ -124,6 +126,7 @@ pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, 
         git: git_status(root, settings, &dir),
         php: Php { current: chosen.clone().or(default.clone()), default, chosen, installed },
         setup: crate::quickstart::setup_plan(&dir),
+        laravel: crate::projects::laravel_folder(&dir),
         site: Site {
             chosen: settings.preferences.site_root.get(name).cloned(),
             folders: crate::projects::site_folders(&dir),
@@ -170,10 +173,7 @@ pub fn rename(www: &Path, old: &str, new: &str) -> Result<(), String> {
 
 /// Moves the project folder to the Recycle Bin, so it can still be brought back.
 pub fn recycle(www: &Path, name: &str) -> Result<(), String> {
-    let dir = www.join(name);
-    if crate::projects::host_label(name).is_none() || !dir.is_dir() {
-        return Err("That project doesn't exist any more.".into());
-    }
+    let dir = crate::projects::project_dir(www, name).ok_or("That project doesn't exist any more.")?;
     let path = dir.display().to_string().replace('\'', "''");
     let script = format!(
         "Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory('{path}', 'OnlyErrorDialogs', 'SendToRecycleBin')"

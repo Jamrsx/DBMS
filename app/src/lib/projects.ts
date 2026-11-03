@@ -226,6 +226,8 @@ export interface ProjectDetails {
   site: SiteChoice;
   /** What the project still needs before it runs, when it was cloned. */
   setup: SetupTask[];
+  /** Its Laravel app's folder ("" for the project itself, "Backend"…), when it has one. */
+  laravel: string | null;
 }
 
 /** Something a cloned project still needs (PHP or Node packages, a .env, the app key). */
@@ -305,6 +307,7 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
     git: { branch: "main", changes: 3 },
     php: { current: "8.5.12", default: "8.5.12", chosen: null, installed: ["8.4.27", "8.5.12"] },
     setup: previewSetup(name),
+    laravel: name === "blog" ? "Backend" : name === "my-shop" ? "" : null,
     // The preview's blog is a monorepo like parish: an API, a Vite app and a mobile app.
     site:
       name === "blog"
@@ -357,4 +360,9 @@ export async function restoreProject(path: string): Promise<string> {
   if (inDesktopApp) return invoke<string>("project_restore", { path });
   await new Promise((r) => setTimeout(r, 400));
   return preview.restore(path);
+}
+
+/** Sends a progress event to `onQuickstart` listeners in the browser preview. */
+export function previewEmit(e: QuickstartEvent) {
+  for (const l of preview.listeners) l(e);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { CheckCircle2, Circle, LoaderCircle, Wrench } from "lucide-react";
+import { Nex, type NexState } from "../components/Nex";
 import { nexCelebrate, nexOops } from "../lib/nex";
 import { onQuickstart, setupProject, type SetupTask } from "../lib/projects";
 
@@ -10,6 +11,7 @@ export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: Setup
   const [lines, setLines] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState<string[]>([]);
+  const [finished, setFinished] = useState(false);
 
   useEffect(() => {
     const off = onQuickstart((e) => {
@@ -23,11 +25,13 @@ export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: Setup
   async function run() {
     setRunning(true);
     setError(null);
+    setFinished(false);
     setState({});
     setLines([]);
     try {
       const result = await setupProject(name);
       setNotes(result);
+      setFinished(true);
       nexCelebrate(`${name} is set up.`);
       onDone();
     } catch (e) {
@@ -38,15 +42,24 @@ export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: Setup
     }
   }
 
-  if (tasks.length === 0 && notes.length === 0) return null;
+  if (tasks.length === 0 && notes.length === 0 && !finished) return null;
+  // Nex says where things stand: worried before, hopping while it waits, happy when done.
+  const [mood, say]: [NexState, string] = error
+    ? ["error", "Oh no, setting up stopped. The reason is below; fix it and try again."]
+    : running
+      ? ["loading", "Installing… I'll wait right here. This can take a few minutes the first time."]
+      : tasks.length === 0
+        ? ["success", `All set! ${name} is ready. Time to start coding.`]
+        : ["thinking", `Oh no! ${name} isn't installed yet, so its pages show errors. Set it up to start coding.`];
   return (
     <div className="details-section setup">
       <h3>Set up this project</h3>
+      <div className="setup-nex" role="status">
+        <Nex state={mood} size={72} />
+        <p className="setup-say">{say}</p>
+      </div>
       {tasks.length > 0 ? (
         <>
-          <p className="share-note">
-            {name} is missing what a freshly cloned project lacks, so its pages show errors until it is set up.
-          </p>
           <ul className="setup-steps">
             {tasks.map((t, i) => (
               <li key={i} className={state[i] ? `setup-${state[i]}` : undefined}>
@@ -69,11 +82,7 @@ export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: Setup
             Downloads packages, so it takes a few minutes the first time. An existing database is kept as it is.
           </p>
         </>
-      ) : (
-        <p className="set-ok" role="status">
-          {name} is set up.
-        </p>
-      )}
+      ) : null}
       {notes.map((n) => (
         <p key={n} className="field-hint">
           {n}

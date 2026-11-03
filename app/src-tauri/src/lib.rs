@@ -6,7 +6,9 @@ mod configure;
 mod db;
 mod dbedit;
 mod editors;
+mod importer;
 mod installer;
+mod laravel;
 mod phpmyadmin;
 mod phpfix;
 mod phpver;
@@ -239,6 +241,7 @@ pub fn run() {
         .manage(terminal::Terminals::default())
         .manage(db::Db::default())
         .manage(Arc::new(share::Tunnels::default()))
+        .manage(Arc::new(laravel::Workers::default()))
         .invoke_handler(tauri::generate_handler![
             system_scan,
             component_choices,
@@ -262,6 +265,16 @@ pub fn run() {
             share_public_stop,
             share_dev_start,
             share_dev_stop,
+            share_app_start,
+            share_app_stop,
+            import_sources,
+            import_databases,
+            import_run,
+            laravel_run,
+            laravel_logs,
+            laravel_workers,
+            laravel_worker_start,
+            laravel_worker_stop,
             project_set_site,
             project_setup,
             save_ports,
@@ -479,6 +492,24 @@ struct ShareInfo {
     public_qr: Option<String>,
     /// The project's dev server, when it is passed through a share port.
     dev: Option<DevShareInfo>,
+    /// Its front end and Laravel backend on one link, when shared that way.
+    app: Option<AppShareInfo>,
+    /// The front end and backend folders found in the project, for sharing them together.
+    app_parts: Option<projects::AppParts>,
+}
+
+#[derive(serde::Serialize)]
+struct AppShareInfo {
+    port: u16,
+    front: String,
+    backend: String,
+    dev: Option<u16>,
+    url: Option<String>,
+    qr: Option<String>,
+    /// Whether the front end can be served: its dev server answers, or its built folder exists.
+    front_ready: bool,
+    public_url: Option<String>,
+    public_qr: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -495,10 +526,11 @@ struct DevShareInfo {
 }
 
 fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
+    let project = std::path::Path::new(&settings.www_dir).join(name);
     let port = settings.preferences.shared.get(name).copied();
     let lan_ip = share::lan_ip();
     let lan_url = port.zip(lan_ip.as_ref()).map(|(p, ip)| format!("http://{ip}:{p}/"));
-    let public_url = tunnels.url(name);
+    let public_url = tunnels.url(&tunnel_key(name, ""));
     let web = settings.web().map(|w| w.0);
     let tool = catalog::bundled().tools.cloudflared;
     ShareInfo {
@@ -517,7 +549,7 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         public_url,
         dev: settings.preferences.share_dev.get(name).map(|d| {
             let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", d.port));
-            let public_url = tunnels.url(&tunnel_key(name, true));
+            let public_url = tunnels.url(&tunnel_key(name, "dev"));
             DevShareInfo {
                 public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
                 public_url,
@@ -528,7 +560,39 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
                 running: share::dev_listening(d.target),
             }
         }),
+        app: settings.preferences.share_app.get(name).map(|a| {
+            let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", a.port));
+            let public_url = tunnels.url(&tunnel_key(name, "app"));
+            AppShareInfo {
+                public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+                public_url,
+                port: a.port,
+                front: a.front.clone(),
+                backend: a.backend.clone(),
+                dev: a.dev,
+                qr: url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+                url,
+                front_ready: match a.dev {
+                    Some(p) => share::dev_listening(p),
+                    None => projects::built_folder(&project.join(&a.front)).is_some(),
+                },
+            }
+        }),
+        app_parts: projects::app_parts(&project),
     }
+}
+
+/// Every share port in use, by any project's site, dev server or whole app.
+fn used_share_ports(settings: &settings::Settings) -> std::collections::BTreeMap<String, u16> {
+    let p = &settings.preferences;
+    let mut used = p.shared.clone();
+    for (n, d) in &p.share_dev {
+        used.insert(format!("{n} (dev)"), d.port);
+    }
+    for (n, a) in &p.share_app {
+        used.insert(format!("{n} (app)"), a.port);
+    }
+    used
 }
 
 /// NexDB's cloudflared, once installed from the Versions page or the Share panel.
@@ -558,11 +622,7 @@ async fn share_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, A
         return Err("That project doesn't exist any more.".into());
     }
     if !settings.preferences.shared.contains_key(&name) {
-        let mut used = settings.preferences.shared.clone();
-        for (n, d) in &settings.preferences.share_dev {
-            used.insert(format!("{n} (dev)"), d.port);
-        }
-        let port = share::free_port(&used)
+        let port = share::free_port(&used_share_ports(&settings))
             .ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?;
         let (root2, name2) = (root.clone(), name.clone());
         blocking(move || {
@@ -588,7 +648,7 @@ async fn share_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, A
 /// Stops sharing a project, on the network and through its public link.
 #[tauri::command]
 async fn share_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
-    tunnels.stop(&tunnel_key(&name, false));
+    tunnels.stop(&tunnel_key(&name, ""));
     let (root, _, _) = stack.get()?;
     let (root2, name2) = (root.clone(), name.clone());
     blocking(move || {
@@ -665,13 +725,9 @@ async fn share_dev_start(
     if share::PORTS.contains(&target) || target < 1024 {
         return Err(format!("Port {target} can't be a dev server here. Vite usually uses 5173."));
     }
-    let mut used = settings.preferences.shared.clone();
-    for (n, d) in &settings.preferences.share_dev {
-        used.insert(format!("{n} (dev)"), d.port);
-    }
     let port = match settings.preferences.share_dev.get(&name) {
         Some(d) => d.port,
-        None => share::free_port(&used).ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?,
+        None => share::free_port(&used_share_ports(&settings)).ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?,
     };
     let dev = settings::DevShare { port, target };
     let (root2, name2) = (root.clone(), name.clone());
@@ -696,7 +752,7 @@ async fn share_dev_start(
 
 #[tauri::command]
 async fn share_dev_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
-    tunnels.stop(&tunnel_key(&name, true));
+    tunnels.stop(&tunnel_key(&name, "dev"));
     let (root, _, _) = stack.get()?;
     let (root2, name2) = (root.clone(), name.clone());
     blocking(move || {
@@ -726,31 +782,120 @@ async fn share_allow_firewall() -> Result<(), String> {
     blocking(share::allow_firewall).await
 }
 
-/// The tunnel key for a project's site, or for its dev server when `dev` is true.
-fn tunnel_key(name: &str, dev: bool) -> String {
-    if dev { format!("{name}#dev") } else { name.to_string() }
+/// The tunnel key for a project's site (`what` empty), its dev server ("dev") or whole app ("app").
+fn tunnel_key(name: &str, what: &str) -> String {
+    if what.is_empty() { name.to_string() } else { format!("{name}#{what}") }
 }
 
-/// Opens a temporary public link through Cloudflare, to the project's shared site or, with
-/// `dev`, to its shared dev server.
+/// Shares a project's front end and Laravel backend on one port: `/api`, `/sanctum` and
+/// `/storage` go to the backend, the rest to the front end's dev server (`dev`) or built folder.
+#[tauri::command]
+async fn share_app_start(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+    front: String,
+    backend: String,
+    dev: Option<u16>,
+) -> Result<ShareInfo, String> {
+    let (root, settings, _) = stack.get()?;
+    if settings.web().is_none() {
+        return Err("Sharing needs a web server. Install Apache or nginx on the Versions page first.".into());
+    }
+    let project = std::path::Path::new(&settings.www_dir).join(&name);
+    if !project.is_dir() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    let pick = |f: &str| if f.trim().is_empty() { Ok(String::new()) } else { projects::clean_site_folder(&project, f) };
+    let (front, backend) = (pick(&front)?, pick(&backend)?);
+    if !project.join(&backend).join("artisan").is_file() {
+        return Err(format!("{} isn't a Laravel app (it has no artisan file).", if backend.is_empty() { &name } else { &backend }));
+    }
+    if front == backend {
+        return Err("Pick different folders for the front end and the backend.".into());
+    }
+    match dev {
+        Some(p) if share::PORTS.contains(&p) || p < 1024 => {
+            return Err(format!("Port {p} can't be a dev server here. Vite usually uses 5173."));
+        }
+        None if projects::built_folder(&project.join(&front)).is_none() => {
+            return Err("The front end isn't built yet. Run npm run build in its folder, or use its dev server.".into());
+        }
+        _ => {}
+    }
+    let port = match settings.preferences.share_app.get(&name) {
+        Some(a) => a.port,
+        None => share::free_port(&used_share_ports(&settings))
+            .ok_or("Every share port (8181 to 8199) is in use. Stop sharing another project first.")?,
+    };
+    let app = settings::AppShare { port, front, backend, dev };
+    let (root2, name2, app2) = (root.clone(), name.clone(), app.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            v["preferences"]["share_app"][name2.as_str()] = serde_json::to_value(&app2).map_err(|e| e.to_string())?;
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| {
+        s.preferences.share_app.insert(name.clone(), app);
+    });
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn share_app_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    tunnels.stop(&tunnel_key(&name, "app"));
+    let (root, _, _) = stack.get()?;
+    let (root2, name2) = (root.clone(), name.clone());
+    blocking(move || {
+        settings::edit(&root2, |v| {
+            if let Some(map) = v["preferences"]["share_app"].as_object_mut() {
+                map.remove(&name2);
+            }
+            Ok(())
+        })
+    })
+    .await?;
+    stack.update_settings(|s| {
+        s.preferences.share_app.remove(&name);
+    });
+    let (root, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+/// Opens a temporary public link through Cloudflare, to the project's shared site, or with
+/// `what` "dev" to its shared dev server, "app" to its whole app.
 #[tauri::command]
 async fn share_public_start(
     stack: tauri::State<'_, Stack>,
     tunnels: tauri::State<'_, Arc<share::Tunnels>>,
     name: String,
-    dev: Option<bool>,
+    what: Option<String>,
 ) -> Result<ShareInfo, String> {
     let (_, settings, sup) = stack.get()?;
-    let dev = dev.unwrap_or(false);
-    let port = if dev {
-        settings.preferences.share_dev.get(&name).map(|d| d.port).ok_or("Share the dev server first.")?
-    } else {
-        *settings.preferences.shared.get(&name).ok_or("Share the project on your network first.")?
+    let what = what.unwrap_or_default();
+    let p = &settings.preferences;
+    let port = match what.as_str() {
+        "dev" => p.share_dev.get(&name).map(|d| d.port).ok_or("Share the dev server first.")?,
+        "app" => p.share_app.get(&name).map(|a| a.port).ok_or("Share the whole app first.")?,
+        _ => *p.shared.get(&name).ok_or("Share the project on your network first.")?,
     };
     let exe = cloudflared_exe(&settings).ok_or("Install public links first.")?;
     let tunnels = tunnels.inner().clone();
     blocking(move || {
-        tunnels.start(&exe, &tunnel_key(&name, dev), port)?;
+        tunnels.start(&exe, &tunnel_key(&name, &what), port)?;
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
@@ -761,12 +906,12 @@ async fn share_public_stop(
     stack: tauri::State<'_, Stack>,
     tunnels: tauri::State<'_, Arc<share::Tunnels>>,
     name: String,
-    dev: Option<bool>,
+    what: Option<String>,
 ) -> Result<ShareInfo, String> {
     let (_, settings, sup) = stack.get()?;
     let tunnels = tunnels.inner().clone();
     blocking(move || {
-        tunnels.stop(&tunnel_key(&name, dev.unwrap_or(false)));
+        tunnels.stop(&tunnel_key(&name, &what.unwrap_or_default()));
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
@@ -787,7 +932,9 @@ async fn project_set_php(
     version: Option<String>,
 ) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
-    if projects::host_label(&name).is_none() {
+    // Any folder name counts (OCC-Admission has capitals, so no .test name, but it's a project).
+    let folder = std::path::Path::new(&settings.www_dir).join(&name);
+    if name.contains(['/', '\\']) || name.starts_with('.') || !folder.is_dir() {
         return Err("That project doesn't exist any more.".into());
     }
     let version = version.filter(|v| Some(v) != phpver::default_version(&settings).as_ref());
@@ -813,14 +960,92 @@ async fn project_set_php(
     .await
 }
 
+/// The project's folder and its Laravel app's folder (the project itself, or Backend…).
+fn laravel_dirs(settings: &settings::Settings, name: &str) -> Result<(PathBuf, PathBuf), String> {
+    let project = std::path::Path::new(&settings.www_dir).join(name);
+    if !project.is_dir() {
+        return Err("That project doesn't exist any more.".into());
+    }
+    let folder = projects::laravel_folder(&project).ok_or("This project has no Laravel app.")?;
+    Ok((project.clone(), project.join(folder)))
+}
+
+/// One of the Laravel buttons: "migrate", "seed", "storage_link" or "clear".
+#[tauri::command]
+async fn laravel_run(stack: tauri::State<'_, Stack>, name: String, action: String) -> Result<laravel::Outcome, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let (_, dir) = laravel_dirs(&settings, &name)?;
+        laravel::run(&root, &settings, &name, &dir, &action)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn laravel_logs(stack: tauri::State<'_, Stack>, name: String) -> Result<laravel::LogView, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let (project, dir) = laravel_dirs(&settings, &name)?;
+        Ok(laravel::logs(&project, &dir, 50))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn laravel_workers(
+    stack: tauri::State<'_, Stack>,
+    workers: tauri::State<'_, Arc<laravel::Workers>>,
+    name: String,
+) -> Result<Vec<laravel::WorkerInfo>, String> {
+    let (root, _, _) = stack.get()?;
+    let workers = workers.inner().clone();
+    blocking(move || Ok(workers.info(&root, &name))).await
+}
+
+/// Starts the project's queue worker ("queue") or scheduler ("schedule") in the background.
+#[tauri::command]
+async fn laravel_worker_start(
+    stack: tauri::State<'_, Stack>,
+    workers: tauri::State<'_, Arc<laravel::Workers>>,
+    name: String,
+    kind: String,
+) -> Result<Vec<laravel::WorkerInfo>, String> {
+    let (root, settings, _) = stack.get()?;
+    let workers = workers.inner().clone();
+    blocking(move || {
+        let (_, dir) = laravel_dirs(&settings, &name)?;
+        workers.start(&root, &settings, &name, &dir, &kind)?;
+        Ok(workers.info(&root, &name))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn laravel_worker_stop(
+    stack: tauri::State<'_, Stack>,
+    workers: tauri::State<'_, Arc<laravel::Workers>>,
+    name: String,
+    kind: String,
+) -> Result<Vec<laravel::WorkerInfo>, String> {
+    let (root, _, _) = stack.get()?;
+    let workers = workers.inner().clone();
+    blocking(move || {
+        workers.stop(&format!("{name}#{kind}"));
+        Ok(workers.info(&root, &name))
+    })
+    .await
+}
+
 /// Moves a project's own settings (its PHP version) from one name to another, or drops them.
 async fn move_project_settings(app: &tauri::AppHandle, stack: &Stack, old: String, new: Option<String>) -> Result<(), String> {
+    // Its queue worker and scheduler run in the old folder; they stop with a rename or delete.
+    app.state::<Arc<laravel::Workers>>().stop_project(&old);
     let (root, settings, _) = stack.get()?;
     // Per-project settings follow a rename and go with a delete.
     let move_all = {
         let (old, new) = (old.clone(), new.clone());
         move |v: &mut serde_json::Value| {
-            for key in ["project_php", "site_root", "shared", "share_dev"] {
+            for key in ["project_php", "site_root", "shared", "share_dev", "share_app"] {
                 if let Some(map) = v["preferences"][key].as_object_mut() {
                     if let Some(value) = map.remove(&old) {
                         if let Some(new) = &new {
@@ -842,7 +1067,9 @@ async fn move_project_settings(app: &tauri::AppHandle, stack: &Stack, old: Strin
         let site = p.site_root.remove(&old);
         let shared = p.shared.remove(&old);
         let dev = p.share_dev.remove(&old);
+        let app = p.share_app.remove(&old);
         if let Some(new) = &new {
+            app.map(|v| p.share_app.insert(new.clone(), v));
             site.map(|v| p.site_root.insert(new.clone(), v));
             shared.map(|v| p.shared.insert(new.clone(), v));
             dev.map(|v| p.share_dev.insert(new.clone(), v));
@@ -932,10 +1159,7 @@ fn editors_list() -> Vec<editors::Editor> {
 #[tauri::command]
 fn project_open_in(stack: tauri::State<Stack>, name: String, editor: String) -> Result<(), String> {
     let (_, settings, _) = stack.get()?;
-    let dir = std::path::Path::new(&settings.www_dir).join(&name);
-    if projects::host_label(&name).is_none() || !dir.is_dir() {
-        return Err("That project doesn't exist any more.".into());
-    }
+    let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
     editors::open(&editor, &dir)
 }
 
@@ -945,10 +1169,7 @@ async fn project_fix_php(stack: tauri::State<'_, Stack>, name: String) -> Result
     let (_, settings, _) = stack.get()?;
     blocking(move || {
         let www = std::path::Path::new(&settings.www_dir);
-        let dir = www.join(&name);
-        if projects::host_label(&name).is_none() || !dir.is_dir() {
-            return Err("That project doesn't exist any more.".into());
-        }
+        let dir = projects::project_dir(www, &name).ok_or("That project doesn't exist any more.")?;
         phpfix::fix(&dir)
     })
     .await
@@ -1049,7 +1270,7 @@ fn terminal_open(
 ) -> Result<u32, String> {
     let (root, settings, _) = stack.get()?;
     // Only a project folder inside the projects folder.
-    let project = project.filter(|p| projects::host_label(p).is_some());
+    let project = project.filter(|p| projects::project_dir(std::path::Path::new(&settings.www_dir), p).is_some());
     let cwd = project.as_ref().map(|p| std::path::Path::new(&settings.www_dir).join(p));
     let php = project.as_deref().and_then(|p| phpver::for_project(&root, &settings, p));
     terminals.open(&app, window.label(), &root, &settings, cwd.as_deref(), php.as_ref(), cols, rows)
@@ -1062,7 +1283,8 @@ fn terminal_open(
 async fn terminal_window(app: tauri::AppHandle, project: Option<String>) -> Result<(), String> {
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-    let project = project.filter(|p| projects::host_label(p).is_some());
+    // Plain names only, so it can go in the window's address as it is.
+    let project = project.filter(|p| !p.starts_with('.') && p.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)));
     let url = match &project {
         Some(p) => format!("index.html?view=terminal&project={p}"),
         None => "index.html?view=terminal".into(),
@@ -1775,6 +1997,54 @@ async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: 
 async fn version_remove(stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
     blocking(move || versions::remove(&root, &settings, &id, &version)).await
+}
+
+/// Laragon, XAMPP, WAMP and other database servers on this PC, with what can be imported.
+#[tauri::command]
+async fn import_sources(stack: tauri::State<'_, Stack>) -> Result<Vec<importer::Source>, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || Ok(importer::sources(&root, &settings))).await
+}
+
+/// The databases on another server, asked with its own client and the password given here
+/// (used once, never saved).
+#[tauri::command]
+async fn import_databases(stack: tauri::State<'_, Stack>, server: importer::Server, password: Option<String>) -> Result<Vec<String>, String> {
+    let (root, _, _) = stack.get()?;
+    blocking(move || importer::databases(&root, &server, password.as_deref())).await
+}
+
+/// Copies the picked projects and databases into NexDB, then adds the new projects' sites.
+/// Progress goes out as `quickstart` events named "import".
+#[tauri::command]
+async fn import_run(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    plan: importer::Plan,
+) -> Result<Vec<String>, String> {
+    let (root, settings, sup) = stack.get()?;
+    let mysql_port = settings.mysql.as_ref().map(|m| m.port);
+    let password = db.inner().clone_handle().password();
+    blocking(move || {
+        let emit = |e: quickstart::Event| {
+            let _ = app.emit("quickstart", e);
+        };
+        let target = importer::Target {
+            root: &root,
+            settings: &settings,
+            mysql_bin: mysql_bin(&settings).ok(),
+            mysql_port,
+            root_password: password,
+            postgres_dir: settings.components.iter().find(|c| c.id == "postgres").map(|c| std::path::PathBuf::from(&c.path)),
+        };
+        let notes = importer::run(&emit, &target, &plan)?;
+        if !plan.projects.is_empty() {
+            apply_vhosts(&root, &settings, &sup)?;
+        }
+        Ok(notes)
+    })
+    .await
 }
 
 /// Folder holding mysql.exe and mysqldump.exe for the MySQL in use.

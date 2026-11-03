@@ -37,6 +37,14 @@ pub fn host_label(name: &str) -> Option<String> {
     ok.then(|| name.to_string())
 }
 
+/// The folder of an existing project, by its name as listed: any folder name (capitals too,
+/// like OCC-Admission, which gets no .test address), but never a path out of the www folder.
+pub fn project_dir(www: &Path, name: &str) -> Option<PathBuf> {
+    let plain = !name.is_empty() && !name.starts_with('.') && !name.contains(['/', '\\', ':']);
+    let dir = www.join(name);
+    (plain && dir.is_dir()).then_some(dir)
+}
+
 pub fn detect_kind(dir: &Path) -> &'static str {
     let has = |p: &str| dir.join(p).exists();
     if has("artisan") && has("public") {
@@ -181,6 +189,118 @@ pub fn dev_apps(dir: &Path) -> Vec<DevApp> {
     found
 }
 
+/// A project split into a front end and a Laravel backend (web + Backend), which one share
+/// link can serve together.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct AppParts {
+    /// Relative to the project; empty for the project folder itself.
+    pub front: String,
+    pub front_label: String,
+    pub backend: String,
+    /// The port the front end's dev server usually uses.
+    pub dev_port: u16,
+    /// Its built folder, when it has one ("web/dist").
+    pub built: Option<String>,
+}
+
+fn is_laravel(dir: &Path) -> bool {
+    dir.join("artisan").is_file() && dir.join("public").join("index.php").is_file()
+}
+
+/// `a/b`, or `b` when `a` is the project folder itself.
+fn join_rel(a: &str, b: &str) -> String {
+    if a.is_empty() { b.to_string() } else { format!("{a}/{b}") }
+}
+
+/// The folder a front end builds into (`npm run build`), when it has been built.
+pub fn built_folder(front: &Path) -> Option<&'static str> {
+    ["dist", "build", "out"].into_iter().find(|b| front.join(b).join("index.html").is_file())
+}
+
+/// The project's Laravel app, relative to it: empty for the project folder, else the first
+/// subfolder with an artisan file ("Backend").
+pub fn laravel_folder(dir: &Path) -> Option<String> {
+    std::iter::once(String::new()).chain(subfolders(dir)).find(|s| dir.join(s).join("artisan").is_file())
+}
+
+/// The front end and Laravel backend of a project that keeps them in separate folders.
+pub fn app_parts(dir: &Path) -> Option<AppParts> {
+    let backend = std::iter::once(String::new()).chain(subfolders(dir)).find(|s| is_laravel(&dir.join(s)))?;
+    let app = dev_apps(dir).into_iter().find(|a| a.path != backend)?;
+    Some(AppParts {
+        built: built_folder(&dir.join(&app.path)).map(|b| join_rel(&app.path, b)),
+        front: app.path,
+        front_label: app.label,
+        backend,
+        dev_port: app.port,
+    })
+}
+
+/// Paths the Laravel backend answers on a whole-app share; the front end gets the rest.
+const BACKEND_PATHS: &str = "api|sanctum|storage|broadcasting|index\\.php";
+
+/// Apache's virtual host for a whole-app share: the backend's public folder is the site, so PHP
+/// and Laravel's .htaccess work as usual, and everything else goes to the front end, its dev
+/// server or its built folder (unknown paths get its index.html, for client-side routes).
+fn apache_app_share(name: &str, app: &crate::settings::AppShare, project: &Path) -> String {
+    let backend = project.join(&app.backend);
+    let public = conf_path(&backend.join("public"));
+    let mut out = format!(
+        r#"
+# {name}: its front end and Laravel backend on one link
+Listen {port}
+<VirtualHost *:{port}>
+    ServerName {name}.app-share
+    DocumentRoot "{public}"
+    SetEnvIf X-Forwarded-Proto "^https$" HTTPS=on
+    <Directory "{public}">
+        Options FollowSymLinks
+        AllowOverride All
+        Require all granted
+        CGIPassAuth On
+    </Directory>
+"#,
+        port = app.port
+    );
+    let storage = backend.join("storage").join("app").join("public");
+    if storage.is_dir() {
+        let storage = conf_path(&storage);
+        out.push_str(&format!(
+            "    # Uploaded files, with or without `php artisan storage:link`.\n    Alias /storage \"{storage}\"\n    <Directory \"{storage}\">\n        Require all granted\n    </Directory>\n"
+        ));
+    }
+    match app.dev {
+        Some(dev) => out.push_str(&format!(
+            r#"    ProxyPreserveHost Off
+    ProxyPassMatch "^/({BACKEND_PATHS})(/|$)" "!"
+    ProxyPass "/" "http://localhost:{dev}/" upgrade=websocket
+    ProxyPassReverse "/" "http://localhost:{dev}/"
+"#
+        )),
+        None => {
+            let front = project.join(&app.front);
+            let built = conf_path(&front.join(built_folder(&front).unwrap_or("dist")));
+            out.push_str(&format!(
+                r#"    Alias /__nexdb_front "{built}"
+    <Directory "{built}">
+        Options FollowSymLinks
+        AllowOverride None
+        Require all granted
+    </Directory>
+    RewriteEngine On
+    RewriteCond %{{REQUEST_URI}} !^/({BACKEND_PATHS}|__nexdb_front)(/|$)
+    RewriteCond "{built}%{{REQUEST_URI}}" -f
+    RewriteRule ^/(.*)$ /__nexdb_front/$1 [PT,L]
+    RewriteCond %{{REQUEST_URI}} !^/({BACKEND_PATHS}|__nexdb_front)(/|$)
+    RewriteRule ^ /__nexdb_front/index.html [PT,L]
+"#
+            ));
+        }
+    }
+    out.push_str("</VirtualHost>\n");
+    out
+}
+
 /// Checks a site folder the user picked: inside the project, no `..`, and it exists.
 /// Returns it with forward slashes.
 pub fn clean_site_folder(project: &Path, folder: &str) -> Result<String, String> {
@@ -288,6 +408,7 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         phpmyadmin: crate::phpmyadmin::installed(root).then(|| crate::phpmyadmin::dir(root)),
         shared: &settings.preferences.shared,
         share_dev: &settings.preferences.share_dev,
+        share_app: &settings.preferences.share_app,
         site_roots: roots,
     })
 }
@@ -337,6 +458,10 @@ Listen {port}
             target = dev.target
         ));
     }
+    for (name, app) in &prefs.share_app {
+        let Some(p) = projects.iter().find(|p| &p.name == name) else { continue };
+        out.push_str(&apache_app_share(name, app, Path::new(&p.path)));
+    }
     crate::configure::write_file(&etc.join("apache").join("sites-enabled").join("zz-shared.conf"), &out)
 }
 
@@ -369,6 +494,8 @@ pub struct NginxSites<'a> {
     pub shared: &'a std::collections::BTreeMap<String, u16>,
     /// Dev servers shared on the local network.
     pub share_dev: &'a std::collections::BTreeMap<String, crate::settings::DevShare>,
+    /// Whole apps (front end and Laravel backend) shared on one link.
+    pub share_app: &'a std::collections::BTreeMap<String, crate::settings::AppShare>,
     pub site_roots: &'a SiteRoots,
 }
 
@@ -437,7 +564,8 @@ location ^~ /phpmyadmin/ {{
     }
     // Projects on another PHP version, so localhost/name uses it too.
     for (name, php_port) in s.php_ports {
-        if host_label(name).is_none() {
+        // Any folder name nginx can take in a location (capitals too, like OCC-Admission).
+        if !name.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)) {
             continue;
         }
         first.push_str(&format!("\nlocation ^~ /{name}/ {{\n{}}}\n", php(*php_port)));
@@ -519,6 +647,54 @@ server {{
             target = dev.target
         ));
     }
+    // Whole apps: the backend's public folder is the root, so its PHP block works as for any
+    // site; Laravel's paths go to index.php and the rest to the front end.
+    for (name, app) in s.share_app {
+        let Some(p) = projects.iter().find(|p| &p.name == name) else { continue };
+        let project = Path::new(&p.path);
+        let backend = project.join(&app.backend);
+        let port = s.php_ports.get(name).copied().unwrap_or(s.fcgi_port);
+        let storage = backend.join("storage").join("app").join("public");
+        let storage = if storage.is_dir() {
+            format!("    location ^~ /storage/ {{\n        alias \"{}/\";\n    }}\n", conf_path(&storage))
+        } else {
+            String::new()
+        };
+        let front = match app.dev {
+            Some(dev) => format!(
+                r#"    location / {{
+        proxy_pass http://localhost:{dev};
+        proxy_http_version 1.1;
+        proxy_set_header Host localhost:{dev};
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 1h;
+    }}
+"#
+            ),
+            None => {
+                let dir = project.join(&app.front);
+                let built = conf_path(&dir.join(built_folder(&dir).unwrap_or("dist")));
+                format!("    location / {{\n        root \"{built}\";\n        try_files $uri $uri/ /index.html;\n    }}\n")
+            }
+        };
+        shares.push_str(&format!(
+            r#"
+# {name}: its front end and Laravel backend on one link
+server {{
+    listen {listen};
+    root "{root}";
+    index index.php;
+    location ~ ^/(api|sanctum|broadcasting)(/|$) {{
+        try_files $uri /index.php?$query_string;
+    }}
+{storage}{front}{php}}}
+"#,
+            listen = app.port,
+            root = conf_path(&backend.join("public")),
+            php = php_share(port),
+        ));
+    }
     crate::configure::write_file(&sites.join("zz-shared.conf"), &shares)?;
     Ok(())
 }
@@ -578,7 +754,8 @@ pub fn write_vhosts(
     // Projects on another PHP version: by folder, so both name.test and localhost/name use it.
     // Later <FilesMatch> sections win, so this overrides the default PHP handler.
     for (name, php_port) in php_ports {
-        if host_label(name).is_none() {
+        // By folder path, so any folder name works, with or without a .test address.
+        if !www.join(name).is_dir() {
             continue;
         }
         first.push_str(&format!(
@@ -733,6 +910,23 @@ mod tests {
         assert_eq!(folders[0].label, "Laravel app");
         let dev = dev_apps(dir.path());
         assert_eq!(dev, [DevApp { path: "web".into(), label: "Vite".into(), port: 5173 }]);
+        let parts = app_parts(dir.path()).unwrap();
+        assert_eq!((parts.front.as_str(), parts.backend.as_str(), parts.dev_port, parts.built), ("web", "Backend", 5173, None));
+        fs::create_dir_all(dir.path().join("web/dist")).unwrap();
+        fs::write(dir.path().join("web/dist/index.html"), "built").unwrap();
+        assert_eq!(app_parts(dir.path()).unwrap().built.as_deref(), Some("web/dist"));
+    }
+
+    #[test]
+    fn whole_app_share_sends_laravel_paths_to_the_backend() {
+        let dir = monorepo();
+        let app = crate::settings::AppShare { port: 8190, front: "web".into(), backend: "Backend".into(), dev: Some(5173) };
+        let conf = apache_app_share("parish", &app, dir.path());
+        assert!(conf.contains("Listen 8190") && conf.contains("/Backend/public\""), "{conf}");
+        assert!(conf.contains(r#"ProxyPassMatch "^/(api|sanctum|storage|broadcasting|index\.php)(/|$)" "!""#), "{conf}");
+        assert!(conf.contains(r#"ProxyPass "/" "http://localhost:5173/" upgrade=websocket"#));
+        let built = apache_app_share("parish", &crate::settings::AppShare { dev: None, ..app }, dir.path());
+        assert!(built.contains("/web/dist%{REQUEST_URI}\" -f") && built.contains("/__nexdb_front/index.html [PT,L]"), "{built}");
     }
 
     #[test]
@@ -887,6 +1081,28 @@ mod tests {
         settings.preferences.site_root = std::collections::BTreeMap::from([("gamma".to_string(), "site".to_string())]);
         settings.preferences.share_dev =
             std::collections::BTreeMap::from([("alpha".to_string(), crate::settings::DevShare { port: 8196, target: 5899 })]);
+        // Whole apps like parish (web + Backend): delta's front end is built, epsilon's runs on
+        // the pretend dev server.
+        for app in ["delta", "epsilon"] {
+            let base = www.join(app);
+            fs::create_dir_all(base.join("Backend/public")).unwrap();
+            fs::create_dir_all(base.join("Backend/storage/app/public")).unwrap();
+            fs::create_dir_all(base.join("web/dist/assets")).unwrap();
+            fs::write(base.join("Backend/artisan"), "x").unwrap();
+            fs::write(base.join("Backend/public/index.php"), "<?php echo 'laravel ', $_SERVER['REQUEST_URI'];").unwrap();
+            fs::write(
+                base.join("Backend/public/.htaccess"),
+                "RewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteRule ^ index.php [L]\n",
+            )
+            .unwrap();
+            fs::write(base.join("Backend/storage/app/public/photo.txt"), "uploaded photo").unwrap();
+            fs::write(base.join("web/package.json"), r#"{"devDependencies":{"vite":"7"}}"#).unwrap();
+            fs::write(base.join("web/dist/index.html"), "react index").unwrap();
+            fs::write(base.join("web/dist/assets/app.js"), "react script").unwrap();
+        }
+        let whole = |port, dev| crate::settings::AppShare { port, front: "web".into(), backend: "Backend".into(), dev };
+        settings.preferences.share_app =
+            std::collections::BTreeMap::from([("delta".to_string(), whole(8197, None)), ("epsilon".to_string(), whole(8194, Some(5899)))]);
         let dev = std::net::TcpListener::bind("[::1]:5899").unwrap();
         std::thread::spawn(move || {
             for mut c in dev.incoming().flatten() {
@@ -933,6 +1149,30 @@ mod tests {
         assert_eq!(scheme(""), "http");
         println!("public link: PHP sees https");
 
+        // One link for a whole app: Laravel's paths reach the backend, the rest the front end.
+        let on = |port: u16, path: &str| {
+            let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+            s.write_all(format!("GET {path} HTTP/1.0\r\nHost: 10.0.0.5:{port}\r\n\r\n").as_bytes()).unwrap();
+            let mut out = String::new();
+            s.read_to_string(&mut out).unwrap();
+            out.lines().last().unwrap_or("").to_string()
+        };
+        for (path, want) in [
+            ("/", "react index"),
+            ("/assets/app.js", "react script"),
+            ("/members/42", "react index"),
+            ("/api/users?page=2", "laravel /api/users?page=2"),
+            ("/sanctum/csrf-cookie", "laravel /sanctum/csrf-cookie"),
+            ("/storage/photo.txt", "uploaded photo"),
+        ] {
+            assert_eq!(on(8197, path), want, "built front end: {path}");
+        }
+        assert_eq!(on(8194, "/"), "dev server saw Host: localhost:5899");
+        assert_eq!(on(8194, "/members/42"), "dev server saw Host: localhost:5899");
+        assert_eq!(on(8194, "/api/users"), "laravel /api/users");
+        assert_eq!(on(8194, "/storage/photo.txt"), "uploaded photo");
+        println!("whole app: front end, API and storage on one link");
+
         let get = |host: &str, path: &str| {
             let mut s = TcpStream::connect(("127.0.0.1", 8098)).unwrap();
             s.write_all(format!("GET {path} HTTP/1.0\r\nHost: {host}\r\n\r\n").as_bytes()).unwrap();
@@ -972,7 +1212,7 @@ mod tests {
             .expect("install a second PHP version on the Versions page");
         let dir = tempfile::tempdir().unwrap();
         let www = dir.path().join("www");
-        for name in ["older", "newer"] {
+        for name in ["Older-App", "newer"] {
             fs::create_dir_all(www.join(name)).unwrap();
             fs::write(www.join(name).join("index.php"), "<?php echo 'v=', PHP_VERSION;").unwrap();
         }
@@ -983,11 +1223,12 @@ mod tests {
         settings.nginx_port = None;
         settings.mysql = None;
         settings.preferences.https = false;
-        settings.preferences.project_php = [("older".to_string(), other.clone())].into_iter().collect();
+        settings.preferences.project_php = [("Older-App".to_string(), other.clone())].into_iter().collect();
         crate::installer::refresh_configs(dir.path(), &settings).unwrap();
 
         let specs = specs_for(dir.path(), &settings);
-        let ids: Vec<String> = specs.iter().map(|s| s.id.clone()).collect();
+        // Only PHP and Apache: other services installed in C:/NexDB aren't part of this test.
+        let ids: Vec<String> = specs.iter().map(|s| s.id.clone()).filter(|id| id.starts_with("php") || id == "apache").collect();
         println!("services: {ids:?}");
         let sup = Supervisor::new(specs);
         for id in &ids {
@@ -1000,12 +1241,11 @@ mod tests {
             s.read_to_string(&mut out).unwrap();
             out
         };
-        let older = get("older.test:8096", "/");
-        let local = get("localhost:8096", "/older/");
+        // Older-App has capitals, so no .test name; localhost/Older-App still gets its PHP.
+        let local = get("localhost:8096", "/Older-App/");
         let newer = get("newer.test:8096", "/");
         sup.stop_all();
-        println!("older: {}\nlocal: {}\nnewer: {}", older.lines().last().unwrap(), local.lines().last().unwrap(), newer.lines().last().unwrap());
-        assert!(older.ends_with(&format!("v={other}")), "{older}");
+        println!("local: {}\nnewer: {}", local.lines().last().unwrap(), newer.lines().last().unwrap());
         assert!(local.ends_with(&format!("v={other}")), "{local}");
         assert!(newer.ends_with(&format!("v={default}")), "{newer}");
     }
