@@ -240,6 +240,10 @@ Mail catcher (with 0.3.2's services):
 - Laravel buttons per project: migrate, seed, `storage:link`, clear caches, and its
   `storage/logs` in plain language.
 - Queue worker and scheduler per project, started and stopped like Dashboard services.
+- Import from other tools on the PC: find Laragon, XAMPP, WAMP and other MySQL, MariaDB or
+  PostgreSQL installs, list their projects and databases, and copy the chosen ones into NexDB
+  (each database dumped and loaded, each project copied and set up). The originals are never
+  moved or changed, and NexDB keeps running on its own stack afterwards.
 
 ### 0.4.0: Health and diagnostics
 
@@ -258,9 +262,8 @@ Mail catcher (with 0.3.2's services):
 - Ctrl+K: jump to any project, database, table or action.
 - Notifications when a service stops unexpectedly or a backup fails.
 
-### 0.4.3: Import from Laragon and XAMPP
+### 0.4.3: Clone from Git
 
-- Copy their projects and databases into NexDB (never move or change the originals).
 - Clone a Git repository as a new project, then set it up in one go.
 
 ### 0.4.4: Polish and accessibility
