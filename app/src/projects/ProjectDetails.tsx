@@ -38,6 +38,7 @@ export function ProjectDetails({
   const [saved, setSaved] = useState<string | null>(null);
   const [php, setPhp] = useState<string>("");
   const [siteFolder, setSiteFolder] = useState<string>("");
+  const [tab, setTab] = useState<"overview" | "share" | "manage">("overview");
   const [newName, setNewName] = useState(name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [typed, setTyped] = useState("");
@@ -105,6 +106,23 @@ export function ProjectDetails({
         </div>
       </div>
 
+      <div className="log-tabs details-tabs" role="tablist" aria-label="Project">
+        {(
+          [
+            ["overview", "Overview"],
+            ["share", "Share"],
+            ["manage", "Rename or delete"],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} role="tab" className="log-tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+            {label}
+            {id === "overview" && info?.site.needs_choice && !info.site.chosen && (
+              <span className="details-tab-dot" aria-label="needs attention" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <p className="field-error" role="alert">
           {error}
@@ -121,226 +139,240 @@ export function ProjectDetails({
         </p>
       )}
 
-      {info && (
-        <dl className="details-facts">
-          <div>
-            <dt>Folder</dt>
-            <dd>
-              <code>{info.path}</code>
-            </dd>
-          </div>
-          <div>
-            <dt>Database</dt>
-            <dd>
-              {info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}
-            </dd>
-          </div>
-          <div>
-            <dt>Git</dt>
-            <dd>
-              {info.git ? (
-                <>
-                  <GitBranch size={13} aria-hidden="true" /> <code>{info.git.branch}</code>
-                  <span className="muted">
-                    {" "}
-                    ·{" "}
-                    {info.git.changes === 0
-                      ? "nothing to commit"
-                      : `${info.git.changes} changed file${info.git.changes === 1 ? "" : "s"}`}
-                  </span>
-                </>
-              ) : (
-                <span className="muted">Not a Git repository</span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      )}
-
-      {info && (info.site.needs_choice || info.site.folders.length > 0 || info.site.chosen) && (
-        <div className="details-section">
-          <h3>Site folder</h3>
-          <p className={info.site.needs_choice && !info.site.chosen ? "share-note" : "field-hint"}>
-            {info.site.needs_choice && !info.site.chosen
-              ? `${name} keeps its apps in subfolders, so its address only lists files. Pick the folder that is the website.`
-              : `The folder ${name}.test and its shared address open. The rest of the project stays out of reach.`}
-          </p>
-          <div className="details-row">
-            <select
-              className="input input-medium"
-              value={siteFolder}
-              onChange={(e) => setSiteFolder(e.target.value)}
-              disabled={!!busy}
-              aria-label="Site folder"
-            >
-              <option value="">The project folder{info.kind === "laravel" ? " (its public folder)" : ""}</option>
-              {info.site.folders.map((f) => (
-                <option key={f.path} value={f.path}>
-                  {f.path} · {f.label}
-                </option>
-              ))}
-              {info.site.chosen && !info.site.folders.some((f) => f.path === info.site.chosen) && (
-                <option value={info.site.chosen}>{info.site.chosen}</option>
-              )}
-            </select>
-            <button
-              className="btn"
-              disabled={!!busy || siteFolder === (info.site.chosen ?? "")}
-              onClick={() =>
-                void act(
-                  "Saving; the web server restarts…",
-                  async () => {
-                    await setProjectSite(name, siteFolder || null);
-                    load();
-                  },
-                  siteFolder ? `${name} now opens ${siteFolder}.` : `${name} opens its project folder again.`,
-                )
-              }
-            >
-              Use this folder
-            </button>
-          </div>
-          {info.site.dev_apps.length > 0 && (
-            <p className="field-hint">
-              {info.site.dev_apps.map((d) => `${d.path || name} is a ${d.label} app`).join(", ")}: it runs on its own
-              dev server. Start it in the Terminal, then share it below with "Share a dev server".
-            </p>
+      {tab === "overview" && (
+        <>
+          {info && (
+            <dl className="details-facts">
+              <div>
+                <dt>Folder</dt>
+                <dd>
+                  <code>{info.path}</code>
+                </dd>
+              </div>
+              <div>
+                <dt>Database</dt>
+                <dd>
+                  {info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}
+                </dd>
+              </div>
+              <div>
+                <dt>Git</dt>
+                <dd>
+                  {info.git ? (
+                    <>
+                      <GitBranch size={13} aria-hidden="true" /> <code>{info.git.branch}</code>
+                      <span className="muted">
+                        {" "}
+                        ·{" "}
+                        {info.git.changes === 0
+                          ? "nothing to commit"
+                          : `${info.git.changes} changed file${info.git.changes === 1 ? "" : "s"}`}
+                      </span>
+                    </>
+                  ) : (
+                    <span className="muted">Not a Git repository</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
           )}
-        </div>
-      )}
 
-      {info && (
-        <div className="details-section">
-          <h3>PHP version</h3>
-          <p className="field-hint">
-            The website, its terminal and Composer all use this version. Install more versions on the Versions page.
-          </p>
-          <div className="details-row">
-            <select
-              className="input input-medium"
-              value={php}
-              onChange={(e) => setPhp(e.target.value)}
-              disabled={!!busy}
-            >
-              <option value="">NexDB default{info.php.default ? ` (PHP ${info.php.default})` : ""}</option>
-              {info.php.installed
-                .filter((v) => v !== info.php.default)
-                .map((v) => (
-                  <option key={v} value={v}>
-                    PHP {v}
-                  </option>
-                ))}
-            </select>
-            <button
-              className="btn"
-              disabled={!!busy || php === (info.php.chosen ?? "")}
-              onClick={() =>
-                void act(
-                  "Switching PHP; running services restart…",
-                  async () => {
-                    await setProjectPhp(name, php || null);
-                    load();
-                  },
-                  `${name} now runs on PHP ${php || info.php.default}.`,
-                )
-              }
-            >
-              Use this version
-            </button>
-          </div>
-          {info.php.installed.length < 2 && (
-            <p className="field-hint">
-              Only one PHP version is installed. Add another on the Versions page to choose here.
-            </p>
+          {info && (info.site.needs_choice || info.site.folders.length > 0 || info.site.chosen) && (
+            <div className="details-section">
+              <h3>Site folder</h3>
+              <p className={info.site.needs_choice && !info.site.chosen ? "share-note" : "field-hint"}>
+                {info.site.needs_choice && !info.site.chosen
+                  ? `${name} keeps its apps in subfolders, so its address only lists files. Pick the folder that is the website.`
+                  : `The folder ${name}.test and its shared address open. The rest of the project stays out of reach.`}
+              </p>
+              <div className="details-row">
+                <select
+                  className="input input-medium"
+                  value={siteFolder}
+                  onChange={(e) => setSiteFolder(e.target.value)}
+                  disabled={!!busy}
+                  aria-label="Site folder"
+                >
+                  <option value="">The project folder{info.kind === "laravel" ? " (its public folder)" : ""}</option>
+                  {info.site.folders.map((f) => (
+                    <option key={f.path} value={f.path}>
+                      {f.path} · {f.label}
+                    </option>
+                  ))}
+                  {info.site.chosen && !info.site.folders.some((f) => f.path === info.site.chosen) && (
+                    <option value={info.site.chosen}>{info.site.chosen}</option>
+                  )}
+                </select>
+                <button
+                  className="btn"
+                  disabled={!!busy || siteFolder === (info.site.chosen ?? "")}
+                  onClick={() =>
+                    void act(
+                      "Saving; the web server restarts…",
+                      async () => {
+                        await setProjectSite(name, siteFolder || null);
+                        load();
+                      },
+                      siteFolder ? `${name} now opens ${siteFolder}.` : `${name} opens its project folder again.`,
+                    )
+                  }
+                >
+                  Use this folder
+                </button>
+              </div>
+              {info.site.dev_apps.length > 0 && (
+                <p className="field-hint">
+                  {info.site.dev_apps.map((d) => `${d.path || name} is a ${d.label} app`).join(", ")}: it runs on its
+                  own dev server. Start it in the Terminal, then share it below with "Share a dev server".
+                </p>
+              )}
+            </div>
           )}
-        </div>
+
+          {info && (
+            <div className="details-section">
+              <h3>PHP version</h3>
+              <p className="field-hint">
+                The website, its terminal and Composer all use this version. Install more versions on the Versions page.
+              </p>
+              <div className="details-row">
+                <select
+                  className="input input-medium"
+                  value={php}
+                  onChange={(e) => setPhp(e.target.value)}
+                  disabled={!!busy}
+                >
+                  <option value="">NexDB default{info.php.default ? ` (PHP ${info.php.default})` : ""}</option>
+                  {info.php.installed
+                    .filter((v) => v !== info.php.default)
+                    .map((v) => (
+                      <option key={v} value={v}>
+                        PHP {v}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  className="btn"
+                  disabled={!!busy || php === (info.php.chosen ?? "")}
+                  onClick={() =>
+                    void act(
+                      "Switching PHP; running services restart…",
+                      async () => {
+                        await setProjectPhp(name, php || null);
+                        load();
+                      },
+                      `${name} now runs on PHP ${php || info.php.default}.`,
+                    )
+                  }
+                >
+                  Use this version
+                </button>
+              </div>
+              {info.php.installed.length < 2 && (
+                <p className="field-hint">
+                  Only one PHP version is installed. Add another on the Versions page to choose here.
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
-      <SharePanel name={name} devApps={info?.site.dev_apps ?? []} />
+      {tab === "share" && (
+        <SharePanel
+          name={name}
+          devApps={info?.site.dev_apps ?? []}
+          needsSite={!!info?.site.needs_choice && !info.site.chosen}
+        />
+      )}
 
-      <div className="details-section">
-        <h3>Rename</h3>
-        <form
-          className="details-row"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (newName === name || renameProblem) return;
-            void act("Renaming…", async () => {
-              await renameProject(name, newName);
-              await onChanged(newName, `Renamed to ${newName}. Its address is now ${newName}.test.`);
-            });
-          }}
-        >
-          <input
-            className="input input-medium"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value.trim().toLowerCase())}
-            spellCheck={false}
-            aria-label="New name"
-          />
-          <button className="btn" type="submit" disabled={!!busy || newName === name || !!renameProblem}>
-            Rename
-          </button>
-        </form>
-        <p className={renameProblem ? "field-error" : "field-hint"}>
-          {renameProblem ??
-            `Renames the folder and its address to ${newName}.test. Close its terminal, editor and dev server first.`}
-        </p>
-      </div>
-
-      <div className="details-section danger-zone">
-        <h3>Delete</h3>
-        {!confirmDelete ? (
-          <>
-            <p className="field-hint">The folder goes to the Recycle Bin, so you can still bring it back.</p>
-            <button className="btn" onClick={() => setConfirmDelete(true)}>
-              <Trash2 size={14} aria-hidden="true" /> Delete project…
-            </button>
-          </>
-        ) : (
-          <form
-            className="confirm-delete"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void act(`Deleting ${name}…`, async () => {
-                const warning = await deleteProject(name, dropDb);
-                await onChanged(
-                  null,
-                  `${name} is in the Recycle Bin; restore it from Recycle Bin above.${warning ? " " + warning : ""}`,
-                );
-              });
-            }}
-          >
-            <label className="field">
-              <span className="field-label">
-                Moves <strong>{name}</strong> to the Recycle Bin. Type its name to confirm.
-              </span>
+      {tab === "manage" && (
+        <>
+          <div className="details-section">
+            <h3>Rename</h3>
+            <form
+              className="details-row"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (newName === name || renameProblem) return;
+                void act("Renaming…", async () => {
+                  await renameProject(name, newName);
+                  await onChanged(newName, `Renamed to ${newName}. Its address is now ${newName}.test.`);
+                });
+              }}
+            >
               <input
-                className="input"
-                value={typed}
-                onChange={(e) => setTyped(e.target.value)}
-                autoFocus
+                className="input input-medium"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value.trim().toLowerCase())}
                 spellCheck={false}
+                aria-label="New name"
               />
-            </label>
-            {info?.database && (
-              <label className="set-check backup-first">
-                <input type="checkbox" checked={dropDb} onChange={(e) => setDropDb(e.target.checked)} />
-                <span>
-                  Also delete its database <code>{info.database}</code> and its MySQL user (this can't be undone; back
-                  it up first on the Database page if you might need it)
-                </span>
-              </label>
+              <button className="btn" type="submit" disabled={!!busy || newName === name || !!renameProblem}>
+                Rename
+              </button>
+            </form>
+            <p className={renameProblem ? "field-error" : "field-hint"}>
+              {renameProblem ??
+                `Renames the folder and its address to ${newName}.test. Close its terminal, editor and dev server first.`}
+            </p>
+          </div>
+
+          <div className="details-section danger-zone">
+            <h3>Delete</h3>
+            {!confirmDelete ? (
+              <>
+                <p className="field-hint">The folder goes to the Recycle Bin, so you can still bring it back.</p>
+                <button className="btn" onClick={() => setConfirmDelete(true)}>
+                  <Trash2 size={14} aria-hidden="true" /> Delete project…
+                </button>
+              </>
+            ) : (
+              <form
+                className="confirm-delete"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void act(`Deleting ${name}…`, async () => {
+                    const warning = await deleteProject(name, dropDb);
+                    await onChanged(
+                      null,
+                      `${name} is in the Recycle Bin; restore it from Recycle Bin above.${warning ? " " + warning : ""}`,
+                    );
+                  });
+                }}
+              >
+                <label className="field">
+                  <span className="field-label">
+                    Moves <strong>{name}</strong> to the Recycle Bin. Type its name to confirm.
+                  </span>
+                  <input
+                    className="input"
+                    value={typed}
+                    onChange={(e) => setTyped(e.target.value)}
+                    autoFocus
+                    spellCheck={false}
+                  />
+                </label>
+                {info?.database && (
+                  <label className="set-check backup-first">
+                    <input type="checkbox" checked={dropDb} onChange={(e) => setDropDb(e.target.checked)} />
+                    <span>
+                      Also delete its database <code>{info.database}</code> and its MySQL user (this can't be undone;
+                      back it up first on the Database page if you might need it)
+                    </span>
+                  </label>
+                )}
+                <button className="btn" type="button" onClick={() => setConfirmDelete(false)}>
+                  Cancel
+                </button>
+                <button className="btn btn-danger" type="submit" disabled={typed !== name || !!busy}>
+                  Move to Recycle Bin
+                </button>
+              </form>
             )}
-            <button className="btn" type="button" onClick={() => setConfirmDelete(false)}>
-              Cancel
-            </button>
-            <button className="btn btn-danger" type="submit" disabled={typed !== name || !!busy}>
-              Move to Recycle Bin
-            </button>
-          </form>
-        )}
-      </div>
+          </div>
+        </>
+      )}
     </section>
   );
 }

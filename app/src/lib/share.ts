@@ -20,7 +20,15 @@ export interface ShareInfo {
   public_url: string | null;
   public_qr: string | null;
   /** The project's dev server, when it is passed through a share port. */
-  dev: { port: number; target: number; url: string | null; qr: string | null; running: boolean } | null;
+  dev: {
+    port: number;
+    target: number;
+    url: string | null;
+    qr: string | null;
+    running: boolean;
+    public_url: string | null;
+    public_qr: string | null;
+  } | null;
 }
 
 // Browser preview: a pretend share on a home network.
@@ -77,18 +85,23 @@ export async function allowFirewall(): Promise<void> {
   for (const s of Object.values(preview)) s.firewall_ready = true;
 }
 
-export async function startPublicLink(name: string): Promise<ShareInfo> {
-  if (inDesktopApp) return invoke("share_public_start", { name });
+/** A public link to the shared site, or with `dev` to the shared dev server. */
+export async function startPublicLink(name: string, dev = false): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_public_start", { name, dev });
   await pause(1500);
   const s = (preview[name] ??= base());
-  Object.assign(s, { public_url: "https://brave-otter-sample.trycloudflare.com", public_qr: qr });
+  const link = { public_url: "https://brave-otter-sample.trycloudflare.com", public_qr: qr };
+  if (dev && s.dev) Object.assign(s.dev, link);
+  else Object.assign(s, link);
   return { ...s };
 }
 
-export async function stopPublicLink(name: string): Promise<ShareInfo> {
-  if (inDesktopApp) return invoke("share_public_stop", { name });
+export async function stopPublicLink(name: string, dev = false): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_public_stop", { name, dev });
   const s = (preview[name] ??= base());
-  Object.assign(s, { public_url: null, public_qr: null });
+  const none = { public_url: null, public_qr: null };
+  if (dev && s.dev) Object.assign(s.dev, none);
+  else Object.assign(s, none);
   return { ...s };
 }
 
@@ -97,7 +110,15 @@ export async function startDevShare(name: string, target: number): Promise<Share
   if (inDesktopApp) return invoke("share_dev_start", { name, target });
   await pause(600);
   const s = (preview[name] ??= base());
-  s.dev = { port: 8182, target, url: "http://192.168.1.20:8182/", qr, running: false };
+  s.dev = {
+    port: 8182,
+    target,
+    url: "http://192.168.1.20:8182/",
+    qr,
+    running: true,
+    public_url: null,
+    public_qr: null,
+  };
   return { ...s };
 }
 

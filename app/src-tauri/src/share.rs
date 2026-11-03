@@ -17,6 +17,14 @@ pub fn free_port(shared: &BTreeMap<String, u16>) -> Option<u16> {
     PORTS.into_iter().find(|p| !shared.values().any(|q| q == p) && !crate::supervisor::port_listening(*p))
 }
 
+/// Whether a dev server answers on `port` on this PC. Node's dev servers often listen on
+/// IPv6 `[::1]` only (what `localhost` means to them), so both loopback addresses are tried.
+pub fn dev_listening(port: u16) -> bool {
+    use std::net::{SocketAddr, TcpStream};
+    let tries: [SocketAddr; 2] = [([127, 0, 0, 1], port).into(), (std::net::Ipv6Addr::LOCALHOST, port).into()];
+    tries.iter().any(|a| TcpStream::connect_timeout(a, Duration::from_millis(150)).is_ok())
+}
+
 /// This PC's address on the local network. Connecting a UDP socket sends nothing; it only
 /// asks Windows which network card would be used.
 pub fn lan_ip() -> Option<String> {

@@ -39,6 +39,7 @@ Rules every release follows:
 | 0.3.4 | PostgreSQL service; Python with pip; switch between Apache and nginx |
 | 0.3.5 | Share a project on the Wi-Fi with a QR code; public links through Cloudflare quick tunnels |
 | 0.3.6 | Site folder per project; share a running dev server; public links serve https pages correctly |
+| 0.3.7 | Grouped Dashboard; project page tabs; dev servers on IPv6 localhost; public links for dev servers |
 
 ## Next
 
@@ -212,13 +213,22 @@ Mail catcher (with 0.3.2's services):
 - Public links: the share site tells PHP when the visitor used https (X-Forwarded-Proto), so
   Laravel links its assets with https instead of being blocked as mixed content.
 
-### 0.3.7: Health and diagnostics
+### 0.3.7: Clearer Dashboard and project page
+
+- One scrollbar: the window never scrolls, only its panels.
+- Dashboard grouped as Web server, PHP (one row per version, the default marked), Databases and
+  Extras, each with how many are running.
+- Project page tabs: Overview (facts, site folder, PHP), Share, Rename or delete.
+- Dev servers are reached through `localhost`, so Vite and other Node servers that only listen on
+  IPv6 `[::1]` open; shared dev servers get their own public link.
+
+### 0.3.8: Health and diagnostics
 
 - A "Check my setup" page: ports, trust store, PATH, firewall, disk space, broken configs, each
   with a plain fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
 
-### 0.3.8: Polish and accessibility
+### 0.3.9: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.

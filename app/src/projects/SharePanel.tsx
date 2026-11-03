@@ -18,7 +18,16 @@ import {
 } from "../lib/share";
 
 /** Share a project with phones on the same Wi-Fi, and optionally with a public link. */
-export function SharePanel({ name, devApps }: { name: string; devApps: DevApp[] }) {
+export function SharePanel({
+  name,
+  devApps,
+  needsSite = false,
+}: {
+  name: string;
+  devApps: DevApp[];
+  /** The project folder has no page of its own and no site folder is chosen yet. */
+  needsSite?: boolean;
+}) {
   const [info, setInfo] = useState<ShareInfo | null>(null);
   const [devPort, setDevPort] = useState(String(devApps[0]?.port ?? 5173));
   const [busy, setBusy] = useState<string | null>(null);
@@ -82,9 +91,85 @@ export function SharePanel({ name, devApps }: { name: string; devApps: DevApp[] 
     </>
   );
 
+  // A public link through Cloudflare, for the shared site or (dev) the shared dev server.
+  const publicLink = (dev: boolean, url: string | null, qr: string | null, ready: boolean) => {
+    const what = dev ? `${name}'s dev server` : name;
+    return (
+      <div className={dev ? "share-sub" : "share-public"}>
+        <h4>
+          <Globe size={14} aria-hidden="true" /> Public link
+        </h4>
+        {url ? (
+          <div className="share-link">
+            {qr && <div className="share-qr" aria-hidden="true" dangerouslySetInnerHTML={{ __html: qr }} />}
+            <div className="share-link-text">
+              <div className="share-url">
+                <code>{url}</code>
+                <CopyButton text={url} label="the public link" />
+              </div>
+              <p className="share-note">
+                <AlertTriangle size={14} aria-hidden="true" /> Anyone with this link can open {what}. Stop it when
+                you're done; it also ends when NexDB closes.
+              </p>
+              <button
+                className="btn btn-small"
+                disabled={!!busy}
+                onClick={() => void act("Stopping the public link…", () => stopPublicLink(name, dev))}
+              >
+                Stop public link
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="field-hint">
+              Lets anyone open {what} from anywhere, for example to show a client. It goes through Cloudflare's free
+              quick tunnels: no account, and the link changes each time.
+            </p>
+            {info.tunnel_installed ? (
+              <button
+                className="btn btn-small"
+                disabled={!!busy || !ready}
+                onClick={() => void act("Asking Cloudflare for a link…", () => startPublicLink(name, dev))}
+              >
+                Create public link
+              </button>
+            ) : (
+              info.tunnel_version && (
+                <button
+                  className="btn btn-small"
+                  disabled={!!busy}
+                  onClick={() =>
+                    void act("Downloading Cloudflare's tunnel…", async () => {
+                      await installVersion("cloudflared", info.tunnel_version!, (p) =>
+                        setBusy(`Downloading Cloudflare's tunnel… ${p ?? ""}${p === null ? "" : "%"}`),
+                      );
+                      previewTunnelInstalled(name);
+                    })
+                  }
+                >
+                  Download public links
+                  {info.tunnel_size ? ` (${Math.round(info.tunnel_size / 2 ** 20)} MB)` : ""}
+                </button>
+              )
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="details-section share">
       <h3>Share</h3>
+      {needsSite && (
+        <p className="share-note" role="note">
+          <AlertTriangle size={14} aria-hidden="true" /> {name}'s address only lists its files until you pick its Site
+          folder on the Overview tab.
+          {devApps.length > 0 &&
+            ` For its front end (${devApps[0].path || name}), start its dev server and share it below.`}
+        </p>
+      )}
       {!shared ? (
         <>
           <p className="field-hint">
@@ -133,69 +218,7 @@ export function SharePanel({ name, devApps }: { name: string; devApps: DevApp[] 
             <p className="field-error">This PC isn't connected to a network, so there's no address to share yet.</p>
           )}
 
-          <div className="share-public">
-            <h4>
-              <Globe size={14} aria-hidden="true" /> Public link
-            </h4>
-            {info.public_url ? (
-              <div className="share-link">
-                {info.public_qr && (
-                  <div className="share-qr" aria-hidden="true" dangerouslySetInnerHTML={{ __html: info.public_qr }} />
-                )}
-                <div className="share-link-text">
-                  <div className="share-url">
-                    <code>{info.public_url}</code>
-                    <CopyButton text={info.public_url} label="the public link" />
-                  </div>
-                  <p className="share-note">
-                    <AlertTriangle size={14} aria-hidden="true" /> Anyone with this link can open {name}. Stop it when
-                    you're done; it also ends when NexDB closes.
-                  </p>
-                  <button
-                    className="btn btn-small"
-                    disabled={!!busy}
-                    onClick={() => void act("Stopping the public link…", () => stopPublicLink(name))}
-                  >
-                    Stop public link
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <>
-                <p className="field-hint">
-                  Lets anyone open {name} from anywhere, for example to show a client. It goes through Cloudflare's free
-                  quick tunnels: no account, and the link changes each time.
-                </p>
-                {info.tunnel_installed ? (
-                  <button
-                    className="btn btn-small"
-                    disabled={!!busy || !info.web_running}
-                    onClick={() => void act("Asking Cloudflare for a link…", () => startPublicLink(name))}
-                  >
-                    Create public link
-                  </button>
-                ) : (
-                  info.tunnel_version && (
-                    <button
-                      className="btn btn-small"
-                      disabled={!!busy}
-                      onClick={() =>
-                        void act("Downloading Cloudflare's tunnel…", async () => {
-                          await installVersion("cloudflared", info.tunnel_version!, (p) =>
-                            setBusy(`Downloading Cloudflare's tunnel… ${p ?? ""}${p === null ? "" : "%"}`),
-                          );
-                          previewTunnelInstalled(name);
-                        })
-                      }
-                    >
-                      Download public links
-                      {info.tunnel_size ? ` (${Math.round(info.tunnel_size / 2 ** 20)} MB)` : ""}
-                    </button>
-                  )
-                )}
-              </>
-            )}
-          </div>
+          {publicLink(false, info.public_url, info.public_qr, info.web_running)}
 
           <button
             className="btn"
@@ -237,6 +260,7 @@ export function SharePanel({ name, devApps }: { name: string; devApps: DevApp[] 
                 </div>
               </div>
             )}
+            {publicLink(true, info.dev.public_url, info.dev.public_qr, info.web_running && info.dev.running)}
             <button
               className="btn btn-small"
               disabled={!!busy}

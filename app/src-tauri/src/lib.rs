@@ -488,6 +488,9 @@ struct DevShareInfo {
     qr: Option<String>,
     /// Whether something answers on the dev server's port right now.
     running: bool,
+    /// Its public link, when one runs.
+    public_url: Option<String>,
+    public_qr: Option<String>,
 }
 
 fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
@@ -513,12 +516,15 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         public_url,
         dev: settings.preferences.share_dev.get(name).map(|d| {
             let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", d.port));
+            let public_url = tunnels.url(&tunnel_key(name, true));
             DevShareInfo {
+                public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
+                public_url,
                 port: d.port,
                 target: d.target,
                 qr: url.as_deref().and_then(|u| share::qr_svg(u).ok()),
                 url,
-                running: supervisor::port_listening(d.target),
+                running: share::dev_listening(d.target),
             }
         }),
     }
@@ -581,7 +587,7 @@ async fn share_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, A
 /// Stops sharing a project, on the network and through its public link.
 #[tauri::command]
 async fn share_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
-    tunnels.stop(&name);
+    tunnels.stop(&tunnel_key(&name, false));
     let (root, _, _) = stack.get()?;
     let (root2, name2) = (root.clone(), name.clone());
     blocking(move || {
@@ -689,6 +695,7 @@ async fn share_dev_start(
 
 #[tauri::command]
 async fn share_dev_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+    tunnels.stop(&tunnel_key(&name, true));
     let (root, _, _) = stack.get()?;
     let (root2, name2) = (root.clone(), name.clone());
     blocking(move || {
@@ -718,26 +725,47 @@ async fn share_allow_firewall() -> Result<(), String> {
     blocking(share::allow_firewall).await
 }
 
-/// Opens a temporary public link to a shared project through Cloudflare.
+/// The tunnel key for a project's site, or for its dev server when `dev` is true.
+fn tunnel_key(name: &str, dev: bool) -> String {
+    if dev { format!("{name}#dev") } else { name.to_string() }
+}
+
+/// Opens a temporary public link through Cloudflare, to the project's shared site or, with
+/// `dev`, to its shared dev server.
 #[tauri::command]
-async fn share_public_start(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+async fn share_public_start(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+    dev: Option<bool>,
+) -> Result<ShareInfo, String> {
     let (_, settings, sup) = stack.get()?;
-    let port = *settings.preferences.shared.get(&name).ok_or("Share the project on your network first.")?;
+    let dev = dev.unwrap_or(false);
+    let port = if dev {
+        settings.preferences.share_dev.get(&name).map(|d| d.port).ok_or("Share the dev server first.")?
+    } else {
+        *settings.preferences.shared.get(&name).ok_or("Share the project on your network first.")?
+    };
     let exe = cloudflared_exe(&settings).ok_or("Install public links first.")?;
     let tunnels = tunnels.inner().clone();
     blocking(move || {
-        tunnels.start(&exe, &name, port)?;
+        tunnels.start(&exe, &tunnel_key(&name, dev), port)?;
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
 }
 
 #[tauri::command]
-async fn share_public_stop(stack: tauri::State<'_, Stack>, tunnels: tauri::State<'_, Arc<share::Tunnels>>, name: String) -> Result<ShareInfo, String> {
+async fn share_public_stop(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+    dev: Option<bool>,
+) -> Result<ShareInfo, String> {
     let (_, settings, sup) = stack.get()?;
     let tunnels = tunnels.inner().clone();
     blocking(move || {
-        tunnels.stop(&name);
+        tunnels.stop(&tunnel_key(&name, dev.unwrap_or(false)));
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await

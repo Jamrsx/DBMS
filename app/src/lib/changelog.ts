@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.3.7",
+    title: "A tidier Dashboard and project page, and dev servers that open",
+    changes: [
+      "Dashboard: services grouped as Web server, PHP (one row per version), Databases and Extras; only one scrollbar.",
+      "Projects: each project's page has tabs: Overview, Share, and Rename or delete.",
+      "Shared dev servers open now: Vite and other Node dev servers that only listen on localhost are reached.",
+      "Public link for a shared dev server, for example a React front end in a web folder.",
+    ],
+  },
+  {
     version: "0.3.6",
     title: "Site folders, dev servers on your phone, and working public links",
     changes: [

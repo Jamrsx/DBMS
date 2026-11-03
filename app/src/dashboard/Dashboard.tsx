@@ -168,35 +168,40 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
         {services && services.length > 0 && (
           <>
             <section className="dash-section" aria-labelledby="services-title">
-              <h2 id="services-title" className="section-title">
+              <h2 id="services-title" className="visually-hidden">
                 Services
               </h2>
-              <ul className="svc-list">
-                {grouped(services).map(([group, list], _i, groups) => [
-                  groups.length > 1 && (
-                    <li key={`group-${group}`} className="svc-group" aria-hidden="true">
+              <div className="svc-groups">
+                {grouped(services).map(([group, list]) => (
+                  <div className="svc-group-block" key={group}>
+                    <h3 className="svc-group-title" id={`group-${group}`}>
                       {group}
-                    </li>
-                  ),
-                  ...list.map((s) => (
-                    <ServiceRow
-                      key={s.id}
-                      service={s}
-                      busy={busy[s.id]}
-                      selected={selected === s.id}
-                      guideOpen={guide === s.id}
-                      onSelect={() => setSelected(s.id)}
-                      onGuide={
-                        s.id === "postgres" || s.id === "mailpit" || s.id === "redis"
-                          ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
-                          : undefined
-                      }
-                      onStart={() => run([s.id], "starting", () => startServices(s.id))}
-                      onStop={() => run([s.id], "stopping", () => stopServices(s.id))}
-                    />
-                  )),
-                ])}
-              </ul>
+                      <span className="svc-group-count">
+                        {list.filter(isUp).length} of {list.length} running
+                      </span>
+                    </h3>
+                    <ul className="svc-list" aria-labelledby={`group-${group}`}>
+                      {list.map((s) => (
+                        <ServiceRow
+                          key={s.id}
+                          service={s}
+                          busy={busy[s.id]}
+                          selected={selected === s.id}
+                          guideOpen={guide === s.id}
+                          onSelect={() => setSelected(s.id)}
+                          onGuide={
+                            s.id === "postgres" || s.id === "mailpit" || s.id === "redis"
+                              ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
+                              : undefined
+                          }
+                          onStart={() => run([s.id], "starting", () => startServices(s.id))}
+                          onStop={() => run([s.id], "stopping", () => stopServices(s.id))}
+                        />
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
             </section>
 
             {failures.length > 0 && (
@@ -235,7 +240,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
 const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   apache: { role: "Web server for localhost and .test sites", Icon: Globe },
   nginx: { role: "Web server for localhost and .test sites", Icon: Globe },
-  php: { role: "Runs your PHP code for the web server", Icon: FileCode2 },
+  php: { role: "Runs your projects' PHP code", Icon: FileCode2 },
   mysql: { role: "Database server", Icon: DatabaseIcon },
   postgres: { role: "PostgreSQL database server", Icon: DatabaseIcon },
   mailpit: { role: "Catches the emails your apps send", Icon: Mail },
@@ -276,19 +281,24 @@ function ServiceRow({
   const { role: what, Icon } =
     ROLE[s.id] ??
     (s.id.startsWith("php-")
-      ? { role: "PHP for projects set to this version", Icon: FileCode2 }
+      ? { role: "Runs the projects you set to this version", Icon: FileCode2 }
       : { role: "", Icon: Server });
   const role = s.state === "external" ? `Managed outside NexDB · ${what}` : what;
+  // Under the PHP heading each version is simply "PHP 8.5.12".
+  const php = s.id === "php" || s.id.startsWith("php-");
+  const title = php && s.version ? `PHP ${s.version}` : s.name;
   return (
     <li className={selected ? "svc selected" : "svc"} aria-labelledby={`svc-${s.id}`}>
       <span className="svc-icon" aria-hidden="true">
         <Icon size={18} strokeWidth={1.75} />
       </span>
       <div className="svc-name">
-        <h3 id={`svc-${s.id}`}>
-          {s.name}
-          {s.version && <code className="svc-version">{s.version}</code>}
-        </h3>
+        <h4 id={`svc-${s.id}`}>
+          {title}
+          {php
+            ? s.id === "php" && <span className="kind">Default</span>
+            : s.version && <code className="svc-version">{s.version}</code>}
+        </h4>
         <p>{role}</p>
         {(onGuide || s.id === "mailpit") && (
           <p className="svc-links">
@@ -561,11 +571,13 @@ function ordered(services: ServiceStatus[]) {
 /** Services in groups a beginner recognises: web, database, then extras. */
 function grouped(services: ServiceStatus[]): [string, ServiceStatus[]][] {
   const groupOf = (id: string) =>
-    id === "apache" || id === "nginx" || id === "php" || id.startsWith("php-")
-      ? "Web"
-      : id === "mysql" || id === "postgres"
-        ? "Database"
-        : "Extras";
+    id === "apache" || id === "nginx"
+      ? "Web server"
+      : id === "php" || id.startsWith("php-")
+        ? "PHP"
+        : id === "mysql" || id === "postgres"
+          ? "Databases"
+          : "Extras";
   const groups: [string, ServiceStatus[]][] = [];
   for (const s of ordered(services)) {
     const name = groupOf(s.id);

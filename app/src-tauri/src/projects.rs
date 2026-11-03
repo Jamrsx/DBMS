@@ -325,8 +325,8 @@ Listen {port}
 <VirtualHost *:{port}>
     ServerName {name}.dev-share
     ProxyPreserveHost Off
-    ProxyPass "/" "http://127.0.0.1:{target}/" upgrade=websocket
-    ProxyPassReverse "/" "http://127.0.0.1:{target}/"
+    ProxyPass "/" "http://localhost:{target}/" upgrade=websocket
+    ProxyPassReverse "/" "http://localhost:{target}/"
 </VirtualHost>
 "#,
             port = dev.port,
@@ -502,9 +502,9 @@ server {{
 server {{
     listen {port};
     location / {{
-        proxy_pass http://127.0.0.1:{target};
+        proxy_pass http://localhost:{target};
         proxy_http_version 1.1;
-        proxy_set_header Host 127.0.0.1:{target};
+        proxy_set_header Host localhost:{target};
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
         proxy_read_timeout 1h;
@@ -883,7 +883,7 @@ mod tests {
         settings.preferences.site_root = std::collections::BTreeMap::from([("gamma".to_string(), "site".to_string())]);
         settings.preferences.share_dev =
             std::collections::BTreeMap::from([("alpha".to_string(), crate::settings::DevShare { port: 8196, target: 5899 })]);
-        let dev = std::net::TcpListener::bind("127.0.0.1:5899").unwrap();
+        let dev = std::net::TcpListener::bind("[::1]:5899").unwrap();
         std::thread::spawn(move || {
             for mut c in dev.incoming().flatten() {
                 let mut buf = [0u8; 2048];
@@ -914,7 +914,7 @@ mod tests {
         let mut proxied = String::new();
         s.read_to_string(&mut proxied).unwrap();
         println!("dev share: {}", proxied.lines().last().unwrap_or(""));
-        assert!(proxied.contains("dev server saw Host: 127.0.0.1:5899"), "{proxied}");
+        assert!(proxied.contains("dev server saw Host: localhost:5899"), "{proxied}");
         assert!(shared.contains("hello from beta/public"), "{shared}");
         // Through Cloudflare's tunnel (X-Forwarded-Proto: https) PHP sees HTTPS, so Laravel
         // links its CSS and scripts with https and the browser doesn't block them.

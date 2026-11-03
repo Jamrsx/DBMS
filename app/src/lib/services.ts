@@ -79,7 +79,8 @@ const preview = (() => {
     return `${d.toDateString().slice(0, 10)} ${d.toTimeString().slice(0, 8)}.000000 ${d.getFullYear()}`;
   };
   const base: Omit<ServiceStatus, "state" | "pid" | "uptime_secs" | "message" | "listening">[] = [
-    { id: "php", name: "PHP (FastCGI)", version: "8.4.5", port: 9085, managed: true },
+    { id: "php", name: "PHP (FastCGI)", version: "8.5.12", port: 9085, managed: true },
+    { id: "php-8.4.27", name: "PHP 8.4.27 (FastCGI)", version: "8.4.27", port: 9086, managed: true },
     { id: "mysql", name: "MySQL", version: "8.0.30", port: 3306, managed: false },
     { id: "apache", name: "Apache", version: "2.4.63", port: 80, managed: true },
     { id: "postgres", name: "PostgreSQL", version: "18.6", port: 5432, managed: true },
@@ -115,7 +116,7 @@ const preview = (() => {
     },
     async start(id?: string) {
       await sleep(700);
-      const ids = id ? [id] : ["php", "apache", "postgres", "mailpit", "redis"];
+      const ids = id ? [id] : ["php", "php-8.4.27", "apache", "postgres", "mailpit", "redis"];
       const failures: string[] = [];
       for (const s of ids) {
         if (s === "apache") {
@@ -130,14 +131,14 @@ const preview = (() => {
         } else {
           started[s] = Date.now();
           errors[s] = null;
-          logs[s].push(`--- ${s} starting ---`);
+          (logs[s] ??= []).push(`--- ${s} starting ---`);
         }
       }
       if (failures.length) throw new Error(failures.join("\n"));
     },
     async stop(id?: string) {
       await sleep(400);
-      for (const s of id ? [id] : ["apache", "php", "postgres", "mailpit", "redis"]) {
+      for (const s of id ? [id] : ["apache", "php", "php-8.4.27", "postgres", "mailpit", "redis"]) {
         started[s] = null;
         errors[s] = null;
       }
