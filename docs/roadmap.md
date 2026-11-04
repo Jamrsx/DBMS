@@ -297,8 +297,15 @@ Mail catcher (with 0.3.2's services):
 
 - Clone a Git repository as a new project, then set it up in one go.
 
-### 0.4.5: Polish and accessibility
+### 0.4.5: Connect databases to projects, polish and accessibility
 
+- Use a database in a project: after making a database (or later, from the Database page or a
+  project's Overview), pick the project that uses it. NexDB makes a user of its own for it and
+  writes the connection into the project: `.env` for Laravel (DB_CONNECTION, DB_HOST, DB_PORT,
+  DB_DATABASE, DB_USERNAME, DB_PASSWORD), `wp-config.php` for WordPress, the chosen folder for
+  projects split into folders (Backend), MySQL or PostgreSQL. The old file is kept as
+  `.env.backup`, Laravel's caches are cleared, and plain PHP apps get the values to copy.
+- Each database shows which project uses it, and each project which database, with Change.
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.
 - First-run tour for new users.
