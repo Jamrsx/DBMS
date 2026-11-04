@@ -280,6 +280,7 @@ pub fn run() {
             health_fix_configs,
             health_reset_postgres,
             health_report,
+            project_clone,
             import_sources,
             import_databases,
             import_run,
@@ -2213,6 +2214,28 @@ async fn health_report(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) ->
         let checks = health::run(&root, &settings, &sup);
         health::support_report(&root, &settings, &sup, &checks, &path)?;
         Ok(Some(path.display().to_string()))
+    })
+    .await
+}
+
+/// Clones a Git repository as a new project (progress as `quickstart` events under its name),
+/// then adds its site. Returns what it still needs to be set up, which the page runs next.
+#[tauri::command]
+async fn project_clone(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    url: String,
+    name: String,
+    branch: Option<String>,
+) -> Result<Vec<quickstart::SetupTask>, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let emit = |e: quickstart::Event| {
+            let _ = app.emit("quickstart", e);
+        };
+        quickstart::clone_repo(&emit, &root, &settings, &url, &name, branch.as_deref())?;
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(quickstart::setup_plan(&std::path::Path::new(&settings.www_dir).join(&name)))
     })
     .await
 }

@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.4",
+    title: "Clone from Git",
+    changes: [
+      "Clone on the Projects page: paste a GitHub, GitLab or any Git address and NexDB downloads it as a new project, with its progress.",
+      "It then sets the project up in one go: PHP and Node packages, its .env with a database user, and the app key.",
+      "The name is filled in from the address, and you can pick a branch. It keeps going if you open another page.",
+      "Clear messages when the address is wrong, the repository needs a sign-in, or the internet is down; a failed clone leaves nothing behind.",
+    ],
+  },
+  {
     version: "0.4.3",
     title: "Tray menu, Ctrl+K and alerts",
     changes: [

@@ -5,6 +5,7 @@ import {
   Code2,
   ExternalLink,
   FolderInput,
+  GitBranch,
   FolderOpen,
   FolderPlus,
   RotateCcw,
@@ -35,6 +36,7 @@ import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
 import { NewProjectWizard } from "./NewProjectWizard";
 import { ImportPanel } from "./ImportPanel";
+import { ClonePanel } from "./ClonePanel";
 import { MoreMenu } from "../components/MoreMenu";
 import { ProjectDetails } from "./ProjectDetails";
 
@@ -66,6 +68,7 @@ export function Projects({
   const [opened, setOpened] = useState<string | null>(null);
   const [showBin, setShowBin] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [cloning, setCloning] = useState(false);
   const [query, setQuery] = useState("");
   useEffect(() => {
     if (!openRequest) return;
@@ -155,6 +158,20 @@ export function Projects({
             <FolderInput size={14} aria-hidden="true" /> Import
           </button>
           <button
+            className="btn"
+            aria-pressed={cloning}
+            title="Clone a Git repository as a new project and set it up"
+            onClick={() => {
+              setCloning((v) => !v);
+              setImporting(false);
+              setOpened(null);
+              setShowBin(false);
+              setCreating(false);
+            }}
+          >
+            <GitBranch size={14} aria-hidden="true" /> Clone
+          </button>
+          <button
             className="btn btn-primary"
             onClick={() => {
               setCreating((v) => !v);
@@ -230,6 +247,18 @@ export function Projects({
           />
         )}
 
+        {cloning && !opened && !showBin && (
+          <ClonePanel
+            existing={projects.map((p) => p.name)}
+            onBack={() => setCloning(false)}
+            onDone={refresh}
+            onOpen={(name) => {
+              setCloning(false);
+              setOpened(name);
+            }}
+          />
+        )}
+
         {importing && !opened && !showBin && (
           <ImportPanel existing={projects.map((p) => p.name)} onBack={() => setImporting(false)} onDone={refresh} />
         )}
@@ -254,7 +283,7 @@ export function Projects({
           />
         )}
 
-        {!opened && !showBin && !importing && creating && (
+        {!opened && !showBin && !importing && !cloning && creating && (
           <NewProjectWizard
             existing={projects.map((p) => p.name)}
             editors={editors}
@@ -264,7 +293,7 @@ export function Projects({
           />
         )}
 
-        {!showBin && !opened && !importing && info && info.web_server && missing.size > 0 && (
+        {!showBin && !opened && !importing && !cloning && info && info.web_server && missing.size > 0 && (
           <div className="addr-banner">
             <ShieldCheck size={18} aria-hidden="true" />
             <p>
@@ -280,17 +309,18 @@ export function Projects({
           </div>
         )}
 
-        {!opened && !showBin && !importing && info && projects.length === 0 && !creating && (
+        {!opened && !showBin && !importing && !cloning && info && projects.length === 0 && !creating && (
           <div className="empty empty-nex">
             <Nex state="idle" size={120} />
             <p className="lede">
-              No projects yet. Click <strong>New project</strong> for a ready-to-run Laravel, WordPress or React app, or
-              run <code>git clone</code> in the terminal. Every folder in <code>{info.www_dir}</code> becomes a project.
+              No projects yet. Click <strong>New project</strong> for a ready-to-run Laravel, WordPress or React app,
+              <strong>Clone</strong> to bring one from GitHub, or <strong>Import</strong> to copy them from Laragon or
+              XAMPP. Every folder in <code>{info.www_dir}</code> becomes a project.
             </p>
           </div>
         )}
 
-        {!opened && !showBin && !importing && projects.length > 5 && (
+        {!opened && !showBin && !importing && !cloning && projects.length > 5 && (
           <div className="project-search">
             <Search size={14} aria-hidden="true" />
             <input
@@ -304,7 +334,7 @@ export function Projects({
           </div>
         )}
 
-        {!opened && !showBin && !importing && projects.length > 0 && shown.length === 0 && (
+        {!opened && !showBin && !importing && !cloning && projects.length > 0 && shown.length === 0 && (
           <p className="field-hint">
             No project matches "{query}".{" "}
             <button className="btn btn-small btn-quiet" onClick={() => setQuery("")}>
@@ -313,7 +343,7 @@ export function Projects({
           </p>
         )}
 
-        {!opened && !showBin && !importing && shown.length > 0 && (
+        {!opened && !showBin && !importing && !cloning && shown.length > 0 && (
           <ul className="project-list" aria-label="Projects">
             {shown.map((p) => {
               const ready = p.host !== null && !missing.has(p.host);

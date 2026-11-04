@@ -46,6 +46,7 @@ Rules every release follows:
 | 0.4.1 | Background tasks with a sidebar Tasks list; PHP extensions, limits and your own php.ini lines per version; PostgreSQL on the Database page; fix for a damaged PostgreSQL data folder |
 | 0.4.2 | Redesign: one main action per row and page with the rest behind ⋯, simpler Dashboard rows and log, project rows and page header with two buttons |
 | 0.4.3 | Tray menu with each service and project; Ctrl+K command palette; Windows notifications when a service stops by itself or an automatic backup fails |
+| 0.4.4 | Clone from Git: paste an address, NexDB clones it with live progress and sets it up (packages, .env, app key) in one go |
 
 ## Next
 

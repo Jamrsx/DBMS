@@ -212,6 +212,80 @@ pub fn composer_php_mismatch(line: &str) -> Option<(String, String)> {
     Some((needs.trim().to_string(), ran.trim().to_string()))
 }
 
+/// The percentage in git's "Receiving objects:  45% (450/1000)".
+pub fn git_percent(line: &str) -> Option<u8> {
+    let rest = line.trim().strip_prefix("Receiving objects:")?;
+    rest.trim().split('%').next()?.trim().parse().ok()
+}
+
+/// A Git address NexDB can clone: https, ssh or git@host:path, with no spaces and nothing that
+/// git or cmd could read as an option or a command.
+pub fn clean_repo_url(url: &str) -> Result<String, String> {
+    let u = url.trim();
+    let ok_scheme = u.starts_with("https://") || u.starts_with("http://") || u.starts_with("ssh://") || u.starts_with("git@");
+    if !ok_scheme || u.contains(char::is_whitespace) || u.contains(['"', '`', '&', '|', '<', '>', '^', '%']) {
+        return Err("Paste the repository's address, like https://github.com/you/app.git or git@github.com:you/app.git.".into());
+    }
+    Ok(u.to_string())
+}
+
+/// Clones a repository into the projects folder as `name`, with git's progress as `quickstart`
+/// events under that name. A half-done clone is removed again.
+pub fn clone_repo(emit: Emit, root: &Path, settings: &Settings, url: &str, name: &str, branch: Option<&str>) -> Result<(), String> {
+    let url = clean_repo_url(url)?;
+    if crate::projects::host_label(name).is_none() {
+        return Err("Use lowercase letters, numbers and hyphens only, for example my-shop.".into());
+    }
+    let www = PathBuf::from(&settings.www_dir);
+    let dir = www.join(name);
+    if dir.exists() {
+        return Err(format!("A project named \"{name}\" already exists. Pick another name."));
+    }
+    let branch = branch.map(str::trim).filter(|b| !b.is_empty());
+    if let Some(b) = branch {
+        if b.starts_with('-') || !b.chars().all(|c| c.is_ascii_alphanumeric() || "-_./".contains(c)) {
+            return Err(format!("\"{b}\" can't be a branch name."));
+        }
+    }
+    emit(Event::Plan { name: name.into(), steps: vec![format!("Download {url}")] });
+    let r = Run {
+        emit,
+        name,
+        root,
+        settings,
+        locked: std::cell::Cell::new(false),
+        current: std::cell::Cell::new(0),
+        ops: std::cell::Cell::new((0, 0)),
+    };
+    r.step(0, "running");
+    let command = match branch {
+        // No quotes: cmd would pass them on to git. The address and name have no spaces.
+        Some(b) => format!("git clone --progress --branch {b} -- {url} {name}"),
+        None => format!("git clone --progress -- {url} {name}"),
+    };
+    if let Err(e) = r.exec(&www, &command) {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(clone_problem(&e));
+    }
+    r.step(0, "done");
+    Ok(())
+}
+
+/// Why a clone failed, in plain words.
+fn clone_problem(err: &str) -> String {
+    if err.contains("Repository not found") || err.contains("not found") {
+        "Git couldn't find that repository. Check the address; for a private one, sign in when Git asks.".into()
+    } else if err.contains("Authentication failed") || err.contains("Permission denied") {
+        "The repository refused the sign-in. Sign in when Git asks, or use an address you have access to.".into()
+    } else if err.contains("Could not resolve host") || err.contains("unable to access") {
+        "Git couldn't reach the server. Check your internet connection and the address.".into()
+    } else if err.contains("Remote branch") {
+        "That branch doesn't exist in the repository. Leave Branch empty to use its main one.".into()
+    } else {
+        err.to_string()
+    }
+}
+
 pub type Emit<'a> = &'a (dyn Fn(Event) + Sync);
 
 struct Run<'a> {
@@ -239,8 +313,13 @@ impl Run<'_> {
         (self.emit)(Event::Percent { name: self.name.into(), index: self.current.get(), percent: percent.min(100) });
     }
 
-    /// Composer prints "Package operations: 110 installs, ..." then one "- Installing" per package.
+    /// Composer prints "Package operations: 110 installs, ..." then one "- Installing" per package;
+    /// git prints "Receiving objects:  45% (450/1000)".
     fn track(&self, line: &str) {
+        if let Some(p) = git_percent(line) {
+            self.percent(p.min(99));
+            return;
+        }
         let (total, done) = self.ops.get();
         if let Some(rest) = line.split("Package operations:").nth(1) {
             let n = rest.split_whitespace().next().and_then(|n| n.parse().ok()).unwrap_or(0);
@@ -312,11 +391,25 @@ impl Run<'_> {
             .map_err(|e| format!("Couldn't run {command}: {e}"))?;
         let stderr = child.stderr.take().map(BufReader::new);
         let (tx, rx) = std::sync::mpsc::channel::<String>();
-        let err_thread = stderr.map(|r| {
+        let err_thread = stderr.map(|mut r| {
             let tx = tx.clone();
             std::thread::spawn(move || {
-                for line in r.split(b'\n').map_while(Result::ok) {
-                    let _ = tx.send(String::from_utf8_lossy(&line).into_owned());
+                // Git redraws its progress with \r on one line; each redraw counts as a line, so
+                // its percentage moves while it downloads.
+                let mut buf = Vec::new();
+                let mut byte = [0u8; 1];
+                while let Ok(1) = std::io::Read::read(&mut r, &mut byte) {
+                    if byte[0] == b'\n' || byte[0] == b'\r' {
+                        if !buf.is_empty() {
+                            let _ = tx.send(String::from_utf8_lossy(&buf).into_owned());
+                            buf.clear();
+                        }
+                    } else {
+                        buf.push(byte[0]);
+                    }
+                }
+                if !buf.is_empty() {
+                    let _ = tx.send(String::from_utf8_lossy(&buf).into_owned());
                 }
             })
         });
@@ -812,6 +905,42 @@ fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_repository_addresses() {
+        assert!(clean_repo_url("https://github.com/me/app.git").is_ok());
+        assert!(clean_repo_url("--upload-pack=calc").is_err());
+        assert!(clean_repo_url("https://x.com/a b").is_err());
+        assert!(clean_repo_url("https://x.com/a&calc").is_err());
+        assert_eq!(git_percent("Receiving objects:  45% (450/1000)"), Some(45));
+        assert_eq!(git_percent("Cloning into 'app'..."), None);
+    }
+
+    /// Clones a small public repository into a temp projects folder with NexDB's Git.
+    /// `cargo test real_clone_repo -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_clone_repo() {
+        let root = PathBuf::from(r"C:\NexDB");
+        let mut settings = crate::settings::load(&root).expect("NexDB must be installed in C:/NexDB");
+        let www = tempfile::tempdir().unwrap();
+        settings.www_dir = www.path().display().to_string();
+        let percents = std::sync::Mutex::new(Vec::new());
+        let emit = |e: Event| {
+            if let Event::Percent { percent, .. } = e {
+                percents.lock().unwrap().push(percent);
+            }
+        };
+        clone_repo(&emit, &root, &settings, "https://github.com/octocat/Hello-World.git", "hello-world", None).unwrap();
+        assert!(www.path().join("hello-world").join("README").is_file());
+        assert!(www.path().join("hello-world").join(".git").is_dir());
+        println!("percent updates: {:?}", percents.lock().unwrap());
+        let again = clone_repo(&emit, &root, &settings, "https://github.com/octocat/Hello-World.git", "hello-world", None);
+        assert!(again.unwrap_err().contains("already exists"));
+        let missing = clone_repo(&emit, &root, &settings, "https://github.com/octocat/no-such-repo-nexdb-test.git", "nope", None);
+        println!("{}", missing.as_ref().unwrap_err());
+        assert!(missing.is_err() && !www.path().join("nope").exists(), "a failed clone leaves nothing behind");
+    }
 
     #[test]
     fn reads_composer_php_version_mismatch() {

@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "devmanager"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "futures-util",
  "getrandom 0.4.3",

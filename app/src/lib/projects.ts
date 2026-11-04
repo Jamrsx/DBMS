@@ -375,3 +375,31 @@ export async function restoreProject(path: string): Promise<string> {
 export function previewEmit(e: QuickstartEvent) {
   for (const l of preview.listeners) l(e);
 }
+
+/** A project name from a repository address: "https://github.com/me/My_App.git" -> "my-app". */
+export function nameFromRepo(url: string): string {
+  const last = url.trim().replace(/\/+$/, "").split(/[/:]/).pop() ?? "";
+  const name = last
+    .replace(/\.git$/i, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return name || "project";
+}
+
+/** Clones a repository as a new project; progress through `onQuickstart` under its name.
+ * Resolves to what it still needs to be set up. */
+export async function cloneProject(url: string, name: string, branch: string | null): Promise<SetupTask[]> {
+  if (inDesktopApp) return invoke<SetupTask[]>("project_clone", { url, name, branch });
+  previewEmit({ kind: "plan", name, steps: [`Download ${url}`] });
+  previewEmit({ kind: "step", name, index: 0, status: "running" });
+  for (let p = 10; p < 100; p += 15) {
+    previewEmit({ kind: "percent", name, index: 0, percent: p });
+    await pause(250);
+  }
+  previewEmit({ kind: "step", name, index: 0, status: "done" });
+  return [
+    { folder: "", kind: "composer", label: "Install its PHP packages (composer install)" },
+    { folder: "", kind: "env", label: "Create .env from .env.example, with its own database user" },
+  ];
+}

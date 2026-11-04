@@ -6233,3 +6233,22 @@ details.ver-php-settings > summary {
 .nav-search kbd {
   margin-left: auto;
 }
+
+/* Clone from Git: the address, then name and branch side by side. */
+.clone-form {
+  display: grid;
+  gap: 16px;
+  max-width: 640px;
+}
+
+.clone-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+@container (max-width: 560px) {
+  .clone-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
