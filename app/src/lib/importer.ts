@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 import { previewEmit } from "./projects";
 
@@ -37,8 +37,6 @@ export interface ImportPlan {
   projects: { path: string; name: string }[];
   databases: { server: ImportServer; password: string | null; name: string }[];
 }
-
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Browser preview: a Laragon install like a typical one, whose MySQL shares NexDB's port.
 const previewSources: ImportSource[] = [

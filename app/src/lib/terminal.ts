@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 export const openTerminal = (cols: number, rows: number, project?: string) =>

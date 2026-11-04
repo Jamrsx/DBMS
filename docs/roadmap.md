@@ -42,6 +42,7 @@ Rules every release follows:
 | 0.3.7 | Grouped Dashboard; project page tabs; dev servers on IPv6 localhost; public links for dev servers |
 | 0.3.8 | Set up cloned projects: composer and npm install, .env with a database user, app key |
 | 0.3.9 | Whole app on one link (front end + Laravel API); Laravel tab with artisan buttons, queue worker, scheduler and readable log; import from Laragon, XAMPP, WAMP and other database servers |
+| 0.4.0 | Check my setup page with fixes and a support report; clearer Share tab; spinners and progress beside every button; setup and Composer use the project's PHP |
 
 ## Next
 
@@ -255,6 +256,12 @@ Mail catcher (with 0.3.2's services):
   disk space, broken configs, projects that still need setting up. Each problem gets a plain
   fix button.
 - Export a support report (configs and logs, passwords removed) as one `.zip`.
+- Shipped as "Check my setup" (sidebar): Services (missing parts, busy ports, failed starts), Sites
+  (config test, hosts entries, HTTPS trust), Sharing (network type, firewall), Projects (not set
+  up, no site folder) and This PC (disk space, another PHP first on PATH), each with its fix.
+- Also: the Share tab as one block per way of sharing with a Shared badge; every button that
+  starts work shows a spinner, and progress shows beside it (Share, Versions, project page);
+  project setup, Composer and artisan run on the project's own PHP version.
 
 ### 0.4.1: PostgreSQL on the Database page
 

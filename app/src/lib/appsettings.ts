@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 export interface AppSettings {
@@ -34,7 +34,7 @@ export async function getAppSettings(): Promise<AppSettings> {
 /** Saves new ports; running services are restarted on them. Rejects with a readable reason. */
 export async function savePorts(apache: number | null, php: number, mysql: number | null): Promise<void> {
   if (inDesktopApp) return invoke("save_ports", { apache, php, mysql });
-  await new Promise((r) => setTimeout(r, 600));
+  await pause(600);
   if (apache !== null && apache === mysql)
     throw "Web server and MySQL can't share the same port. Give each its own port.";
   Object.assign(preview, { apache_port: apache, php_port: php, mysql_port: mysql });
@@ -43,7 +43,7 @@ export async function savePorts(apache: number | null, php: number, mysql: numbe
 /** Makes Apache or nginx serve the sites; the running web server restarts as the new one. */
 export async function switchWebServer(server: string): Promise<void> {
   if (inDesktopApp) return invoke("web_server_use", { server });
-  await new Promise((r) => setTimeout(r, 800));
+  await pause(800);
   preview.web_server = server as "apache" | "nginx";
 }
 
@@ -67,7 +67,7 @@ let pending: Update = null;
 /** Asks the update server whether a newer NexDB exists. */
 export async function checkForUpdate(): Promise<UpdateState> {
   if (!inDesktopApp) {
-    await new Promise((r) => setTimeout(r, 700));
+    await pause(700);
     return { kind: "available", version: "0.2.0", notes: "Versions page, readable logs and Settings.", date: null };
   }
   try {
@@ -85,7 +85,7 @@ export async function installUpdate(onProgress: (percent: number | null) => void
   if (!inDesktopApp) {
     for (let p = 10; p <= 100; p += 30) {
       onProgress(p);
-      await new Promise((r) => setTimeout(r, 300));
+      await pause(300);
     }
     return { kind: "ready" };
   }

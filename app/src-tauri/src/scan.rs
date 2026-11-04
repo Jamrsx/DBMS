@@ -536,7 +536,7 @@ pub(crate) fn vc_runtime_version() -> Option<String> {
     None
 }
 
-fn disk_space(path: &Path) -> Option<DiskSpace> {
+pub(crate) fn disk_space(path: &Path) -> Option<DiskSpace> {
     let disks = sysinfo::Disks::new_with_refreshed_list().ok()?;
     let path_lower = path.display().to_string().to_ascii_lowercase();
     disks

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { inDesktopApp } from "./scan";
 
@@ -12,6 +12,12 @@ export interface Project {
   local_url: string;
   /** Uses of code newer PHP warns about ("Deprecated: …"), which NexDB can fix. */
   php_warnings: number;
+  /** A cloned project that still needs packages, a .env or its app key. */
+  needs_setup: boolean;
+  /** Shared on the network (site, dev server or whole app). */
+  shared: boolean;
+  /** Its own PHP version, when not NexDB's default. */
+  php: string | null;
 }
 
 export interface ProjectsInfo {
@@ -84,7 +90,7 @@ export async function openInEditor(name: string, editor: string): Promise<void> 
 /** Updates code newer PHP warns about; resolves to how many lines changed. */
 export async function fixPhpWarnings(name: string): Promise<number> {
   if (inDesktopApp) return invoke<number>("project_fix_php", { name });
-  await new Promise((r) => setTimeout(r, 400));
+  await pause(400);
   return 2;
 }
 
@@ -145,6 +151,9 @@ const preview = (() => {
       url: `http://${name}.test/`,
       local_url: `http://localhost/${name}/`,
       php_warnings: name === "my-shop" ? 2 : 0,
+      needs_setup: name === "blog",
+      shared: false,
+      php: name === "my-shop" ? "8.4.27" : null,
     };
   }
   const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node")];
@@ -244,7 +253,7 @@ export async function setupProject(name: string): Promise<string[]> {
   for (const l of preview.listeners) l({ kind: "plan", name, steps });
   for (let i = 0; i < steps.length; i++) {
     for (const l of preview.listeners) l({ kind: "step", name, index: i, status: "running" });
-    await new Promise((r) => setTimeout(r, 500));
+    await pause(500);
     for (const l of preview.listeners) l({ kind: "step", name, index: i, status: "done" });
   }
   previewSetupDone.add(name);
@@ -288,7 +297,7 @@ export interface SiteChoice {
 /** Picks which folder of the project is its website; null goes back to the project folder. */
 export async function setProjectSite(name: string, folder: string | null): Promise<void> {
   if (inDesktopApp) return invoke("project_set_site", { name, folder });
-  await new Promise((r) => setTimeout(r, 500));
+  await pause(500);
   previewSites[name] = folder;
 }
 
@@ -296,7 +305,7 @@ const previewSites: Record<string, string | null> = {};
 
 export async function projectDetails(name: string): Promise<ProjectDetails> {
   if (inDesktopApp) return invoke<ProjectDetails>("project_details", { name });
-  await new Promise((r) => setTimeout(r, 200));
+  await pause(200);
   return {
     name,
     path: `C:\\NexDB\\www\\${name}`,
@@ -324,19 +333,19 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
 /** Picks the PHP version a project runs on; null goes back to the default. Services restart. */
 export async function setProjectPhp(name: string, version: string | null): Promise<void> {
   if (inDesktopApp) return invoke("project_set_php", { name, version });
-  await new Promise((r) => setTimeout(r, 600));
+  await pause(600);
 }
 
 export async function renameProject(name: string, newName: string): Promise<void> {
   if (inDesktopApp) return invoke("project_rename", { name, newName });
-  await new Promise((r) => setTimeout(r, 400));
+  await pause(400);
 }
 
 /** Moves the project to the Recycle Bin; optionally deletes its database and user too.
  *  Resolves to a warning when the project went but its database couldn't be deleted. */
 export async function deleteProject(name: string, dropDatabase: boolean): Promise<string | null> {
   if (inDesktopApp) return invoke<string | null>("project_delete", { name, dropDatabase });
-  await new Promise((r) => setTimeout(r, 400));
+  await pause(400);
   preview.recycle(name);
   return null;
 }
@@ -358,7 +367,7 @@ export async function listDeleted(): Promise<DeletedProject[]> {
 /** Brings a project back from the Recycle Bin; resolves to its name. */
 export async function restoreProject(path: string): Promise<string> {
   if (inDesktopApp) return invoke<string>("project_restore", { path });
-  await new Promise((r) => setTimeout(r, 400));
+  await pause(400);
   return preview.restore(path);
 }
 

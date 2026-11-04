@@ -25,6 +25,15 @@ pub struct Project {
     /// Uses of code newer PHP warns about ("Deprecated: …"), which NexDB can fix.
     #[serde(default)]
     pub php_warnings: usize,
+    /// A cloned project that still needs packages, a .env or its app key.
+    #[serde(default)]
+    pub needs_setup: bool,
+    /// Shared on the network in some way (site, dev server or whole app).
+    #[serde(default)]
+    pub shared: bool,
+    /// Its own PHP version, when it doesn't use NexDB's default.
+    #[serde(default)]
+    pub php: Option<String>,
 }
 
 /// Lower-case letters, digits and hyphens, not starting or ending with a hyphen.
@@ -92,6 +101,9 @@ pub fn list_with(www: &Path, port: u16, roots: &SiteRoots) -> Vec<Project> {
                 doc_root: doc_root.display().to_string(),
                 host,
                 php_warnings: 0,
+                needs_setup: false,
+                shared: false,
+                php: None,
             })
         })
         .collect();

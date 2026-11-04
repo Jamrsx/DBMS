@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Download, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
 import { Nex, type NexState } from "../components/Nex";
@@ -242,8 +242,8 @@ function HttpsCard({ active }: { active: boolean }) {
         )}
 
         {busy && (
-          <p className="field-hint" role="status">
-            {busy}
+          <p className="row-status" role="status">
+            <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> {busy}
             {busy.startsWith("Waiting") && " Windows asks you to confirm."}
           </p>
         )}

@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 export interface DatabaseInfo {
@@ -66,7 +66,8 @@ export const dbUpdateCell = (name: string, table: string, key: RowKey, column: s
   call<void>("db_update_cell", { name, table, key, column, value });
 export const dbInsertRow = (name: string, table: string, values: [string, Cell][]) =>
   call<void>("db_insert_row", { name, table, values });
-export const dbDeleteRow = (name: string, table: string, key: RowKey) => call<void>("db_delete_row", { name, table, key });
+export const dbDeleteRow = (name: string, table: string, key: RowKey) =>
+  call<void>("db_delete_row", { name, table, key });
 
 export interface DbUser {
   name: string;
@@ -82,13 +83,15 @@ export interface DbUser {
 export const dbUsers = () => call<DbUser[]>("db_users");
 export const dbCreateUser = (user: string, password: string, database: string | null) =>
   call<void>("db_create_user", { user, password, database });
-export const dbSetUserPassword = (user: string, password: string) => call<void>("db_set_user_password", { user, password });
+export const dbSetUserPassword = (user: string, password: string) =>
+  call<void>("db_set_user_password", { user, password });
 export const dbGrant = (user: string, database: string) => call<void>("db_grant", { user, database });
 export const dbRevoke = (user: string, database: string) => call<void>("db_revoke", { user, database });
 export const dbDropUser = (user: string) => call<void>("db_drop_user", { user });
 
 /** Saves a whole table as CSV through the Save dialog; null when cancelled, else the row count. */
-export const dbExportTableCsv = (name: string, table: string) => call<number | null>("db_export_table_csv", { name, table });
+export const dbExportTableCsv = (name: string, table: string) =>
+  call<number | null>("db_export_table_csv", { name, table });
 /** Saves rows already on screen as CSV; null when cancelled. */
 export const dbSaveCsv = (fileName: string, columns: string[], rows: Cell[][]) =>
   call<number | null>("db_save_csv", { fileName, columns, rows });
@@ -139,7 +142,7 @@ const sim = {
 };
 
 async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown> {
-  await new Promise((r) => setTimeout(r, 150));
+  await pause(150);
   switch (cmd) {
     case "db_connect":
       return { version: "9.7.4" };
@@ -165,7 +168,11 @@ async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown
     case "db_query": {
       const sql = String(a.sql);
       if (/^\s*select/i.test(sql))
-        return { sets: [{ columns: ["id", "name", "born"], rows: sim.people, truncated: false }], affected: 0, elapsed_ms: 2 };
+        return {
+          sets: [{ columns: ["id", "name", "born"], rows: sim.people, truncated: false }],
+          affected: 0,
+          elapsed_ms: 2,
+        };
       if (/selekt/i.test(sql)) throw "You have an error in your SQL syntax near 'selekt'";
       return { sets: [], affected: 1, elapsed_ms: 3 };
     }
@@ -180,7 +187,8 @@ async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown
     case "db_update_cell": {
       const key = a.key as RowKey;
       const row = sim.people.find((r) => r[0] === key[0][1]);
-      if (!row) throw "Nothing changed: the row may have been changed or deleted elsewhere. Reload the table and try again.";
+      if (!row)
+        throw "Nothing changed: the row may have been changed or deleted elsewhere. Reload the table and try again.";
       row[["id", "name", "born"].indexOf(String(a.column))] = a.value as Cell;
       return null;
     }
@@ -199,7 +207,13 @@ async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown
       return sim.users.map((u) => ({ ...u, databases: [...u.databases] }));
     case "db_create_user":
       if (sim.users.some((u) => u.name === a.user)) throw `A user named ${a.user} already exists.`;
-      sim.users.push({ name: String(a.user), hosts: ["127.0.0.1", "localhost"], databases: a.database ? [String(a.database)] : [], everything: false, protected: false });
+      sim.users.push({
+        name: String(a.user),
+        hosts: ["127.0.0.1", "localhost"],
+        databases: a.database ? [String(a.database)] : [],
+        everything: false,
+        protected: false,
+      });
       return null;
     case "db_set_user_password":
       return null;

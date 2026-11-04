@@ -8,6 +8,7 @@ import {
   PanelLeftOpen,
   Settings,
   SquareTerminal,
+  Stethoscope,
 } from "lucide-react";
 import { BrandMark } from "./components/BrandMark";
 import { ThemeToggle } from "./components/ThemeToggle";
@@ -21,8 +22,9 @@ import { Projects } from "./projects/Projects";
 import { TerminalPage } from "./terminal/TerminalPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { VersionsPage } from "./versions/VersionsPage";
+import { HealthPage } from "./health/HealthPage";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "settings";
+type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings";
 
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -45,6 +47,8 @@ function savedCollapsed(): boolean {
 /** The rail plus the open page. Pages stay mounted so the terminal keeps its session. */
 export function Shell() {
   const [page, setPage] = useState<Page>("dashboard");
+  // A project to open on the Projects page (from Check my setup); n makes each request new.
+  const [openProject, setOpenProject] = useState<{ name: string; n: number } | null>(null);
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const updates = useUpdates();
   const updateReady = updates.state.kind === "available";
@@ -100,6 +104,16 @@ export function Shell() {
           <span className="nav-section">App</span>
           <button
             type="button"
+            className={page === "health" ? "nav-item current" : "nav-item"}
+            aria-current={page === "health" ? "page" : undefined}
+            title={collapsed ? "Check my setup" : undefined}
+            onClick={() => setPage("health")}
+          >
+            <Stethoscope size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="nav-label">Check my setup</span>
+          </button>
+          <button
+            type="button"
             className={page === "settings" ? "nav-item current" : "nav-item"}
             aria-current={page === "settings" ? "page" : undefined}
             title={collapsed ? "Settings" : undefined}
@@ -125,7 +139,17 @@ export function Shell() {
         <Dashboard onOpenVersions={() => setPage("versions")} />
       </div>
       <div className="page" hidden={page !== "projects"}>
-        <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} />
+        <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />
+      </div>
+      <div className="page" hidden={page !== "health"}>
+        <HealthPage
+          active={page === "health"}
+          onNavigate={setPage}
+          onOpenProject={(name) => {
+            setOpenProject((r) => ({ name, n: (r?.n ?? 0) + 1 }));
+            setPage("projects");
+          }}
+        />
       </div>
       <div className="page" hidden={page !== "database"}>
         <DatabasePage active={page === "database"} />

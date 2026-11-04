@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Code2, ExternalLink, FolderOpen, GitBranch, SquareTerminal, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Code2,
+  ExternalLink,
+  FolderOpen,
+  GitBranch,
+  LoaderCircle,
+  SquareTerminal,
+  Trash2,
+} from "lucide-react";
 import {
   deleteProject,
   nameProblem,
@@ -58,8 +67,17 @@ export function ProjectDetails({
 
   useEffect(load, [load]);
 
-  async function act(label: string, work: () => Promise<unknown>, done?: string) {
+  // Which section the last action belongs to, so its progress and result show beside its button.
+  const [where, setWhere] = useState<"top" | "site" | "php" | "rename" | "delete">("top");
+
+  async function act(
+    label: string,
+    work: () => Promise<unknown>,
+    done?: string,
+    section: "top" | "site" | "php" | "rename" | "delete" = "top",
+  ) {
     if (busy) return; // one change at a time; a second click must not repeat it
+    setWhere(section);
     setBusy(label);
     setError(null);
     setSaved(null);
@@ -75,7 +93,32 @@ export function ProjectDetails({
 
   const renameProblem = newName === name ? null : nameProblem(newName, existing);
   const site = addressReady ? `${name}.test` : `localhost/${name}`;
-  const run = (p: Promise<unknown>) => p.catch((e) => setError(String(e)));
+  const run = (p: Promise<unknown>) => {
+    setWhere("top");
+    return p.catch((e) => setError(String(e)));
+  };
+
+  // Progress, result or error of the last action, shown in its own section.
+  const feedback = (section: typeof where) =>
+    where === section && (
+      <>
+        {busy && (
+          <span className="row-status" role="status">
+            <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> {busy}
+          </span>
+        )}
+        {saved && (
+          <p className="set-ok" role="status">
+            {saved}
+          </p>
+        )}
+        {error && (
+          <p className="field-error" role="alert">
+            {error}
+          </p>
+        )}
+      </>
+    );
 
   return (
     <section className="details" aria-labelledby="details-title">
@@ -128,21 +171,7 @@ export function ProjectDetails({
           ))}
       </div>
 
-      {error && (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      )}
-      {saved && (
-        <p className="set-ok" role="status">
-          {saved}
-        </p>
-      )}
-      {busy && (
-        <p className="field-hint" role="status">
-          {busy}
-        </p>
-      )}
+      {feedback("top")}
 
       {tab === "overview" && (
         <>
@@ -220,12 +249,14 @@ export function ProjectDetails({
                         load();
                       },
                       siteFolder ? `${name} now opens ${siteFolder}.` : `${name} opens its project folder again.`,
+                      "site",
                     )
                   }
                 >
                   Use this folder
                 </button>
               </div>
+              {feedback("site")}
               {info.site.dev_apps.length > 0 && (
                 <p className="field-hint">
                   {info.site.dev_apps.map((d) => `${d.path || name} is a ${d.label} app`).join(", ")}: it runs on its
@@ -268,12 +299,14 @@ export function ProjectDetails({
                         load();
                       },
                       `${name} now runs on PHP ${php || info.php.default}.`,
+                      "php",
                     )
                   }
                 >
                   Use this version
                 </button>
               </div>
+              {feedback("php")}
               {info.php.installed.length < 2 && (
                 <p className="field-hint">
                   Only one PHP version is installed. Add another on the Versions page to choose here.
@@ -303,10 +336,15 @@ export function ProjectDetails({
               onSubmit={(e) => {
                 e.preventDefault();
                 if (newName === name || renameProblem) return;
-                void act("Renaming…", async () => {
-                  await renameProject(name, newName);
-                  await onChanged(newName, `Renamed to ${newName}. Its address is now ${newName}.test.`);
-                });
+                void act(
+                  "Renaming…",
+                  async () => {
+                    await renameProject(name, newName);
+                    await onChanged(newName, `Renamed to ${newName}. Its address is now ${newName}.test.`);
+                  },
+                  undefined,
+                  "rename",
+                );
               }}
             >
               <input
@@ -324,6 +362,7 @@ export function ProjectDetails({
               {renameProblem ??
                 `Renames the folder and its address to ${newName}.test. Close its terminal, editor and dev server first.`}
             </p>
+            {feedback("rename")}
           </div>
 
           <div className="details-section danger-zone">
@@ -340,13 +379,18 @@ export function ProjectDetails({
                 className="confirm-delete"
                 onSubmit={(e) => {
                   e.preventDefault();
-                  void act(`Deleting ${name}…`, async () => {
-                    const warning = await deleteProject(name, dropDb);
-                    await onChanged(
-                      null,
-                      `${name} is in the Recycle Bin; restore it from Recycle Bin above.${warning ? " " + warning : ""}`,
-                    );
-                  });
+                  void act(
+                    `Deleting ${name}…`,
+                    async () => {
+                      const warning = await deleteProject(name, dropDb);
+                      await onChanged(
+                        null,
+                        `${name} is in the Recycle Bin; restore it from Recycle Bin above.${warning ? " " + warning : ""}`,
+                      );
+                    },
+                    undefined,
+                    "delete",
+                  );
                 }}
               >
                 <label className="field">
@@ -378,6 +422,7 @@ export function ProjectDetails({
                 </button>
               </form>
             )}
+            {feedback("delete")}
           </div>
         </>
       )}

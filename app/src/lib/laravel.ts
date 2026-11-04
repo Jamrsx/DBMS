@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 /** The Laravel buttons. */
@@ -35,8 +35,6 @@ export interface WorkerInfo {
   /** Its last output lines. */
   tail: string[];
 }
-
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // Browser preview: a Laravel app with a few log entries and workers that start and stop.
 const previewWorkers: Record<string, Record<WorkerKind, boolean>> = {};

@@ -29,6 +29,8 @@ import { dbExportSql } from "../lib/db";
 import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
 
+const TEMPLATES_KEY = "nexdb.sqlTemplates";
+
 type Tab = "browse" | "structure" | "sql" | "backups" | "users";
 
 export function Database({ active }: { active: boolean }) {
@@ -701,6 +703,14 @@ function SqlRunner({
 }) {
   const [sql, setSql] = useState(table ? `SELECT * FROM \`${table}\`\nLIMIT 100;` : "SHOW DATABASES;");
   // Once the user types, NexDB stops replacing the editor when another table is picked.
+  // The ready-made commands can be folded away; remembered between launches.
+  const [showTemplates, setShowTemplates] = useState(() => {
+    try {
+      return localStorage.getItem(TEMPLATES_KEY) !== "closed";
+    } catch {
+      return true;
+    }
+  });
   const [typed, setTyped] = useState(false);
   const [out, setOut] = useState<QueryOutput | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -776,30 +786,45 @@ function SqlRunner({
 
   return (
     <div className="sql">
-      <div className="sql-templates" aria-label="Ready-made SQL">
-        {groups.map((g) => (
-          <div key={g.label} className="sql-group">
-            <span className="sql-group-label">{g.label}</span>
-            {g.templates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className={`sql-chip${t.danger ? " danger" : ""}${picked?.id === t.id ? " current" : ""}`}
-                title={t.help}
-                onClick={() => applyTemplate(t)}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        ))}
-      </div>
+      <details
+        className="sql-templates-box"
+        open={showTemplates}
+        onToggle={(e) => {
+          const open = (e.currentTarget as HTMLDetailsElement).open;
+          setShowTemplates(open);
+          try {
+            localStorage.setItem(TEMPLATES_KEY, open ? "open" : "closed");
+          } catch {
+            // Still works; it just won't be remembered.
+          }
+        }}
+      >
+        <summary>Ready-made commands</summary>
+        <div className="sql-templates" aria-label="Ready-made SQL">
+          {groups.map((g) => (
+            <div key={g.label} className="sql-group">
+              <span className="sql-group-label">{g.label}</span>
+              {g.templates.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className={`sql-chip${t.danger ? " danger" : ""}${picked?.id === t.id ? " current" : ""}`}
+                  title={t.help}
+                  onClick={() => applyTemplate(t)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </details>
       <p className={picked?.danger ? "sql-help danger" : "sql-help"}>
         {picked
           ? picked.help
           : table
-            ? `Pick a ready-made command above; it's filled in with ${table} and its columns. Then edit it and press Run.`
-            : "Pick a ready-made command above, or type your own. Pick a table on the left and the commands use its columns."}
+            ? `Pick a ready-made command; it's filled in with ${table} and its columns. Then edit it and press Run.`
+            : "Pick a ready-made command, or type your own. Pick a table on the left and the commands use its columns."}
       </p>
       <div className="sql-editor-row">
         <div className="sql-editor">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Archive, FileUp, FolderOpen, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, FileUp, FolderOpen, LoaderCircle, RotateCcw, Trash2 } from "lucide-react";
 import {
   createBackup,
   deleteBackup,
@@ -108,14 +108,18 @@ export function Backups({
         <button className="btn" disabled={!!busy} onClick={chooseFile}>
           <FileUp size={14} aria-hidden="true" /> Import a .sql file…
         </button>
-        <button className="btn" onClick={() => openBackupsFolder().catch((e) => setMessage({ ok: false, text: String(e) }))}>
+        <button
+          className="btn"
+          onClick={() => openBackupsFolder().catch((e) => setMessage({ ok: false, text: String(e) }))}
+        >
           <FolderOpen size={14} aria-hidden="true" /> Open backups folder
         </button>
       </div>
 
       {busy && (
-        <p className="field-hint" role="status">
-          {busy} This can take a while for big databases.
+        <p className="row-status" role="status">
+          <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> {busy} This can take a while for big
+          databases.
         </p>
       )}
       {message && (
@@ -127,9 +131,7 @@ export function Backups({
       {pending && pending.kind !== "delete" && (
         <TargetForm
           title={
-            pending.kind === "restore"
-              ? `Restore ${pending.file.name}`
-              : `Import ${pending.path.split(/[\\/]/).pop()}`
+            pending.kind === "restore" ? `Restore ${pending.file.name}` : `Import ${pending.path.split(/[\\/]/).pop()}`
           }
           target={pending.target}
           exists={exists}
@@ -205,7 +207,13 @@ export function Backups({
                       <button
                         className="btn btn-small"
                         disabled={!!busy}
-                        onClick={() => setPending({ kind: "restore", file: f, target: f.database ?? selected ?? nameFromFile(f.name) })}
+                        onClick={() =>
+                          setPending({
+                            kind: "restore",
+                            file: f,
+                            target: f.database ?? selected ?? nameFromFile(f.name),
+                          })
+                        }
                       >
                         <RotateCcw size={13} aria-hidden="true" /> Restore…
                       </button>
@@ -261,7 +269,13 @@ function TargetForm({
       <strong className="backups-form-title">{title}</strong>
       <label className="field">
         <span className="field-label">Into database</span>
-        <input className="input" value={target} onChange={(e) => onTarget(e.target.value.trim())} spellCheck={false} autoFocus />
+        <input
+          className="input"
+          value={target}
+          onChange={(e) => onTarget(e.target.value.trim())}
+          spellCheck={false}
+          autoFocus
+        />
         <span className={problem ? "field-error" : into ? "field-warn" : "field-hint"}>
           {problem ??
             (into

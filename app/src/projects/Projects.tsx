@@ -8,6 +8,7 @@ import {
   FolderOpen,
   FolderPlus,
   RotateCcw,
+  Search,
   Settings2,
   ShieldCheck,
   SquareTerminal,
@@ -45,7 +46,16 @@ const KIND_LABEL: Record<Project["kind"], string> = {
   empty: "Empty",
 };
 
-export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTerminal: () => void }) {
+export function Projects({
+  active,
+  onOpenTerminal,
+  openRequest,
+}: {
+  active: boolean;
+  onOpenTerminal: () => void;
+  /** Opens this project's page, when another page asks (Check my setup). */
+  openRequest?: { name: string; n: number } | null;
+}) {
   const [info, setInfo] = useState<ProjectsInfo | null>(null);
   const [editors, setEditors] = useState<Editor[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +65,14 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   const [opened, setOpened] = useState<string | null>(null);
   const [showBin, setShowBin] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    if (!openRequest) return;
+    setOpened(openRequest.name);
+    setShowBin(false);
+    setImporting(false);
+    setCreating(false);
+  }, [openRequest]);
   const [deleted, setDeleted] = useState<DeletedProject[]>([]);
 
   const loadBin = useCallback(() => {
@@ -110,6 +128,8 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
   const act = (p: Promise<unknown>) => p.catch((e) => setError(String(e)));
   const missing = new Set(info?.missing_hosts ?? []);
   const projects = info?.projects ?? [];
+  const q = query.trim().toLowerCase();
+  const shown = q ? projects.filter((p) => p.name.toLowerCase().includes(q) || p.kind.includes(q)) : projects;
 
   return (
     <main className="panel">
@@ -238,7 +258,7 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           />
         )}
 
-        {!showBin && info && info.web_server && missing.size > 0 && (
+        {!showBin && !opened && !importing && info && info.web_server && missing.size > 0 && (
           <div className="addr-banner">
             <ShieldCheck size={18} aria-hidden="true" />
             <p>
@@ -264,15 +284,54 @@ export function Projects({ active, onOpenTerminal }: { active: boolean; onOpenTe
           </div>
         )}
 
-        {!opened && !showBin && !importing && projects.length > 0 && (
+        {!opened && !showBin && !importing && projects.length > 5 && (
+          <div className="project-search">
+            <Search size={14} aria-hidden="true" />
+            <input
+              className="input"
+              type="search"
+              placeholder={`Search ${projects.length} projects`}
+              aria-label="Search projects"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </div>
+        )}
+
+        {!opened && !showBin && !importing && projects.length > 0 && shown.length === 0 && (
+          <p className="field-hint">
+            No project matches "{query}".{" "}
+            <button className="btn btn-small btn-quiet" onClick={() => setQuery("")}>
+              Show all
+            </button>
+          </p>
+        )}
+
+        {!opened && !showBin && !importing && shown.length > 0 && (
           <ul className="project-list" aria-label="Projects">
-            {projects.map((p) => {
+            {shown.map((p) => {
               const ready = p.host !== null && !missing.has(p.host);
               return (
                 <li key={p.name} className="project">
                   <div className="project-main">
-                    <span className="project-name">{p.name}</span>
+                    <button
+                      className="project-name cell-link"
+                      title={`Open ${p.name}'s details`}
+                      onClick={() => {
+                        setOpened(p.name);
+                        setNotice(null);
+                      }}
+                    >
+                      {p.name}
+                    </button>
                     <span className="kind">{KIND_LABEL[p.kind]}</span>
+                    {p.needs_setup && (
+                      <span className="tag tag-warn" title="It still needs packages, a .env or its app key">
+                        Needs setup
+                      </span>
+                    )}
+                    {p.shared && <span className="tag tag-ok">Shared</span>}
+                    {p.php && <span className="tag">PHP {p.php}</span>}
                   </div>
                   <code className="project-addr">
                     {ready

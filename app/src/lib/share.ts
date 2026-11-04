@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 /** Sharing state for one project, from the Share panel's point of view. */
@@ -85,7 +85,6 @@ const base = (name: string): ShareInfo => ({
       ? { front: "web", front_label: "Vite", backend: "Backend", dev_port: 5173, built: "web/dist" }
       : null,
 });
-const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function shareInfo(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_info", { name });

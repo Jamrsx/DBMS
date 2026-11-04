@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
 import { inDesktopApp, type PortStatus } from "./scan";
 
 /** Ports busy in the browser preview's sample scan. */

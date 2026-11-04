@@ -7,6 +7,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.0",
+    title: "Check my setup",
+    changes: [
+      "New Check my setup page (in the sidebar): busy ports, broken settings, missing addresses, the firewall, your network type, disk space and projects that aren't set up yet, each with a button that fixes it.",
+      "Save a support report: one .zip with NexDB's settings, configs and the end of each log, with passwords removed.",
+      "Every button that starts something shows a spinner until it's done, and its progress shows right beside it.",
+      "The Share tab is clearer: one block per way of sharing, a Shared badge, and the other ways folded away when the whole app can share on one link.",
+      "Fits narrow windows: page buttons wrap, project rows show their full address, and the Database page no longer scrolls sideways.",
+      "Projects list: a search box once you have many, and tags for Needs setup, Shared and a project's own PHP version. Click a name to open it.",
+      "Database: fold away the ready-made SQL commands (remembered) so the editor sits higher. Versions: links at the top jump to each part.",
+      "Fixed: setting up a project now uses the PHP version chosen for it, so Composer no longer fails when the default PHP is newer.",
+    ],
+  },
+  {
     version: "0.3.9",
     title: "One link for the whole app, Laravel tools and import",
     changes: [

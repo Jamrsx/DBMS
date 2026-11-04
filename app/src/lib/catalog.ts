@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
 import { inDesktopApp } from "./scan";
 import previewChoices from "./preview-choices.json";
 

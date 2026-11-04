@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { listen } from "@tauri-apps/api/event";
 import { inDesktopApp } from "./scan";
 
@@ -61,7 +61,7 @@ export async function installVersion(
   if (!inDesktopApp) {
     for (let p = 20; p <= 100; p += 40) {
       onProgress(p);
-      await new Promise((r) => setTimeout(r, 300));
+      await pause(300);
     }
     preview.installed[id] = [...(preview.installed[id] ?? []), version];
     if (id === "composer" || id === "git") preview.active[id] = version;
@@ -79,7 +79,7 @@ export async function installVersion(
 
 export async function useVersion(id: string, version: string): Promise<void> {
   if (inDesktopApp) return invoke("version_use", { id, version });
-  await new Promise((r) => setTimeout(r, 500));
+  await pause(500);
   preview.active[id] = version;
 }
 

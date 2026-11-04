@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 export interface HttpsInfo {
@@ -20,14 +20,14 @@ export async function getHttps(): Promise<HttpsInfo> {
 /** Turns HTTPS on or off; Apache restarts if it is running. Rejects with a readable reason. */
 export async function setHttps(on: boolean): Promise<void> {
   if (inDesktopApp) return invoke("set_https", { on });
-  await new Promise((r) => setTimeout(r, 600));
+  await pause(600);
   preview.enabled = on;
 }
 
 /** Asks Windows to trust NexDB's certificate; resolves to whether it is trusted now. */
 export async function trustHttps(): Promise<boolean> {
   if (inDesktopApp) return invoke<boolean>("https_trust");
-  await new Promise((r) => setTimeout(r, 600));
+  await pause(600);
   preview.trusted = true;
   return true;
 }

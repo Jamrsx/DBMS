@@ -28,10 +28,14 @@ fn artisan_command(root: &Path, settings: &Settings, project: &str, dir: &Path, 
     let (php, ini) = php_for(root, settings, project).ok_or("PHP isn't installed. Install it on the Versions page.")?;
     let existing = std::env::var("PATH").unwrap_or_default();
     let path = crate::terminal::path_with(&crate::terminal::tool_dirs(root, settings), &existing);
-    let mut cmd = Command::new(php);
+    let mut cmd = Command::new(&php);
     cmd.arg("artisan").args(args).current_dir(dir).env("PATH", path).env("NO_COLOR", "1").stdin(Stdio::null());
     if ini.join("php.ini").is_file() {
         cmd.env("PHPRC", &ini);
+    }
+    // Composer started from artisan uses the same PHP (composer.bat reads these).
+    if crate::phpver::for_project(root, settings, project).is_some() {
+        cmd.env("NEXDB_PHP_EXE", &php).env("NEXDB_PHP_INI", ini.join("php-cli.ini"));
     }
     crate::scan::hide_console(&mut cmd);
     Ok(cmd)

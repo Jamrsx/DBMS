@@ -1,4 +1,5 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
+import { isTauri } from "@tauri-apps/api/core";
 
 export interface Install {
   path: string;

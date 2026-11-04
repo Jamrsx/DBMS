@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "./invoke";
 import { listen } from "@tauri-apps/api/event";
 import { inDesktopApp } from "./scan";
 import type { InstallPlan } from "./plan";
@@ -24,9 +24,7 @@ export function installRequest(plan: InstallPlan, mysqlPassword: string) {
     items: plan.components
       .filter((c) => c.action === "install" && c.version)
       .map((c) => ({ id: c.id, version: c.version as string })),
-    existing: plan.components
-      .filter((c) => c.action === "use-existing")
-      .map((c) => ({ id: c.id, path: c.path })),
+    existing: plan.components.filter((c) => c.action === "use-existing").map((c) => ({ id: c.id, path: c.path })),
     mysql:
       plan.mysql?.mode === "new" && plan.mysql.dataDir
         ? {
@@ -44,11 +42,7 @@ export function installRequest(plan: InstallPlan, mysqlPassword: string) {
 }
 
 /** Runs the install, calling `onProgress` for every update. Rejects with the first error. */
-export async function runInstall(
-  plan: InstallPlan,
-  mysqlPassword: string,
-  onProgress: (p: Progress) => void,
-) {
+export async function runInstall(plan: InstallPlan, mysqlPassword: string, onProgress: (p: Progress) => void) {
   if (!inDesktopApp) return simulateInstall(plan, onProgress);
   const unlisten = await listen<Progress>("install-progress", (e) => onProgress(e.payload));
   try {

@@ -6,6 +6,7 @@ mod configure;
 mod db;
 mod dbedit;
 mod editors;
+mod health;
 mod importer;
 mod installer;
 mod laravel;
@@ -267,6 +268,9 @@ pub fn run() {
             share_dev_stop,
             share_app_start,
             share_app_stop,
+            health_check,
+            health_fix_configs,
+            health_report,
             import_sources,
             import_databases,
             import_run,
@@ -389,8 +393,14 @@ async fn projects_list(stack: tauri::State<'_, Stack>) -> Result<ProjectsInfo, S
     blocking(move || {
         let port = settings.web().map_or(80, |w| w.1);
         let mut projects = projects::list_with(std::path::Path::new(&settings.www_dir), port, &settings.preferences.site_root);
-        for p in projects.iter_mut().filter(|p| p.kind == "laravel" || p.kind == "php") {
-            p.php_warnings = phpfix::scan(std::path::Path::new(&p.path)).len();
+        let prefs = &settings.preferences;
+        for p in projects.iter_mut() {
+            if p.kind == "laravel" || p.kind == "php" {
+                p.php_warnings = phpfix::scan(std::path::Path::new(&p.path)).len();
+            }
+            p.needs_setup = !quickstart::setup_plan(std::path::Path::new(&p.path)).is_empty();
+            p.shared = prefs.shared.contains_key(&p.name) || prefs.share_dev.contains_key(&p.name) || prefs.share_app.contains_key(&p.name);
+            p.php = prefs.project_php.get(&p.name).cloned();
         }
         if settings.preferences.https {
             projects::use_https(&mut projects, settings.preferences.https_port);
@@ -1997,6 +2007,51 @@ async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: 
 async fn version_remove(stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
     blocking(move || versions::remove(&root, &settings, &id, &version)).await
+}
+
+/// "Check my setup": every finding, with the fix NexDB can do for it.
+#[tauri::command]
+async fn health_check(stack: tauri::State<'_, Stack>) -> Result<Vec<health::Check>, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || Ok(health::run(&root, &settings, &sup))).await
+}
+
+/// Writes the web server's and PHP's settings again from NexDB's saved choices, then
+/// restarts the web server if it runs.
+#[tauri::command]
+async fn health_fix_configs(stack: tauri::State<'_, Stack>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        installer::refresh_configs(&root, &settings)?;
+        apply_vhosts(&root, &settings, &sup)
+    })
+    .await
+}
+
+/// Asks where to save the support report, then writes it. None when cancelled.
+#[tauri::command]
+async fn health_report(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (root, settings, sup) = stack.get()?;
+    let dialog = app.clone();
+    let picked = tauri::async_runtime::spawn_blocking(move || {
+        dialog
+            .dialog()
+            .file()
+            .set_title("Save the support report")
+            .set_file_name(format!("nexdb-report-{}.zip", env!("CARGO_PKG_VERSION")))
+            .add_filter("Zip files", &["zip"])
+            .blocking_save_file()
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
+    blocking(move || {
+        let checks = health::run(&root, &settings, &sup);
+        health::support_report(&root, &settings, &sup, &checks, &path)?;
+        Ok(Some(path.display().to_string()))
+    })
+    .await
 }
 
 /// Laragon, XAMPP, WAMP and other database servers on this PC, with what can be imported.

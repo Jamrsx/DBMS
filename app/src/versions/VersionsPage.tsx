@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, ArrowUpCircle, Download } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle } from "lucide-react";
 import { createBackup } from "../lib/backups";
 import { nexCelebrate } from "../lib/nex";
 import {
@@ -53,7 +53,9 @@ export function VersionsPage({ active }: { active: boolean }) {
     try {
       if (what === "install" || what === "update" || what === "reinstall") {
         setBusy({ id: c.id, version, what: "install", percent: 0 });
-        note = await installVersion(c.id, version, (percent) => setBusy({ id: c.id, version, what: "install", percent }));
+        note = await installVersion(c.id, version, (percent) =>
+          setBusy({ id: c.id, version, what: "install", percent }),
+        );
       }
       if (what === "use" || what === "update") {
         setBusy({ id: c.id, version, what: "use", percent: null });
@@ -70,11 +72,11 @@ export function VersionsPage({ active }: { active: boolean }) {
             ? `${c.name} ${version} is installed and ready to use in the Terminal.`
             : what === "install" && c.kind === "service"
               ? `${c.name} ${version} is installed and added to the Dashboard. Press Start there to run it.`
-            : what === "install"
-              ? `${c.name} ${version} is installed. Press "Use this" to switch to it.`
-              : what === "remove"
-                ? `${c.name} ${version} was removed.`
-                : `${c.name} ${version} is now in use. Running services restarted with it.`;
+              : what === "install"
+                ? `${c.name} ${version} is installed. Press "Use this" to switch to it.`
+                : what === "remove"
+                  ? `${c.name} ${version} was removed.`
+                  : `${c.name} ${version} is now in use. Running services restarted with it.`;
       setDone(note ? `${message} ${note}` : message);
       if (what !== "remove") nexCelebrate(message);
     } catch (e) {
@@ -108,24 +110,46 @@ export function VersionsPage({ active }: { active: boolean }) {
             {done}
           </p>
         )}
-        {info?.components
-          .filter((c) => c.kind === "runtime")
-          .map((c) => <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />)}
-        {info && info.components.some((c) => c.kind === "tool") && (
-          <h2 className="ver-section">Tools</h2>
+        {info && info.components.length > 4 && (
+          <nav className="ver-jump" aria-label="Jump to">
+            {info.components.map((c) => (
+              <a
+                key={c.id}
+                href={`#ver-${c.id}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById(`ver-${c.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {c.name}
+              </a>
+            ))}
+          </nav>
         )}
         {info?.components
+          .filter((c) => c.kind === "runtime")
+          .map((c) => (
+            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
+          ))}
+        {info && info.components.some((c) => c.kind === "tool") && <h2 className="ver-section">Tools</h2>}
+        {info?.components
           .filter((c) => c.kind === "tool")
-          .map((c) => <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />)}
+          .map((c) => (
+            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
+          ))}
         {info && info.components.some((c) => c.kind === "service") && (
           <>
             <h2 className="ver-section">Extra services</h2>
-            <p className="set-lede ver-section-lede">Optional helpers. Once installed they show on the Dashboard with the others.</p>
+            <p className="set-lede ver-section-lede">
+              Optional helpers. Once installed they show on the Dashboard with the others.
+            </p>
           </>
         )}
         {info?.components
           .filter((c) => c.kind === "service")
-          .map((c) => <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />)}
+          .map((c) => (
+            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
+          ))}
       </div>
     </main>
   );
@@ -149,7 +173,9 @@ function ComponentCard({
   const [confirmSwitch, setConfirmSwitch] = useState<{ version: string; what: Action } | null>(null);
   // Switching MySQL asks first and offers a backup; everything else runs straight away.
   const ask = (version: string, what: Action) =>
-    c.id === "mysql" && (what === "use" || what === "update") ? setConfirmSwitch({ version, what }) : onRun(c, version, what);
+    c.id === "mysql" && (what === "use" || what === "update")
+      ? setConfirmSwitch({ version, what })
+      : onRun(c, version, what);
 
   return (
     <section className="set-card ver-card" aria-labelledby={`ver-${c.id}`}>
@@ -172,8 +198,8 @@ function ComponentCard({
             <strong>
               {c.name} {c.active} is missing.
             </strong>{" "}
-            Its files were deleted, so {c.kind === "tool" ? "the Terminal can't use it" : "it can't start"}. Reinstall it to
-            fix this; your settings and projects are kept.
+            Its files were deleted, so {c.kind === "tool" ? "the Terminal can't use it" : "it can't start"}. Reinstall
+            it to fix this; your settings and projects are kept.
           </p>
           <button className="btn btn-primary" disabled={locked} onClick={() => onRun(c, c.active!, "reinstall")}>
             Reinstall {c.active}
@@ -187,7 +213,11 @@ function ComponentCard({
             {c.name} {toolToInstall.version} isn't installed yet
             {toolToInstall.download_size ? ` (${formatMb(toolToInstall.download_size)} download)` : ""}.
           </p>
-          <button className="btn btn-primary" disabled={locked} onClick={() => onRun(c, toolToInstall.version, "install")}>
+          <button
+            className="btn btn-primary"
+            disabled={locked}
+            onClick={() => onRun(c, toolToInstall.version, "install")}
+          >
             <Download size={14} aria-hidden="true" /> Install {c.name}
           </button>
         </div>
@@ -221,20 +251,25 @@ function ComponentCard({
         />
       )}
 
-      {mine && (
-        <Progress name={c.name} busy={mine} />
-      )}
+      {/* Progress shows in the row it is about; only a version in neither list shows it here. */}
+      {mine &&
+        !c.installed.some((i) => i.version === mine.version) &&
+        !others.some((a) => a.version === mine.version) && <Progress name={c.name} busy={mine} />}
 
       {c.installed.length > 0 && (
         <ul className="ver-list" aria-label={`Installed ${c.name} versions`}>
           {c.installed.map((i) => (
             <li key={i.version} className="ver-row">
               <span className="ver-num">{i.version}</span>
-              {i.active ? (
+              {mine?.version === i.version ? (
+                <Progress name={c.name} busy={mine} inline />
+              ) : i.active ? (
                 <span className="ver-tag">In use</span>
               ) : confirmRemove === i.version ? (
                 <span className="ver-actions">
-                  <span className="field-hint">Remove {c.name} {i.version} from this PC?</span>
+                  <span className="field-hint">
+                    Remove {c.name} {i.version} from this PC?
+                  </span>
                   <button className="btn btn-small" onClick={() => setConfirmRemove(null)}>
                     Keep it
                   </button>
@@ -265,11 +300,19 @@ function ComponentCard({
       )}
 
       {others.length > 0 && c.kind === "runtime" && (
-        <details className="ver-more">
-          <summary>Other {c.name} versions you can install ({others.length})</summary>
+        <details className="ver-more" open={others.some((a) => a.version === mine?.version) || undefined}>
+          <summary>
+            Other {c.name} versions you can install ({others.length})
+          </summary>
           <ul className="ver-list">
             {others.map((a) => (
-              <OtherVersion key={a.version} a={a} locked={locked} onInstall={() => onRun(c, a.version, "install")} />
+              <OtherVersion
+                key={a.version}
+                a={a}
+                locked={locked}
+                progress={mine?.version === a.version ? <Progress name={c.name} busy={mine} inline /> : null}
+                onInstall={() => onRun(c, a.version, "install")}
+              />
             ))}
           </ul>
         </details>
@@ -280,12 +323,19 @@ function ComponentCard({
   );
 }
 
-function OtherVersion({ a, locked, onInstall }: { a: Available; locked: boolean; onInstall: () => void }) {
-  const why = !a.downloadable
-    ? "No Windows download yet"
-    : !a.allowed
-      ? "Needs a database backup first"
-      : null;
+function OtherVersion({
+  a,
+  locked,
+  progress,
+  onInstall,
+}: {
+  a: Available;
+  locked: boolean;
+  /** Its download's progress, in place of the Install button while it runs. */
+  progress: ReactNode;
+  onInstall: () => void;
+}) {
+  const why = !a.downloadable ? "No Windows download yet" : !a.allowed ? "Needs a database backup first" : null;
   return (
     <li className="ver-row">
       <span className="ver-num">{a.version}</span>
@@ -298,7 +348,9 @@ function OtherVersion({ a, locked, onInstall }: { a: Available; locked: boolean;
         {a.note && <span className="field-hint">{a.note}</span>}
       </span>
       <span className="ver-actions">
-        {why ? (
+        {progress ? (
+          progress
+        ) : why ? (
           <span className="field-hint">{why}</span>
         ) : (
           <button className="btn btn-small" disabled={locked} onClick={onInstall}>
@@ -310,18 +362,43 @@ function OtherVersion({ a, locked, onInstall }: { a: Available; locked: boolean;
   );
 }
 
-function Progress({ name, busy }: { name: string; busy: NonNullable<Busy> }) {
+/** What is being done to a version; `inline` puts it in that version's row, by its buttons. */
+function Progress({ name, busy, inline = false }: { name: string; busy: NonNullable<Busy>; inline?: boolean }) {
   const text =
     busy.what === "install"
       ? `Downloading ${name} ${busy.version}${busy.percent === null ? "…" : ` · ${busy.percent}%`}`
       : busy.what === "use"
         ? `Switching to ${name} ${busy.version} and restarting services…`
         : `Removing ${name} ${busy.version}…`;
+  if (inline)
+    return (
+      <span className="ver-actions row-status" role="status">
+        <LoaderCircle size={13} className="status-spin" aria-hidden="true" />
+        <span>{text.replace(` ${name} ${busy.version}`, "")}</span>
+        {busy.what === "install" && (
+          <span
+            className="bar bar-inline"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={busy.percent ?? undefined}
+          >
+            <span className="bar-fill" style={{ width: `${busy.percent ?? 30}%` }} />
+          </span>
+        )}
+      </span>
+    );
   return (
     <div className="set-progress ver-progress" role="status">
       <p className="field-hint">{text}</p>
       {busy.what === "install" && (
-        <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={busy.percent ?? undefined}>
+        <div
+          className="bar"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={busy.percent ?? undefined}
+        >
           <span className="bar-fill" style={{ width: `${busy.percent ?? 30}%` }} />
         </div>
       )}
@@ -378,7 +455,12 @@ function SwitchConfirm({
         Your databases stay where they are. {name} stops for a moment and starts again with the new version.
       </p>
       <label className="set-check">
-        <input type="checkbox" checked={backupFirst} disabled={working} onChange={(e) => setBackupFirst(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={backupFirst}
+          disabled={working}
+          onChange={(e) => setBackupFirst(e.target.checked)}
+        />
         <span>Back up all my databases first (recommended)</span>
       </label>
       {working && (

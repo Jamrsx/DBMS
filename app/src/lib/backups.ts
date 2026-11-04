@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
 
 export interface BackupFile {
@@ -42,7 +42,7 @@ export async function listBackups(): Promise<BackupFile[]> {
 /** Backs up one database, or all of your own when `name` is null. */
 export async function createBackup(name: string | null): Promise<BackupFile[]> {
   if (inDesktopApp) return invoke<BackupFile[]>("backup_create", { name });
-  await new Promise((r) => setTimeout(r, 700));
+  await pause(700);
   const made = (name ? [name] : ["shop", "blog"]).map((db) => fake(db, Date.now() / 1000));
   preview.push(...made);
   return made;
@@ -50,7 +50,7 @@ export async function createBackup(name: string | null): Promise<BackupFile[]> {
 
 export async function restoreBackup(file: string, database: string): Promise<void> {
   if (inDesktopApp) return invoke("backup_restore", { file, database });
-  await new Promise((r) => setTimeout(r, 700));
+  await pause(700);
 }
 
 export async function deleteBackup(file: string): Promise<void> {
@@ -66,7 +66,7 @@ export async function pickSqlFile(): Promise<string | null> {
 
 export async function importSqlFile(path: string, database: string): Promise<void> {
   if (inDesktopApp) return invoke("backup_import_file", { path, database });
-  await new Promise((r) => setTimeout(r, 700));
+  await pause(700);
 }
 
 export async function openBackupsFolder(): Promise<void> {
@@ -80,8 +80,17 @@ export function formatWhen(seconds: number): string {
 
 /** A database name from a file name: "WordPress Export (2).sql" → "wordpress_export_2". */
 export function nameFromFile(path: string): string {
-  const base = path.split(/[\\/]/).pop()?.replace(/\.sql$/i, "").replace(/__\d{4}-\d{2}-\d{2}_.*$/, "") ?? "imported";
-  const clean = base.toLowerCase().replace(/[^a-z0-9_$]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 64);
+  const base =
+    path
+      .split(/[\\/]/)
+      .pop()
+      ?.replace(/\.sql$/i, "")
+      .replace(/__\d{4}-\d{2}-\d{2}_.*$/, "") ?? "imported";
+  const clean = base
+    .toLowerCase()
+    .replace(/[^a-z0-9_$]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
   return clean || "imported";
 }
 
@@ -90,7 +99,14 @@ function fake(db: string, created: number): BackupFile {
   const p = (n: number) => String(n).padStart(2, "0");
   const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
   const name = `${db}__${stamp}.sql`;
-  return { name, database: db, size_bytes: 48_000 + db.length * 1000, created, path: `C:\\NexDB\\backups\\${name}`, auto: false };
+  return {
+    name,
+    database: db,
+    size_bytes: 48_000 + db.length * 1000,
+    created,
+    path: `C:\\NexDB\\backups\\${name}`,
+    auto: false,
+  };
 }
 
 let preview: BackupFile[] = [fake("shop", Date.now() / 1000 - 86_400 * 2), fake("blog", Date.now() / 1000 - 3600)];

@@ -203,6 +203,15 @@ pub fn wp_config(sample: &str, database: &str, user: &str, password: &str, port:
     Ok(out)
 }
 
+/// Composer's "requires php 8.1 - 8.4 -> your php version (8.5.12) does not satisfy": the
+/// versions the packages need, and the one that ran.
+pub fn composer_php_mismatch(line: &str) -> Option<(String, String)> {
+    let (_, rest) = line.split_once("requires php ")?;
+    let (needs, rest) = rest.split_once(" -> your php version (")?;
+    let ran = rest.split(')').next()?;
+    Some((needs.trim().to_string(), ran.trim().to_string()))
+}
+
 pub type Emit<'a> = &'a (dyn Fn(Event) + Sync);
 
 struct Run<'a> {
@@ -270,12 +279,23 @@ impl Run<'_> {
     fn exec(&self, cwd: &Path, command: &str) -> Result<(), String> {
         self.line(&format!("> {command}"));
         let existing = std::env::var("PATH").unwrap_or_default();
-        let path = crate::terminal::path_with(&crate::terminal::tool_dirs(self.root, self.settings), &existing);
+        // The project's own PHP version comes first, so Composer and artisan run on it too.
+        let own_php = crate::phpver::for_project(self.root, self.settings, self.name);
+        let mut dirs = crate::terminal::tool_dirs(self.root, self.settings);
+        if let Some(extra) = &own_php {
+            dirs.insert(0, extra.dir.clone());
+        }
+        let path = crate::terminal::path_with(&dirs, &existing);
         let mut cmd = Command::new("cmd");
         cmd.arg("/C").arg(command).current_dir(cwd).env("PATH", path).env("COMPOSER_NO_INTERACTION", "1");
         cmd.env("NO_COLOR", "1").env("npm_config_color", "false");
         cmd.env("npm_config_yes", "true").env("npm_config_fund", "false").env("npm_config_update_notifier", "false");
-        let php_dir = self.root.join("etc").join("php");
+        // composer.bat runs NEXDB_PHP_EXE when set (as the project terminal does), else the default.
+        if let Some(extra) = &own_php {
+            cmd.env("NEXDB_PHP_EXE", extra.dir.join("php.exe"));
+            cmd.env("NEXDB_PHP_INI", extra.ini_dir.join("php-cli.ini"));
+        }
+        let php_dir = own_php.map(|e| e.ini_dir).unwrap_or_else(|| self.root.join("etc").join("php"));
         if php_dir.join("php.ini").is_file() {
             cmd.env("PHPRC", &php_dir);
         }
@@ -310,7 +330,11 @@ impl Run<'_> {
         }
         drop(tx);
         let mut last = Vec::new();
+        let mut php_mismatch = None;
         for line in rx {
+            if php_mismatch.is_none() {
+                php_mismatch = composer_php_mismatch(&line);
+            }
             if line.contains("EBUSY") || line.contains("EPERM") {
                 self.locked.set(true);
             }
@@ -328,6 +352,10 @@ impl Run<'_> {
         let status = child.wait().map_err(|e| e.to_string())?;
         if status.success() {
             Ok(())
+        } else if let Some((needs, ran)) = php_mismatch {
+            Err(format!(
+                "This project's packages need PHP {needs}, but it ran on PHP {ran}. Pick a matching version under PHP version on this page, click Use this version, then set it up again."
+            ))
         } else {
             let tail = last.iter().map(|l| l.trim()).filter(|l| !l.is_empty()).last().unwrap_or("");
             Err(format!("{command} didn't finish ({tail}). The full output is in the details below."))
@@ -786,6 +814,13 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reads_composer_php_version_mismatch() {
+        let line = "    - nette/schema v1.3.2 requires php 8.1 - 8.4 -> your php version (8.5.12) does not satisfy that requirement.";
+        assert_eq!(composer_php_mismatch(line), Some(("8.1 - 8.4".into(), "8.5.12".into())));
+        assert_eq!(composer_php_mismatch("Installing dependencies from lock file"), None);
+    }
+
+    #[test]
     fn env_lines_are_replaced_even_when_commented() {
         let laravel = "APP_URL=http://localhost\nDB_CONNECTION=sqlite\n# DB_HOST=127.0.0.1\n# DB_PORT=3306\n# DB_DATABASE=laravel\n";
         let mut env = set_env(laravel, "DB_CONNECTION", "mysql");
@@ -988,5 +1023,44 @@ mod tests {
         let env = std::fs::read_to_string(target.join(".env")).unwrap();
         assert!(env.lines().any(|l| l.starts_with("APP_KEY=base64:")), "app key generated");
         assert!(setup_plan(&target.parent().unwrap()).is_empty(), "nothing left to set up");
+    }
+
+    /// A copy of OCC-Admission's Web app, whose packages need PHP 8.4 or older, set up with the
+    /// project set to another installed PHP: composer install must run on that version.
+    /// `cargo test real_setup_uses_project_php -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_setup_uses_project_php() {
+        let root = PathBuf::from(r"C:\NexDB");
+        let base = crate::settings::load(&root).expect("NexDB must be installed in C:/NexDB");
+        let older = crate::phpver::installed(&root, &base)
+            .into_keys()
+            .find(|v| v.starts_with("8.4"))
+            .expect("install PHP 8.4 on the Versions page");
+        let source = PathBuf::from(&base.www_dir).join("OCC-Admission").join("Web");
+        let www = tempfile::tempdir().unwrap();
+        let target = www.path().join("Admission-Copy").join("Web");
+        let out = Command::new("robocopy")
+            .args([source.to_str().unwrap(), target.to_str().unwrap(), "/E", "/XD", "vendor", "node_modules", "/XF", ".env", "/NFL", "/NDL", "/NJH", "/NJS"])
+            .output()
+            .unwrap();
+        assert!(out.status.code().unwrap_or(16) < 8, "robocopy failed");
+        let example = std::fs::read_to_string(target.join(".env.example")).unwrap();
+        std::fs::write(target.join(".env.example"), set_env(&example, "DB_CONNECTION", "sqlite")).unwrap();
+        std::fs::remove_file(target.join("package.json")).ok();
+
+        let mut settings = base.clone();
+        settings.www_dir = www.path().display().to_string();
+        settings.preferences.project_php = [("Admission-Copy".to_string(), older.clone())].into_iter().collect();
+        let sup = crate::supervisor::Supervisor::new(vec![]);
+        let emit = |e: Event| {
+            if let Event::Line { text, .. } = e {
+                if text.starts_with('>') {
+                    println!("{text}");
+                }
+            }
+        };
+        setup(&emit, &root, &settings, &sup, None, "Admission-Copy").unwrap();
+        assert!(target.join("vendor/autoload.php").is_file(), "composer install ran on PHP {older}");
     }
 }
