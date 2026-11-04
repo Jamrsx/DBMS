@@ -311,41 +311,49 @@ Mail catcher (with 0.3.2's services):
 - Remember window size, last page, terminal tabs and their names between launches.
 - First-run tour for new users.
 
+### 0.4.6: Nex shows you around, and 1.0 groundwork
+
+- Guided tutorial, like a game's: Nex walks onto the screen beside each thing it explains,
+  dims the rest, and waits for you to try it (start a service, make a project, make a database
+  and connect it, open the terminal, Ctrl+K). From start to finish, skippable, and each chapter
+  can be replayed.
+- Uninstaller that offers to keep or remove `C:\NexDB` (projects and databases).
+- Migration from an older install folder.
+- A short user guide inside the app.
+
+### 0.4.7: Projects, database and sharing extras
+
+- Node version per project (`.nvmrc`).
+- `.env` editor with secrets hidden.
+- Visual table designer (columns and indexes without SQL).
+- Query history and saved queries.
+- MariaDB and MongoDB as extra services.
+- Password-protected share links.
+
 ## Toward 1.0.0
 
 Before calling it 1.0.0:
 
-- Code-signing certificate so Windows SmartScreen stops showing "Unknown publisher".
-- Uninstaller that offers to keep or remove `C:\NexDB` (projects and databases).
-- Migration from an older install folder.
-- A short user guide inside the app.
+- Code-signing certificate so Windows SmartScreen stops showing "Unknown publisher" (later: no budget for it yet).
 - Every feature covered by a real test, and a clean install tested on a fresh Windows PC.
 
 ## Ideas, not scheduled
 
-Projects:
-
-- Node version per project (`.nvmrc`).
-- `.env` editor with secrets hidden.
-
 Database:
 
-- Visual table designer (columns and indexes without SQL).
 - Relationship diagram from foreign keys.
-- Query history and saved queries.
 - Compare two databases (schema differences).
 - Scheduled backups to another folder or USB drive; restore into a new database.
 
 Services:
 
-- Memcached, MongoDB and MariaDB as extra services.
+- Memcached as an extra service.
 - Read caught emails inside NexDB.
 - Memory and CPU per service.
 
 Sharing:
 
 - Named tunnels with your own Cloudflare or ngrok account (a link that stays the same).
-- Password-protected public links.
 - A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
 
 Later:
