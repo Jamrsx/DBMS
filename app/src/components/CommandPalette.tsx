@@ -4,7 +4,15 @@ import { listProjects, openProject } from "../lib/projects";
 import { listServices, startServices, stopServices, type ServiceStatus } from "../lib/services";
 import { dbDatabases } from "../lib/db";
 
-export type PalettePage = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings";
+export type PalettePage =
+  | "dashboard"
+  | "projects"
+  | "database"
+  | "terminal"
+  | "versions"
+  | "health"
+  | "settings"
+  | "help";
 
 interface Command {
   id: string;
@@ -23,6 +31,7 @@ const PAGES: [PalettePage, string][] = [
   ["versions", "Versions"],
   ["health", "Check my setup"],
   ["settings", "Settings"],
+  ["help", "Help and tutorial"],
 ];
 
 /** Words of the query in any order, each anywhere in the label ("apa sta" finds "Start Apache"). */

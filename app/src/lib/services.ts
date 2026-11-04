@@ -23,13 +23,36 @@ export interface SetupInfo {
   www_dir: string | null;
   /** A NexDB folder whose settings file is missing; setup repairs it. */
   repair_root?: string | null;
+  /** NexDB folders from before (another drive, a reinstall) that setup can pick up. */
+  found?: FoundInstall[];
+}
+
+export interface FoundInstall {
+  root: string;
+  projects: number;
+  /** Where the folder used to be, when it was moved or copied since. */
+  moved_from: string | null;
+}
+
+/** Uses a NexDB folder from before; a moved folder's paths are changed to its new place. */
+export async function adoptInstall(root: string): Promise<number> {
+  if (inDesktopApp) return invoke<number>("setup_adopt", { root });
+  await new Promise((r) => setTimeout(r, 600));
+  preview.installed = true;
+  return 4;
 }
 
 export async function setupInfo(): Promise<SetupInfo> {
   if (inDesktopApp) return invoke<SetupInfo>("setup_info");
   // `?view=dashboard` opens the dashboard directly in the browser preview.
   const forced = new URLSearchParams(location.search).get("view") === "dashboard";
-  return { installed: preview.installed || forced, install_root: "C:\\NexDB", www_dir: "C:\\NexDB\\www" };
+  const found = new URLSearchParams(location.search).get("found") === "1";
+  return {
+    installed: preview.installed || forced,
+    install_root: "C:\\NexDB",
+    www_dir: "C:\\NexDB\\www",
+    found: found ? [{ root: "D:\\NexDB", projects: 5, moved_from: "C:\\NexDB" }] : [],
+  };
 }
 
 export async function listServices(): Promise<ServiceStatus[]> {

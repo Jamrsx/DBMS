@@ -536,7 +536,8 @@ memory_limit = 128M
         let server_root = Path::new(LARAGON).join(r"apache\Apache24");
         let dir = tempfile::tempdir().unwrap();
         let (www, etc, logs) = (dir.path().join("www"), dir.path().join("etc"), dir.path().join("logs"));
-        for d in [&www, &etc.join("apache").join("sites-enabled"), &logs] {
+        // Both include folders, as the installer makes them.
+        for d in [&www, &etc.join("apache").join("sites-enabled"), &etc.join("apache").join("extra"), &logs] {
             fs::create_dir_all(d).unwrap();
         }
         let conf = etc.join("apache").join("httpd.conf");

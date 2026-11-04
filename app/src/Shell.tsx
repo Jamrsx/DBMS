@@ -10,6 +10,7 @@ import {
   Search,
   SquareTerminal,
   Stethoscope,
+  CircleHelp,
 } from "lucide-react";
 import { CommandPalette } from "./components/CommandPalette";
 import { BrandMark } from "./components/BrandMark";
@@ -27,8 +28,9 @@ import { SettingsPage } from "./settings/SettingsPage";
 import { VersionsPage } from "./versions/VersionsPage";
 import { HealthPage } from "./health/HealthPage";
 import { Tour } from "./components/Tour";
+import { HelpPage } from "./help/HelpPage";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings";
+type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings" | "help";
 
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -40,7 +42,7 @@ const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
 
 const RAIL_KEY = "nexdb.rail";
 const PAGE_KEY = "nexdb.page";
-const PAGES: Page[] = ["dashboard", "projects", "database", "terminal", "versions", "health", "settings"];
+const PAGES: Page[] = ["dashboard", "projects", "database", "terminal", "versions", "health", "settings", "help"];
 
 /** The page open when NexDB last closed, so it opens where the user left off. */
 function savedPage(): Page {
@@ -89,7 +91,7 @@ export function Shell() {
     }
   }, [page]);
 
-  // Ctrl+1 … Ctrl+7 open the sidebar's pages in order.
+  // Ctrl+1 … Ctrl+8 open the sidebar's pages in order.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
@@ -141,7 +143,7 @@ export function Shell() {
       >
         Skip to page content
       </a>
-      <aside className="rail">
+      <aside className="rail" data-guide="rail">
         <div className="brand">
           <BrandMark />
           <span className="brand-name">NexDB</span>
@@ -160,6 +162,7 @@ export function Shell() {
         <button
           type="button"
           className="nav-item nav-search"
+          data-guide="search"
           title="Search pages, projects, databases and actions (Ctrl+K)"
           onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
         >
@@ -215,6 +218,18 @@ export function Shell() {
               </span>
             )}
           </button>
+          <button
+            type="button"
+            className={page === "help" ? "nav-item current" : "nav-item"}
+            aria-current={page === "help" ? "page" : undefined}
+            data-page="help"
+            aria-keyshortcuts="Control+8"
+            title={collapsed ? "Help (Ctrl+8)" : "Ctrl+8"}
+            onClick={() => go("help")}
+          >
+            <CircleHelp size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="nav-label">Help</span>
+          </button>
         </nav>
 
         <div className="rail-foot">
@@ -260,11 +275,14 @@ export function Shell() {
       <div className="page" hidden={page !== "settings"}>
         <SettingsPage active={page === "settings"} />
       </div>
+      <div className="page" hidden={page !== "help"}>
+        <HelpPage />
+      </div>
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
       <NexCorner />
-      <Tour onPage={setPage as (p: never) => void} />
+      <Tour onPage={setPage} />
     </div>
   );
 }

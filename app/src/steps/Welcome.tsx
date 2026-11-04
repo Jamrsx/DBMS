@@ -1,16 +1,22 @@
 import type { Settings } from "../Wizard";
+import { useState } from "react";
 import { Nex } from "../components/Nex";
+import { adoptInstall, type FoundInstall } from "../lib/services";
 
 interface Props {
   /** An earlier NexDB folder whose settings file is missing. */
   repairRoot: string | null;
   settings: Settings;
   onChange: (settings: Settings) => void;
+  /** NexDB folders from before that can be used as they are. */
+  found: FoundInstall[];
+  onAdopted: () => void;
 }
 
-export function Welcome({ settings, onChange, repairRoot }: Props) {
+export function Welcome({ settings, onChange, repairRoot, found, onAdopted }: Props) {
   return (
     <>
+      {found.length > 0 && <FoundInstalls found={found} onAdopted={onAdopted} />}
       {repairRoot && (
         <div className="missing-banner" role="status">
           <p>
@@ -72,4 +78,56 @@ export function pathProblem(label: string, value: string, example: string): stri
     return `${label} can't contain < > " | ? or *.`;
   }
   return null;
+}
+
+/** NexDB folders from before: use one as it is instead of setting up again. */
+function FoundInstalls({ found, onAdopted }: { found: FoundInstall[]; onAdopted: () => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <section className="found-installs" aria-labelledby="found-title">
+      <h2 id="found-title">Pick up where you left off</h2>
+      <p className="field-hint">
+        NexDB was set up on this PC before. Use that folder and your projects, databases and versions are back, with
+        nothing to download.
+      </p>
+      <ul className="found-list">
+        {found.map((f) => (
+          <li key={f.root} className="found-item">
+            <div>
+              <code>{f.root}</code>
+              <p className="field-hint">
+                {f.projects === 1 ? "1 project" : `${f.projects} projects`}
+                {f.moved_from && `. It was in ${f.moved_from} before; NexDB updates its settings to the new place.`}
+              </p>
+            </div>
+            <button
+              className="btn btn-primary"
+              disabled={busy !== null}
+              data-working={busy === f.root || undefined}
+              onClick={async () => {
+                setBusy(f.root);
+                setError(null);
+                try {
+                  await adoptInstall(f.root);
+                  onAdopted();
+                } catch (e) {
+                  setError(String(e));
+                  setBusy(null);
+                }
+              }}
+            >
+              {busy === f.root ? "Opening…" : "Use this folder"}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
+      <p className="field-hint">Or set up a new install below.</p>
+    </section>
+  );
 }

@@ -134,6 +134,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
           </button>
           <button
             className="btn btn-primary"
+            data-guide="start-all"
             disabled={anyBusy || managed.length === 0 || managed.every((s) => s.state === "running")}
             onClick={() =>
               run(
@@ -171,7 +172,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
               <h2 id="services-title" className="visually-hidden">
                 Services
               </h2>
-              <div className="svc-groups">
+              <div className="svc-groups" data-guide="services">
                 {grouped(services).map(([group, list]) => (
                   <div className="svc-group-block" key={group}>
                     <h3 className="svc-group-title" id={`group-${group}`}>

@@ -5,6 +5,8 @@ mod catalog;
 mod configure;
 mod db;
 mod dbconnect;
+mod uninstall;
+mod migrate;
 mod dbedit;
 mod editors;
 mod health;
@@ -131,6 +133,8 @@ struct SetupInfo {
     www_dir: Option<String>,
     /// A NexDB folder whose settings file is missing, so setup can say it is repairing it.
     repair_root: Option<String>,
+    /// NexDB folders from before (another drive, a reinstall), which setup can pick up.
+    found: Vec<migrate::Found>,
 }
 
 /// Whether a finished install exists, so the app opens on the dashboard instead of setup.
@@ -147,7 +151,20 @@ fn setup_info(app: tauri::AppHandle, stack: tauri::State<Stack>) -> SetupInfo {
             .then(|| settings::broken_install(app.path().app_config_dir().ok().as_deref()))
             .flatten()
             .map(|p| p.display().to_string()),
+        found: if guard.is_none() { migrate::find(app.path().app_config_dir().ok().as_deref()) } else { Vec::new() },
     }
+}
+
+/// Uses a NexDB folder from before instead of setting up again; a moved folder's paths follow it.
+#[tauri::command]
+async fn setup_adopt(app: tauri::AppHandle, root: String) -> Result<usize, String> {
+    let config = app.path().app_config_dir().map_err(|e| e.to_string())?;
+    let changed = blocking(move || migrate::adopt(std::path::Path::new(&root), &config)).await?;
+    let stack = app.state::<Stack>();
+    if !stack.load(&app) {
+        return Err("NexDB couldn't read that folder's settings.".into());
+    }
+    Ok(changed)
 }
 
 async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T, String> + Send + 'static) -> Result<T, String> {
@@ -206,6 +223,15 @@ async fn service_log(stack: tauri::State<'_, Stack>, id: String) -> Result<Strin
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The uninstaller asks first whether to keep the NexDB folder (projects, databases).
+    if std::env::args().any(|a| a == "--uninstall") {
+        #[cfg(windows)]
+        {
+            let config = std::env::var_os("APPDATA").map(|d| std::path::PathBuf::from(d).join("com.jamrsx.nexdb"));
+            uninstall::run(config.as_deref());
+        }
+        return;
+    }
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| tray::show_window(app)))
         .plugin(tauri_plugin_opener::init())
@@ -295,6 +321,7 @@ pub fn run() {
             db_targets,
             db_usage,
             db_use_in_project,
+            setup_adopt,
             import_sources,
             import_databases,
             import_run,

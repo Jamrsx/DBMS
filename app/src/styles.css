@@ -6376,66 +6376,259 @@ details.ver-php-settings > summary {
   margin-top: 14px;
 }
 
-.tour {
+/* Nex's tutorial: a lit spot on what it explains, Nex and its bubble beside it. */
+.guide-block {
   position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 70;
+  inset: 0;
+  z-index: 55;
+  background: rgb(6 8 16 / 0.55);
+}
+
+.guide-hole {
+  position: fixed;
+  z-index: 56;
+  border-radius: 10px;
+  box-shadow: 0 0 0 2px var(--accent), 0 0 24px 4px color-mix(in srgb, var(--accent) 45%, transparent);
+  pointer-events: none;
+}
+
+.guide-hole-none {
+  display: none;
+}
+
+.guide-nex {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 65;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 402px;
+  max-width: calc(100vw - 24px);
+}
+
+.guide[data-side="left"] .guide-nex {
+  flex-direction: row-reverse;
+}
+
+.guide-avatar {
+  flex: none;
+  filter: drop-shadow(0 6px 12px rgb(0 0 0 / 0.35));
+}
+
+.guide-bubble {
+  position: relative;
   display: grid;
-  gap: 12px;
-  width: min(360px, calc(100vw - 32px));
-  padding: 16px 18px;
+  gap: 8px;
+  width: 320px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
-  box-shadow: 0 4px 8px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.28);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.3);
 }
 
-.tour p {
+/* The bubble's tail points at Nex. */
+.guide-bubble::before {
+  content: "";
+  position: absolute;
+  top: 26px;
+  left: -7px;
+  width: 12px;
+  height: 12px;
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  transform: rotate(45deg);
+}
+
+.guide[data-side="left"] .guide-bubble::before {
+  left: auto;
+  right: -7px;
+  transform: rotate(-135deg);
+}
+
+.guide-bubble h2 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.guide-bubble p {
   margin: 0;
   color: var(--text-2);
   font-size: 13px;
+  line-height: 1.5;
 }
 
-.tour-head {
+.guide-bubble .guide-count {
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.guide-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
 }
 
-.tour-head h2 {
+.guide-skip {
+  margin-right: auto;
+}
+
+.guide-waiting {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.guide-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+body.guiding .nex-corner {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .guide-nex {
+    transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .guide-hole {
+    transition: left 0.45s ease, top 0.45s ease, width 0.45s ease, height 0.45s ease;
+  }
+
+  .guide-bubble {
+    animation: guide-pop 0.25s ease-out;
+  }
+
+  .guide-waiting {
+    animation: guide-pulse 1.4s ease-in-out infinite;
+  }
+
+  /* A little hop while walking. */
+  .guide-nex .guide-avatar {
+    animation: guide-hop 0.55s ease-out;
+  }
+}
+
+@keyframes guide-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes guide-pulse {
+  50% {
+    opacity: 0.65;
+  }
+}
+
+@keyframes guide-hop {
+  40% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Setup: NexDB folders from before */
+.found-installs {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.found-installs h2 {
   margin: 0;
   font-size: 15px;
 }
 
-.tour .tour-count {
-  color: var(--text-3);
-  font-size: 12px;
-}
-
-.tour-actions {
-  display: flex;
-  justify-content: flex-end;
+.found-list {
+  display: grid;
   gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.tour-skip {
-  margin-right: auto;
+.found-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.nav-item[data-tour] {
-  box-shadow: 0 0 0 2px var(--accent);
+.found-item p {
+  margin: 2px 0 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .tour {
-    animation: tour-in 0.18s ease-out;
-  }
+/* Help page */
+.help-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 520px;
+  margin-bottom: 12px;
+  color: var(--text-3);
 }
 
-@keyframes tour-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
+.help-search .input {
+  flex: 1;
+}
+
+.help-jump {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.help-topics {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+}
+
+.help-topic {
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  scroll-margin-top: 12px;
+}
+
+.help-topic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.help-topic h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.help-topic ol {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 20px;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
 }

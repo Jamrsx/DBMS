@@ -1131,7 +1131,9 @@ mod tests {
             .output()
             .unwrap();
         assert!(out.status.code().unwrap_or(16) < 8, "robocopy failed");
-        let example = std::fs::read_to_string(target.join(".env.example")).unwrap();
+        // The project may have dropped its .env.example; a minimal one is enough for this test.
+        let example = std::fs::read_to_string(target.join(".env.example"))
+            .unwrap_or_else(|_| "APP_NAME=Laravel\nAPP_ENV=local\nAPP_KEY=\nAPP_DEBUG=true\nDB_CONNECTION=sqlite\n".into());
         std::fs::write(target.join(".env.example"), set_env(&example, "DB_CONNECTION", "sqlite")).unwrap();
         // Node packages are left out of this test; it is about the PHP side.
         std::fs::remove_file(target.join("package.json")).ok();
@@ -1174,7 +1176,9 @@ mod tests {
             .output()
             .unwrap();
         assert!(out.status.code().unwrap_or(16) < 8, "robocopy failed");
-        let example = std::fs::read_to_string(target.join(".env.example")).unwrap();
+        // The project may have dropped its .env.example; a minimal one is enough for this test.
+        let example = std::fs::read_to_string(target.join(".env.example"))
+            .unwrap_or_else(|_| "APP_NAME=Laravel\nAPP_ENV=local\nAPP_KEY=\nAPP_DEBUG=true\nDB_CONNECTION=sqlite\n".into());
         std::fs::write(target.join(".env.example"), set_env(&example, "DB_CONNECTION", "sqlite")).unwrap();
         std::fs::remove_file(target.join("package.json")).ok();
 

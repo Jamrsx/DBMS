@@ -7,6 +7,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.6",
+    title: "Nex shows you around",
+    changes: [
+      "A guided tutorial: Nex walks to each part of NexDB, lights it up and lets you try it, from the Dashboard to Ctrl+K. Stop it any time with Esc.",
+      "Replay the whole tutorial or one part from Settings → Tutorial, or with Show me on the new Help page.",
+      "Help (Ctrl+8): step-by-step answers for projects, databases, sharing, the terminal, versions and fixing problems, with search.",
+      "Reinstalled NexDB or Windows, or moved the NexDB folder to another drive? Setup finds it and uses it as it is; a moved folder's settings follow it.",
+      "Uninstalling asks whether to keep the NexDB folder with your projects and databases. Keeping it is the default.",
+    ],
+  },
+  {
     version: "0.4.5",
     title: "Connect databases to projects",
     changes: [

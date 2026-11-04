@@ -211,7 +211,7 @@ export function Database({
                 ? "Connecting…"
                 : "Not connected"}
           </p>
-          <div className="db-engine" role="radiogroup" aria-label="Database server">
+          <div className="db-engine" data-guide="db-engine" role="radiogroup" aria-label="Database server">
             {(["mysql", "postgres"] as const).map((e) => (
               <button
                 key={e}
@@ -242,6 +242,7 @@ export function Database({
           </button>
           <button
             className="btn btn-primary"
+            data-guide="db-new"
             disabled={!version}
             onClick={() => setCreating((v) => !v)}
             aria-expanded={creating}
@@ -291,7 +292,7 @@ export function Database({
 
         {version && (
           <div className="db-layout">
-            <nav className="db-tree" aria-label="Databases">
+            <nav className="db-tree" data-guide="db-tree" aria-label="Databases">
               <DbGroup
                 label="Your databases"
                 dbs={userDbs}

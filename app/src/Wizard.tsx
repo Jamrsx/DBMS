@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { FoundInstall } from "./lib/services";
 import { Welcome, validateWelcome } from "./steps/Welcome";
 import { SystemScan, useSystemScan } from "./steps/SystemScan";
 import {
@@ -42,7 +43,15 @@ const STEPS = [
 const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "install"]);
 
 /** First-run setup. `onFinish` opens the dashboard once the install is done. */
-export function Wizard({ onFinish, repairRoot = null }: { onFinish: () => void; repairRoot?: string | null }) {
+export function Wizard({
+  onFinish,
+  repairRoot = null,
+  found = [],
+}: {
+  onFinish: () => void;
+  repairRoot?: string | null;
+  found?: FoundInstall[];
+}) {
   const [step, setStep] = useState(0);
   const [settings, setSettings] = useState<Settings>({
     installRoot: repairRoot ?? "C:\\NexDB",
@@ -196,6 +205,8 @@ export function Wizard({ onFinish, repairRoot = null }: { onFinish: () => void; 
           {current.id === "welcome" && (
             <Welcome
               repairRoot={repairRoot}
+              found={found}
+              onAdopted={onFinish}
               settings={settings}
               onChange={(s) => {
                 setSettings(s);

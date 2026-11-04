@@ -173,6 +173,7 @@ export function Projects({
           </button>
           <button
             className="btn btn-primary"
+            data-guide="project-new"
             onClick={() => {
               setCreating((v) => !v);
               setOpened(null);

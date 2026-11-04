@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
 import { TerminalPage } from "./terminal/TerminalPage";
-import { markPreviewInstalled, setupInfo } from "./lib/services";
+import { markPreviewInstalled, setupInfo, type FoundInstall } from "./lib/services";
 
 type View = "loading" | "setup" | "dashboard";
 
@@ -24,11 +24,13 @@ export default function App() {
 function MainApp() {
   const [view, setView] = useState<View>("loading");
   const [repairRoot, setRepairRoot] = useState<string | null>(null);
+  const [found, setFound] = useState<FoundInstall[]>([]);
 
   const check = useCallback(() => {
     setupInfo()
       .then((info) => {
         setRepairRoot(info.repair_root ?? null);
+        setFound(info.found ?? []);
         setView(info.installed ? "dashboard" : "setup");
       })
       .catch(() => setView("setup"));
@@ -41,6 +43,7 @@ function MainApp() {
   return (
     <Wizard
       repairRoot={repairRoot}
+      found={found}
       onFinish={() => {
         markPreviewInstalled();
         check();

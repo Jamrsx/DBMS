@@ -150,7 +150,7 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
         )}
       </header>
       <div className="panel-body terminal-body">
-        <div className="term-tabs">
+        <div className="term-tabs" data-guide="term-tabs">
           <div className="term-tablist" role="tablist" aria-label="Terminals">
             {tabs.map((t) => {
               const selected = t.key === shown?.key;

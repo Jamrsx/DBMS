@@ -727,7 +727,8 @@ mod tests {
     fn real_apache_php_serve_and_stop_gracefully() {
         let dir = tempfile::tempdir().unwrap();
         let (www, etc, logs) = (dir.path().join("www"), dir.path().join("etc"), dir.path().join("logs"));
-        for d in [&www, &etc.join("apache").join("sites-enabled"), &logs] {
+        // Both include folders, as the installer makes them.
+        for d in [&www, &etc.join("apache").join("sites-enabled"), &etc.join("apache").join("extra"), &logs] {
             fs::create_dir_all(d).unwrap();
         }
         fs::write(www.join("index.php"), "<?php echo 'php ', PHP_VERSION;").unwrap();

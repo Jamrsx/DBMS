@@ -259,20 +259,70 @@ mod tests {
         let mut child = pair.slave.spawn_command(cmd).unwrap();
         drop(pair.slave);
         let mut reader = pair.master.try_clone_reader().unwrap();
+        // Read on a thread: a blocking read would ignore the time limit if the shell goes quiet.
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<u8>>();
+        std::thread::spawn(move || {
+            let mut buf = [0u8; 4096];
+            while let Ok(n) = reader.read(&mut buf) {
+                if n == 0 || tx.send(buf[..n].to_vec()).is_err() {
+                    break;
+                }
+            }
+        });
+        // ConPTY asks where the cursor is (ESC[6n) and waits for the answer; xterm.js gives it in
+        // the app, so the test answers it the same way.
+        let mut writer = pair.master.take_writer().unwrap();
         let mut out = Vec::new();
-        let mut buf = [0u8; 4096];
-        let t = std::time::Instant::now();
-        while t.elapsed() < Duration::from_secs(90) {
-            match reader.read(&mut buf) {
-                Ok(0) | Err(_) => break,
-                Ok(n) => out.extend_from_slice(&buf[..n]),
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
+        while let Some(left) = deadline.checked_duration_since(std::time::Instant::now()) {
+            match rx.recv_timeout(left) {
+                Ok(chunk) => {
+                    if chunk.windows(4).any(|w| w == b"\x1b[6n") {
+                        let _ = writer.write_all(b"\x1b[1;1R");
+                    }
+                    out.extend_from_slice(&chunk)
+                }
+                Err(_) => break,
             }
             if String::from_utf8_lossy(&out).contains("GIT=") {
                 break;
             }
         }
         let _ = child.kill();
-        let text = String::from_utf8_lossy(&out).into_owned();
+        drop(pair.master);
+        let raw = String::from_utf8_lossy(&out).into_owned();
+        // Drop the terminal's escape codes (colours, cursor moves, titles), which split words.
+        let mut text = String::new();
+        let mut chars = raw.chars().peekable();
+        while let Some(c) = chars.next() {
+            if c != '\x1b' {
+                text.push(c);
+                continue;
+            }
+            match chars.next() {
+                Some('[') => {
+                    while let Some(&n) = chars.peek() {
+                        chars.next();
+                        if n.is_ascii_alphabetic() {
+                            break;
+                        }
+                    }
+                }
+                // A title: ends with BEL or with ESC \.
+                Some(']') => {
+                    while let Some(n) = chars.next() {
+                        if n == '\x07' {
+                            break;
+                        }
+                        if n == '\x1b' {
+                            chars.next();
+                            break;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
         println!("{text}");
         for needle in [r"CWD=C:\NexDB\www","PHP=8.5.12", "COMPOSER=Composer version 2", "NODE=v26", "MYSQL=", "9.7.4", "GIT=git version"] {
             assert!(text.contains(needle), "missing {needle}");
