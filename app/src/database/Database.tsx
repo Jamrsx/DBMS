@@ -28,6 +28,8 @@ import { plainType, sqlTemplates, touchesEveryRow, type SqlTemplate } from "../l
 import { dbExportSql, dbUseEngine, type DbEngine } from "../lib/db";
 import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
+import { dbUsage, type DbUsage } from "../lib/db";
+import { UseInProject } from "./UseInProject";
 
 const TEMPLATES_KEY = "nexdb.sqlTemplates";
 const ENGINE_KEY = "nexdb.dbEngine";
@@ -73,6 +75,20 @@ export function Database({
   const [tab, setTab] = useState<Tab>("sql");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Which project uses which database, and the database whose "Use in a project" panel is open.
+  const [usage, setUsage] = useState<DbUsage[]>([]);
+  const [connectFor, setConnectFor] = useState<string | null>(null);
+  const loadUsage = useCallback(async () => {
+    try {
+      setUsage(await dbUsage());
+    } catch {
+      // Only a hint on the overview; the page works without it.
+    }
+  }, []);
+  useEffect(() => {
+    if (active) void loadUsage();
+  }, [active, loadUsage]);
 
   const loadDbs = useCallback(async () => {
     try {
@@ -267,7 +283,8 @@ export function Database({
               setCreating(false);
               await loadDbs();
               await pick(name);
-              setTab("sql");
+              setConnectFor(name);
+              setTab("browse");
             }}
           />
         )}
@@ -327,6 +344,11 @@ export function Database({
               {tab === "browse" && selected && !table && (
                 <Overview
                   db={selected}
+                  engine={engine}
+                  usedBy={usage.filter((u) => u.database === selected && u.engine === engine)}
+                  connecting={connectFor === selected}
+                  onConnect={(open) => setConnectFor(open ? selected : null)}
+                  onConnected={() => void loadUsage()}
                   tables={tables}
                   system={dbs.find((d) => d.name === selected)?.system ?? false}
                   onTable={openTable}
@@ -578,6 +600,11 @@ function NewDatabase({ existing, onDone }: { existing: string[]; onDone: (name: 
 
 function Overview({
   db,
+  engine,
+  usedBy,
+  connecting,
+  onConnect,
+  onConnected,
   tables,
   system,
   onTable,
@@ -585,6 +612,11 @@ function Overview({
   onImport,
 }: {
   db: string;
+  engine: DbEngine;
+  usedBy: DbUsage[];
+  connecting: boolean;
+  onConnect: (open: boolean) => void;
+  onConnected: () => void;
   tables: TableInfo[];
   system: boolean;
   onTable: (name: string) => void;
@@ -600,6 +632,29 @@ function Overview({
 
   return (
     <div className="db-overview">
+      {!system && (
+        <div className="db-used-by">
+          <span className="field-hint">
+            {usedBy.length === 0
+              ? "No project uses this database yet."
+              : `Used by ${usedBy.map((u) => (u.folder ? `${u.project}/${u.folder}` : u.project)).join(", ")}.`}
+          </span>
+          {!connecting && (
+            <button className="btn btn-small" onClick={() => onConnect(true)}>
+              Use in a project…
+            </button>
+          )}
+        </div>
+      )}
+      {!system && connecting && (
+        <UseInProject
+          key={db}
+          database={db}
+          engine={engine}
+          onClose={() => onConnect(false)}
+          onDone={onConnected}
+        />
+      )}
       {tables.length === 0 ? (
         <p className="lede">
           <code>{db}</code> has no tables yet. Use the SQL tab to create one.

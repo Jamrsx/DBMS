@@ -6252,3 +6252,190 @@ details.ver-php-settings > summary {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ------------------------------------------------------------------ use a database in a project */
+
+.db-used-by {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.use-project {
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  max-width: 620px;
+}
+
+.use-project h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.use-project-form {
+  display: grid;
+  gap: 14px;
+}
+
+.use-project-form .field-error {
+  margin: 0;
+}
+
+.use-project-user {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.use-project-user legend {
+  margin-bottom: 8px;
+}
+
+.use-project-user .check-row {
+  align-items: flex-start;
+}
+
+.use-project-user .check-row input {
+  margin-top: 2px;
+}
+
+.use-project-sub {
+  display: block;
+}
+
+.use-project-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.use-project-done {
+  display: grid;
+  gap: 12px;
+}
+
+.use-project-done p {
+  margin: 0;
+}
+
+.use-project-values th {
+  width: 1%;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.use-project-values code {
+  word-break: break-all;
+}
+
+/* ------------------------------------------------------------------ keyboard and first-run tour */
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+.page h1:focus {
+  outline: none;
+}
+
+.page h1:focus-visible {
+  box-shadow: none;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-underline-offset: 4px;
+}
+
+.set-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.tour {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 70;
+  display: grid;
+  gap: 12px;
+  width: min(360px, calc(100vw - 32px));
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.28);
+}
+
+.tour p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.tour-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tour-head h2 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.tour .tour-count {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.tour-skip {
+  margin-right: auto;
+}
+
+.nav-item[data-tour] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tour {
+    animation: tour-in 0.18s ease-out;
+  }
+}
+
+@keyframes tour-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}

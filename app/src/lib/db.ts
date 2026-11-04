@@ -148,6 +148,25 @@ const sim = {
 async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown> {
   await pause(150);
   switch (cmd) {
+    case "db_targets":
+      return a.project === "blog"
+        ? [{ folder: "Backend", kind: "laravel", database: "blog", engine: "mysql" }]
+        : [{ folder: "", kind: "laravel", database: null, engine: null }];
+    case "db_usage":
+      return [{ project: "blog", folder: "Backend", engine: "mysql", database: "blog" }];
+    case "db_use_in_project":
+      return {
+        written: ["C:", "NexDB", "www", String(a.project), ...(a.folder ? [String(a.folder)] : []), ".env"].join("\\"),
+        values: [
+          ["DB_CONNECTION", a.engine === "postgres" ? "pgsql" : "mysql"],
+          ["DB_HOST", "127.0.0.1"],
+          ["DB_PORT", a.engine === "postgres" ? "5432" : "3306"],
+          ["DB_DATABASE", String(a.database)],
+          ["DB_USERNAME", a.ownUser ? String(a.database) : "root"],
+          ["DB_PASSWORD", a.ownUser ? "Xk7pQ2mL9vR4" : ""],
+        ],
+        user: a.ownUser ? String(a.database) : "root",
+      };
     case "db_use_engine":
       return a.engine === "postgres" ? { version: "PostgreSQL 18.6" } : null;
     case "db_connect":
@@ -243,3 +262,38 @@ async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown
   }
   throw `Unknown command ${cmd}`;
 }
+
+/** A place in a project that can hold a database connection. */
+export interface DbTarget {
+  /** Relative to the project; empty for the project folder. */
+  folder: string;
+  kind: "laravel" | "wordpress" | "other";
+  database: string | null;
+  engine: DbEngine | null;
+}
+
+export interface DbUsage {
+  project: string;
+  folder: string;
+  engine: DbEngine;
+  database: string;
+}
+
+export interface UseResult {
+  /** The file NexDB wrote (.env or wp-config.php), when it could. */
+  written: string | null;
+  /** The connection, to copy into a project NexDB can't change itself. */
+  values: [string, string][];
+  user: string;
+}
+
+export const dbTargets = (project: string) => call<DbTarget[]>("db_targets", { project });
+export const dbUsage = () => call<DbUsage[]>("db_usage");
+/** Points a project folder at a database, with a user of its own (`ownUser`) or as root. */
+export const dbUseInProject = (
+  project: string,
+  folder: string,
+  database: string,
+  engine: DbEngine,
+  ownUser: boolean,
+) => call<UseResult>("db_use_in_project", { project, folder, database, engine, ownUser });

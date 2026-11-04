@@ -21,6 +21,21 @@ interface Tab {
 /** A terminal window opened for one project starts in its folder (`?project=name`). */
 const startProject = new URLSearchParams(location.search).get("project") ?? undefined;
 
+const TABS_KEY = "nexdb.terminalTabs";
+
+/** The Terminal page's tab names from last time (each opens a fresh PowerShell). */
+function savedTabs(): Tab[] {
+  try {
+    const names = JSON.parse(localStorage.getItem(TABS_KEY) ?? "[]");
+    if (Array.isArray(names) && names.length && names.every((n) => typeof n === "string")) {
+      return names.slice(0, 12).map((name, i) => ({ key: i + 1, name, state: "starting", restart: 0 }));
+    }
+  } catch {
+    // Starts with one tab instead.
+  }
+  return [{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }];
+}
+
 export function TerminalPage({ active, standalone = false }: { active: boolean; standalone?: boolean }) {
   const [popError, setPopError] = useState<string | null>(null);
 
@@ -33,12 +48,23 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
       7000,
     );
   }, [active]);
-  const count = useRef(1);
-  const [tabs, setTabs] = useState<Tab[]>(() => [
+  const [tabs, setTabs] = useState<Tab[]>(() =>
     standalone && startProject
-      ? { key: 1, name: startProject, project: startProject, state: "starting", restart: 0 }
-      : { key: 1, name: "Terminal 1", state: "starting", restart: 0 },
-  ]);
+      ? [{ key: 1, name: startProject, project: startProject, state: "starting", restart: 0 }]
+      : standalone
+        ? [{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }]
+        : savedTabs(),
+  );
+  const count = useRef(Math.max(...tabs.map((t) => t.key)));
+  // The main window's Terminal page remembers its tabs and their names.
+  useEffect(() => {
+    if (standalone) return;
+    try {
+      localStorage.setItem(TABS_KEY, JSON.stringify(tabs.map((t) => t.name)));
+    } catch {
+      // Not remembered; nothing else changes.
+    }
+  }, [tabs, standalone]);
   const [current, setCurrent] = useState(1);
   const [editing, setEditing] = useState<number | null>(null);
 

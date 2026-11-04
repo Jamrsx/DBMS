@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.5",
+    title: "Connect databases to projects",
+    changes: [
+      "After you make a database, pick the project that uses it, or skip it. You can also do it later from the database or the project's page.",
+      "NexDB writes the connection for you: .env for Laravel, wp-config.php for WordPress, and keeps the old file as a .backup. Other PHP apps get the values to copy.",
+      "Choose a user of its own for the database (recommended) or root. Each database shows which project uses it.",
+      "NexDB remembers its window size, the page you were on, and your terminal tabs and their names.",
+      "Keyboard: Ctrl+1 to Ctrl+7 open the sidebar's pages, a Skip to page content link, and screen readers hear each page's title when you move.",
+      "A short tour on first launch. Settings → What's new can show it again.",
+    ],
+  },
+  {
     version: "0.4.4",
     title: "Clone from Git",
     changes: [

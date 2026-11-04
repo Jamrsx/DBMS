@@ -160,7 +160,7 @@ pub fn db_name(project: &str) -> String {
 }
 
 /// A random password of letters and digits, safe in `.env` and PHP strings.
-fn random_password() -> Result<String, String> {
+pub(crate) fn random_password() -> Result<String, String> {
     const CHARS: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
     let mut bytes = [0u8; 24];
     getrandom::fill(&mut bytes).map_err(|e| format!("Couldn't make a password: {e}"))?;

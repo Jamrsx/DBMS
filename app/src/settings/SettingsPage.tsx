@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { showTour } from "../components/Tour";
 import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
@@ -528,6 +529,12 @@ function WhatsNewCard({ version }: { version: string }) {
           </button>
         )}
         {more && earlier.map(release)}
+      </div>
+      <div className="set-row-actions">
+        <button className="btn btn-small" onClick={showTour}>
+          Show the tour again
+        </button>
+        <span className="field-hint">Ctrl+K searches everything. Ctrl+1 to Ctrl+7 open the sidebar's pages.</span>
       </div>
     </Card>
   );

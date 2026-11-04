@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Database,
   FolderKanban,
@@ -26,6 +26,7 @@ import { TerminalPage } from "./terminal/TerminalPage";
 import { SettingsPage } from "./settings/SettingsPage";
 import { VersionsPage } from "./versions/VersionsPage";
 import { HealthPage } from "./health/HealthPage";
+import { Tour } from "./components/Tour";
 
 type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings";
 
@@ -38,6 +39,18 @@ const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
 ];
 
 const RAIL_KEY = "nexdb.rail";
+const PAGE_KEY = "nexdb.page";
+const PAGES: Page[] = ["dashboard", "projects", "database", "terminal", "versions", "health", "settings"];
+
+/** The page open when NexDB last closed, so it opens where the user left off. */
+function savedPage(): Page {
+  try {
+    const p = localStorage.getItem(PAGE_KEY) as Page | null;
+    return p && PAGES.includes(p) ? p : "dashboard";
+  } catch {
+    return "dashboard";
+  }
+}
 
 function savedCollapsed(): boolean {
   try {
@@ -49,7 +62,46 @@ function savedCollapsed(): boolean {
 
 /** The rail plus the open page. Pages stay mounted so the terminal keeps its session. */
 export function Shell() {
-  const [page, setPage] = useState<Page>("dashboard");
+  const [page, setPage] = useState<Page>(savedPage);
+  useEffect(() => {
+    try {
+      localStorage.setItem(PAGE_KEY, page);
+    } catch {
+      // Opens on the dashboard next time instead.
+    }
+  }, [page]);
+
+  // Moving to a page puts keyboard focus on its title, so screen readers say where you are.
+  const moved = useRef(false);
+  const go = useCallback((p: Page) => {
+    moved.current = true;
+    setPage(p);
+  }, []);
+  useEffect(() => {
+    if (!moved.current) return;
+    moved.current = false;
+    // The terminal takes the keyboard itself, so typing works straight away.
+    if (page === "terminal") return;
+    const title = document.querySelector<HTMLElement>(".page:not([hidden]) h1");
+    if (title && !title.closest(".rail")) {
+      title.tabIndex = -1;
+      title.focus({ preventScroll: true });
+    }
+  }, [page]);
+
+  // Ctrl+1 … Ctrl+7 open the sidebar's pages in order.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= PAGES.length) {
+        e.preventDefault();
+        go(PAGES[n - 1]);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go]);
   // A project to open on the Projects page (from Check my setup); n makes each request new.
   const [openProject, setOpenProject] = useState<{ name: string; n: number } | null>(null);
   // A database to show on the Database page (from the Ctrl+K palette).
@@ -75,6 +127,20 @@ export function Shell() {
 
   return (
     <div className={collapsed ? "shell rail-collapsed" : "shell"}>
+      <a
+        className="skip-link"
+        href="#page"
+        onClick={(e) => {
+          e.preventDefault();
+          const title = document.querySelector<HTMLElement>(".page:not([hidden]) h1");
+          if (title) {
+            title.tabIndex = -1;
+            title.focus();
+          }
+        }}
+      >
+        Skip to page content
+      </a>
       <aside className="rail">
         <div className="brand">
           <BrandMark />
@@ -110,8 +176,10 @@ export function Shell() {
               type="button"
               className={page === id ? "nav-item current" : "nav-item"}
               aria-current={page === id ? "page" : undefined}
-              title={collapsed ? label : undefined}
-              onClick={() => setPage(id)}
+              data-page={id}
+              aria-keyshortcuts={`Control+${PAGES.indexOf(id) + 1}`}
+              title={collapsed ? `${label} (Ctrl+${PAGES.indexOf(id) + 1})` : `Ctrl+${PAGES.indexOf(id) + 1}`}
+              onClick={() => go(id)}
             >
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span className="nav-label">{label}</span>
@@ -122,8 +190,10 @@ export function Shell() {
             type="button"
             className={page === "health" ? "nav-item current" : "nav-item"}
             aria-current={page === "health" ? "page" : undefined}
-            title={collapsed ? "Check my setup" : undefined}
-            onClick={() => setPage("health")}
+            data-page="health"
+            aria-keyshortcuts="Control+6"
+            title={collapsed ? "Check my setup (Ctrl+6)" : "Ctrl+6"}
+            onClick={() => go("health")}
           >
             <Stethoscope size={16} strokeWidth={2} aria-hidden="true" />
             <span className="nav-label">Check my setup</span>
@@ -132,8 +202,10 @@ export function Shell() {
             type="button"
             className={page === "settings" ? "nav-item current" : "nav-item"}
             aria-current={page === "settings" ? "page" : undefined}
-            title={collapsed ? "Settings" : undefined}
-            onClick={() => setPage("settings")}
+            data-page="settings"
+            aria-keyshortcuts="Control+7"
+            title={collapsed ? "Settings (Ctrl+7)" : "Ctrl+7"}
+            onClick={() => go("settings")}
           >
             <Settings size={16} strokeWidth={2} aria-hidden="true" />
             <span className="nav-label">Settings</span>
@@ -159,7 +231,7 @@ export function Shell() {
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />
       </div>
       <CommandPalette
-        onPage={setPage}
+        onPage={go}
         onProject={(name) => {
           setOpenProject((r) => ({ name, n: (r?.n ?? 0) + 1 }));
           setPage("projects");
@@ -172,7 +244,7 @@ export function Shell() {
       <div className="page" hidden={page !== "health"}>
         <HealthPage
           active={page === "health"}
-          onNavigate={setPage}
+          onNavigate={go}
           onOpenProject={(name) => {
             setOpenProject((r) => ({ name, n: (r?.n ?? 0) + 1 }));
             setPage("projects");
@@ -192,6 +264,7 @@ export function Shell() {
         <TerminalPage active={page === "terminal"} />
       </div>
       <NexCorner />
+      <Tour onPage={setPage as (p: never) => void} />
     </div>
   );
 }

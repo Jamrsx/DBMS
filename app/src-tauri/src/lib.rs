@@ -4,6 +4,7 @@ mod backup;
 mod catalog;
 mod configure;
 mod db;
+mod dbconnect;
 mod dbedit;
 mod editors;
 mod health;
@@ -212,6 +213,16 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init())
+        // Opens at the size and place it had last time (not hidden or shown: the tray decides that).
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_state_flags(
+                    tauri_plugin_window_state::StateFlags::SIZE
+                        | tauri_plugin_window_state::StateFlags::POSITION
+                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .setup(|app| {
             tray::setup(app.handle())?;
             // "Start services when NexDB opens", from Settings.
@@ -281,6 +292,9 @@ pub fn run() {
             health_reset_postgres,
             health_report,
             project_clone,
+            db_targets,
+            db_usage,
+            db_use_in_project,
             import_sources,
             import_databases,
             import_run,
@@ -2214,6 +2228,98 @@ async fn health_report(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) ->
         let checks = health::run(&root, &settings, &sup);
         health::support_report(&root, &settings, &sup, &checks, &path)?;
         Ok(Some(path.display().to_string()))
+    })
+    .await
+}
+
+/// Where a project can take a database: its folder and folders one level down, with the
+/// database each one uses now.
+#[tauri::command]
+async fn db_targets(stack: tauri::State<'_, Stack>, project: String) -> Result<Vec<dbconnect::Target>, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &project).ok_or("That project doesn't exist any more.")?;
+        Ok(dbconnect::targets(&dir))
+    })
+    .await
+}
+
+/// Which project uses which database, from the projects' own settings.
+#[tauri::command]
+async fn db_usage(stack: tauri::State<'_, Stack>) -> Result<Vec<dbconnect::Usage>, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || Ok(dbconnect::usage(std::path::Path::new(&settings.www_dir)))).await
+}
+
+#[derive(serde::Serialize)]
+struct UseResult {
+    /// The file written, when NexDB could write one.
+    written: Option<String>,
+    /// The connection, to copy into a project NexDB can't change itself.
+    values: Vec<(String, String)>,
+    user: String,
+}
+
+/// Points a project (or one of its folders) at a database on NexDB's MySQL ("mysql") or
+/// PostgreSQL ("postgres"). With `own_user`, the database gets a user of its own with a new
+/// password; otherwise the project signs in as root (postgres). Laravel's caches are cleared.
+#[tauri::command]
+async fn db_use_in_project(
+    stack: tauri::State<'_, Stack>,
+    db: tauri::State<'_, db::Db>,
+    project: String,
+    folder: String,
+    database: String,
+    engine: String,
+    own_user: bool,
+) -> Result<UseResult, String> {
+    let (root, settings, _) = stack.get()?;
+    let root_password = db.inner().clone_handle().password();
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &project).ok_or("That project doesn't exist any more.")?;
+        let dir = if folder.is_empty() { dir } else { dir.join(projects::clean_site_folder(&dir, &folder)?) };
+        if !db::valid_name(&database) {
+            return Err(format!("\"{database}\" isn't a database name NexDB can use."));
+        }
+        let conn = if engine == "postgres" {
+            let port = supervisor::POSTGRES_PORT;
+            if own_user {
+                // PostgreSQL user names: letters, digits and _.
+                let user: String = database.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' { c.to_ascii_lowercase() } else { '_' }).collect();
+                let password = quickstart::random_password()?;
+                if pg::users(port)?.iter().any(|u| u.name == user) {
+                    pg::set_user_password(port, &user, &password)?;
+                    pg::grant(port, &user, &database)?;
+                } else {
+                    pg::create_user(port, &user, &password, Some(&database))?;
+                }
+                dbconnect::Conn { engine, port, database, user, password }
+            } else {
+                dbconnect::Conn { engine, port, database, user: "postgres".into(), password: String::new() }
+            }
+        } else {
+            let port = settings.mysql.as_ref().map(|m| m.port).ok_or("MySQL isn't part of this install.")?;
+            if own_user {
+                let (made, _) = quickstart::ensure_database(root_password.as_deref(), port, &database)?;
+                dbconnect::Conn { engine: "mysql".into(), port, database, user: made.user, password: made.password }
+            } else {
+                dbconnect::Conn { engine: "mysql".into(), port, database, user: "root".into(), password: root_password.unwrap_or_default() }
+            }
+        };
+        let kind = dbconnect::kind_of(&dir);
+        let written = match kind.as_str() {
+            "laravel" => {
+                let path = dbconnect::write_laravel(&dir, &conn)?;
+                // Cached config would keep the old connection.
+                if dir.join("vendor").is_dir() {
+                    let _ = laravel::run(&root, &settings, &project, &dir, "clear");
+                }
+                Some(path.display().to_string())
+            }
+            "wordpress" => Some(dbconnect::write_wordpress(&dir, &conn)?.display().to_string()),
+            _ => None,
+        };
+        Ok(UseResult { written, values: dbconnect::env_lines(&conn), user: conn.user })
     })
     .await
 }

@@ -47,6 +47,7 @@ Rules every release follows:
 | 0.4.2 | Redesign: one main action per row and page with the rest behind ⋯, simpler Dashboard rows and log, project rows and page header with two buttons |
 | 0.4.3 | Tray menu with each service and project; Ctrl+K command palette; Windows notifications when a service stops by itself or an automatic backup fails |
 | 0.4.4 | Clone from Git: paste an address, NexDB clones it with live progress and sets it up (packages, .env, app key) in one go |
+| 0.4.5 | Connect a database to a project (.env or wp-config.php, own user or root, used-by both ways); remembers window, page and terminal tabs; Ctrl+1–7, skip link, focus on page titles; first-run tour |
 
 ## Next
 

@@ -27,6 +27,16 @@ import { SetupPanel } from "./SetupPanel";
 import { LaravelPanel } from "./LaravelPanel";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
 import { MoreMenu } from "../components/MoreMenu";
+import { UseInProject } from "../database/UseInProject";
+
+/** The server the Database page shows; a project connects to that one. */
+function currentEngine(): "mysql" | "postgres" {
+  try {
+    return localStorage.getItem("nexdb.dbEngine") === "postgres" ? "postgres" : "mysql";
+  } catch {
+    return "mysql";
+  }
+}
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -56,6 +66,7 @@ export function ProjectDetails({
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [typed, setTyped] = useState("");
   const [dropDb, setDropDb] = useState(false);
+  const [pickDb, setPickDb] = useState(false);
 
   const load = useCallback(() => {
     projectDetails(name)
@@ -201,7 +212,12 @@ export function ProjectDetails({
               <div>
                 <dt>Database</dt>
                 <dd>
-                  {info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}
+                  {info.database ? <code>{info.database}</code> : <span className="muted">None set in its config</span>}{" "}
+                  {!pickDb && (
+                    <button className="btn btn-small" onClick={() => setPickDb(true)}>
+                      {info.database ? "Change…" : "Connect a database…"}
+                    </button>
+                  )}
                 </dd>
               </div>
               <div>
@@ -224,6 +240,15 @@ export function ProjectDetails({
                 </dd>
               </div>
             </dl>
+          )}
+          {info && pickDb && (
+            <UseInProject
+              project={name}
+              engine={currentEngine()}
+              title="Connect a database"
+              onClose={() => setPickDb(false)}
+              onDone={load}
+            />
           )}
 
           {info && (info.site.needs_choice || info.site.folders.length > 0 || info.site.chosen) && (
