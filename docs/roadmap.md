@@ -263,9 +263,18 @@ Mail catcher (with 0.3.2's services):
   starts work shows a spinner, and progress shows beside it (Share, Versions, project page);
   project setup, Composer and artisan run on the project's own PHP version.
 
-### 0.4.1: PostgreSQL on the Database page
+### 0.4.1: Background tasks, PHP extensions and PostgreSQL
 
-- Browse, edit rows, SQL with templates, users, export and import, as for MySQL.
+- Background tasks: project setup, new projects, downloads, imports and backups keep running when
+  you open another page, and their progress is still there when you come back. A tasks button in
+  the sidebar shows what is running (with progress) and what just finished or failed.
+- PHP settings per version (Versions page and a project's PHP section): turn extensions on or off
+  (pdo_pgsql, gd, intl, sodium, zip…) with a short note on what each is for, change common
+  settings (memory_limit, upload_max_filesize, post_max_size, max_execution_time), and open
+  php.ini in an editor for anything else. PHP restarts after a change; a broken php.ini is
+  caught before it is saved.
+- PostgreSQL on the Database page: browse, edit rows, SQL with templates, users, export and
+  import, as for MySQL.
 
 ### 0.4.2: Tray menu and command palette
 
