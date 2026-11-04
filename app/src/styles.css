@@ -6124,3 +6124,112 @@ details.ver-php-settings > summary {
 .log-pick .log-mode {
   margin-left: auto;
 }
+
+/* Ctrl+K palette: a search box over the app, its matches below. */
+.palette-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  padding-top: 12vh;
+  background: rgb(0 0 0 / 0.35);
+}
+
+.palette {
+  display: grid;
+  width: min(560px, calc(100vw - 32px));
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.32);
+}
+
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+}
+
+.palette-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  font: 15px var(--font);
+  color: var(--text);
+}
+
+.palette kbd,
+.nav-search kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: 11px var(--mono);
+  color: var(--text-3);
+}
+
+.palette-list {
+  max-height: 360px;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  list-style: none;
+}
+
+.palette-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+
+.palette-item svg {
+  color: var(--text-3);
+}
+
+.palette-item.current {
+  background: var(--surface-2);
+}
+
+.palette-group {
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.palette-empty {
+  padding: 12px 10px;
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+.palette-foot {
+  margin: 0;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+.nav-search {
+  width: 100%;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.nav-search kbd {
+  margin-left: auto;
+}

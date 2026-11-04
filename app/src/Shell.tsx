@@ -7,9 +7,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  Search,
   SquareTerminal,
   Stethoscope,
 } from "lucide-react";
+import { CommandPalette } from "./components/CommandPalette";
 import { BrandMark } from "./components/BrandMark";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { UpdateNotice } from "./components/UpdateNotice";
@@ -50,6 +52,8 @@ export function Shell() {
   const [page, setPage] = useState<Page>("dashboard");
   // A project to open on the Projects page (from Check my setup); n makes each request new.
   const [openProject, setOpenProject] = useState<{ name: string; n: number } | null>(null);
+  // A database to show on the Database page (from the Ctrl+K palette).
+  const [openDatabase, setOpenDatabase] = useState<{ name: string; n: number } | null>(null);
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const updates = useUpdates();
   const updateReady = updates.state.kind === "available";
@@ -86,6 +90,17 @@ export function Shell() {
             <ToggleIcon size={16} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
+
+        <button
+          type="button"
+          className="nav-item nav-search"
+          title="Search pages, projects, databases and actions (Ctrl+K)"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
+        >
+          <Search size={16} strokeWidth={2} aria-hidden="true" />
+          <span className="nav-label">Search</span>
+          <kbd className="nav-label">Ctrl K</kbd>
+        </button>
 
         <nav className="nav" aria-label="Main">
           <span className="nav-section">Workspace</span>
@@ -143,6 +158,17 @@ export function Shell() {
       <div className="page" hidden={page !== "projects"}>
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />
       </div>
+      <CommandPalette
+        onPage={setPage}
+        onProject={(name) => {
+          setOpenProject((r) => ({ name, n: (r?.n ?? 0) + 1 }));
+          setPage("projects");
+        }}
+        onDatabase={(name) => {
+          setOpenDatabase((r) => ({ name, n: (r?.n ?? 0) + 1 }));
+          setPage("database");
+        }}
+      />
       <div className="page" hidden={page !== "health"}>
         <HealthPage
           active={page === "health"}
@@ -154,7 +180,7 @@ export function Shell() {
         />
       </div>
       <div className="page" hidden={page !== "database"}>
-        <DatabasePage active={page === "database"} />
+        <DatabasePage active={page === "database"} openRequest={openDatabase} />
       </div>
       <div className="page" hidden={page !== "versions"}>
         <VersionsPage active={page === "versions"} />

@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.3",
+    title: "Tray menu, Ctrl+K and alerts",
+    changes: [
+      "Tray menu: start or stop each service (a tick shows which run), open a project's site, a terminal or its folder, without opening the window.",
+      "Ctrl+K (or Search at the top of the sidebar): type to jump to any page, project or database, or to start and stop services.",
+      "A Windows notification tells you when a service stops by itself, or when an automatic backup fails.",
+    ],
+  },
+  {
     version: "0.4.2",
     title: "A simpler layout",
     changes: [

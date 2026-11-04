@@ -87,7 +87,11 @@ fn check(app: &AppHandle) {
         Ok(count) => {
             status = Status { last_ok: Some(now()), last_count: count, problem: None };
         }
-        Err(problem) => status.problem = Some(problem),
+        Err(problem) => {
+            // You'd otherwise only find out on the Database page.
+            crate::tray::notify(app, "Automatic backup failed", &format!("{problem} NexDB tries again on the next schedule."));
+            status.problem = Some(problem);
+        }
     }
     save_status(&root, &status);
 }

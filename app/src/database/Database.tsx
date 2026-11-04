@@ -34,7 +34,14 @@ const ENGINE_KEY = "nexdb.dbEngine";
 
 type Tab = "browse" | "structure" | "sql" | "backups" | "users";
 
-export function Database({ active }: { active: boolean }) {
+export function Database({
+  active,
+  openRequest,
+}: {
+  active: boolean;
+  /** A database to select, when another part of NexDB asks (the Ctrl+K palette). */
+  openRequest?: { name: string; n: number } | null;
+}) {
   const [version, setVersion] = useState<string | null>(null);
   // Which server the page shows; remembered between launches.
   const [engine, setEngine] = useState<DbEngine>(() => {
@@ -135,6 +142,15 @@ export function Database({ active }: { active: boolean }) {
       await connect();
     }
   }
+
+  // Select the database the palette asked for, once the list is there.
+  useEffect(() => {
+    if (openRequest && dbs.some((d) => d.name === openRequest.name)) {
+      setListOpen(true);
+      void pick(openRequest.name);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequest, dbs.length]);
 
   // Connect the first time the page is shown.
   const tried = useRef(false);

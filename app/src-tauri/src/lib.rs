@@ -211,6 +211,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             tray::setup(app.handle())?;
             // "Start services when NexDB opens", from Settings.
@@ -381,6 +382,20 @@ pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
             }
         } else {
             sup.stop_all();
+        }
+        let _ = app.emit("services-changed", ());
+    });
+}
+
+/// Starts one service from the tray menu, or stops it when it runs.
+pub(crate) fn tray_service(app: &tauri::AppHandle, id: &str) {
+    let (app, id) = (app.clone(), id.to_string());
+    std::thread::spawn(move || {
+        let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
+        let up = sup.status().iter().any(|s| s.id == id && matches!(s.state, supervisor::State::Running | supervisor::State::Starting));
+        let result = if up { sup.stop(&id) } else { installer::refresh_configs(&root, &settings).and_then(|_| sup.start(&id)) };
+        if let Err(e) = result {
+            tray::notify(&app, "Couldn't change the service", &e);
         }
         let _ = app.emit("services-changed", ());
     });
@@ -1259,16 +1274,21 @@ async fn projects_sync_hosts(stack: tauri::State<'_, Stack>) -> Result<(), Strin
 /// Opens a project's folder in Explorer, or one of its addresses in the browser. Only paths
 /// inside the www folder and the project's own addresses are accepted.
 #[tauri::command]
-fn project_open(app: tauri::AppHandle, stack: tauri::State<Stack>, name: String, what: String) -> Result<(), String> {
+fn project_open(app: tauri::AppHandle, name: String, what: String) -> Result<(), String> {
+    open_project(&app, &name, &what)
+}
+
+/// Opens a project's site ("url" or "local") or its folder ("folder"); also used by the tray.
+fn open_project(app: &tauri::AppHandle, name: &str, what: &str) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
-    let (_, settings, _) = stack.get()?;
+    let (_, settings, _) = app.state::<Stack>().get()?;
     let port = settings.web().map_or(80, |w| w.1);
     let mut found = projects::list_with(std::path::Path::new(&settings.www_dir), port, &settings.preferences.site_root);
     if settings.preferences.https {
         projects::use_https(&mut found, settings.preferences.https_port);
     }
     let project = found.into_iter().find(|p| p.name == name).ok_or("That project doesn't exist any more.")?;
-    match what.as_str() {
+    match what {
         "folder" => app.opener().open_path(project.path, None::<&str>).map_err(|e| e.to_string()),
         "url" if !project.url.is_empty() => app.opener().open_url(project.url, None::<&str>).map_err(|e| e.to_string()),
         "local" => app.opener().open_url(project.local_url, None::<&str>).map_err(|e| e.to_string()),
