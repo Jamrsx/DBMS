@@ -8,7 +8,13 @@ export function PhpMyAdmin({ onError }: { onError: (message: string | null) => v
   const [percent, setPercent] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const refresh = useCallback(() => pmaStatus().then(setStatus).catch(() => setStatus(null)), []);
+  const refresh = useCallback(
+    () =>
+      pmaStatus()
+        .then(setStatus)
+        .catch(() => setStatus(null)),
+    [],
+  );
   useEffect(() => {
     void refresh();
   }, [refresh]);
@@ -32,14 +38,19 @@ export function PhpMyAdmin({ onError }: { onError: (message: string | null) => v
 
   if (!status.installed) {
     return (
-      <button className="btn" onClick={install} disabled={busy} title="Adds phpMyAdmin at localhost/phpmyadmin">
+      <button
+        className="btn btn-quiet"
+        onClick={install}
+        disabled={busy}
+        title="Adds phpMyAdmin at localhost/phpmyadmin"
+      >
         <Download size={15} aria-hidden="true" />{" "}
         {busy ? (percent === null ? "Installing…" : `Installing ${percent}%`) : "Install phpMyAdmin"}
       </button>
     );
   }
   return (
-    <button className="btn" onClick={() => pmaOpen().catch((e) => onError(String(e)))} title={status.url}>
+    <button className="btn btn-quiet" onClick={() => pmaOpen().catch((e) => onError(String(e)))} title={status.url}>
       <ExternalLink size={15} aria-hidden="true" /> phpMyAdmin {status.version ?? ""}
     </button>
   );

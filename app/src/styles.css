@@ -5999,3 +5999,128 @@ details.ver-php-settings > summary {
   color: var(--text);
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
 }
+
+/* ---------------------------------------------------------------------------------------------
+   0.4.2 redesign: fewer parts per row, one main action each, rare actions behind "⋯".
+   --------------------------------------------------------------------------------------------- */
+
+/* The "⋯" menu (components/MoreMenu.tsx). */
+.more {
+  position: relative;
+  display: inline-flex;
+}
+
+.more-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 40;
+  display: grid;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 28px rgb(0 0 0 / 0.2);
+}
+
+.more-end {
+  right: 0;
+}
+
+.more-start {
+  left: 0;
+}
+
+.more-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: 13.5px var(--font);
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.more-item svg {
+  flex: none;
+  color: var(--text-3);
+}
+
+.more-item:hover:not(:disabled),
+.more-item:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+
+.more-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.more-item.danger,
+.more-item.danger svg {
+  color: var(--bad);
+}
+
+/* Dashboard: name, what it does and its port on the left; state and its two buttons right. */
+.svc {
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+}
+
+.svc-facts {
+  display: none;
+}
+
+.svc-inline-facts {
+  display: block;
+}
+
+/* Projects list: name and state, address, then Open and "⋯". */
+.project {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+}
+
+.project-actions {
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* Project page header: back, name and address on one line, its actions on the right. */
+.details-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* Dashboard log: pick the service from a list instead of a row of tabs. */
+.log-pick {
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+}
+
+.log-pick-label {
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.log-select {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 13px var(--font);
+}
+
+.log-pick .log-mode {
+  margin-left: auto;
+}

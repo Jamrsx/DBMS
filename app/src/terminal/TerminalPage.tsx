@@ -3,11 +3,7 @@ import { AppWindow, Plus, SquareTerminal, X } from "lucide-react";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
-import { Nex, type NexState } from "../components/Nex";
 import { nexSay } from "../lib/nex";
-
-/** Nex in the header follows the open tab: busy starting, idle when ready, asleep when it ended. */
-const TAB_MOOD: Record<SessionState, NexState> = { starting: "loading", open: "idle", closed: "sleeping" };
 
 /** Nex says hi the first time the Terminal page opens in a launch. */
 let greeted = false;
@@ -91,8 +87,8 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
 
   return (
     <main className="panel">
+      {/* The same header as every page: title, one line, actions on the right. */}
       <header className="panel-head dash-head">
-        {shown && <Nex state={TAB_MOOD[shown.state]} size={52} />}
         <div>
           <h1>Terminal</h1>
           <p className="dash-summary">

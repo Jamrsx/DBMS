@@ -26,6 +26,7 @@ import { SharePanel } from "./SharePanel";
 import { SetupPanel } from "./SetupPanel";
 import { LaravelPanel } from "./LaravelPanel";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
+import { MoreMenu } from "../components/MoreMenu";
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -130,25 +131,37 @@ export function ProjectDetails({
         <h2 id="details-title">{name}</h2>
         <code className="details-addr">{site}</code>
         <div className="details-actions">
-          {editors.slice(0, 2).map((e) => (
-            <button key={e.id} className="btn btn-small" onClick={() => void run(openInEditor(name, e.id))}>
-              <Code2 size={13} aria-hidden="true" /> {e.name}
-            </button>
-          ))}
-          <button className="btn btn-small" onClick={() => void run(openTerminalWindow(name))}>
-            <SquareTerminal size={13} aria-hidden="true" /> Terminal
-          </button>
-          <button className="btn btn-small" onClick={() => void run(openProject(name, addressReady ? "url" : "local"))}>
+          <button
+            className="btn btn-small btn-primary"
+            onClick={() => void run(openProject(name, addressReady ? "url" : "local"))}
+          >
             <ExternalLink size={13} aria-hidden="true" /> Open site
           </button>
-          <button
-            className="btn btn-small btn-icon"
-            title="Show the folder"
-            aria-label="Show the folder"
-            onClick={() => void run(openProject(name, "folder"))}
-          >
-            <FolderOpen size={13} aria-hidden="true" />
-          </button>
+          {editors[0] && (
+            <button className="btn btn-small" onClick={() => void run(openInEditor(name, editors[0].id))}>
+              <Code2 size={13} aria-hidden="true" /> {editors[0].name}
+            </button>
+          )}
+          <MoreMenu
+            label={`More for ${name}`}
+            items={[
+              ...editors.slice(1).map((e) => ({
+                label: `Open in ${e.name}`,
+                icon: <Code2 size={14} aria-hidden="true" />,
+                onSelect: () => void run(openInEditor(name, e.id)),
+              })),
+              {
+                label: "Open a terminal here",
+                icon: <SquareTerminal size={14} aria-hidden="true" />,
+                onSelect: () => void run(openTerminalWindow(name)),
+              },
+              {
+                label: "Show the folder",
+                icon: <FolderOpen size={14} aria-hidden="true" />,
+                onSelect: () => void run(openProject(name, "folder")),
+              },
+            ]}
+          />
         </div>
       </div>
 

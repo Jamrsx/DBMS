@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
+import { MoreMenu } from "../components/MoreMenu";
 import { createBackup } from "../lib/backups";
 import { nexCelebrate } from "../lib/nex";
 import { runTask, updateTask } from "../lib/tasks";
@@ -281,19 +282,8 @@ function ComponentCard({
           {c.installed.map((i) => (
             <li key={i.version} className="ver-row">
               <span className="ver-num">{i.version}</span>
-              {c.id === "php" && mine?.version !== i.version && (
-                <button
-                  className="btn btn-small btn-quiet ver-settings-btn"
-                  aria-expanded={settingsFor === i.version}
-                  onClick={() => setSettingsFor(settingsFor === i.version ? null : i.version)}
-                >
-                  <SlidersHorizontal size={13} aria-hidden="true" /> Extensions and settings
-                </button>
-              )}
               {mine?.version === i.version ? (
                 <Progress name={c.name} busy={mine} inline />
-              ) : i.active ? (
-                <span className="ver-tag">In use</span>
               ) : confirmRemove === i.version ? (
                 <span className="ver-actions">
                   <span className="field-hint">
@@ -315,12 +305,41 @@ function ComponentCard({
                 </span>
               ) : (
                 <span className="ver-actions">
-                  <button className="btn btn-small" disabled={locked} onClick={() => ask(i.version, "use")}>
-                    Use this
-                  </button>
-                  <button className="btn btn-small" disabled={locked} onClick={() => setConfirmRemove(i.version)}>
-                    Remove…
-                  </button>
+                  {i.active ? (
+                    <span className="ver-tag">In use</span>
+                  ) : (
+                    <button className="btn btn-small" disabled={locked} onClick={() => ask(i.version, "use")}>
+                      Use this
+                    </button>
+                  )}
+                  {/* One main action per version; settings and removing are under "⋯". */}
+                  {(c.id === "php" || !i.active) && (
+                    <MoreMenu
+                      label={`More for ${c.name} ${i.version}`}
+                      items={[
+                        ...(c.id === "php"
+                          ? [
+                              {
+                                label: "Extensions and settings",
+                                icon: <SlidersHorizontal size={14} aria-hidden="true" />,
+                                onSelect: () => setSettingsFor(settingsFor === i.version ? null : i.version),
+                              },
+                            ]
+                          : []),
+                        ...(!i.active
+                          ? [
+                              {
+                                label: "Remove from this PC…",
+                                icon: <Trash2 size={14} aria-hidden="true" />,
+                                danger: true,
+                                disabled: locked,
+                                onSelect: () => setConfirmRemove(i.version),
+                              },
+                            ]
+                          : []),
+                      ]}
+                    />
+                  )}
                 </span>
               )}
             </li>

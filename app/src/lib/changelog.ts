@@ -7,6 +7,20 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.2",
+    title: "A simpler layout",
+    changes: [
+      "Each project row has one button, Open, and a ⋯ menu for details, your editors, the terminal and the folder.",
+      "The project page's header has Open site and your editor; the rest is under ⋯.",
+      "Projects page: New project and Import up front; the Recycle Bin and the terminal are under ⋯.",
+      "Dashboard: each service shows its port under its name, and the log has a simple picker instead of a tab per service.",
+      "Versions: each installed version has one button (Use this, or In use) and a ⋯ menu with PHP's extensions and settings and Remove.",
+      "Database: New database is the main button; phpMyAdmin is a quieter one beside Import .sql.",
+      "Terminal has the same header as every other page.",
+      "Every ⋯ menu works with the keyboard: arrow keys to move, Escape to close.",
+    ],
+  },
+  {
     version: "0.4.1",
     title: "Background tasks, PHP extensions and PostgreSQL",
     changes: [

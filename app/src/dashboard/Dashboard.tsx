@@ -460,21 +460,26 @@ function LogPanel({
         Log
       </h2>
       <div className="log-panel">
-        <div className="log-tabs" role="tablist" aria-label="Service">
-          {services.map((s) => (
-            <button
-              key={s.id}
-              role="tab"
-              className="log-tab"
-              aria-selected={selected === s.id}
-              onClick={() => {
-                stick.current = true;
-                onSelect(s.id);
-              }}
-            >
-              {s.name}
-            </button>
-          ))}
+        {/* One picker instead of a tab per service; each service's Logs button picks it too. */}
+        <div className="log-tabs log-pick">
+          <label className="log-pick-label" htmlFor="log-service">
+            Log of
+          </label>
+          <select
+            id="log-service"
+            className="input log-select"
+            value={selected ?? ""}
+            onChange={(e) => {
+              stick.current = true;
+              onSelect(e.target.value);
+            }}
+          >
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
           <div className="log-mode" role="group" aria-label="How to show the log">
             <button type="button" aria-pressed={mode === "readable"} onClick={() => changeMode("readable")}>
               Readable

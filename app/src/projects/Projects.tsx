@@ -35,6 +35,7 @@ import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
 import { NewProjectWizard } from "./NewProjectWizard";
 import { ImportPanel } from "./ImportPanel";
+import { MoreMenu } from "../components/MoreMenu";
 import { ProjectDetails } from "./ProjectDetails";
 
 const KIND_LABEL: Record<Project["kind"], string> = {
@@ -143,20 +144,6 @@ export function Projects({
         <div className="dash-actions">
           <button
             className="btn"
-            aria-pressed={showBin}
-            onClick={() => {
-              setShowBin((v) => !v);
-              setOpened(null);
-              setNotice(null);
-              setCreating(false);
-              setImporting(false);
-              loadBin();
-            }}
-          >
-            <Trash2 size={14} aria-hidden="true" /> Recycle Bin{deleted.length > 0 ? ` (${deleted.length})` : ""}
-          </button>
-          <button
-            className="btn"
             aria-pressed={importing}
             onClick={() => {
               setImporting((v) => !v);
@@ -166,9 +153,6 @@ export function Projects({
             }}
           >
             <FolderInput size={14} aria-hidden="true" /> Import
-          </button>
-          <button className="btn" onClick={onOpenTerminal}>
-            Open terminal
           </button>
           <button
             className="btn btn-primary"
@@ -182,6 +166,28 @@ export function Projects({
           >
             <FolderPlus size={15} aria-hidden="true" /> New project
           </button>
+          <MoreMenu
+            label="More project actions"
+            items={[
+              {
+                label: `Recycle Bin${deleted.length > 0 ? ` (${deleted.length})` : ""}`,
+                icon: <Trash2 size={14} aria-hidden="true" />,
+                onSelect: () => {
+                  setShowBin(true);
+                  setOpened(null);
+                  setNotice(null);
+                  setCreating(false);
+                  setImporting(false);
+                  loadBin();
+                },
+              },
+              {
+                label: "Open the terminal",
+                icon: <SquareTerminal size={14} aria-hidden="true" />,
+                onSelect: onOpenTerminal,
+              },
+            ]}
+          />
         </div>
       </header>
 
@@ -341,40 +347,40 @@ export function Projects({
                   <div className="project-actions">
                     <button
                       className="btn btn-small"
-                      title="Details, PHP version, rename and delete"
-                      onClick={() => {
-                        setOpened(p.name);
-                        setNotice(null);
-                      }}
-                    >
-                      <Settings2 size={14} aria-hidden="true" /> Details
-                    </button>
-                    {editors.length > 0 && (
-                      <EditorMenu editors={editors} onPick={(id) => void act(openInEditor(p.name, id))} />
-                    )}
-                    <button
-                      className="btn btn-small btn-icon"
-                      title="Open a terminal in this project"
-                      aria-label={`Open a terminal in ${p.name}`}
-                      onClick={() => void act(openTerminalWindow(p.name))}
-                    >
-                      <SquareTerminal size={14} aria-hidden="true" />
-                    </button>
-                    <button
-                      className="btn btn-small"
                       disabled={!info?.web_server}
+                      title={ready ? `Open ${p.url}` : `Open ${p.local_url}`}
                       onClick={() => void act(openProject(p.name, ready ? "url" : "local"))}
                     >
                       <ExternalLink size={14} aria-hidden="true" /> Open
                     </button>
-                    <button
-                      className="btn btn-small btn-icon"
-                      title="Show the folder"
-                      aria-label={`Show the ${p.name} folder`}
-                      onClick={() => void act(openProject(p.name, "folder"))}
-                    >
-                      <FolderOpen size={14} aria-hidden="true" />
-                    </button>
+                    <MoreMenu
+                      label={`More for ${p.name}`}
+                      items={[
+                        {
+                          label: "Details, PHP and sharing",
+                          icon: <Settings2 size={14} aria-hidden="true" />,
+                          onSelect: () => {
+                            setOpened(p.name);
+                            setNotice(null);
+                          },
+                        },
+                        ...editors.map((e) => ({
+                          label: `Open in ${e.name}`,
+                          icon: <Code2 size={14} aria-hidden="true" />,
+                          onSelect: () => void act(openInEditor(p.name, e.id)),
+                        })),
+                        {
+                          label: "Open a terminal here",
+                          icon: <SquareTerminal size={14} aria-hidden="true" />,
+                          onSelect: () => void act(openTerminalWindow(p.name)),
+                        },
+                        {
+                          label: "Show the folder",
+                          icon: <FolderOpen size={14} aria-hidden="true" />,
+                          onSelect: () => void act(openProject(p.name, "folder")),
+                        },
+                      ]}
+                    />
                   </div>
                   {p.php_warnings > 0 && (
                     <div className="project-warning">
@@ -456,40 +462,5 @@ function RecycleBin({
         </>
       )}
     </section>
-  );
-}
-
-/** "Code" button: the first editor, or a short list when there are several. */
-function EditorMenu({ editors, onPick }: { editors: Editor[]; onPick: (id: string) => void }) {
-  const [open, setOpen] = useState(false);
-  if (editors.length === 1) {
-    return (
-      <button className="btn btn-small" title={`Open in ${editors[0].name}`} onClick={() => onPick(editors[0].id)}>
-        <Code2 size={14} aria-hidden="true" /> {editors[0].name}
-      </button>
-    );
-  }
-  return (
-    <div className="menu" onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && setOpen(false)}>
-      <button className="btn btn-small" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <Code2 size={14} aria-hidden="true" /> Code
-      </button>
-      {open && (
-        <div className="menu-list" role="menu">
-          {editors.map((e) => (
-            <button
-              key={e.id}
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onPick(e.id);
-              }}
-            >
-              Open in {e.name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }

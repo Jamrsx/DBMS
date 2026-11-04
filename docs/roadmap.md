@@ -44,6 +44,7 @@ Rules every release follows:
 | 0.3.9 | Whole app on one link (front end + Laravel API); Laravel tab with artisan buttons, queue worker, scheduler and readable log; import from Laragon, XAMPP, WAMP and other database servers |
 | 0.4.0 | Check my setup page with fixes and a support report; clearer Share tab; spinners and progress beside every button; setup and Composer use the project's PHP |
 | 0.4.1 | Background tasks with a sidebar Tasks list; PHP extensions, limits and your own php.ini lines per version; PostgreSQL on the Database page; fix for a damaged PostgreSQL data folder |
+| 0.4.2 | Redesign: one main action per row and page with the rest behind ⋯, simpler Dashboard rows and log, project rows and page header with two buttons |
 
 ## Next
 
@@ -277,17 +278,24 @@ Mail catcher (with 0.3.2's services):
 - PostgreSQL on the Database page: browse, edit rows, SQL with templates, users, export and
   import, as for MySQL.
 
-### 0.4.2: Tray menu and command palette
+### 0.4.2: Redesign
+
+- Every page rebuilt to a simpler layout that follows Nielsen's 10 usability heuristics: one
+  page header pattern (title, one line of status, one main action), plain sections instead of
+  boxes inside boxes, consistent buttons and spacing, and feedback where you act. Same colours,
+  type and Nex.
+
+### 0.4.3: Tray menu and command palette
 
 - Tray menu: start or stop services, open a project, open its terminal.
 - Ctrl+K: jump to any project, database, table or action.
 - Notifications when a service stops unexpectedly or a backup fails.
 
-### 0.4.3: Clone from Git
+### 0.4.4: Clone from Git
 
 - Clone a Git repository as a new project, then set it up in one go.
 
-### 0.4.4: Polish and accessibility
+### 0.4.5: Polish and accessibility
 
 - Full keyboard use and screen reader pass on every page.
 - Remember window size, last page, terminal tabs and their names between launches.
