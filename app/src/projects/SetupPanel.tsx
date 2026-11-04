@@ -1,45 +1,60 @@
-import { useEffect, useState } from "react";
+import { runTask, useTask } from "../lib/tasks";
 import { CheckCircle2, Circle, LoaderCircle, Wrench } from "lucide-react";
 import { Nex, type NexState } from "../components/Nex";
 import { nexCelebrate, nexOops } from "../lib/nex";
 import { onQuickstart, setupProject, type SetupTask } from "../lib/projects";
 
 /** For a cloned project: what it still needs (packages, .env, app key) and one button to do it. */
-export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: SetupTask[]; onDone: () => void }) {
-  const [running, setRunning] = useState(false);
-  const [state, setState] = useState<Record<number, "running" | "done">>({});
-  const [lines, setLines] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState<string[]>([]);
-  const [finished, setFinished] = useState(false);
+/** What the setup task keeps, so the panel shows it again after leaving the page. */
+interface SetupData {
+  state: Record<number, "running" | "done">;
+  lines: string[];
+  notes: string[];
+}
 
-  useEffect(() => {
-    const off = onQuickstart((e) => {
-      if (e.name !== name) return;
-      if (e.kind === "step") setState((s) => ({ ...s, [e.index]: e.status }));
-      if (e.kind === "line") setLines((l) => [...l.slice(-5), e.text]);
-    });
-    return () => void off.then((f) => f());
-  }, [name]);
+/** For a cloned project: what it still needs (packages, .env, app key) and one button to do it. */
+export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: SetupTask[]; onDone: () => void }) {
+  const id = `setup:${name}`;
+  const task = useTask<SetupData>(id);
+  const running = task?.status === "running";
+  const state = task?.data.state ?? {};
+  const lines = task?.data.lines ?? [];
+  const finished = task?.status === "done";
+  const notes = finished ? task.data.notes : [];
+  const error = task?.status === "failed" ? task.message : null;
 
   async function run() {
-    setRunning(true);
-    setError(null);
-    setFinished(false);
-    setState({});
-    setLines([]);
-    try {
-      const result = await setupProject(name);
-      setNotes(result);
-      setFinished(true);
-      nexCelebrate(`${name} is set up.`);
-      onDone();
-    } catch (e) {
-      setError(String(e));
-      nexOops(`Setting up ${name} stopped.`);
-    } finally {
-      setRunning(false);
-    }
+    const labels = tasks.map((t) => t.label);
+    await runTask<SetupData, string[]>(
+      id,
+      `Set up ${name}`,
+      { state: {}, lines: [], notes: [] },
+      async (update) => {
+        // The listener belongs to the task, so it keeps going on other pages.
+        const unlisten = await onQuickstart((e) => {
+          if (e.name !== name) return;
+          if (e.kind === "step")
+            update({
+              data: (d) => ({ ...d, state: { ...d.state, [e.index]: e.status } }),
+              ...(e.status === "running" ? { detail: labels[e.index] ?? null } : {}),
+            });
+          if (e.kind === "line") update({ data: (d) => ({ ...d, lines: [...d.lines.slice(-5), e.text] }) });
+        });
+        try {
+          const result = await setupProject(name);
+          update({ data: (d) => ({ ...d, notes: result }) });
+          nexCelebrate(`${name} is set up.`);
+          onDone();
+          return result;
+        } catch (e) {
+          nexOops(`Setting up ${name} stopped.`);
+          throw e;
+        } finally {
+          unlisten();
+        }
+      },
+      () => `${name} is set up.`,
+    ).catch(() => {});
   }
 
   if (tasks.length === 0 && notes.length === 0 && !finished) return null;
@@ -48,7 +63,7 @@ export function SetupPanel({ name, tasks, onDone }: { name: string; tasks: Setup
     ? ["error", "Oh no, setting up stopped. The reason is below; fix it and try again."]
     : running
       ? ["loading", "Installing… I'll wait right here. This can take a few minutes the first time."]
-      : tasks.length === 0
+      : finished || tasks.length === 0
         ? ["success", `All set! ${name} is ready. Time to start coding.`]
         : ["thinking", `Oh no! ${name} isn't installed yet, so its pages show errors. Set it up to start coding.`];
   return (

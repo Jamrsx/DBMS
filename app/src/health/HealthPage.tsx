@@ -6,6 +6,7 @@ import { syncHosts } from "../lib/projects";
 import { trustHttps } from "../lib/https";
 import {
   fixConfigs,
+  resetPostgres,
   previewFixedNow,
   runHealthCheck,
   saveSupportReport,
@@ -66,6 +67,7 @@ export function HealthPage({
       else if (action === "hosts") await syncHosts();
       else if (action === "trust") await trustHttps();
       else if (action === "configs") await fixConfigs();
+      else if (action === "pg-reset") await resetPostgres();
       previewFixedNow(action);
       await check();
     } catch (e) {

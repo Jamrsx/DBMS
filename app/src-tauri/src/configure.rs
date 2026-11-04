@@ -11,46 +11,24 @@ use std::time::{Duration, Instant};
 /// Port php-cgi listens on for FastCGI requests from Apache or nginx.
 pub const PHP_FASTCGI_PORT: u16 = 9085;
 
-/// Extensions most PHP projects (Laravel, WordPress, Symfony) need.
-const PHP_EXTENSIONS: &[&str] = &[
-    "curl", "fileinfo", "gd", "intl", "mbstring", "exif", "mysqli", "openssl", "pdo_mysql",
-    "pdo_sqlite", "sqlite3", "sodium", "zip",
-];
-
-/// Settings changed from PHP's defaults for local development.
-const PHP_SETTINGS: &[(&str, &str)] = &[
-    ("memory_limit", "512M"),
-    ("upload_max_filesize", "64M"),
-    ("post_max_size", "64M"),
-    ("max_execution_time", "120"),
-    // mail() goes to NexDB's mail catcher instead of a real mail server.
-    ("SMTP", "127.0.0.1"),
-    ("smtp_port", "1025"),
-];
-
 /// Forward-slash path for config files (Apache, nginx and MySQL all accept it on Windows).
 pub fn conf_path(path: &Path) -> String {
     path.display().to_string().replace('\\', "/")
 }
 
-/// php.ini built from the version's own `php.ini-development` (or a minimal one if it's missing),
-/// with `extension_dir` pointing at this PHP, common extensions on, and dev-friendly limits.
+/// php.ini for a PHP install with NexDB's defaults (no choices of yours), for the tests.
+#[cfg(test)]
 pub fn php_ini(php_dir: &Path) -> String {
-    let template = fs::read_to_string(php_dir.join("php.ini-development")).unwrap_or_default();
-    let ext_dir = php_dir.join("ext");
-    let mut available: Vec<&str> = PHP_EXTENSIONS
-        .iter()
-        .copied()
-        .filter(|name| ext_dir.join(format!("php_{name}.dll")).is_file())
-        .collect();
-    // PostgreSQL for PHP needs libpq.dll beside php.exe; without it PHP would warn on every run.
-    if ext_dir.join("php_pdo_pgsql.dll").is_file() && php_dir.join("libpq.dll").is_file() {
-        available.push("pdo_pgsql");
-    }
-    render_php_ini(&template, &ext_dir, &available)
+    crate::phpini::render(php_dir, Path::new("no-such-etc"))
 }
 
+#[cfg(test)]
 pub fn render_php_ini(template: &str, ext_dir: &Path, extensions: &[&str]) -> String {
+    render_php_ini_with(template, ext_dir, extensions, crate::phpini::DEFAULT_SETTINGS)
+}
+
+/// Like `render_php_ini`, with the settings to write (your PHP settings over NexDB's).
+pub fn render_php_ini_with(template: &str, ext_dir: &Path, extensions: &[&str], php_settings: &[(&str, &str)]) -> String {
     let mut out: Vec<String> = Vec::new();
     let mut enabled: Vec<&str> = Vec::new();
     let mut ext_dir_set = false;
@@ -73,7 +51,7 @@ pub fn render_php_ini(template: &str, ext_dir: &Path, extensions: &[&str]) -> St
                 out.push(line.to_string());
             }
         } else if let Some((k, v)) =
-            PHP_SETTINGS.iter().find(|(k, _)| *k == key && !line.trim_start().starts_with(';'))
+            php_settings.iter().find(|(k, _)| *k == key && !line.trim_start().starts_with(';'))
         {
             out.push(format!("{k} = {v}"));
             settings_set.push(k);
@@ -90,7 +68,7 @@ pub fn render_php_ini(template: &str, ext_dir: &Path, extensions: &[&str]) -> St
     for ext in extensions.iter().filter(|e| !enabled.contains(e)) {
         extra.push(format!("extension={ext}"));
     }
-    for (k, v) in PHP_SETTINGS.iter().filter(|(k, _)| !settings_set.contains(k)) {
+    for (k, v) in php_settings.iter().filter(|(k, _)| !settings_set.contains(k)) {
         extra.push(format!("{k} = {v}"));
     }
     if extra.len() > 2 {

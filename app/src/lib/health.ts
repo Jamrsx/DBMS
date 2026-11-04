@@ -65,6 +65,12 @@ export async function fixConfigs(): Promise<void> {
   await pause(800);
 }
 
+/** Moves a damaged PostgreSQL data folder aside (kept) and makes a fresh one. */
+export async function resetPostgres(): Promise<void> {
+  if (inDesktopApp) return invoke("health_reset_postgres");
+  await pause(1500);
+}
+
 /** Saves the support report where the user picks; resolves to its path, or null when cancelled. */
 export async function saveSupportReport(): Promise<string | null> {
   if (inDesktopApp) return invoke("health_report");

@@ -10,6 +10,8 @@ export interface BackupFile {
   path: string;
   /** Made by the automatic schedule; only these are ever cleaned up. */
   auto: boolean;
+  /** A PostgreSQL backup, restored with psql. */
+  postgres?: boolean;
 }
 
 export interface AutoBackup {

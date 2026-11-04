@@ -1235,6 +1235,10 @@ mod tests {
         settings.nginx_port = None;
         settings.mysql = None;
         settings.preferences.https = false;
+        // Your own shares hold their ports in the running NexDB; this test's Apache leaves them.
+        settings.preferences.shared.clear();
+        settings.preferences.share_dev.clear();
+        settings.preferences.share_app.clear();
         settings.preferences.project_php = [("Older-App".to_string(), other.clone())].into_iter().collect();
         crate::installer::refresh_configs(dir.path(), &settings).unwrap();
 
@@ -1283,6 +1287,10 @@ mod tests {
         settings.nginx_port = None;
         settings.mysql = None;
         settings.preferences.https = true;
+        // Your own shares hold their ports in the running NexDB; this test's Apache leaves them.
+        settings.preferences.shared.clear();
+        settings.preferences.share_dev.clear();
+        settings.preferences.share_app.clear();
         settings.preferences.https_port = 8447;
         crate::installer::refresh_configs(dir.path(), &settings).unwrap();
 

@@ -353,7 +353,9 @@ impl Layout {
 /// php.ini for a PHP install, plus php-cli.ini for its command line, in `dir`.
 fn write_php_inis(php: &Path, dir: &Path, logs: &Path) -> Result<(), String> {
     {
-        let ini = configure::php_ini(php);
+        // Your PHP settings for this version (extensions, limits, own lines) are applied here.
+        let etc = dir.parent().unwrap_or(dir);
+        let ini = crate::phpini::render(php, etc);
         configure::write_file(&dir.join("php.ini"), &ini)?;
         // The command line (which reads php-cli.ini first) shows each warning once on screen and
         // keeps its log in a file; otherwise PHP prints every warning twice, once to stderr.

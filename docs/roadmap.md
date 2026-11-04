@@ -43,6 +43,7 @@ Rules every release follows:
 | 0.3.8 | Set up cloned projects: composer and npm install, .env with a database user, app key |
 | 0.3.9 | Whole app on one link (front end + Laravel API); Laravel tab with artisan buttons, queue worker, scheduler and readable log; import from Laragon, XAMPP, WAMP and other database servers |
 | 0.4.0 | Check my setup page with fixes and a support report; clearer Share tab; spinners and progress beside every button; setup and Composer use the project's PHP |
+| 0.4.1 | Background tasks with a sidebar Tasks list; PHP extensions, limits and your own php.ini lines per version; PostgreSQL on the Database page; fix for a damaged PostgreSQL data folder |
 
 ## Next
 

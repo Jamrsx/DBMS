@@ -3,7 +3,17 @@ import { ArrowLeft, CheckCircle2, Circle, Database, Download, FolderInput, Loade
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops } from "../lib/nex";
 import { onQuickstart } from "../lib/projects";
+import { dismissTask, runTask, useTask } from "../lib/tasks";
 import { importDatabases, importSources, runImport, type ImportServer, type ImportSource } from "../lib/importer";
+
+/** What the import task keeps. */
+interface ImportData {
+  steps: string[];
+  state: Record<number, "running" | "done">;
+  line: string;
+  notes: string[];
+}
+const TASK = "import";
 
 const ENGINE: Record<ImportServer["engine"], string> = { mysql: "MySQL", mariadb: "MariaDB", postgres: "PostgreSQL" };
 
@@ -27,24 +37,22 @@ export function ImportPanel({
   const [listing, setListing] = useState<string | null>(null);
   const [listError, setListError] = useState<Record<string, string>>({});
   const [dbs, setDbs] = useState<Record<string, string[]>>({});
-  const [running, setRunning] = useState(false);
-  const [steps, setSteps] = useState<string[]>([]);
-  const [state, setState] = useState<Record<number, "running" | "done">>({});
-  const [line, setLine] = useState("");
-  const [notes, setNotes] = useState<string[] | null>(null);
+  // The copy runs as a task, so leaving this screen (or the page) doesn't lose its progress.
+  const task = useTask<ImportData>(TASK);
+  const running = task?.status === "running";
+  const steps = task?.data.steps ?? [];
+  const state = task?.data.state ?? {};
+  const line = task?.data.line ?? "";
+  const notes = task?.status === "done" ? task.data.notes : null;
 
   useEffect(() => {
     importSources()
       .then(setSources)
       .catch((e) => setError(String(e)));
-    const off = onQuickstart((e) => {
-      if (e.name !== "import") return;
-      if (e.kind === "plan") setSteps(e.steps);
-      if (e.kind === "step") setState((s) => ({ ...s, [e.index]: e.status }));
-      if (e.kind === "line") setLine(e.text);
-    });
-    return () => void off.then((f) => f());
   }, []);
+  useEffect(() => {
+    if (task?.status === "failed") setError(task.message);
+  }, [task?.status, task?.message]);
 
   const servers = useMemo(() => (sources ?? []).flatMap((s) => s.servers), [sources]);
   const pickedDbs = Object.values(dbs).reduce((n, l) => n + l.length, 0);
@@ -66,27 +74,48 @@ export function ImportPanel({
   }
 
   async function start() {
-    setRunning(true);
     setError(null);
-    setState({});
-    setNotes(null);
-    try {
-      const result = await runImport({
-        projects: Object.entries(projects).map(([path, name]) => ({ path, name: name.trim() })),
-        databases: Object.entries(dbs).flatMap(([bin, names]) => {
-          const server = servers.find((s) => s.bin === bin)!;
-          return names.map((name) => ({ server, password: passwords[bin] || null, name }));
-        }),
-      });
-      setNotes(result);
-      nexCelebrate("Imported into NexDB.");
-      onDone();
-    } catch (e) {
-      setError(String(e));
-      nexOops("The import didn't work.");
-    } finally {
-      setRunning(false);
-    }
+    const plan = {
+      projects: Object.entries(projects).map(([path, name]) => ({ path, name: name.trim() })),
+      databases: Object.entries(dbs).flatMap(([bin, names]) => {
+        const server = servers.find((s) => s.bin === bin)!;
+        return names.map((name) => ({ server, password: passwords[bin] || null, name }));
+      }),
+    };
+    await runTask<ImportData, string[]>(
+      TASK,
+      "Import from other tools",
+      { steps: [], state: {}, line: "", notes: [] },
+      async (update) => {
+        let labels: string[] = [];
+        const unlisten = await onQuickstart((e) => {
+          if (e.name !== "import") return;
+          if (e.kind === "plan") {
+            labels = e.steps;
+            update({ data: (d) => ({ ...d, steps: e.steps }) });
+          }
+          if (e.kind === "step")
+            update({
+              data: (d) => ({ ...d, state: { ...d.state, [e.index]: e.status } }),
+              ...(e.status === "running" ? { detail: labels[e.index] ?? null } : {}),
+            });
+          if (e.kind === "line") update({ data: (d) => ({ ...d, line: e.text }) });
+        });
+        try {
+          const result = await runImport(plan);
+          update({ data: (d) => ({ ...d, notes: result }) });
+          nexCelebrate("Imported into NexDB.");
+          onDone();
+          return result;
+        } catch (e) {
+          nexOops("The import didn't work.");
+          throw e;
+        } finally {
+          unlisten();
+        }
+      },
+      () => "Copied into NexDB.",
+    ).catch(() => {});
   }
 
   const toggle = <T,>(list: T[], item: T) => (list.includes(item) ? list.filter((x) => x !== item) : [...list, item]);
@@ -103,7 +132,7 @@ export function ImportPanel({
   return (
     <section className="bin import" aria-labelledby="import-title">
       <div className="details-head">
-        <button className="btn btn-small btn-quiet" onClick={onBack} disabled={running}>
+        <button className="btn btn-small btn-quiet" onClick={onBack}>
           <ArrowLeft size={14} aria-hidden="true" /> All projects
         </button>
         <h2 id="import-title">Import from other tools</h2>
@@ -146,7 +175,13 @@ export function ImportPanel({
               ))}
             </ul>
           )}
-          <button className="btn" onClick={onBack}>
+          <button
+            className="btn"
+            onClick={() => {
+              dismissTask(TASK);
+              onBack();
+            }}
+          >
             Back to projects
           </button>
         </div>

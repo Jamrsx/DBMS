@@ -25,16 +25,26 @@ import { Users } from "./Users";
 import { dbSaveCsv } from "../lib/db";
 import { nexCelebrate } from "../lib/nex";
 import { plainType, sqlTemplates, touchesEveryRow, type SqlTemplate } from "../lib/sqlTemplates";
-import { dbExportSql } from "../lib/db";
+import { dbExportSql, dbUseEngine, type DbEngine } from "../lib/db";
 import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
 
 const TEMPLATES_KEY = "nexdb.sqlTemplates";
+const ENGINE_KEY = "nexdb.dbEngine";
 
 type Tab = "browse" | "structure" | "sql" | "backups" | "users";
 
 export function Database({ active }: { active: boolean }) {
   const [version, setVersion] = useState<string | null>(null);
+  // Which server the page shows; remembered between launches.
+  const [engine, setEngine] = useState<DbEngine>(() => {
+    try {
+      return localStorage.getItem(ENGINE_KEY) === "postgres" ? "postgres" : "mysql";
+    } catch {
+      return "mysql";
+    }
+  });
+  const pg = engine === "postgres";
   const [needsPassword, setNeedsPassword] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -89,14 +99,52 @@ export function Database({ active }: { active: boolean }) {
     [loadDbs],
   );
 
+  // PostgreSQL needs no password: switching connects right away.
+  const usePostgres = useCallback(async () => {
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const info = await dbUseEngine("postgres");
+      setVersion(info?.version ?? "PostgreSQL");
+      await loadDbs();
+    } catch (e) {
+      setConnectError(String(e));
+    } finally {
+      setConnecting(false);
+    }
+  }, [loadDbs]);
+
+  async function switchTo(next: DbEngine) {
+    if (next === engine) return;
+    setEngine(next);
+    try {
+      localStorage.setItem(ENGINE_KEY, next);
+    } catch {
+      // Still works; it just won't be remembered.
+    }
+    setVersion(null);
+    setDbs([]);
+    setSelected(null);
+    setTables([]);
+    setTable(null);
+    setError(null);
+    setCreating(false);
+    if (next === "postgres") await usePostgres();
+    else {
+      await dbUseEngine("mysql").catch(() => null);
+      await connect();
+    }
+  }
+
   // Connect the first time the page is shown.
   const tried = useRef(false);
   useEffect(() => {
     if (active && !tried.current) {
       tried.current = true;
-      void connect();
+      if (engine === "postgres") void usePostgres();
+      else void connect();
     }
-  }, [active, connect]);
+  }, [active, connect, usePostgres, engine]);
 
   async function pick(name: string) {
     setSelected(name);
@@ -125,11 +173,30 @@ export function Database({ active }: { active: boolean }) {
         <div>
           <h1>Database</h1>
           <p className="dash-summary" role="status">
-            {version ? `MySQL ${version} · ${userDbs.length} of your own databases` : "Not connected"}
+            {version
+              ? `${pg ? version : `MySQL ${version}`} · ${userDbs.length} of your own databases`
+              : connecting
+                ? "Connecting…"
+                : "Not connected"}
           </p>
+          <div className="db-engine" role="radiogroup" aria-label="Database server">
+            {(["mysql", "postgres"] as const).map((e) => (
+              <button
+                key={e}
+                type="button"
+                role="radio"
+                aria-checked={engine === e}
+                className={engine === e ? "db-engine-opt current" : "db-engine-opt"}
+                disabled={connecting}
+                onClick={() => void switchTo(e)}
+              >
+                {e === "mysql" ? "MySQL" : "PostgreSQL"}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="dash-actions">
-          <PhpMyAdmin onError={setError} />
+          {!pg && <PhpMyAdmin onError={setError} />}
           <button
             className="btn"
             disabled={!version}
@@ -159,8 +226,16 @@ export function Database({ active }: { active: boolean }) {
           </p>
         )}
 
-        {!version && (
+        {!version && !pg && (
           <ConnectCard needsPassword={needsPassword} error={connectError} busy={connecting} onConnect={connect} />
+        )}
+        {!version && pg && connectError && (
+          <div className="error-box" role="alert">
+            <p>{connectError}</p>
+            <button className="btn btn-small" disabled={connecting} onClick={() => void usePostgres()}>
+              Try again
+            </button>
+          </div>
         )}
 
         {error && (
@@ -195,7 +270,7 @@ export function Database({ active }: { active: boolean }) {
                 onTable={openTable}
               />
               <DbGroup
-                label="MySQL built-in"
+                label={pg ? "PostgreSQL built-in" : "MySQL built-in"}
                 folded
                 dbs={systemDbs}
                 selected={selected}
@@ -263,6 +338,8 @@ export function Database({ active }: { active: boolean }) {
               )}
               {tab === "sql" && (
                 <SqlRunner
+                  key={engine}
+                  engine={engine}
                   db={selected}
                   table={table}
                   tables={tables}
@@ -271,6 +348,7 @@ export function Database({ active }: { active: boolean }) {
               )}
               {tab === "backups" && (
                 <Backups
+                  engine={engine}
                   importToken={importToken}
                   selected={selected}
                   databases={dbs.map((d) => d.name)}
@@ -690,18 +768,24 @@ function Structure({ db, table }: { db: string; table: string }) {
 }
 
 function SqlRunner({
+  engine,
   db,
   table,
   tables,
   onChanged,
 }: {
+  engine: DbEngine;
   db: string | null;
   table: string | null;
   /** Tables of the selected database, listed beside the editor. */
   tables: TableInfo[];
   onChanged: () => void;
 }) {
-  const [sql, setSql] = useState(table ? `SELECT * FROM \`${table}\`\nLIMIT 100;` : "SHOW DATABASES;");
+  const [sql, setSql] = useState(() => {
+    const pg = engine === "postgres";
+    if (table) return pg ? `SELECT * FROM "${table}"\nLIMIT 100;` : `SELECT * FROM \`${table}\`\nLIMIT 100;`;
+    return pg ? "SELECT datname FROM pg_database\nWHERE NOT datistemplate;" : "SHOW DATABASES;";
+  });
   // Once the user types, NexDB stops replacing the editor when another table is picked.
   // The ready-made commands can be folded away; remembered between launches.
   const [showTemplates, setShowTemplates] = useState(() => {
@@ -728,7 +812,8 @@ function SqlRunner({
     dbColumns(db, table)
       .then(setCols)
       .catch(() => setCols([]));
-    if (!typed) setSql(`SELECT * FROM \`${table}\`\nLIMIT 100;`);
+    if (!typed)
+      setSql(engine === "postgres" ? `SELECT * FROM "${table}"\nLIMIT 100;` : `SELECT * FROM \`${table}\`\nLIMIT 100;`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, table]);
 
@@ -745,7 +830,7 @@ function SqlRunner({
     }
   }
 
-  const groups = sqlTemplates(db, table, cols);
+  const groups = sqlTemplates(db, table, cols, engine);
 
   /** Puts a template in the editor in a way Ctrl+Z can undo. */
   function applyTemplate(t: SqlTemplate) {

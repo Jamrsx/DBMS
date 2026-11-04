@@ -57,6 +57,9 @@ impl Db {
 
     /// Sets one cell of the row `key` picks out.
     pub fn update_cell(&self, db: &str, table: &str, key: &Key, column: &str, value: &Cell) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::update_cell(pg, db, table, key, column, value);
+        }
         let (qdb, qt, qc) = (quote(db)?, quote(table)?, quote(column)?);
         let (cond, mut params) = where_key(key)?;
         params.insert(0, value.value());
@@ -78,6 +81,9 @@ impl Db {
 
     /// Adds a row; columns left out get their defaults.
     pub fn insert_row(&self, db: &str, table: &str, values: &[(String, Cell)]) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::insert_row(pg, db, table, values);
+        }
         let (qdb, qt) = (quote(db)?, quote(table)?);
         let cols: Vec<String> = values.iter().map(|(c, _)| quote(c)).collect::<Result<_, _>>()?;
         let marks = vec!["?"; values.len()].join(", ");
@@ -93,6 +99,9 @@ impl Db {
 
     /// Deletes the one row `key` picks out.
     pub fn delete_row(&self, db: &str, table: &str, key: &Key) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::delete_row(pg, db, table, key);
+        }
         let (qdb, qt) = (quote(db)?, quote(table)?);
         let (cond, params) = where_key(key)?;
         let mut conn = self.conn()?;
@@ -156,6 +165,9 @@ pub fn granted_databases(grants: &[String]) -> (Vec<String>, bool) {
 
 impl Db {
     pub fn users(&self) -> Result<Vec<User>, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::users(pg);
+        }
         let mut conn = self.conn()?;
         let rows: Vec<(String, String)> =
             conn.query("SELECT User, Host FROM mysql.user ORDER BY User, Host").map_err(friendly)?;
@@ -200,6 +212,9 @@ impl Db {
 
     /// Makes a user for this PC (localhost and 127.0.0.1); with `database`, it gets all rights on it.
     pub fn create_user(&self, name: &str, password: &str, database: Option<&str>) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::create_user(pg, name, password, database);
+        }
         self.check_user(name)?;
         if password.chars().count() < 4 {
             return Err("Use a password of at least 4 characters.".into());
@@ -223,6 +238,9 @@ impl Db {
     }
 
     pub fn set_user_password(&self, name: &str, password: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::set_user_password(pg, name, password);
+        }
         self.check_user(name)?;
         if password.chars().count() < 4 {
             return Err("Use a password of at least 4 characters.".into());
@@ -237,6 +255,9 @@ impl Db {
 
     /// Gives the user all rights on one database.
     pub fn grant(&self, name: &str, database: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::grant(pg, name, database);
+        }
         self.check_user(name)?;
         let qdb = quote(database)?;
         let mut conn = self.conn()?;
@@ -249,6 +270,9 @@ impl Db {
 
     /// Takes away the user's rights on one database.
     pub fn revoke(&self, name: &str, database: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::revoke(pg, name, database);
+        }
         self.check_user(name)?;
         let qdb = quote(database)?;
         let mut conn = self.conn()?;
@@ -260,6 +284,9 @@ impl Db {
     }
 
     pub fn drop_user(&self, name: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::drop_user(pg, name);
+        }
         self.check_user(name)?;
         let mut conn = self.conn()?;
         for host in self.hosts_of(&mut conn, name)? {
@@ -314,6 +341,10 @@ pub fn write_csv(path: &Path, columns: &[String], rows: &[Vec<serde_json::Value>
 impl Db {
     /// Writes a whole table as CSV, streaming every row (not only the first page).
     pub fn export_table_csv(&self, db: &str, table: &str, path: &Path) -> Result<usize, String> {
+        if let Some(pg) = self.pg_port() {
+            let (columns, rows) = crate::pg::all_rows(pg, db, table)?;
+            return write_csv(path, &columns, &rows);
+        }
         let (qdb, qt) = (quote(db)?, quote(table)?);
         let mut conn = self.conn()?;
         let mut result = conn.query_iter(format!("SELECT * FROM {qdb}.{qt}")).map_err(friendly)?;

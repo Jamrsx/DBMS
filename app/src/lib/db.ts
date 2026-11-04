@@ -48,6 +48,10 @@ export interface TablePage {
 /** The backend answers with this when MySQL needs the root password. */
 export const NEEDS_PASSWORD = "NEEDS_PASSWORD";
 
+/** Which server the Database page shows. */
+export type DbEngine = "mysql" | "postgres";
+/** Switches to MySQL (then connect with dbConnect) or PostgreSQL (connected right away). */
+export const dbUseEngine = (engine: DbEngine) => call<{ version: string } | null>("db_use_engine", { engine });
 export const dbConnect = (password?: string) => call<{ version: string }>("db_connect", { password: password ?? null });
 export const dbDatabases = () => call<DatabaseInfo[]>("db_databases");
 export const dbTables = (name: string) => call<TableInfo[]>("db_tables", { name });
@@ -144,6 +148,8 @@ const sim = {
 async function preview(cmd: string, a: Record<string, unknown>): Promise<unknown> {
   await pause(150);
   switch (cmd) {
+    case "db_use_engine":
+      return a.engine === "postgres" ? { version: "PostgreSQL 18.6" } : null;
     case "db_connect":
       return { version: "9.7.4" };
     case "db_databases":

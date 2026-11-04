@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { dismissTask, getTask, runTask, useTask } from "../lib/tasks";
 import {
   AppWindow,
   ArrowLeft,
@@ -43,9 +44,17 @@ const GROUPS: { label: string; choices: Choice[] }[] = [
     label: "Laravel",
     choices: [
       { id: "laravel", title: "Laravel", about: "The latest Laravel, with a database ready." },
-      { id: "laravel-react", title: "Laravel + React", about: "Inertia starter kit: login, register and a React frontend." },
+      {
+        id: "laravel-react",
+        title: "Laravel + React",
+        about: "Inertia starter kit: login, register and a React frontend.",
+      },
       { id: "laravel-vue", title: "Laravel + Vue", about: "Inertia starter kit: login, register and a Vue frontend." },
-      { id: "laravel-livewire", title: "Laravel + Livewire", about: "Starter kit with login and register, all in PHP." },
+      {
+        id: "laravel-livewire",
+        title: "Laravel + Livewire",
+        about: "Starter kit with login and register, all in PHP.",
+      },
     ],
   },
   {
@@ -94,7 +103,8 @@ function guideFor(kind: Kind): Guide {
     case "laravel-livewire":
       return {
         opens: "site",
-        intro: "NexDB's web server serves the site. While you edit pages, run the dev server so changes show instantly.",
+        intro:
+          "NexDB's web server serves the site. While you edit pages, run the dev server so changes show instantly.",
         commands: [
           { cmd: "npm run dev", why: "Keep running while you edit; the page updates by itself" },
           { cmd: "npm run build", why: "Build the final files before sharing or deploying" },
@@ -142,6 +152,14 @@ interface Progress {
 
 type Stage = "pick" | "options" | "making";
 
+/** What the new-project task keeps, so the wizard shows it again after being closed. */
+interface MakingTask {
+  name: string;
+  kind: Kind;
+  progress: Progress;
+}
+const TASK = "new-project";
+
 /** New project, step by step: what it is, its options, then making it and what to do next. */
 export function NewProjectWizard({
   existing,
@@ -157,12 +175,15 @@ export function NewProjectWizard({
   onCreated: () => Promise<void>;
   onClose: () => void;
 }) {
-  const [stage, setStage] = useState<Stage>("pick");
-  const [name, setName] = useState("");
-  const [kind, setKind] = useState<Kind>("laravel");
+  // A project still being made (or just made) when the wizard opens is shown again.
+  const earlier = getTask<MakingTask>(TASK);
+  const [stage, setStage] = useState<Stage>(earlier ? "making" : "pick");
+  const [name, setName] = useState(earlier?.data.name ?? "");
+  const [kind, setKind] = useState<Kind>(earlier?.data.kind ?? "laravel");
   const [dbName, setDbName] = useState<string | null>(null);
   const [ai, setAi] = useState(false);
-  const [progress, setProgress] = useState<Progress | null>(null);
+  const task = useTask<MakingTask>(TASK);
+  const progress = task?.data.progress ?? null;
   const problem = nameProblem(name, existing);
   const starter = isStarter(kind) ? kind : null;
   const database = dbName ?? defaultDbName(name);
@@ -173,43 +194,66 @@ export function NewProjectWizard({
 
   async function make() {
     setStage("making");
-    setProgress({ steps: [], at: 0, percent: null, lines: [], outcome: null });
-    if (!starter) {
-      try {
-        await createProject(name, kind as NewKind);
-        await onCreated();
-        setProgress((p) => p && { ...p, outcome: { ok: true, created: null } });
-        nexCelebrate(`${name} is ready!`);
-      } catch (err) {
-        setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
-      }
-      return;
-    }
-    // Listen before starting, so the first steps aren't missed.
-    const unlisten = await onQuickstart((ev) => {
-      if (ev.name !== name) return;
-      setProgress((p) => {
-        if (!p) return p;
-        if (ev.kind === "plan") return { ...p, steps: ev.steps, at: 0, percent: null };
-        if (ev.kind === "step") return { ...p, at: ev.status === "done" ? ev.index + 1 : ev.index, percent: null };
-        if (ev.kind === "percent") return ev.index === p.at ? { ...p, percent: ev.percent } : p;
-        return { ...p, lines: [...p.lines.slice(-400), ev.text] };
-      });
-    });
-    try {
-      const created = await quickstart(name, starter, {
-        db_name: needsDatabase(starter) ? database : undefined,
-        ai: starter.startsWith("laravel") && ai,
-      });
-      setProgress((p) => p && { ...p, at: p.steps.length, outcome: { ok: true, created } });
-      nexCelebrate(`${name} is ready! Let's build something.`);
-      await onCreated();
-    } catch (err) {
-      setProgress((p) => p && { ...p, outcome: { ok: false, error: String(err) } });
-      nexOops(`${name} couldn't be made. The details say why.`);
-    } finally {
-      unlisten();
-    }
+    const init: Progress = { steps: [], at: 0, percent: null, lines: [], outcome: null };
+    const label = `New project ${name}`;
+    await runTask<MakingTask, void>(
+      TASK,
+      label,
+      { name, kind, progress: init },
+      async (update) => {
+        const setProgress = (f: (p: Progress) => Progress) =>
+          update({ data: (d) => ({ ...d, progress: f(d.progress) }) });
+        if (!starter) {
+          try {
+            await createProject(name, kind as NewKind);
+            await onCreated();
+            setProgress((p) => ({ ...p, outcome: { ok: true, created: null } }));
+            nexCelebrate(`${name} is ready!`);
+          } catch (err) {
+            setProgress((p) => ({ ...p, outcome: { ok: false, error: String(err) } }));
+            throw err;
+          }
+          return;
+        }
+        // Listen before starting, so the first steps aren't missed. The listener belongs to the
+        // task, so it keeps going when the wizard is closed.
+        let steps: string[] = [];
+        const unlisten = await onQuickstart((ev) => {
+          if (ev.name !== name) return;
+          if (ev.kind === "plan") steps = ev.steps;
+          if (ev.kind === "step" && ev.status === "running") update({ detail: steps[ev.index] ?? null, percent: null });
+          if (ev.kind === "percent") update({ percent: ev.percent });
+          setProgress((p) => {
+            if (ev.kind === "plan") return { ...p, steps: ev.steps, at: 0, percent: null };
+            if (ev.kind === "step") return { ...p, at: ev.status === "done" ? ev.index + 1 : ev.index, percent: null };
+            if (ev.kind === "percent") return ev.index === p.at ? { ...p, percent: ev.percent } : p;
+            return { ...p, lines: [...p.lines.slice(-400), ev.text] };
+          });
+        });
+        try {
+          const created = await quickstart(name, starter, {
+            db_name: needsDatabase(starter) ? database : undefined,
+            ai: starter.startsWith("laravel") && ai,
+          });
+          setProgress((p) => ({ ...p, at: p.steps.length, outcome: { ok: true, created } }));
+          nexCelebrate(`${name} is ready! Let's build something.`);
+          await onCreated();
+        } catch (err) {
+          setProgress((p) => ({ ...p, outcome: { ok: false, error: String(err) } }));
+          nexOops(`${name} couldn't be made. The details say why.`);
+          throw err;
+        } finally {
+          unlisten();
+        }
+      },
+      () => `${name} is ready.`,
+    ).catch(() => {});
+  }
+
+  // Closing keeps a project that is still being made; a finished one is cleared.
+  function close() {
+    if (task && task.status !== "running") dismissTask(TASK);
+    onClose();
   }
 
   return (
@@ -218,14 +262,18 @@ export function NewProjectWizard({
         {(["What to make", "Options", "Making it"] as const).map((label, i) => {
           const at = stage === "pick" ? 0 : stage === "options" ? 1 : 2;
           return (
-            <li key={label} className={i === at ? "current" : i < at ? "done" : ""} aria-current={i === at ? "step" : undefined}>
+            <li
+              key={label}
+              className={i === at ? "current" : i < at ? "done" : ""}
+              aria-current={i === at ? "step" : undefined}
+            >
               <span className="wizard-num">{i < at ? <Check size={12} aria-hidden="true" /> : i + 1}</span>
               {label}
             </li>
           );
         })}
         <li className="wizard-close">
-          <button className="update-close" onClick={onClose} aria-label="Close" title="Close">
+          <button className="update-close" onClick={close} aria-label="Close" title="Close">
             <X size={14} aria-hidden="true" />
           </button>
         </li>
@@ -277,7 +325,7 @@ export function NewProjectWizard({
           </div>
 
           <div className="wizard-actions">
-            <button className="btn btn-quiet" type="button" onClick={onClose}>
+            <button className="btn btn-quiet" type="button" onClick={close}>
               Cancel
             </button>
             <button className="btn btn-primary" type="submit" disabled={!name || !!problem}>
@@ -353,10 +401,10 @@ export function NewProjectWizard({
           editors={editors}
           addressReady={addressReady(name)}
           onBack={() => {
-            setProgress(null);
+            dismissTask(TASK);
             setStage("options");
           }}
-          onClose={onClose}
+          onClose={close}
         />
       )}
     </section>
@@ -403,7 +451,8 @@ function Making({
       {steps.length > 0 && (
         <ol className="quickstart-steps">
           {steps.map((step, i) => {
-            const state = i < at ? "done" : i === at && failed ? "failed" : i === at && !outcome ? "running" : "waiting";
+            const state =
+              i < at ? "done" : i === at && failed ? "failed" : i === at && !outcome ? "running" : "waiting";
             return (
               <li key={step} className={`quickstart-step ${state}`}>
                 {state === "done" && <Check size={14} aria-hidden="true" />}
@@ -413,7 +462,13 @@ function Making({
                 <span>{step}</span>
                 {state === "running" && percent !== null && (
                   <span className="quickstart-pct">
-                    <span className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
+                    <span
+                      className="bar"
+                      role="progressbar"
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                      aria-valuenow={percent}
+                    >
                       <span className="bar-fill" style={{ width: `${percent}%` }} />
                     </span>
                     {percent}%
@@ -524,4 +579,3 @@ function Making({
     </div>
   );
 }
-

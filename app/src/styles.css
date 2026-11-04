@@ -5684,3 +5684,318 @@ h1 {
 .ver-card h3 {
   scroll-margin-top: 16px;
 }
+
+/* Background tasks: a button above the theme toggle, and its list opening upward. */
+.tasks {
+  position: relative;
+}
+
+.tasks-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font: 500 13px var(--font);
+  color: var(--accent-text);
+  cursor: pointer;
+}
+
+.tasks-button:hover {
+  border-color: var(--border-strong);
+}
+
+.tasks-button.tasks-failed {
+  color: var(--bad);
+}
+
+.rail-collapsed .tasks-button {
+  justify-content: center;
+  padding: 0;
+}
+
+.tasks-pop {
+  position: fixed;
+  z-index: 30;
+  display: grid;
+  gap: 8px;
+  width: 320px;
+  max-height: 420px;
+  padding: 12px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.06), 0 12px 32px rgb(0 0 0 / 0.22);
+}
+
+.tasks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.tasks-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tasks-item {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.tasks-item:hover {
+  background: var(--surface-2);
+}
+
+.tasks-item > svg {
+  margin-top: 2px;
+}
+
+.tasks-running > svg {
+  color: var(--accent-text);
+}
+
+.tasks-done > svg {
+  color: var(--ok);
+}
+
+.tasks-failed > svg {
+  color: var(--bad);
+}
+
+.tasks-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tasks-text p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tasks-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.tasks-text .bar {
+  display: block;
+}
+
+.tasks-dismiss {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-3);
+  cursor: pointer;
+}
+
+.tasks-dismiss:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* PHP extensions and settings (Versions page and a project's PHP section). */
+.ver-settings-btn {
+  margin-left: auto;
+  gap: 6px;
+}
+
+.ver-php-settings {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+details.ver-php-settings > summary {
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ver-php-settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ver-php-settings-head h3 {
+  margin: 0;
+  font: 600 14px/1.3 var(--font);
+}
+
+.php-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.php-settings h4 {
+  margin: 6px 0 0;
+  font: 600 13px/1.3 var(--font);
+}
+
+.php-settings-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.php-settings-head h4 {
+  margin: 0;
+}
+
+.php-ext-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  color: var(--text-3);
+}
+
+.php-ext-search svg {
+  position: absolute;
+  left: 9px;
+  pointer-events: none;
+}
+
+.php-settings .input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+  font: 13.5px var(--font);
+}
+
+.php-ext-search .input {
+  width: 200px;
+  padding-left: 28px;
+}
+
+.php-ext-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 4px 16px;
+  max-height: 360px;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.php-ext {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.php-ext:hover {
+  background: var(--surface-2);
+}
+
+.php-ext input {
+  margin-top: 3px;
+}
+
+.php-ext > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.php-ext code {
+  font-size: 13px;
+}
+
+.php-ext.blocked {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.php-ext-default {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.php-limits {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 16px;
+}
+
+.php-paths code {
+  overflow-wrap: anywhere;
+}
+
+.php-ext-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.php-ext-name .php-ext-default {
+  margin-left: 0;
+}
+
+/* Database page: which server it shows. */
+.db-engine {
+  display: inline-flex;
+  gap: 2px;
+  margin-top: 10px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.db-engine-opt {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  font: 500 13px var(--font);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.db-engine-opt:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.db-engine-opt.current {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}

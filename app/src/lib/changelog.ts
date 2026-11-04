@@ -7,6 +7,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.1",
+    title: "Background tasks, PHP extensions and PostgreSQL",
+    changes: [
+      "Background tasks: setting up a project, making a new one, downloads, imports and backups keep going when you open another page, and their progress is still there when you come back.",
+      "A Tasks button in the sidebar shows what's running, with its progress, and what just finished or stopped.",
+      "PHP extensions and settings, per PHP version: turn extensions on or off, change memory, upload and time limits, and keep your own php.ini lines. PHP checks them before they're used.",
+      "PostgreSQL on the Database page: switch between MySQL and PostgreSQL to browse, edit rows, run SQL with ready-made commands, manage users and back up or restore.",
+      "Check my setup spots a damaged PostgreSQL data folder and makes a fresh one, keeping the old one beside it.",
+    ],
+  },
+  {
     version: "0.4.0",
     title: "Check my setup",
     changes: [

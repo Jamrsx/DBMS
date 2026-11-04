@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal } from "lucide-react";
+import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
 import { createBackup } from "../lib/backups";
 import { nexCelebrate } from "../lib/nex";
+import { runTask, updateTask } from "../lib/tasks";
 import {
   formatMb,
   installVersion,
@@ -50,21 +52,36 @@ export function VersionsPage({ active }: { active: boolean }) {
     setError(null);
     setDone(null);
     let note: string | null = null;
+    const taskId = `version:${c.id}`;
+    const title =
+      what === "remove"
+        ? `Remove ${c.name} ${version}`
+        : what === "use"
+          ? `Switch to ${c.name} ${version}`
+          : `Install ${c.name} ${version}`;
     try {
-      if (what === "install" || what === "update" || what === "reinstall") {
-        setBusy({ id: c.id, version, what: "install", percent: 0 });
-        note = await installVersion(c.id, version, (percent) =>
-          setBusy({ id: c.id, version, what: "install", percent }),
-        );
-      }
-      if (what === "use" || what === "update") {
-        setBusy({ id: c.id, version, what: "use", percent: null });
-        await useVersion(c.id, version);
-      }
-      if (what === "remove") {
-        setBusy({ id: c.id, version, what: "remove", percent: null });
-        await removeVersion(c.id, version);
-      }
+      // A task, so the sidebar shows it while you're on another page.
+      note = await runTask(taskId, title, null, async (update) => {
+        let n: string | null = null;
+        if (what === "install" || what === "update" || what === "reinstall") {
+          setBusy({ id: c.id, version, what: "install", percent: 0 });
+          update({ detail: "Downloading" });
+          n = await installVersion(c.id, version, (percent) => {
+            setBusy({ id: c.id, version, what: "install", percent });
+            update({ percent });
+          });
+        }
+        if (what === "use" || what === "update") {
+          setBusy({ id: c.id, version, what: "use", percent: null });
+          update({ detail: "Restarting services", percent: null });
+          await useVersion(c.id, version);
+        }
+        if (what === "remove") {
+          setBusy({ id: c.id, version, what: "remove", percent: null });
+          await removeVersion(c.id, version);
+        }
+        return n;
+      });
       const message =
         what === "reinstall"
           ? `${c.name} ${version} is back. ${c.kind === "tool" ? "It's ready to use in the Terminal." : "Press Start on the Dashboard to run it."}`
@@ -78,6 +95,7 @@ export function VersionsPage({ active }: { active: boolean }) {
                   ? `${c.name} ${version} was removed.`
                   : `${c.name} ${version} is now in use. Running services restarted with it.`;
       setDone(note ? `${message} ${note}` : message);
+      updateTask(taskId, { message });
       if (what !== "remove") nexCelebrate(message);
     } catch (e) {
       setError(String(e));
@@ -165,6 +183,8 @@ function ComponentCard({
   onRun: (c: ComponentVersions, version: string, what: Action) => void;
 }) {
   const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  // PHP only: the installed version whose extensions and settings are open.
+  const [settingsFor, setSettingsFor] = useState<string | null>(null);
   const locked = busy !== null;
   const mine = busy?.id === c.id ? busy : null;
   const others = c.available.filter((a) => !a.installed);
@@ -261,6 +281,15 @@ function ComponentCard({
           {c.installed.map((i) => (
             <li key={i.version} className="ver-row">
               <span className="ver-num">{i.version}</span>
+              {c.id === "php" && mine?.version !== i.version && (
+                <button
+                  className="btn btn-small btn-quiet ver-settings-btn"
+                  aria-expanded={settingsFor === i.version}
+                  onClick={() => setSettingsFor(settingsFor === i.version ? null : i.version)}
+                >
+                  <SlidersHorizontal size={13} aria-hidden="true" /> Extensions and settings
+                </button>
+              )}
               {mine?.version === i.version ? (
                 <Progress name={c.name} busy={mine} inline />
               ) : i.active ? (
@@ -297,6 +326,18 @@ function ComponentCard({
             </li>
           ))}
         </ul>
+      )}
+
+      {settingsFor && (
+        <div className="ver-php-settings">
+          <div className="ver-php-settings-head">
+            <h3>PHP {settingsFor} extensions and settings</h3>
+            <button className="btn btn-small btn-quiet" onClick={() => setSettingsFor(null)}>
+              Close
+            </button>
+          </div>
+          <PhpSettingsPanel version={settingsFor} />
+        </div>
       )}
 
       {others.length > 0 && c.kind === "runtime" && (

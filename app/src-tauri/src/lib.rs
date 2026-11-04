@@ -12,6 +12,8 @@ mod installer;
 mod laravel;
 mod phpmyadmin;
 mod phpfix;
+mod phpini;
+mod pg;
 mod phpver;
 mod postgres;
 mod projectops;
@@ -268,8 +270,14 @@ pub fn run() {
             share_dev_stop,
             share_app_start,
             share_app_stop,
+            db_use_engine,
+            php_settings_info,
+            php_settings_save,
+            php_settings_apply,
+            php_settings_open,
             health_check,
             health_fix_configs,
+            health_reset_postgres,
             health_report,
             import_sources,
             import_databases,
@@ -2009,6 +2017,117 @@ async fn version_remove(stack: tauri::State<'_, Stack>, id: String, version: Str
     blocking(move || versions::remove(&root, &settings, &id, &version)).await
 }
 
+/// A PHP version's folder and the folder of the php.ini NexDB writes for it.
+fn php_dirs(root: &std::path::Path, settings: &settings::Settings, version: Option<&str>) -> Result<(String, PathBuf, PathBuf), String> {
+    let default = phpver::default_version(settings).ok_or("PHP isn't installed.")?;
+    let version = version.map(String::from).unwrap_or(default.clone());
+    let dir = phpver::installed(root, settings).remove(&version).ok_or(format!("PHP {version} isn't installed."))?;
+    let ini_dir = if version == default { root.join("etc").join("php") } else { phpver::ini_dir(root, &version) };
+    Ok((version, dir, ini_dir))
+}
+
+/// Writes every php.ini again and restarts the PHP services that run, so they use it.
+fn restart_php(root: &std::path::Path, settings: &settings::Settings, sup: &supervisor::Supervisor) -> Result<(), String> {
+    installer::refresh_configs(root, settings)?;
+    for s in sup.status() {
+        if s.id.starts_with("php") && s.state == supervisor::State::Running {
+            sup.stop(&s.id)?;
+            sup.start(&s.id)?;
+        }
+    }
+    Ok(())
+}
+
+/// Checks a version's php.ini as it would be written now, before PHP uses it.
+fn test_php_settings(root: &std::path::Path, version: &str, dir: &std::path::Path) -> Result<(), String> {
+    let tmp = root.join("tmp");
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let trial = tmp.join(format!("php-{version}-check.ini"));
+    std::fs::write(&trial, phpini::render(dir, &root.join("etc"))).map_err(|e| e.to_string())?;
+    let result = phpini::test_ini(dir, &trial);
+    let _ = std::fs::remove_file(&trial);
+    result
+}
+
+/// Extensions, common settings and your own lines for a PHP version (None: the default).
+#[tauri::command]
+async fn php_settings_info(stack: tauri::State<'_, Stack>, version: Option<String>) -> Result<phpini::Info, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let (_, dir, ini_dir) = php_dirs(&root, &settings, version.as_deref())?;
+        Ok(phpini::info(&dir, &root.join("etc"), &ini_dir))
+    })
+    .await
+}
+
+/// Saves extension and setting choices for a PHP version. PHP checks them first; a version PHP
+/// won't start with is not kept. Running PHP services restart with the new settings.
+#[tauri::command]
+async fn php_settings_save(
+    stack: tauri::State<'_, Stack>,
+    version: Option<String>,
+    extensions: std::collections::BTreeMap<String, bool>,
+    values: std::collections::BTreeMap<String, String>,
+) -> Result<phpini::Info, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let (version, dir, ini_dir) = php_dirs(&root, &settings, version.as_deref())?;
+        let etc = root.join("etc");
+        for (k, v) in &values {
+            if !phpini::EDITABLE.contains(&k.as_str()) {
+                return Err(format!("{k} can't be changed here. Add it to your own lines instead."));
+            }
+            phpini::check_value(k, v)?;
+        }
+        let before = phpini::load(&etc, &version);
+        let defaults = phpini::Choices::default();
+        let default_on = phpini::enabled(&dir, &defaults);
+        // Only what differs from NexDB's defaults is kept, so new defaults reach you later.
+        let choices = phpini::Choices {
+            extensions: extensions.into_iter().filter(|(e, on)| default_on.contains(e) != *on).collect(),
+            settings: values
+                .into_iter()
+                .filter(|(k, v)| phpini::DEFAULT_SETTINGS.iter().any(|(dk, dv)| dk == k && dv != &v.trim()))
+                .map(|(k, v)| (k, v.trim().to_string()))
+                .collect(),
+        };
+        phpini::save(&etc, &version, &choices)?;
+        if let Err(e) = test_php_settings(&root, &version, &dir) {
+            phpini::save(&etc, &version, &before)?;
+            return Err(format!("{e} Nothing was changed."));
+        }
+        restart_php(&root, &settings, &sup)?;
+        Ok(phpini::info(&dir, &etc, &ini_dir))
+    })
+    .await
+}
+
+/// After editing your own lines: checks them, then restarts PHP with them.
+#[tauri::command]
+async fn php_settings_apply(stack: tauri::State<'_, Stack>, version: Option<String>) -> Result<phpini::Info, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let (version, dir, ini_dir) = php_dirs(&root, &settings, version.as_deref())?;
+        test_php_settings(&root, &version, &dir).map_err(|e| format!("{e} PHP keeps its previous settings; fix the line in your file and press Apply again."))?;
+        restart_php(&root, &settings, &sup)?;
+        Ok(phpini::info(&dir, &root.join("etc"), &ini_dir))
+    })
+    .await
+}
+
+/// Opens the version's own-lines file (made on first use) in the PC's editor for .ini files.
+#[tauri::command]
+async fn php_settings_open(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, version: Option<String>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (root, settings, _) = stack.get()?;
+    let path = blocking(move || {
+        let (version, _, _) = php_dirs(&root, &settings, version.as_deref())?;
+        phpini::ensure_own_lines(&root.join("etc"), &version)
+    })
+    .await?;
+    app.opener().open_path(path.display().to_string(), None::<&str>).map_err(|e| e.to_string())
+}
+
 /// "Check my setup": every finding, with the fix NexDB can do for it.
 #[tauri::command]
 async fn health_check(stack: tauri::State<'_, Stack>) -> Result<Vec<health::Check>, String> {
@@ -2024,6 +2143,30 @@ async fn health_fix_configs(stack: tauri::State<'_, Stack>) -> Result<(), String
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
         apply_vhosts(&root, &settings, &sup)
+    })
+    .await
+}
+
+/// Moves a damaged PostgreSQL data folder aside (kept as postgres-damaged-<time>) and makes a
+/// fresh one, then starts PostgreSQL again if it was meant to run.
+#[tauri::command]
+async fn health_reset_postgres(stack: tauri::State<'_, Stack>) -> Result<(), String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        if !health::postgres_damaged(&root) {
+            return Err("PostgreSQL's data folder looks fine, so it was left as it is.".into());
+        }
+        let was = sup.status().iter().any(|s| s.id == "postgres" && s.state != supervisor::State::Stopped);
+        let _ = sup.stop("postgres");
+        let c = settings.components.iter().find(|c| c.id == "postgres").ok_or("PostgreSQL isn't installed.")?;
+        let data = root.join("data").join("postgres");
+        let aside = root.join("data").join(format!("postgres-damaged-{}", backup::stamp()));
+        std::fs::rename(&data, &aside).map_err(|e| format!("Couldn't move the damaged folder aside: {e}. Stop PostgreSQL on the Dashboard and try again."))?;
+        postgres::init(&std::path::PathBuf::from(&c.path).join("bin"), &data)?;
+        if was {
+            sup.start("postgres")?;
+        }
+        Ok(())
     })
     .await
 }
@@ -2127,11 +2270,9 @@ fn backups_list(stack: tauri::State<Stack>) -> Result<Vec<backup::BackupFile>, S
 #[tauri::command]
 async fn backup_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, name: Option<String>) -> Result<Vec<backup::BackupFile>, String> {
     let (root, settings, _) = stack.get()?;
-    let port = mysql_port(&stack)?;
     let db = db.inner().clone_handle();
+    let port = if db.pg_port().is_some() { 0 } else { mysql_port(&stack)? };
     blocking(move || {
-        let bin = mysql_bin(&settings)?;
-        let password = db.password();
         let names: Vec<String> = match name.filter(|n| !n.is_empty()) {
             Some(n) => vec![n],
             None => db.databases()?.into_iter().filter(|d| !d.system).map(|d| d.name).collect(),
@@ -2139,6 +2280,22 @@ async fn backup_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::
         if names.is_empty() {
             return Err("There are no databases of your own to back up yet.".into());
         }
+        if let Some(pg_port) = db.pg_port() {
+            let bin = pg::bin(&settings)?;
+            let dir = backup::backups_dir(&root);
+            std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't create the backups folder: {e}"))?;
+            let stamp = backup::stamp();
+            let made: Vec<std::path::PathBuf> = names
+                .iter()
+                .map(|n| {
+                    let target = dir.join(backup::pg_file_name(n, &stamp));
+                    pg::dump_to(&bin, pg_port, n, &target).map(|_| target)
+                })
+                .collect::<Result<_, _>>()?;
+            return Ok(backup::list(&root).into_iter().filter(|b| made.iter().any(|m| std::path::Path::new(&b.path) == m)).collect());
+        }
+        let bin = mysql_bin(&settings)?;
+        let password = db.password();
         names.iter().map(|n| backup::export(&bin, &root, port, password.as_deref(), n, false)).collect()
     })
     .await
@@ -2148,8 +2305,8 @@ async fn backup_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::
 #[tauri::command]
 async fn backup_restore(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, file: String, database: String) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
-    let port = mysql_port(&stack)?;
     let db = db.inner().clone_handle();
+    let port = if db.pg_port().is_some() { 0 } else { mysql_port(&stack)? };
     blocking(move || {
         let path = backup::backups_dir(&root).join(&file);
         if file.contains(['/', '\\']) || !path.is_file() {
@@ -2161,10 +2318,13 @@ async fn backup_restore(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db:
 }
 
 fn restore_into(settings: &settings::Settings, root: &std::path::Path, port: u16, db: &db::Db, file: &std::path::Path, database: &str) -> Result<(), String> {
-    let bin = mysql_bin(settings)?;
     if !db.databases()?.iter().any(|d| d.name.eq_ignore_ascii_case(database)) {
         db.create_database(database)?;
     }
+    if let Some(pg_port) = db.pg_port() {
+        return pg::import(&pg::bin(settings)?, pg_port, database, file);
+    }
+    let bin = mysql_bin(settings)?;
     backup::import(&bin, root, port, db.password().as_deref(), database, file)
 }
 
@@ -2172,8 +2332,8 @@ fn restore_into(settings: &settings::Settings, root: &std::path::Path, port: u16
 #[tauri::command]
 async fn backup_import_file(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, path: String, database: String) -> Result<(), String> {
     let (root, settings, _) = stack.get()?;
-    let port = mysql_port(&stack)?;
     let db = db.inner().clone_handle();
+    let port = if db.pg_port().is_some() { 0 } else { mysql_port(&stack)? };
     blocking(move || restore_into(&settings, &root, port, &db, std::path::Path::new(&path), &database)).await
 }
 
@@ -2193,7 +2353,8 @@ async fn db_export_sql(
 ) -> Result<Option<String>, String> {
     use tauri_plugin_dialog::DialogExt;
     let (root, settings, _) = stack.get()?;
-    let port = mysql_port(&stack)?;
+    let pg_port = db.inner().clone_handle().pg_port();
+    let port = if pg_port.is_some() { 0 } else { mysql_port(&stack)? };
     let password = db.inner().clone_handle().password();
     let dialog = app.clone();
     let suggested = format!("{name}.sql");
@@ -2210,11 +2371,31 @@ async fn db_export_sql(
     .map_err(|e| e.to_string())?;
     let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
     blocking(move || {
-        let bin = mysql_bin(&settings)?;
-        backup::dump_to(&bin, &root, port, password.as_deref(), &name, &path)?;
+        if let Some(pg_port) = pg_port {
+            pg::dump_to(&pg::bin(&settings)?, pg_port, &name, &path)?;
+        } else {
+            backup::dump_to(&mysql_bin(&settings)?, &root, port, password.as_deref(), &name, &path)?;
+        }
         Ok(Some(path.display().to_string()))
     })
     .await
+}
+
+/// Switches the Database page between MySQL ("mysql") and NexDB's PostgreSQL ("postgres").
+/// PostgreSQL needs no password, so it connects right away; MySQL then uses `db_connect`.
+#[tauri::command]
+async fn db_use_engine(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, engine: String) -> Result<Option<db::Connected>, String> {
+    let (_, settings, _) = stack.get()?;
+    let db = db.inner().clone_handle();
+    if engine == "postgres" {
+        if !settings.components.iter().any(|c| c.id == "postgres") {
+            return Err("PostgreSQL isn't installed. Add it on the Versions page.".into());
+        }
+        db.use_postgres(Some(supervisor::POSTGRES_PORT));
+        return blocking(move || pg::connect(supervisor::POSTGRES_PORT).map(Some)).await;
+    }
+    db.use_postgres(None);
+    Ok(None)
 }
 
 /// Lets the user choose a .sql file; None when they cancel.

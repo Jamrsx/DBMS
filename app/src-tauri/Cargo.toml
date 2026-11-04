@@ -1,6 +1,6 @@
 [package]
 name = "devmanager"
-version = "0.4.0"
+version = "0.4.1"
 description = "Local development environment manager"
 authors = ["Jamrsx"]
 edition = "2024"
@@ -39,6 +39,7 @@ qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 tauri-plugin-updater = "2.14.1"
 tauri-plugin-process = "2.4.0"
 tauri-plugin-dialog = "2.8.4"
+postgres = "0.19"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

@@ -1,4 +1,4 @@
-import type { ColumnInfo } from "./db";
+import type { ColumnInfo, DbEngine } from "./db";
 
 /** A ready-made SQL statement, filled in with the table and columns the user is looking at. */
 export interface SqlTemplate {
@@ -21,7 +21,8 @@ export function plainType(c: Pick<ColumnInfo, "column_type">): string {
   const t = c.column_type.toLowerCase();
   const size = t.match(/\((\d+)\)/)?.[1];
   if (t.startsWith("tinyint(1)") || t === "boolean" || t === "bool") return "Yes or no (1 or 0)";
-  if (/^(tiny|small|medium|big)?int/.test(t)) return t.includes("unsigned") ? "Whole number, 0 or more" : "Whole number";
+  if (/^(tiny|small|medium|big)?int/.test(t))
+    return t.includes("unsigned") ? "Whole number, 0 or more" : "Whole number";
   if (/^(decimal|numeric)/.test(t)) return "Number with decimals";
   if (/^(float|double|real)/.test(t)) return "Number with decimals";
   if (t.startsWith("varchar") || t.startsWith("char")) return size ? `Text, up to ${size} characters` : "Text";
@@ -46,7 +47,8 @@ export function enumValues(columnType: string): string[] {
 function sample(c: ColumnInfo): string {
   const t = c.column_type.toLowerCase();
   if (t.startsWith("tinyint(1)")) return "1";
-  if (/int|decimal|numeric|float|double|real|year/.test(t)) return /decimal|numeric|float|double/.test(t) ? "0.00" : "1";
+  if (/int|decimal|numeric|float|double|real|year/.test(t))
+    return /decimal|numeric|float|double/.test(t) ? "0.00" : "1";
   if (t === "date") return "'2026-01-31'";
   if (/^(datetime|timestamp)/.test(t)) return "NOW()";
   if (t === "time") return "'12:00:00'";
@@ -56,21 +58,38 @@ function sample(c: ColumnInfo): string {
   return `'${c.name.replace(/_/g, " ")}'`;
 }
 
-const q = (name: string) => `\`${name}\``;
-
-/** Templates for the current database and table (both optional). */
-export function sqlTemplates(db: string | null, table: string | null, cols: ColumnInfo[]): TemplateGroup[] {
-  const t = table ? q(table) : "`your_table`";
+/** Templates for the current database and table (both optional), for MySQL or PostgreSQL. */
+export function sqlTemplates(
+  db: string | null,
+  table: string | null,
+  cols: ColumnInfo[],
+  engine: DbEngine = "mysql",
+): TemplateGroup[] {
+  const pg = engine === "postgres";
+  // MySQL quotes names with backticks, PostgreSQL with double quotes.
+  const q = (name: string) => (pg ? `"${name}"` : `\`${name}\``);
+  const t = q(table ?? "your_table");
   const key = cols.find((c) => c.key === "PRI")?.name ?? "id";
   const writable = cols.filter((c) => !c.extra.includes("auto_increment") && !/generated/i.test(c.extra));
   const firstText = cols.find((c) => /char|text/i.test(c.column_type))?.name ?? "name";
-  const someCols = cols.length > 0 ? cols.slice(0, 4).map((c) => q(c.name)).join(", ") : "`id`, `name`";
+  const someCols =
+    cols.length > 0
+      ? cols
+          .slice(0, 4)
+          .map((c) => q(c.name))
+          .join(", ")
+      : `${q("id")}, ${q("name")}`;
   const updatable = writable.find((c) => c.key !== "PRI") ?? writable[0];
   const sorted = cols.find((c) => c.name === "created_at")?.name ?? key;
   const foreign = cols.find((c) => c.name !== key && c.name.endsWith("_id"));
 
   const look: SqlTemplate[] = [
-    { id: "select", label: "Show rows", help: "Shows the first 100 rows of the table.", sql: `SELECT * FROM ${t}\nLIMIT 100;` },
+    {
+      id: "select",
+      label: "Show rows",
+      help: "Shows the first 100 rows of the table.",
+      sql: `SELECT * FROM ${t}\nLIMIT 100;`,
+    },
     {
       id: "find",
       label: "Find rows",
@@ -83,7 +102,12 @@ export function sqlTemplates(db: string | null, table: string | null, cols: Colu
       help: "Finds rows where the text contains a word. % means 'anything here'.",
       sql: `SELECT * FROM ${t}\nWHERE ${q(firstText)} LIKE '%word%';`,
     },
-    { id: "count", label: "Count rows", help: "Tells you how many rows the table has.", sql: `SELECT COUNT(*) AS total FROM ${t};` },
+    {
+      id: "count",
+      label: "Count rows",
+      help: "Tells you how many rows the table has.",
+      sql: `SELECT COUNT(*) AS total FROM ${t};`,
+    },
     {
       id: "newest",
       label: "Newest first",
@@ -97,7 +121,7 @@ export function sqlTemplates(db: string | null, table: string | null, cols: Colu
       id: "join",
       label: "Join tables",
       help: `Shows rows together with their matching ${other}. Change ${other}s if the other table has a different name.`,
-      sql: `SELECT ${t}.*, \`${other}s\`.*\nFROM ${t}\nJOIN \`${other}s\` ON \`${other}s\`.\`id\` = ${t}.${q(foreign.name)}\nLIMIT 100;`,
+      sql: `SELECT ${t}.*, ${q(other + "s")}.*\nFROM ${t}\nJOIN ${q(other + "s")} ON ${q(other + "s")}.${q("id")} = ${t}.${q(foreign.name)}\nLIMIT 100;`,
     });
   }
 
@@ -130,28 +154,42 @@ export function sqlTemplates(db: string | null, table: string | null, cols: Colu
       id: "create",
       label: "Make a table",
       help: "Makes a new table with an id, a name and timestamps. Rename it and its columns to fit.",
-      sql: "CREATE TABLE `posts` (\n  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `title` VARCHAR(255) NOT NULL,\n  `body` TEXT NULL,\n  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
+      sql: pg
+        ? 'CREATE TABLE "posts" (\n  "id" BIGSERIAL PRIMARY KEY,\n  "title" VARCHAR(255) NOT NULL,\n  "body" TEXT NULL,\n  "created_at" TIMESTAMPTZ NULL DEFAULT now(),\n  "updated_at" TIMESTAMPTZ NULL DEFAULT now()\n);'
+        : "CREATE TABLE `posts` (\n  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `title` VARCHAR(255) NOT NULL,\n  `body` TEXT NULL,\n  `created_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP\n);",
     },
     {
       id: "add-column",
       label: "Add a column",
       help: "Adds a new column to the table. Existing rows get NULL in it.",
-      sql: `ALTER TABLE ${t}\nADD COLUMN \`phone\` VARCHAR(30) NULL;`,
+      sql: `ALTER TABLE ${t}\nADD COLUMN ${q("phone")} VARCHAR(30) NULL;`,
     },
     {
       id: "rename-column",
       label: "Rename a column",
       help: "Gives a column a new name; its data stays.",
-      sql: `ALTER TABLE ${t}\nRENAME COLUMN ${q(firstText)} TO \`new_name\`;`,
+      sql: `ALTER TABLE ${t}\nRENAME COLUMN ${q(firstText)} TO ${q("new_name")};`,
     },
     {
       id: "index",
       label: "Speed up a search",
       help: "Adds an index, so finding rows by this column gets faster on big tables.",
-      sql: `CREATE INDEX \`idx_${(table ?? "table").replace(/\W/g, "")}_${firstText}\`\nON ${t} (${q(firstText)});`,
+      sql: `CREATE INDEX ${q(`idx_${(table ?? "table").replace(/\W/g, "")}_${firstText}`)}\nON ${t} (${q(firstText)});`,
     },
-    { id: "describe", label: "Show columns", help: "Lists the table's columns and their types.", sql: `DESCRIBE ${t};` },
-    { id: "tables", label: "List tables", help: "Lists every table in this database.", sql: "SHOW TABLES;" },
+    {
+      id: "describe",
+      label: "Show columns",
+      help: "Lists the table's columns and their types.",
+      sql: pg
+        ? `SELECT column_name, data_type, is_nullable, column_default\nFROM information_schema.columns\nWHERE table_name = '${(table ?? "your_table").replace(/'/g, "''")}'\nORDER BY ordinal_position;`
+        : `DESCRIBE ${t};`,
+    },
+    {
+      id: "tables",
+      label: "List tables",
+      help: "Lists every table in this database.",
+      sql: pg ? "SELECT tablename FROM pg_tables\nWHERE schemaname = 'public'\nORDER BY tablename;" : "SHOW TABLES;",
+    },
     {
       id: "truncate",
       label: "Empty a table",
@@ -169,18 +207,27 @@ export function sqlTemplates(db: string | null, table: string | null, cols: Colu
   ];
 
   const databases: SqlTemplate[] = [
-    { id: "show-dbs", label: "List databases", help: "Lists every database on this MySQL.", sql: "SHOW DATABASES;" },
+    {
+      id: "show-dbs",
+      label: "List databases",
+      help: `Lists every database on this ${pg ? "PostgreSQL" : "MySQL"}.`,
+      sql: pg ? "SELECT datname FROM pg_database\nWHERE NOT datistemplate\nORDER BY datname;" : "SHOW DATABASES;",
+    },
     {
       id: "create-db",
       label: "Make a database",
       help: "Makes a new, empty database that stores any language and emoji.",
-      sql: "CREATE DATABASE `my_app`\n  CHARACTER SET utf8mb4\n  COLLATE utf8mb4_unicode_ci;",
+      sql: pg
+        ? `CREATE DATABASE ${q("my_app")}\n  ENCODING 'UTF8' TEMPLATE template0;`
+        : "CREATE DATABASE `my_app`\n  CHARACTER SET utf8mb4\n  COLLATE utf8mb4_unicode_ci;",
     },
     {
       id: "size",
       label: "Table sizes",
       help: "Shows how many rows and how much space each table in this database uses.",
-      sql: `SELECT TABLE_NAME AS \`table\`, TABLE_ROWS AS \`rows\`,\n  ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024) AS kb\nFROM information_schema.TABLES\nWHERE TABLE_SCHEMA = ${db ? `'${db.replace(/'/g, "''")}'` : "DATABASE()"}\nORDER BY kb DESC;`,
+      sql: pg
+        ? `SELECT relname AS "table", reltuples::bigint AS "rows",\n  pg_total_relation_size(oid) / 1024 AS kb\nFROM pg_class\nWHERE relkind = 'r' AND relnamespace = 'public'::regnamespace\nORDER BY kb DESC;`
+        : `SELECT TABLE_NAME AS \`table\`, TABLE_ROWS AS \`rows\`,\n  ROUND((DATA_LENGTH + INDEX_LENGTH) / 1024) AS kb\nFROM information_schema.TABLES\nWHERE TABLE_SCHEMA = ${db ? `'${db.replace(/'/g, "''")}'` : "DATABASE()"}\nORDER BY kb DESC;`,
     },
   ];
 

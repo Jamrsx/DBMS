@@ -42,6 +42,7 @@ fn check(area: &str, level: &str, title: impl Into<String>, detail: Option<Strin
 pub fn run(root: &Path, settings: &Settings, sup: &Supervisor) -> Vec<Check> {
     let mut out = Vec::new();
     services(settings, sup, &mut out);
+    postgres_data(root, settings, &mut out);
     sites(root, settings, &mut out);
     sharing(&mut out);
     projects(settings, &mut out);
@@ -94,6 +95,26 @@ fn services(settings: &Settings, sup: &Supervisor, out: &mut Vec<Check>) {
     }
     if out.len() == before {
         out.push(check("Services", "ok", "Every service can run: nothing else holds their ports", None, None));
+    }
+}
+
+/// A PostgreSQL data folder missing files it can't run without (it then restarts over and over).
+pub fn postgres_damaged(root: &Path) -> bool {
+    let data = root.join("data").join("postgres");
+    data.join("PG_VERSION").is_file() && !(data.join("global").join("pg_filenode.map").is_file() && data.join("base").is_dir())
+}
+
+fn postgres_data(root: &Path, settings: &Settings, out: &mut Vec<Check>) {
+    if settings.components.iter().any(|c| c.id == "postgres") && postgres_damaged(root) {
+        out.push(check(
+            "Services",
+            "bad",
+            "PostgreSQL's data folder is damaged, so it keeps restarting",
+            Some(
+                "Files PostgreSQL needs are missing from its data folder (data/postgres). NexDB can make a fresh one; the old folder is kept beside it as postgres-damaged-…, so nothing is deleted.".into(),
+            ),
+            Some(("pg-reset", "Make a fresh data folder")),
+        ));
     }
 }
 

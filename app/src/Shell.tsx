@@ -13,6 +13,7 @@ import {
 import { BrandMark } from "./components/BrandMark";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { UpdateNotice } from "./components/UpdateNotice";
+import { TasksButton } from "./components/TasksButton";
 import { startUpdateChecks, useUpdates } from "./lib/updates";
 import { NexCorner } from "./components/NexCorner";
 import { nexGreet } from "./lib/nex";
@@ -130,6 +131,7 @@ export function Shell() {
         </nav>
 
         <div className="rail-foot">
+          <TasksButton />
           <UpdateNotice />
           <ThemeToggle />
         </div>

@@ -17,6 +17,8 @@ pub struct Db {
     pool: std::sync::Arc<Mutex<Option<Pool>>>,
     /// Kept in memory only, so backups can sign in the same way.
     password: std::sync::Arc<Mutex<Option<String>>>,
+    /// Set while the Database page shows PostgreSQL: its port. Every call then goes to `pg`.
+    pg: std::sync::Arc<Mutex<Option<u16>>>,
 }
 
 #[derive(Serialize, Debug)]
@@ -130,6 +132,9 @@ pub fn friendly(err: mysql::Error) -> String {
 
 impl Db {
     pub fn connect(&self, port: u16, password: Option<&str>) -> Result<Connected, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::connect(pg);
+        }
         let opts = OptsBuilder::new()
             .ip_or_hostname(Some("127.0.0.1"))
             .tcp_port(port)
@@ -150,6 +155,15 @@ impl Db {
         Ok(Connected { version })
     }
 
+    /// Switches the Database page between MySQL (None) and PostgreSQL on `port`.
+    pub fn use_postgres(&self, port: Option<u16>) {
+        *self.pg.lock().unwrap() = port;
+    }
+
+    pub fn pg_port(&self) -> Option<u16> {
+        *self.pg.lock().unwrap()
+    }
+
     pub fn disconnect(&self) {
         *self.pool.lock().unwrap() = None;
     }
@@ -161,6 +175,9 @@ impl Db {
     }
 
     pub fn databases(&self) -> Result<Vec<DatabaseInfo>, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::databases(pg);
+        }
         let mut conn = self.conn()?;
         let rows: Vec<(String, u64, Option<u64>)> = conn
             .query(
@@ -185,6 +202,9 @@ impl Db {
     }
 
     pub fn tables(&self, db: &str) -> Result<Vec<TableInfo>, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::tables(pg, db);
+        }
         quote(db)?;
         let mut conn = self.conn()?;
         let rows: Vec<(String, String, Option<String>, Option<u64>, Option<u64>)> = conn
@@ -207,6 +227,9 @@ impl Db {
     }
 
     pub fn columns(&self, db: &str, table: &str) -> Result<Vec<ColumnInfo>, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::columns(pg, db, table);
+        }
         quote(db)?;
         quote(table)?;
         let mut conn = self.conn()?;
@@ -232,6 +255,9 @@ impl Db {
     }
 
     pub fn browse(&self, db: &str, table: &str, page: u64, page_size: u64) -> Result<TablePage, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::browse(pg, db, table, page, page_size);
+        }
         let (qdb, qtable) = (quote(db)?, quote(table)?);
         let size = page_size.clamp(1, ROW_LIMIT as u64);
         let mut conn = self.conn()?;
@@ -248,6 +274,9 @@ impl Db {
     }
 
     pub fn query(&self, db: Option<&str>, sql: &str) -> Result<QueryOutput, String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::query(pg, db, sql);
+        }
         if sql.trim().is_empty() {
             return Err("Type a SQL statement first.".into());
         }
@@ -275,6 +304,9 @@ impl Db {
     }
 
     pub fn create_database(&self, name: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::create_database(pg, name);
+        }
         let q = quote(name)?;
         self.conn()?
             .query_drop(format!("CREATE DATABASE {q} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
@@ -282,6 +314,9 @@ impl Db {
     }
 
     pub fn drop_database(&self, name: &str) -> Result<(), String> {
+        if let Some(pg) = self.pg_port() {
+            return crate::pg::drop_database(pg, name);
+        }
         let q = quote(name)?;
         if SYSTEM_DATABASES.contains(&name.to_lowercase().as_str()) {
             return Err("MySQL's built-in databases can't be deleted here.".into());
@@ -419,7 +454,7 @@ mod tests {
 impl Db {
     /// A handle sharing the same pool, so a command can move it onto a worker thread.
     pub fn clone_handle(&self) -> Db {
-        Db { pool: self.pool.clone(), password: self.password.clone() }
+        Db { pool: self.pool.clone(), password: self.password.clone(), pg: self.pg.clone() }
     }
 }
 

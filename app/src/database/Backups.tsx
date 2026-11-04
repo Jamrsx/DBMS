@@ -15,6 +15,7 @@ import {
 import { dbNameProblem, formatSize } from "../lib/db";
 import { Nex } from "../components/Nex";
 import { nexCelebrate } from "../lib/nex";
+import { runTask } from "../lib/tasks";
 
 type Pending =
   | { kind: "restore"; file: BackupFile; target: string }
@@ -24,11 +25,14 @@ type Pending =
 
 /** Backups tab: make, restore, import and remove `.sql` backups. */
 export function Backups({
+  engine = "mysql",
   selected,
   databases,
   onChanged,
   importToken = 0,
 }: {
+  /** Only this server's backups are listed (a MySQL file can't go into PostgreSQL). */
+  engine?: "mysql" | "postgres";
   selected: string | null;
   databases: string[];
   onChanged: () => void;
@@ -42,9 +46,9 @@ export function Backups({
 
   const load = useCallback(() => {
     listBackups()
-      .then(setFiles)
+      .then((all) => setFiles(all.filter((f) => !!f.postgres === (engine === "postgres"))))
       .catch((e) => setMessage({ ok: false, text: String(e) }));
-  }, []);
+  }, [engine]);
 
   useEffect(load, [load]);
   useEffect(() => {
@@ -56,7 +60,14 @@ export function Backups({
     setBusy(label);
     setMessage(null);
     try {
-      const text = await work();
+      // A task, so a long backup or restore shows in the sidebar from any page.
+      const text = await runTask(
+        "backup",
+        label.replace(/…$/, ""),
+        null,
+        () => work(),
+        (t) => t,
+      );
       setMessage({ ok: true, text });
       nexCelebrate(text);
       setPending(null);

@@ -21,6 +21,17 @@ pub struct BackupFile {
     pub path: String,
     /// Made by the automatic schedule (`…__auto.sql`); only these are ever cleaned up.
     pub auto: bool,
+    /// A PostgreSQL backup (`…__pg.sql`), restored with psql instead of MySQL.
+    pub postgres: bool,
+}
+
+/// `shop__2026-10-31_09-52-10__pg.sql`: a PostgreSQL backup.
+pub fn pg_file_name(database: &str, stamp: &str) -> String {
+    format!("{database}__{stamp}__pg.sql")
+}
+
+pub fn stamp() -> String {
+    now_stamp()
 }
 
 const AUTO_SUFFIX: &str = "__auto.sql";
@@ -58,7 +69,8 @@ pub fn list(root: &Path) -> Vec<BackupFile> {
                 .map(|d| d.as_secs())
                 .unwrap_or(0);
             let auto = name.to_ascii_lowercase().ends_with(AUTO_SUFFIX);
-            Some(BackupFile { name, database, size_bytes: meta.len(), created, path: e.path().display().to_string(), auto })
+            let postgres = name.to_ascii_lowercase().ends_with("__pg.sql");
+            Some(BackupFile { name, database, size_bytes: meta.len(), created, path: e.path().display().to_string(), auto, postgres })
         })
         .collect();
     files.sort_by(|a, b| b.created.cmp(&a.created).then(b.name.cmp(&a.name)));

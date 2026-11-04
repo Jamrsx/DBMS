@@ -25,6 +25,7 @@ import { openTerminalWindow } from "../lib/terminal";
 import { SharePanel } from "./SharePanel";
 import { SetupPanel } from "./SetupPanel";
 import { LaravelPanel } from "./LaravelPanel";
+import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
 
 /** One project: where it lives, its PHP, database and Git, plus rename and delete. */
 export function ProjectDetails({
@@ -307,6 +308,12 @@ export function ProjectDetails({
                 </button>
               </div>
               {feedback("php")}
+              {info.php.current && (
+                <details className="ver-php-settings">
+                  <summary>PHP {info.php.current} extensions and settings</summary>
+                  <PhpSettingsPanel version={info.php.current} />
+                </details>
+              )}
               {info.php.installed.length < 2 && (
                 <p className="field-hint">
                   Only one PHP version is installed. Add another on the Versions page to choose here.
