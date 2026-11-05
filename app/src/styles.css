@@ -3084,7 +3084,7 @@ h1 {
 }
 
 /* Narrow windows: port and uptime join the line under the name instead of their own column. */
-@container (max-width: 760px) {
+@media (max-width: 980px) {
   .svc {
     grid-template-columns: 20px minmax(0, 1fr) 116px 150px;
     gap: 12px;
@@ -4963,6 +4963,30 @@ h1 {
   margin: 0;
 }
 
+/* New caught emails, on Mail in the sidebar. */
+.nav-count {
+  flex: none;
+  min-width: 20px;
+  margin-left: auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+.rail-collapsed .nav-count {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  min-width: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+}
+
 /* Docked in the rail foot, above the theme switch, so it never covers the work. */
 .update-notice {
   display: grid;
@@ -5627,7 +5651,7 @@ h1 {
   flex-wrap: wrap;
 }
 
-@container (max-width: 760px) {
+@media (max-width: 980px) {
   .db-layout {
     grid-template-columns: 170px minmax(0, 1fr);
   }
@@ -6408,6 +6432,15 @@ details.ver-php-settings > summary {
   max-width: calc(100vw - 24px);
 }
 
+/* Where space is tight, a narrower bubble keeps Nex off what he explains. */
+.guide[data-compact] .guide-nex {
+  width: 322px;
+}
+
+.guide[data-compact] .guide-bubble {
+  width: 240px;
+}
+
 .guide[data-side="left"] .guide-nex {
   flex-direction: row-reverse;
 }
@@ -7016,21 +7049,47 @@ body.guiding .nex-corner {
 /* Practice mode: a strip that says the data is pretend. */
 .practice-banner {
   position: fixed;
-  top: 10px;
-  left: 50%;
+  top: 0;
+  right: 0;
+  left: 0;
   z-index: 66;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
-  max-width: calc(100vw - 32px);
-  padding: 8px 10px 8px 16px;
-  border: 1px solid var(--warn-border);
-  border-radius: 999px;
+  height: var(--practice-h);
+  padding: 0 12px;
+  border-bottom: 1px solid var(--warn-border);
   background: var(--warn-soft);
   color: var(--text);
   font-size: 13px;
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
-  transform: translateX(-50%);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.practice-banner > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* In practice everything moves down under the strip: the app, its dialogs and the dim layer. */
+body.practicing {
+  --practice-h: 40px;
+}
+
+/* Padding, not a margin: a margin would leak out of #root and let the window scroll under the strip. */
+body.practicing #root {
+  box-sizing: border-box;
+  padding-top: var(--practice-h);
+}
+
+body.practicing .inbox-overlay,
+body.practicing .palette-backdrop {
+  top: var(--practice-h);
+}
+
+body.practicing .diagram-overlay {
+  top: calc(var(--practice-h) + 16px);
 }
 
 /* After an update: Nex offers to show what's new. */
@@ -8023,4 +8082,139 @@ body.guiding .whatsnew-offer {
   padding-left: 20px;
   color: var(--text-2);
   font-size: 13px;
+}
+
+/* The Mail page: the same inbox, filling the page instead of floating over the Dashboard. */
+.inbox-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.inbox-page .inbox {
+  flex: 1;
+  border: 0;
+  border-radius: inherit;
+  box-shadow: none;
+}
+
+.inbox-page .inbox-head {
+  padding: 18px 20px 14px;
+}
+
+.inbox-page .inbox-head h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 22px;
+}
+
+/* The mail catcher is off: Nex, why, and the one button that fixes it. */
+.inbox-off {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  flex: 1;
+  padding: 32px 24px;
+  text-align: center;
+}
+
+.inbox-off .inbox-off-title {
+  margin: 4px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.inbox-off .field-hint {
+  max-width: 46ch;
+}
+
+/* Settings in parts: the list of parts on the left, the open part beside it. */
+.dash-body.settings-split {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: start;
+  gap: 32px;
+  max-width: none;
+}
+
+.dash-body.settings-split > * {
+  max-width: none;
+}
+
+.set-nav {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.set-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.set-nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.set-nav-item.current {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.set-content {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 780px;
+}
+
+.set-content-title {
+  margin: 0 0 6px;
+  font: 600 18px/1.3 var(--font-display);
+}
+
+.set-content-title + .set-card,
+.set-content-title + .error-box + .set-card {
+  border-top: 0;
+  padding-top: 10px;
+}
+
+.set-auto-update {
+  margin-top: 18px;
+}
+
+@media (max-width: 980px) {
+  .dash-body.settings-split {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .set-nav {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
 }

@@ -5,6 +5,7 @@ import {
   FolderKanban,
   Layers,
   LayoutDashboard,
+  Mail,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -21,7 +22,7 @@ import { TasksButton } from "./components/TasksButton";
 import { startUpdateChecks, useUpdates } from "./lib/updates";
 import { NexCorner } from "./components/NexCorner";
 import { nexGreet } from "./lib/nex";
-import { Dashboard } from "./dashboard/Dashboard";
+import { Dashboard, openInbox } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
 import { TerminalPage } from "./terminal/TerminalPage";
@@ -31,20 +32,36 @@ import { HealthPage } from "./health/HealthPage";
 import { Tour } from "./components/Tour";
 import { WhatsNewOffer } from "./components/WhatsNewOffer";
 import { HelpPage } from "./help/HelpPage";
+import { InboxPanel } from "./dashboard/InboxPanel";
+import { mailList } from "./lib/mail";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings" | "help";
+type Page = "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
 
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "projects", label: "Projects", Icon: FolderKanban },
   { id: "database", label: "Database", Icon: Database },
   { id: "terminal", label: "Terminal", Icon: SquareTerminal },
+  { id: "mail", label: "Mail", Icon: Mail },
   { id: "versions", label: "Versions", Icon: Layers },
 ];
 
 const RAIL_KEY = "nexdb.rail";
 const PAGE_KEY = "nexdb.page";
-const PAGES: Page[] = ["dashboard", "projects", "database", "terminal", "versions", "health", "settings", "help"];
+const PAGES: Page[] = [
+  "dashboard",
+  "projects",
+  "database",
+  "terminal",
+  "mail",
+  "versions",
+  "health",
+  "settings",
+  "help",
+];
+/** "Control+6": each page's shortcut follows its place in the sidebar. */
+const keys = (p: Page) => `Control+${PAGES.indexOf(p) + 1}`;
+const keyHint = (p: Page) => `Ctrl+${PAGES.indexOf(p) + 1}`;
 
 /** The page open when NexDB last closed, so it opens where the user left off. */
 function savedPage(): Page {
@@ -93,7 +110,7 @@ export function Shell() {
     }
   }, [page]);
 
-  // Ctrl+1 … Ctrl+8 open the sidebar's pages in order.
+  // Ctrl+1 … Ctrl+9 open the sidebar's pages in order.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
@@ -115,6 +132,15 @@ export function Shell() {
   // Practice mode reloads every page (except the terminal, which keeps its sessions) on sample data.
   const practice = usePractice();
   const mode = practice ? "practice" : "real";
+  // The practice strip sits above the app, so it never covers a page, a dialog or Nex.
+  useEffect(() => {
+    document.body.classList.toggle("practicing", practice);
+    // The window itself never scrolls; put it back if anything nudged it.
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    // A sample project or database Nex opened in practice isn't one to open for real.
+    setOpenProject(null);
+    setOpenDatabase(null);
+  }, [practice]);
   // Nex's walkthroughs open a project or database for you.
   useEffect(() => {
     const project = (e: Event) => {
@@ -132,9 +158,28 @@ export function Shell() {
       window.removeEventListener("nexdb:open-database", database);
     };
   }, []);
-  const updateReady = updates.state.kind === "available";
+  const updateReady = updates.state.kind === "available" && !practice;
 
   useEffect(startUpdateChecks, []);
+
+  // New caught emails, counted on Mail in the sidebar (nothing shows while the catcher is off).
+  const [newMail, setNewMail] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    const check = () =>
+      mailList()
+        .then((i) => alive && setNewMail(i.unread))
+        .catch(() => alive && setNewMail(0));
+    check();
+    const t = window.setInterval(() => document.visibilityState === "visible" && check(), 10000);
+    const fresh = (e: Event) => setNewMail((e as CustomEvent<number>).detail);
+    window.addEventListener("nexdb:mail-count", fresh);
+    return () => {
+      alive = false;
+      window.clearInterval(t);
+      window.removeEventListener("nexdb:mail-count", fresh);
+    };
+  }, [mode, page]);
   useEffect(nexGreet, []);
 
   function toggle() {
@@ -202,12 +247,18 @@ export function Shell() {
               className={page === id ? "nav-item current" : "nav-item"}
               aria-current={page === id ? "page" : undefined}
               data-page={id}
-              aria-keyshortcuts={`Control+${PAGES.indexOf(id) + 1}`}
-              title={collapsed ? `${label} (Ctrl+${PAGES.indexOf(id) + 1})` : `Ctrl+${PAGES.indexOf(id) + 1}`}
+              aria-keyshortcuts={keys(id)}
+              title={collapsed ? `${label} (${keyHint(id)})` : keyHint(id)}
               onClick={() => go(id)}
             >
               <Icon size={16} strokeWidth={2} aria-hidden="true" />
               <span className="nav-label">{label}</span>
+              {id === "mail" && newMail > 0 && (
+                <span className="nav-count" data-guide="mail-count">
+                  {newMail > 99 ? "99+" : newMail}
+                  <span className="visually-hidden"> new {newMail === 1 ? "email" : "emails"}</span>
+                </span>
+              )}
             </button>
           ))}
           <span className="nav-section">App</span>
@@ -216,8 +267,8 @@ export function Shell() {
             className={page === "health" ? "nav-item current" : "nav-item"}
             aria-current={page === "health" ? "page" : undefined}
             data-page="health"
-            aria-keyshortcuts="Control+6"
-            title={collapsed ? "Check my setup (Ctrl+6)" : "Ctrl+6"}
+            aria-keyshortcuts={keys("health")}
+            title={collapsed ? `Check my setup (${keyHint("health")})` : keyHint("health")}
             onClick={() => go("health")}
           >
             <Stethoscope size={16} strokeWidth={2} aria-hidden="true" />
@@ -228,8 +279,8 @@ export function Shell() {
             className={page === "settings" ? "nav-item current" : "nav-item"}
             aria-current={page === "settings" ? "page" : undefined}
             data-page="settings"
-            aria-keyshortcuts="Control+7"
-            title={collapsed ? "Settings (Ctrl+7)" : "Ctrl+7"}
+            aria-keyshortcuts={keys("settings")}
+            title={collapsed ? `Settings (${keyHint("settings")})` : keyHint("settings")}
             onClick={() => go("settings")}
           >
             <Settings size={16} strokeWidth={2} aria-hidden="true" />
@@ -245,8 +296,8 @@ export function Shell() {
             className={page === "help" ? "nav-item current" : "nav-item"}
             aria-current={page === "help" ? "page" : undefined}
             data-page="help"
-            aria-keyshortcuts="Control+8"
-            title={collapsed ? "Help (Ctrl+8)" : "Ctrl+8"}
+            aria-keyshortcuts={keys("help")}
+            title={collapsed ? `Help (${keyHint("help")})` : keyHint("help")}
             onClick={() => go("help")}
           >
             <CircleHelp size={16} strokeWidth={2} aria-hidden="true" />
@@ -300,13 +351,16 @@ export function Shell() {
       <div className="page" key={`help-${mode}`} hidden={page !== "help"}>
         <HelpPage />
       </div>
+      <div className="page" key={`mail-${mode}`} hidden={page !== "mail"}>
+        <InboxPanel page active={page === "mail"} onOpenInBrowser={openInbox} />
+      </div>
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
       {practice && (
         <div className="practice-banner" role="status">
           <span>
-            <strong>Practice mode.</strong> Nex is using sample projects and databases; nothing here changes your PC.
+            <strong>Practice mode.</strong> Nex is using sample projects and databases. Nothing here changes your PC.
           </span>
           <button
             type="button"

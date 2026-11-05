@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.1",
+    title: "Tidier, and out of the way",
+    changes: [
+      "Settings comes in six parts listed on the left: General, Web server and ports, Sharing, Backups, Updates and Tutorial. One shows at a time, and NexDB remembers the last one.",
+      "Mail has its own page in the sidebar (Ctrl+5), with a count of new emails. If the mail catcher is off, the page says so and starts it with one click.",
+      "Closed NexDB without updating? It installs that update the next time it opens, then restarts by itself. You can turn this off in Settings → Updates.",
+      "Nex and his bubble never cover what he's showing you: no more hidden buttons or text. The practice banner is now a strip above the app instead of floating over it.",
+      "Practice mode no longer shows a sample update notice, and a sample project Nex opened no longer stays open afterwards.",
+      "Ctrl+1 to Ctrl+9 open the sidebar's pages, top to bottom.",
+    ],
+  },
+  {
     version: "0.5.0",
     title: "A little magic",
     changes: [

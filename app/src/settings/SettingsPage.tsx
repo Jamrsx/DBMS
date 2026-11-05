@@ -2,7 +2,23 @@ import { useCallback, useEffect, useState } from "react";
 import { FixedLinkCard } from "./FixedLinkCard";
 import { CHAPTERS, showGuide } from "../components/Tour";
 import { WHATS_NEW } from "../components/whatsNew";
-import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+  CheckCircle2,
+  CircleArrowUp,
+  DatabaseBackup,
+  Download,
+  Globe,
+  GraduationCap,
+  LoaderCircle,
+  RefreshCw,
+  RotateCw,
+  Share2,
+  ShieldAlert,
+  ShieldCheck,
+  SlidersHorizontal,
+} from "lucide-react";
+import { SETTINGS_SECTIONS, type SettingsSection } from "../lib/settingsNav";
+import { storageKey } from "../lib/practice";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup, setAutoBackupCopy } from "../lib/backups";
 import { Nex, type NexState } from "../components/Nex";
@@ -17,11 +33,41 @@ import {
   switchWebServer,
   type AppSettings,
 } from "../lib/appsettings";
-import { checkUpdates, installUpdates, useUpdates } from "../lib/updates";
+import { autoUpdateOn, checkUpdates, installUpdates, setAutoUpdate, useUpdates } from "../lib/updates";
 
+const SECTION_INFO: Record<SettingsSection, { label: string; lede: string; Icon: typeof Globe }> = {
+  general: { label: "General", lede: "How NexDB starts, and where it keeps things.", Icon: SlidersHorizontal },
+  web: {
+    label: "Web server and ports",
+    lede: "Which server runs your sites, the ports it uses, and HTTPS.",
+    Icon: Globe,
+  },
+  sharing: { label: "Sharing", lede: "Public links that keep the same address.", Icon: Share2 },
+  backups: { label: "Backups", lede: "Automatic backups of all your databases.", Icon: DatabaseBackup },
+  updates: { label: "Updates", lede: "New versions of NexDB, and what each one brought.", Icon: CircleArrowUp },
+  tutorial: { label: "Tutorial", lede: "Nex shows you around, all of NexDB or one part.", Icon: GraduationCap },
+};
+
+const SECTION_KEY = "nexdb.settingsSection";
+
+function savedSection(): SettingsSection {
+  try {
+    const s = localStorage.getItem(storageKey(SECTION_KEY)) as SettingsSection | null;
+    return s && SETTINGS_SECTIONS.includes(s) ? s : "general";
+  } catch {
+    return "general";
+  }
+}
+
+/**
+ * Settings, in six parts listed on the left. One part shows at a time, so each stays short;
+ * NexDB remembers the last one you opened.
+ */
 export function SettingsPage({ active }: { active: boolean }) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<SettingsSection>(savedSection);
+  const { state: update } = useUpdates();
 
   const load = useCallback(() => {
     getAppSettings()
@@ -36,35 +82,91 @@ export function SettingsPage({ active }: { active: boolean }) {
     if (active) load();
   }, [active, load]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey(SECTION_KEY), section);
+    } catch {
+      // Opens on General next time instead.
+    }
+  }, [section]);
+
+  // Nex's tours open the part they're about.
+  useEffect(() => {
+    const open = (e: Event) => setSection((e as CustomEvent<SettingsSection>).detail);
+    window.addEventListener("nexdb:settings-section", open);
+    return () => window.removeEventListener("nexdb:settings-section", open);
+  }, []);
+
+  const info = SECTION_INFO[section];
+  const show = (id: SettingsSection) => section === id;
   return (
     <main className="panel">
       <header className="panel-head dash-head">
         <div>
           <h1>Settings</h1>
-          <p className="dash-summary">How NexDB starts, which ports it uses, and updates.</p>
+          <p className="dash-summary">{info.lede}</p>
         </div>
       </header>
 
-      <div className="panel-body dash-body settings">
-        {error && (
-          <div className="error-box" role="alert">
-            <p>{error}</p>
-          </div>
-        )}
-        {settings && (
-          <>
-            <StartupCard settings={settings} onChanged={load} />
-            <WebServerCard settings={settings} onChanged={load} />
-            <PortsCard settings={settings} onSaved={load} />
-            <HttpsCard active={active} />
-            <FixedLinkCard active={active} />
-            <AutoBackupCard active={active} />
-            <FoldersCard settings={settings} />
-            <UpdatesCard version={settings.app_version} />
-            <TutorialCard />
-            <WhatsNewCard version={settings.app_version} />
-          </>
-        )}
+      <div className="panel-body dash-body settings settings-split">
+        <nav className="set-nav" aria-label="Parts of Settings" data-guide="settings-nav">
+          {SETTINGS_SECTIONS.map((id) => {
+            const { label, Icon } = SECTION_INFO[id];
+            return (
+              <button
+                key={id}
+                type="button"
+                className={show(id) ? "set-nav-item current" : "set-nav-item"}
+                aria-current={show(id) ? "true" : undefined}
+                data-guide={`settings-${id}`}
+                onClick={() => setSection(id)}
+              >
+                <Icon size={15} strokeWidth={2} aria-hidden="true" />
+                <span>{label}</span>
+                {id === "updates" && update.kind === "available" && (
+                  <span className="nav-dot" title="A new NexDB is ready">
+                    <span className="visually-hidden">, a new NexDB is ready</span>
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
+        <section className="set-content" aria-label={info.label} key={section}>
+          <h2 className="set-content-title">{info.label}</h2>
+          {error && (
+            <div className="error-box" role="alert">
+              <p>{error}</p>
+            </div>
+          )}
+          {settings && (
+            <>
+              {show("general") && (
+                <>
+                  <StartupCard settings={settings} onChanged={load} />
+                  <FoldersCard settings={settings} />
+                </>
+              )}
+              {show("web") && (
+                <>
+                  <WebServerCard settings={settings} onChanged={load} />
+                  <PortsCard settings={settings} onSaved={load} />
+                  <HttpsCard active={active} />
+                </>
+              )}
+              {show("sharing") && <FixedLinkCard active={active} />}
+              {show("backups") && <AutoBackupCard active={active} />}
+              {show("updates") && (
+                <>
+                  <UpdatesCard version={settings.app_version} />
+                  <WhatsNewCard version={settings.app_version} />
+                </>
+              )}
+              {show("tutorial") && <TutorialCard />}
+            </>
+          )}
+        </section>
       </div>
     </main>
   );
@@ -585,6 +687,7 @@ function WhatsNewCard({ version }: { version: string }) {
 
 function UpdatesCard({ version }: { version: string }) {
   const { state } = useUpdates();
+  const auto = autoUpdateOn();
   const check = () => void checkUpdates();
   const install = () => void installUpdates();
 
@@ -660,6 +763,15 @@ function UpdatesCard({ version }: { version: string }) {
           )}
         </div>
       </div>
+      <div className="set-row set-auto-update">
+        <label className="set-check">
+          <input type="checkbox" checked={auto} onChange={(e) => setAutoUpdate(e.target.checked)} />
+          <span>Install a skipped update the next time NexDB opens</span>
+        </label>
+        <p className="field-hint">
+          If you close NexDB without updating, it installs the update as it opens next time, then restarts by itself.
+        </p>
+      </div>
     </Card>
   );
 }
@@ -672,7 +784,7 @@ function TutorialCard() {
         <button className="btn btn-primary btn-small" onClick={() => showGuide()}>
           Start from the beginning
         </button>
-        <span className="field-hint">Ctrl+K searches everything. Ctrl+1 to Ctrl+8 open the sidebar's pages.</span>
+        <span className="field-hint">Ctrl+K searches everything. Ctrl+1 to Ctrl+9 open the sidebar's pages.</span>
       </div>
       <div className="guide-chapters" role="group" aria-label="What's new">
         {WHATS_NEW.map((w) => (

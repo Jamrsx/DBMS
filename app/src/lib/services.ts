@@ -104,6 +104,11 @@ export async function serviceLog(id: string): Promise<string> {
 /** Lets the browser preview open the dashboard after a simulated install. */
 export function markPreviewInstalled() {
   preview.installed = true;
+  try {
+    sessionStorage.setItem("nexdb.previewInstalled", "1");
+  } catch {
+    // The wizard shows again after a reload; harmless.
+  }
 }
 
 const previewLogs: Record<string, string[]> = { php: [], apache: [], mysql: [], mailpit: [], redis: [], postgres: [] };
@@ -138,7 +143,14 @@ const preview = (() => {
   const PORT_80 = "Port 80 is already in use by httpd.exe (PID 9112). Stop that program, then press Start.";
 
   return {
-    installed: false,
+    // The browser preview remembers its pretend setup for the tab, so a reload skips the wizard.
+    installed: (() => {
+      try {
+        return sessionStorage.getItem("nexdb.previewInstalled") === "1";
+      } catch {
+        return false;
+      }
+    })(),
     status(): ServiceStatus[] {
       return base.map((s) => {
         if (!s.managed) {

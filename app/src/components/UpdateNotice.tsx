@@ -1,10 +1,14 @@
 import { CircleArrowUp, RotateCw, X } from "lucide-react";
 import { restartApp } from "../lib/appsettings";
 import { dismissUpdate, installUpdates, useUpdates } from "../lib/updates";
+import { usePractice } from "../lib/practice";
 
 /** A small card in the rail when a new NexDB is out: update now, or later. */
 export function UpdateNotice() {
-  const { state, dismissed, installing } = useUpdates();
+  const { state, dismissed, installing, auto } = useUpdates();
+  // Practice is about the sample data; real update news waits until it's over.
+  const practice = usePractice();
+  if (practice) return null;
 
   const offer = state.kind === "available" && state.version !== dismissed;
   const progress = installing && (state.kind === "downloading" || state.kind === "ready" || state.kind === "error");
@@ -35,9 +39,7 @@ export function UpdateNotice() {
 
       {state.kind === "available" && (
         <>
-          <p className="update-text">
-            {state.notes ? firstLine(state.notes) : "A new version of NexDB is available."}
-          </p>
+          <p className="update-text">{state.notes ? firstLine(state.notes) : "A new version of NexDB is available."}</p>
           <div className="update-actions">
             <button className="btn btn-small btn-quiet" onClick={dismissUpdate}>
               Later
@@ -50,8 +52,16 @@ export function UpdateNotice() {
       )}
       {state.kind === "downloading" && (
         <>
-          <p className="update-text">NexDB closes and reopens by itself to finish.</p>
-          <div className="bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={state.percent ?? undefined}>
+          <p className="update-text">
+            {auto ? "The update you skipped last time. " : ""}NexDB closes and reopens by itself to finish.
+          </p>
+          <div
+            className="bar"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={state.percent ?? undefined}
+          >
             <span className="bar-fill" style={{ width: `${state.percent ?? 30}%` }} />
           </div>
         </>

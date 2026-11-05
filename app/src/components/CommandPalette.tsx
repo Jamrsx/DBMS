@@ -5,14 +5,7 @@ import { listServices, startServices, stopServices, type ServiceStatus } from ".
 import { dbDatabases } from "../lib/db";
 
 export type PalettePage =
-  | "dashboard"
-  | "projects"
-  | "database"
-  | "terminal"
-  | "versions"
-  | "health"
-  | "settings"
-  | "help";
+  "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
 
 interface Command {
   id: string;
@@ -28,6 +21,7 @@ const PAGES: [PalettePage, string][] = [
   ["projects", "Projects"],
   ["database", "Database"],
   ["terminal", "Terminal"],
+  ["mail", "Mail (caught emails)"],
   ["versions", "Versions"],
   ["health", "Check my setup"],
   ["settings", "Settings"],

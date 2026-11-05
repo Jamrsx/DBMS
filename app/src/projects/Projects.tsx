@@ -72,7 +72,8 @@ export function Projects({
   const [query, setQuery] = useState("");
   useEffect(() => {
     if (!openRequest) return;
-    setOpened(openRequest.name);
+    // An empty name asks for the list itself (Nex's tour, coming back to it).
+    setOpened(openRequest.name || null);
     setShowBin(false);
     setImporting(false);
     setCreating(false);

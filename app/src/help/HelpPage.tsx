@@ -31,7 +31,7 @@ const TOPICS: Topic[] = [
       "Each service on the Dashboard shows whether it runs, its port and its version.",
       "Start or stop one with its own button, or all of them with Start all and Stop all.",
       "If one won't start, its row says why, for example another program using port 80. Logs shows what it wrote.",
-      "NexDB can start them when Windows starts: Settings → Startup.",
+      "NexDB can start them when Windows starts: Settings → General.",
     ],
   },
   {
@@ -102,7 +102,7 @@ const TOPICS: Topic[] = [
     id: "backup",
     title: "Backups and moving",
     steps: [
-      "Settings → Automatic backups saves your databases on a schedule.",
+      "Settings → Backups saves your databases on a schedule.",
       "A database's Backups tab makes a backup now, or restores one.",
       "Moved the NexDB folder or reinstalled Windows? Install NexDB and setup offers to use your old folder, so everything is back.",
       "Uninstalling asks whether to keep the NexDB folder. Keeping it is the default.",
@@ -114,7 +114,7 @@ const TOPICS: Topic[] = [
     chapter: "Search",
     steps: [
       "Ctrl+K: search pages, projects, databases and actions.",
-      "Ctrl+1 to Ctrl+8: open the sidebar's pages, top to bottom.",
+      "Ctrl+1 to Ctrl+9: open the sidebar's pages, top to bottom.",
       "Tab moves between controls; the first Tab press offers Skip to page content.",
       "Esc closes menus, panels and the tutorial.",
     ],

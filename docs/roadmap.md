@@ -53,6 +53,7 @@ Rules every release follows:
 | 0.4.8 | Walkthrough fixes: scrolls to each step, wheel scrolls during it, bubble never covers the button to click; offers walkthroughs missed when skipping versions |
 | 0.4.9 | Relationship diagram in its own window (drag, zoom, list view); compare two databases; automatic backups copied to another drive or USB; restore a backup as a new database |
 | 0.5.0 | Nex organizes the diagram (wizard hat, sparkles, undo); build tables and links in the diagram; in-app mail inbox; memory and CPU per service; Memcached; .local names on the Wi-Fi; fixed public links with ngrok or Cloudflare |
+| 0.5.1 | Settings in six parts; Mail page in the sidebar with a new-email count; skipped updates install on the next launch; Nex and the practice banner never cover what's explained (with an automated check at three window sizes); no sample update notice in practice |
 
 ## Next
 

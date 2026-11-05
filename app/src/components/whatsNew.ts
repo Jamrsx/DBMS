@@ -6,8 +6,10 @@
  */
 import type { GuideStep } from "./Tour";
 import { startServices } from "../lib/services";
+import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.1", chapter: "New in 0.5.1" },
   { version: "0.5.0", chapter: "New in 0.5.0" },
   { version: "0.4.9", chapter: "New in 0.4.9" },
   { version: "0.4.7", chapter: "New in 0.4.7" },
@@ -21,6 +23,55 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.1",
+    title: "A tidier NexDB",
+    body: "Mail gets its own page, Settings comes in parts, and skipped updates install themselves. I also stand aside now, so I never cover what I'm showing you. Practice mode: nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "Mail, in the sidebar",
+    body: "The emails your apps send now have a page of their own. Click Mail.",
+    target: '.nav-item[data-page="mail"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "Your caught emails",
+    body: "The same inbox as on the Dashboard, with room to read. The number beside Mail counts the new ones; Ctrl+5 opens it from anywhere.",
+    page: "mail",
+    target: here('[data-guide="mail-page"] .inbox-body'),
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "Settings, in parts",
+    body: "Click Settings.",
+    target: '.nav-item[data-page="settings"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "One part at a time",
+    body: "General, the web server and ports, sharing, backups, updates and the tutorial each have their own part, so nothing is a long scroll. NexDB remembers the one you used last.",
+    page: "settings",
+    run: () => showSettingsSection("general"),
+    target: here('[data-guide="settings-nav"]'),
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "Updates that don't wait",
+    body: "Closed NexDB without updating? It installs that update the next time it opens, then restarts by itself. Untick this if you'd rather update by hand.",
+    page: "settings",
+    run: () => showSettingsSection("updates"),
+    target: here(".set-auto-update"),
+  },
+  {
+    chapter: "New in 0.5.1",
+    title: "That's 0.5.1!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.0",
     title: "A little magic this time",
@@ -82,7 +133,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     body: "Running services now show their memory and CPU, counting the extra processes they start (Apache and PHP run several).",
     page: "dashboard",
     run: () => void startServices().catch(() => {}),
-    target: here('[data-guide="services"]'),
+    target: here('[data-guide="svc-uses"]'),
   },
   {
     chapter: "New in 0.5.0",
@@ -128,6 +179,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     title: "Links that stay the same",
     body: "With your own free ngrok or Cloudflare account, a project can keep one public address. Set it up here once, then turn it on from the Share tab.",
     page: "settings",
+    run: () => showSettingsSection("sharing"),
     target: here('[data-guide="fixed-link-card"]'),
   },
   {
@@ -214,6 +266,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     title: "A second copy, somewhere safe",
     body: "Automatic backups can also go to another drive or a USB stick. Click Choose a folder or USB drive…",
     page: "settings",
+    run: () => showSettingsSection("backups"),
     target: here('[data-guide="backup-copy"]'),
     waitOn: here('[data-guide="backup-copy-pick"]'),
     wait: "click",

@@ -273,7 +273,7 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
 /** The mail catcher's inbox, served by Mailpit itself. */
 const MAIL_INBOX = "http://127.0.0.1:8025";
 
-function openInbox() {
+export function openInbox() {
   if (inDesktopApp) void openUrl(MAIL_INBOX).catch(() => {});
   else window.open(MAIL_INBOX, "_blank", "noopener");
 }
@@ -365,8 +365,10 @@ function ServiceRow({
           )}
           {usage && (
             <>
-              {" · "}Uses <code>{formatMemory(usage.memory_bytes)}</code>, <code>{usage.cpu_percent.toFixed(1)}%</code>{" "}
-              CPU
+              {" · "}
+              <span data-guide="svc-uses">
+                Uses <code>{formatMemory(usage.memory_bytes)}</code>, <code>{usage.cpu_percent.toFixed(1)}%</code> CPU
+              </span>
             </>
           )}
         </p>
@@ -381,6 +383,7 @@ function ServiceRow({
           <dd>{s.uptime_secs !== null ? formatUptime(s.uptime_secs) : "–"}</dd>
         </div>
         <div
+          data-guide={usage ? "svc-uses" : undefined}
           title={
             usage
               ? `${usage.processes} process${usage.processes === 1 ? "" : "es"}: ${formatMemory(usage.memory_bytes)} of memory, ${usage.cpu_percent.toFixed(1)}% of the PC's CPU`

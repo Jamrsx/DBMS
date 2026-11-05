@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { Nex, type NexState } from "./Nex";
 import { isPractice, setPractice } from "../lib/practice";
 import { WHATS_NEW_STEPS, type WhatsNewChapter } from "./whatsNew";
+import { showSettingsSection } from "../lib/settingsNav";
 
 /**
  * The guided tutorial. Nex walks to whatever it's explaining, the rest of the window dims, and
@@ -10,7 +11,7 @@ import { WHATS_NEW_STEPS, type WhatsNewChapter } from "./whatsNew";
 
 const DONE_KEY = "nexdb.guideDone";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings" | "help";
+type Page = "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
 
 export const CHAPTERS = [
   "Welcome",
@@ -58,7 +59,7 @@ const STEPS: Step[] = [
   {
     chapter: "Welcome",
     title: "The sidebar",
-    body: "Every page lives here. Ctrl+1 to Ctrl+8 jump straight to them.",
+    body: "Every page lives here. Ctrl+1 to Ctrl+9 jump straight to them.",
     target: '[data-guide="rail"]',
   },
   {
@@ -72,7 +73,7 @@ const STEPS: Step[] = [
     chapter: "Dashboard",
     title: "Services",
     body: "Your web server, PHP and databases. Green means running. If one is stopped, its row says why, like another program using its port.",
-    target: '[data-guide="services"]',
+    target: '[data-guide="services"] .svc-group-block',
     page: "dashboard",
   },
   {
@@ -102,6 +103,8 @@ const STEPS: Step[] = [
     body: "Each one is a site at its own address, like shop.test. Open shows it in the browser; its ⋯ menu has the terminal, your editor and sharing.",
     target: here(".project-list"),
     page: "projects",
+    // Back to the list, if a project was open.
+    run: () => window.dispatchEvent(new CustomEvent("nexdb:open-project", { detail: "" })),
   },
   {
     chapter: "Database",
@@ -156,7 +159,7 @@ const STEPS: Step[] = [
     chapter: "Versions",
     title: "Add or switch versions",
     body: "Install another PHP, Node or MySQL, pick the default, or add extras like Redis and Mailpit. Each project can keep its own PHP.",
-    target: here(".panel-body"),
+    target: here(".ver-card"),
     page: "versions",
   },
   {
@@ -183,9 +186,10 @@ const STEPS: Step[] = [
   {
     chapter: "Settings",
     title: "Make it yours",
-    body: "Ports, folders, HTTPS, automatic backups and updates.",
-    target: here(".panel-body"),
+    body: "Settings comes in parts: how NexDB starts, the web server and ports, sharing, backups, updates, and this tutorial. Pick one on the left.",
+    target: here('[data-guide="settings-nav"]'),
     page: "settings",
+    run: () => showSettingsSection("general"),
   },
   {
     chapter: "Settings",
@@ -204,7 +208,7 @@ const STEPS: Step[] = [
     chapter: "Search",
     title: "Search everything",
     body: "Type a page, project or database and press Enter, or start and stop services. Press Esc to close it.",
-    target: ".palette",
+    target: ".palette-input",
     wait: "palette-close",
   },
   {
@@ -230,21 +234,134 @@ interface Box {
 }
 
 const PAD = 6;
-const BUBBLE_W = 320;
+const GAP = 16;
+const EDGE = 12;
 const NEX = 72;
 
-/** Where Nex and its bubble stand: beside the target, on whichever side has room. */
-function placeGuide(t: Box | null, vw: number, vh: number, bubbleH: number) {
-  const w = NEX + 10 + BUBBLE_W;
-  const h = Math.max(NEX, bubbleH);
-  if (!t) return { x: (vw - w) / 2, y: (vh - h) / 2, side: "center" as const };
-  const clampY = (y: number) => Math.min(Math.max(12, y), vh - h - 12);
-  const clampX = (x: number) => Math.min(Math.max(12, x), vw - w - 12);
-  if (t.x + t.w + PAD + 16 + w < vw) return { x: t.x + t.w + PAD + 16, y: clampY(t.y), side: "right" as const };
-  if (t.x - PAD - 16 - w > 0) return { x: t.x - PAD - 16 - w, y: clampY(t.y), side: "left" as const };
-  if (t.y + t.h + PAD + 16 + h < vh) return { x: clampX(t.x), y: t.y + t.h + PAD + 16, side: "below" as const };
-  // A target as big as the window: stand inside it, at the bottom.
-  return { x: clampX(t.x + t.w - w - 24), y: Math.max(12, Math.min(t.y + t.h, vh) - h - 24), side: "inside" as const };
+const area = (a: Box, b: Box) =>
+  Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) *
+  Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+
+/** How far apart two boxes are; 0 when they touch or overlap. */
+const apart = (a: Box, b: Box) =>
+  Math.hypot(Math.max(0, b.x - (a.x + a.w), a.x - (b.x + b.w)), Math.max(0, b.y - (a.y + a.h), a.y - (b.y + b.h)));
+
+const toBox = (r: DOMRect): Box => ({ x: r.x, y: r.y, w: r.width, h: r.height });
+
+const CONTROLS =
+  'button, a[href], input, select, textarea, summary, [role="button"], [role="tab"], [role="radio"], [tabindex]:not([tabindex="-1"])';
+const TEXT = "h1, h2, h3, h4, p, label, li, dt, dd, th, td, code, legend, pre";
+
+/** What Nex must keep clear of, around the lit target: its buttons and fields, and its words. */
+export function guideObstacles(target: Element | null, also: (Element | null)[], vw: number, vh: number) {
+  const visible = (b: Box) => b.w > 0 && b.h > 0 && b.x < vw && b.y < vh && b.x + b.w > 0 && b.y + b.h > 0;
+  const controls: Box[] = [];
+  const text: Box[] = [];
+  if (target) {
+    const own = toBox(target.getBoundingClientRect());
+    // A small target (a button, a sidebar item) stays clear as a whole.
+    if (own.w * own.h < 40000 || target.matches(CONTROLS)) controls.push(own);
+    for (const el of target.querySelectorAll(CONTROLS)) {
+      const b = toBox(el.getBoundingClientRect());
+      if (visible(b)) controls.push(b);
+      if (controls.length > 200) break;
+    }
+    // The words themselves, line by line: a paragraph's box is often much wider than its text.
+    const range = document.createRange();
+    for (const el of target.querySelectorAll(TEXT)) {
+      if (!visible(toBox(el.getBoundingClientRect()))) continue;
+      range.selectNodeContents(el);
+      for (const r of range.getClientRects()) {
+        const b = toBox(r);
+        if (visible(b)) text.push(b);
+      }
+      if (text.length > 400) break;
+    }
+  }
+  for (const el of also) if (el) controls.push(toBox(el.getBoundingClientRect()));
+  return { controls, text };
+}
+
+/**
+ * Where Nex and his bubble stand: the spot nearest the target that covers none of its buttons,
+ * fields or text, and never the practice banner. Beside the target is best; inside a big one (a
+ * whole page, a dialog), the emptiest corner of it.
+ */
+export function placeGuide(
+  t: Box | null,
+  size: { w: number; h: number },
+  vw: number,
+  vh: number,
+  top: number,
+  obstacles: { controls: Box[]; text: Box[] },
+) {
+  const { w, h } = size;
+  const minY = top + EDGE;
+  const clampX = (x: number) => Math.min(Math.max(EDGE, x), vw - w - EDGE);
+  const clampY = (y: number) => Math.min(Math.max(minY, y), Math.max(minY, vh - h - EDGE));
+  if (!t) return { x: clampX((vw - w) / 2), y: clampY((vh - h) / 2), side: "center" as const, clear: true };
+
+  const spots: { x: number; y: number }[] = [
+    { x: t.x + t.w + PAD + GAP, y: clampY(t.y) },
+    { x: t.x - PAD - GAP - w, y: clampY(t.y) },
+    { x: clampX(t.x), y: t.y + t.h + PAD + GAP },
+    { x: clampX(t.x), y: t.y - PAD - GAP - h },
+    { x: clampX(t.x + t.w - w), y: t.y + t.h + PAD + GAP },
+    { x: clampX(t.x + t.w - w), y: t.y - PAD - GAP - h },
+  ];
+  const coarse = 24;
+  for (let y = minY; y <= vh - h - EDGE; y += coarse)
+    for (let x = EDGE; x <= vw - w - EDGE; x += coarse) spots.push({ x, y });
+
+  const lit = { x: t.x - PAD, y: t.y - PAD, w: t.w + PAD * 2, h: t.h + PAD * 2 };
+  const fits = (s: { x: number; y: number }) =>
+    s.x >= EDGE - 0.5 && s.y >= minY - 0.5 && s.x + w <= vw - EDGE + 0.5 && s.y + h <= vh - EDGE + 0.5;
+  // What a spot costs: far from the target, on top of it, and above all on its buttons and words.
+  const cost = (s: { x: number; y: number }, limit: number) => {
+    const box = { x: s.x, y: s.y, w, h };
+    let c = apart(box, lit) * 12 + area(box, lit) * 0.12;
+    for (const o of obstacles.controls) if (c < limit) c += area(box, o) * 60;
+    for (const o of obstacles.text) if (c < limit) c += area(box, o) * 3;
+    return c;
+  };
+  // A quick look everywhere, then a closer look around the few best spots (gaps can be narrow).
+  const ranked: { x: number; y: number; cost: number }[] = [];
+  for (const s of spots) {
+    if (!fits(s)) continue;
+    const worst = ranked.length < 8 ? Infinity : ranked[ranked.length - 1].cost;
+    const c = cost(s, worst);
+    if (c >= worst) continue;
+    ranked.push({ ...s, cost: c });
+    ranked.sort((a, b) => a.cost - b.cost);
+    if (ranked.length > 8) ranked.pop();
+  }
+  let best = ranked[0] ?? { x: clampX(t.x + t.w - w), y: clampY(t.y + t.h - h), cost: Infinity };
+  for (const r of ranked) {
+    if (best.cost === 0) break;
+    for (let dy = -18; dy <= 18; dy += 6)
+      for (let dx = -18; dx <= 18; dx += 6) {
+        const s = { x: r.x + dx, y: r.y + dy };
+        if (!fits(s)) continue;
+        const c = cost(s, best.cost);
+        if (c < best.cost) best = { ...s, cost: c };
+      }
+  }
+  // Nex faces the target: on its left he stands on the right of his bubble.
+  const side = best.x + w / 2 < t.x + t.w / 2 ? ("left" as const) : ("right" as const);
+  const spot = { x: best.x, y: best.y, w, h };
+  const clear = [...obstacles.controls, ...obstacles.text].every((o) => area(spot, o) <= 4);
+  return { x: best.x, y: best.y, side, clear };
+}
+
+/** The first match that's on show: a page can have one copy for wide windows and one for narrow. */
+export function findShown(sel: string): HTMLElement | null {
+  let first: HTMLElement | null = null;
+  for (const el of document.querySelectorAll<HTMLElement>(sel)) {
+    first ??= el;
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) return el;
+  }
+  return first;
 }
 
 /** The dim layer catches clicks, but the wheel should still scroll whatever is under it. */
@@ -272,9 +389,18 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   // Only this chapter, when replayed from Settings.
   const [only, setOnly] = useState<Chapter | null>(null);
   const [rect, setRect] = useState<Box | null>(null);
-  const [bubbleH, setBubbleH] = useState(140);
+  const [pos, setPos] = useState<{ x: number; y: number; side: "left" | "right" | "center" }>({
+    x: 0,
+    y: 0,
+    side: "center",
+  });
   const [size, setSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const bubble = useRef<HTMLDivElement>(null);
+  const guy = useRef<HTMLDivElement>(null);
+  const placed = useRef({ key: "", at: 0 });
+  // A narrower bubble, for a step where the usual one can't sit clear of what it explains.
+  const [compact, setCompact] = useState(false);
+  useEffect(() => setCompact(false), [index]);
   const before = useRef<Element | null>(null);
 
   const step = ALL[index];
@@ -354,8 +480,9 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
       return r.top >= 0 && r.bottom <= window.innerHeight;
     };
     const timer = window.setInterval(() => {
-      const el = document.querySelector<HTMLElement>(sel);
-      if (el || ++tries > 20) window.clearInterval(timer);
+      const el = findShown(sel);
+      // Some targets appear a few seconds in (a service starting), so keep looking for a while.
+      if (el || ++tries > 40) window.clearInterval(timer);
       if (!el || inView(el)) return;
       el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduce ? "auto" : "smooth" });
       // If the smooth scroll didn't get there (a busy or background window), jump.
@@ -375,7 +502,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     let alive = true;
     const measure = () => {
       if (!alive) return;
-      const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
+      const el = step.target ? findShown(step.target) : null;
       const r = el?.getBoundingClientRect();
       const box = r && r.width > 0 && r.height > 0 ? { x: r.x, y: r.y, w: r.width, h: r.height } : null;
       setRect((old) =>
@@ -384,7 +511,22 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
       setSize((s) =>
         s.w === window.innerWidth && s.h === window.innerHeight ? s : { w: window.innerWidth, h: window.innerHeight },
       );
-      if (bubble.current) setBubbleH(bubble.current.offsetHeight);
+      // Nex's own size (it changes with the text and the window), and where he fits.
+      const me = guy.current;
+      const size = { w: me?.offsetWidth ?? 402, h: me?.offsetHeight ?? 140 };
+      const banner = document.querySelector(".practice-banner");
+      const top = banner ? banner.getBoundingClientRect().bottom : 0;
+      // Work out the spot again only when something moved, or once a second for changes inside.
+      const key = JSON.stringify([box, size, top, window.innerWidth, window.innerHeight]);
+      if (key === placed.current.key && Date.now() - placed.current.at < 1000) return;
+      placed.current = { key, at: Date.now() };
+      const waitOn = step.waitOn ? document.querySelector(step.waitOn) : null;
+      const obstacles = guideObstacles(el ?? null, [waitOn], window.innerWidth, window.innerHeight);
+      const next = placeGuide(box, size, window.innerWidth, window.innerHeight, top, obstacles);
+      if (!next.clear) setCompact(true);
+      setPos((old) =>
+        Math.abs(old.x - next.x) < 1 && Math.abs(old.y - next.y) < 1 && old.side === next.side ? old : next,
+      );
     };
     measure();
     const timer = window.setInterval(measure, 200);
@@ -405,7 +547,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
       const go = () => window.setTimeout(next, 250);
       const timer = window.setInterval(() => {
         const sel = step.waitOn ?? step.target;
-        const found = sel ? document.querySelector<HTMLElement>(sel) : null;
+        const found = sel ? findShown(sel) : null;
         if (found && found !== el) {
           el?.removeEventListener("click", go);
           el = found;
@@ -457,7 +599,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     if (!open) return;
     if (!before.current) before.current = document.activeElement;
     const t = window.setTimeout(() => {
-      if (step.wait === "click" && step.target) document.querySelector<HTMLElement>(step.target)?.focus();
+      if (step.wait === "click" && step.target) findShown(step.target)?.focus();
       else if (!step.wait) bubble.current?.querySelector<HTMLButtonElement>(".btn-primary")?.focus();
     }, 60);
     return () => window.clearTimeout(t);
@@ -465,7 +607,6 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
 
   if (!open) return null;
 
-  const pos = placeGuide(rect, size.w, size.h, bubbleH);
   const hole = rect
     ? { x: rect.x - PAD, y: rect.y - PAD, w: rect.w + PAD * 2, h: rect.h + PAD * 2 }
     : { x: size.w / 2, y: size.h / 2, w: 0, h: 0 };
@@ -474,7 +615,13 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   const chapterNo = (CHAPTERS as readonly string[]).indexOf(step.chapter) + 1;
 
   return (
-    <div className="guide" data-side={pos.side}>
+    <div
+      className="guide"
+      data-side={pos.side}
+      data-compact={compact || undefined}
+      data-target={step.target}
+      data-wait-on={step.waitOn}
+    >
       <div className="guide-block" style={{ clipPath: clip }} aria-hidden="true" onWheel={scrollUnder} />
       <div
         className={rect ? "guide-hole" : "guide-hole guide-hole-none"}
@@ -482,6 +629,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
         aria-hidden="true"
       />
       <div
+        ref={guy}
         className="guide-nex"
         style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
         role="dialog"
