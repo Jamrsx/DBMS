@@ -349,6 +349,14 @@ Mail catcher (with 0.3.2's services):
 - Memory and CPU use per service on the Dashboard.
 - Links that stay the same, with your own Cloudflare or ngrok account.
 - A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
+- Build in the relationship diagram: make a new table right in the diagram, and drag from a
+  column to another table's key to create a foreign key (link). NexDB shows the SQL first and
+  asks before changing anything; no typing SQL needed.
+- "Nex, organize this": a much smarter Tidy up. Nex reads how the tables connect and lays them
+  out for you: the most-linked tables in the middle, related tables close together, as few
+  crossing lines as possible, no boxes on top of each other, and tables with no links grouped
+  apart.
+- Nex in a wizard hat: a new animation when he organizes the diagram, and in the 0.5.0 walkthrough.
 
 ### 0.5.1: Teams and your own services
 
