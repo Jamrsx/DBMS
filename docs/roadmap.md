@@ -359,7 +359,15 @@ Mail catcher (with 0.3.2's services):
   apart.
 - Nex in a wizard hat: a new animation when he organizes the diagram, and in the 0.5.0 walkthrough.
 
-### 0.5.1: Teams and your own services
+### 0.5.1: A cleaner Settings page, mail in the sidebar, updates on next launch
+
+- Settings page reorganized: grouped into clear sections, shorter, easier to scan, following
+  Nielsen's heuristics; Nex walks through the new layout in practice mode.
+- Mail (the caught-emails inbox) gets its own place in the sidebar, with the new-email count.
+- If an update is found and the user closes NexDB without installing it, NexDB installs it the
+  next time it opens, so nobody stays on an old version.
+
+### 0.5.2: Teams and your own services
 
 - Docker containers as services.
 - Share a project's setup (versions, services, `.env` template) with a team as one file.
