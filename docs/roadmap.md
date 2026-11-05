@@ -366,6 +366,14 @@ Mail catcher (with 0.3.2's services):
 - Mail (the caught-emails inbox) gets its own place in the sidebar, with the new-email count.
 - If an update is found and the user closes NexDB without installing it, NexDB installs it the
   next time it opens, so nobody stays on an old version.
+- Practice mode and walkthroughs never cover what they point at:
+  - The practice banner moves out of the way of dialogs and page headers. It was hiding the inbox's
+    buttons and page titles.
+  - Nex and his speech bubble sit beside the highlighted part, never on its buttons. He was covering
+    "Make the link" and "Install Memcached".
+  - An automated check runs every walkthrough step at common window sizes. It fails if the banner,
+    Nex or his bubble covers the highlighted part or any button or text in it.
+- Practice mode shows no update notice. It was showing a sample "NexDB 0.2.0 is ready".
 
 ### 0.5.2: Teams and your own services
 
