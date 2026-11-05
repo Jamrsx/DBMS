@@ -35,7 +35,8 @@ interface Step {
   page?: Page;
   mood?: NexState;
   /** "click": waits for a click on the target. "palette-open"/"palette-close": waits for Ctrl+K / Esc. */
-  wait?: "click" | "palette-open" | "palette-close";
+  /** "appear": goes on by itself once `waitOn` shows up (after you type something, say). */
+  wait?: "click" | "appear" | "palette-open" | "palette-close";
   /** For "click": what to click, when it isn't the lit target (a button inside it). */
   waitOn?: string;
   /** Done when the step starts, like opening a sample project. */
@@ -246,6 +247,19 @@ function placeGuide(t: Box | null, vw: number, vh: number, bubbleH: number) {
   return { x: clampX(t.x + t.w - w - 24), y: Math.max(12, Math.min(t.y + t.h, vh) - h - 24), side: "inside" as const };
 }
 
+/** The dim layer catches clicks, but the wheel should still scroll whatever is under it. */
+function scrollUnder(e: React.WheelEvent) {
+  const under = document.elementsFromPoint(e.clientX, e.clientY).find((el) => !el.closest(".guide"));
+  for (let el: Element | null = under ?? null; el; el = el.parentElement) {
+    const style = getComputedStyle(el);
+    if (/(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight) {
+      el.scrollBy({ top: e.deltaY, left: e.deltaX });
+      return;
+    }
+  }
+  document.scrollingElement?.scrollBy({ top: e.deltaY });
+}
+
 export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   const [open, setOpen] = useState(() => {
     try {
@@ -329,6 +343,30 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     if (!open) return;
     if (step.page) onPage(step.page);
     step.run?.();
+    // Bring what Nex points at into view; it may appear a moment later, after a page opens.
+    const sel = step.waitOn ?? step.target;
+    if (!sel) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let tries = 0;
+    let check = 0;
+    const inView = (el: HTMLElement) => {
+      const r = el.getBoundingClientRect();
+      return r.top >= 0 && r.bottom <= window.innerHeight;
+    };
+    const timer = window.setInterval(() => {
+      const el = document.querySelector<HTMLElement>(sel);
+      if (el || ++tries > 20) window.clearInterval(timer);
+      if (!el || inView(el)) return;
+      el.scrollIntoView({ block: "center", inline: "nearest", behavior: reduce ? "auto" : "smooth" });
+      // If the smooth scroll didn't get there (a busy or background window), jump.
+      check = window.setTimeout(() => {
+        if (!inView(el)) el.scrollIntoView({ block: "center", inline: "nearest" });
+      }, 700);
+    }, 150);
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(check);
+    };
   }, [open, step, onPage]);
 
   // Follow the target as the page lays out, scrolls or resizes.
@@ -378,6 +416,13 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
         window.clearInterval(timer);
         el?.removeEventListener("click", go);
       };
+    }
+    if (step.wait === "appear") {
+      const sel = step.waitOn ?? step.target;
+      const timer = window.setInterval(() => {
+        if (sel && document.querySelector(sel)) next();
+      }, 200);
+      return () => window.clearInterval(timer);
     }
     const want = step.wait === "palette-open";
     const timer = window.setInterval(() => {
@@ -430,7 +475,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
 
   return (
     <div className="guide" data-side={pos.side}>
-      <div className="guide-block" style={{ clipPath: clip }} aria-hidden="true" />
+      <div className="guide-block" style={{ clipPath: clip }} aria-hidden="true" onWheel={scrollUnder} />
       <div
         className={rect ? "guide-hole" : "guide-hole guide-hole-none"}
         style={{ left: hole.x, top: hole.y, width: hole.w, height: hole.h }}

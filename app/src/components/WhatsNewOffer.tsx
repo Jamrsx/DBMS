@@ -22,26 +22,40 @@ function write(key: string, value: string) {
   }
 }
 
+/** a > b for versions like 0.4.10 and 0.4.9. */
+function newer(a: string, b: string): boolean {
+  const pa = a.split(".").map(Number);
+  const pb = b.split(".").map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] ?? 0) !== (pb[i] ?? 0)) return (pa[i] ?? 0) > (pb[i] ?? 0);
+  }
+  return false;
+}
+
 /**
- * After an update, Nex offers to show what's new, in practice mode. Asked once per version;
- * a first launch gets the full tutorial instead.
+ * After an update, Nex offers to show what's new, in practice mode: the newest walkthrough the
+ * user hasn't seen, so skipping a version (0.4.6 straight to 0.4.8) still offers 0.4.7's.
+ * Asked once per update; a first launch gets the full tutorial instead.
  */
 export function WhatsNewOffer() {
   const current = CHANGELOG[0]?.version ?? "";
-  const tour = WHATS_NEW.find((w) => w.version === current);
+  const seen = read(SEEN_KEY) ?? "0";
+  const tour = WHATS_NEW.find((w) => newer(w.version, seen));
   const [open, setOpen] = useState(() => {
-    if (!tour) return false;
-    const seen = read(SEEN_KEY);
     // A new install: the first-run tutorial covers everything, so just remember the version.
     if (read("nexdb.guideDone") !== "1") {
       write(SEEN_KEY, current);
       return false;
     }
-    return seen !== current;
+    if (!tour) {
+      write(SEEN_KEY, current);
+      return false;
+    }
+    return true;
   });
 
   if (!open || !tour) return null;
-  const release = CHANGELOG[0];
+  const release = CHANGELOG.find((c) => c.version === tour.version) ?? CHANGELOG[0];
   const close = () => {
     write(SEEN_KEY, current);
     setOpen(false);
@@ -51,7 +65,9 @@ export function WhatsNewOffer() {
     <aside className="whatsnew-offer" role="dialog" aria-labelledby="whatsnew-offer-title">
       <Nex state="hello" size={56} />
       <div>
-        <h2 id="whatsnew-offer-title">NexDB {current} is here</h2>
+        <h2 id="whatsnew-offer-title">
+          {tour.version === current ? `NexDB ${current} is here` : `New since your last update: ${tour.version}`}
+        </h2>
         <p>
           {release.changes.length} new things: {release.title.toLowerCase()}. Want me to show you? It's practice mode,
           so nothing on your PC changes.

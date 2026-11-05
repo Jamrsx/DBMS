@@ -48,10 +48,17 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "New in 0.4.7",
     title: "Change something",
-    body: "Type a new name in APP_NAME. Save .env appears at the bottom; click it.",
-    target: here(".env-editor"),
-    // The Save button shows up once something changed.
+    body: "Type a new name in APP_NAME.",
+    target: here("#env--APP_NAME"),
+    // Goes on once the Save button shows up, which means something changed.
     waitOn: here(".env-foot .btn-primary"),
+    wait: "appear",
+  },
+  {
+    chapter: "New in 0.4.7",
+    title: "Save it",
+    body: "Click Save .env. In practice it only saves the sample project.",
+    target: here(".env-foot .btn-primary"),
     wait: "click",
   },
   {

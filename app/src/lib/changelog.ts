@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.8",
+    title: "Smoother walkthroughs",
+    changes: [
+      "Nex's walkthrough scrolls to whatever it's showing, so nothing is below the window.",
+      "The mouse wheel scrolls the page during a walkthrough.",
+      "Nex's bubble no longer covers the button it asks you to click, like Save .env.",
+      "Coming from an older version? NexDB still offers the walkthroughs you haven't seen.",
+    ],
+  },
+  {
     version: "0.4.7",
     title: "Projects, database and sharing extras",
     changes: [

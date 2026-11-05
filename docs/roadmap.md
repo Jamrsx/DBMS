@@ -50,6 +50,7 @@ Rules every release follows:
 | 0.4.5 | Connect a database to a project (.env or wp-config.php, own user or root, used-by both ways); remembers window, page and terminal tabs; Ctrl+1–7, skip link, focus on page titles; first-run tour |
 | 0.4.6 | Nex's guided tutorial (spotlight, try-it steps, replay by chapter); Help page with search and Show me; setup picks up a NexDB folder from before, fixing paths when it moved; uninstaller asks to keep or delete the NexDB folder |
 | 0.4.7 | .env editor with secrets hidden; Node version per project from .nvmrc; visual table designer; SQL history and saved queries; MariaDB and MongoDB services; password-protected public links; Nex's what's-new walkthrough in practice mode (sample data) |
+| 0.4.8 | Walkthrough fixes: scrolls to each step, wheel scrolls during it, bubble never covers the button to click; offers walkthroughs missed when skipping versions |
 
 ## Next
 
@@ -332,7 +333,7 @@ Mail catcher (with 0.3.2's services):
 - MariaDB and MongoDB as extra services.
 - Password-protected share links.
 
-### 0.4.8: Database tools
+### 0.4.9: Database tools
 
 - Relationship diagram from foreign keys, in its own window, so there's no need to open
   phpMyAdmin or another panel for it.
@@ -340,7 +341,7 @@ Mail catcher (with 0.3.2's services):
 - Scheduled backups to another folder or a USB drive.
 - Restore a backup into a new database, leaving the original as it is.
 
-### 0.4.9: Services and sharing
+### 0.5.0: Services and sharing
 
 - Memcached as an extra service.
 - Read caught emails (Mailpit) inside NexDB.
@@ -348,7 +349,7 @@ Mail catcher (with 0.3.2's services):
 - Links that stay the same, with your own Cloudflare or ngrok account.
 - A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
 
-### 0.5.0: Teams and your own services
+### 0.5.1: Teams and your own services
 
 - Docker containers as services.
 - Share a project's setup (versions, services, `.env` template) with a team as one file.
