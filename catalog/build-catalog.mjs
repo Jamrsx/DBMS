@@ -169,6 +169,38 @@ async function postgresTool() {
   throw new Error("No PostgreSQL Windows binaries found");
 }
 
+/** MariaDB's newest long-term release, as the official Windows zip (SHA-256 from sha256sums.txt). */
+async function mariadbTool() {
+  const cycles = await getJson("https://endoflife.date/api/mariadb.json");
+  for (const cy of cycles.filter((c) => c.lts)) {
+    const base = `https://archive.mariadb.org/mariadb-${cy.latest}/winx64-packages`;
+    const file = `mariadb-${cy.latest}-winx64.zip`;
+    const size = await headSize(`${base}/${file}`);
+    if (!size) continue;
+    const sums = await getText(`${base}/sha256sums.txt`);
+    const sha = sums
+      .split("\n")
+      .find((l) => l.trim().endsWith(`/${file}`) || l.trim().endsWith(` ${file}`))
+      ?.split(/\s+/)[0];
+    if (sha) return { version: cy.latest, download: download(`${base}/${file}`, size, "sha256", sha) };
+  }
+  throw new Error("No MariaDB Windows zip found");
+}
+
+/** MongoDB Community's newest supported release, as the official Windows zip (.sha256 file). */
+async function mongodbTool() {
+  const today = new Date().toISOString().slice(0, 10);
+  const cycles = (await getJson("https://endoflife.date/api/mongodb.json")).filter((c) => !c.eol || c.eol > today);
+  for (const cy of cycles) {
+    const url = `https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-${cy.latest}.zip`;
+    const size = await headSize(url);
+    if (!size) continue;
+    const sha = (await getText(`${url}.sha256`)).trim().split(/\s+/)[0];
+    return { version: cy.latest, download: download(url, size, "sha256", sha) };
+  }
+  throw new Error("No MongoDB Windows zip found");
+}
+
 /** Python from python.org's NuGet package: the newest release of the newest line that is a
  * year old, so common packages have Windows wheels. pip comes included, under `tools`. */
 async function pythonTool() {
@@ -244,6 +276,8 @@ const catalog = {
     "get.enterprisedb.com",
     "api.nuget.org (python)",
     "github.com/cloudflare/cloudflared",
+    "archive.mariadb.org",
+    "fastdl.mongodb.org",
   ],
   components,
   tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool(),
@@ -256,6 +290,8 @@ const catalog = {
       download: { ...t.download, file: "cloudflared.exe" },
     })),
     redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
+    mariadb: await mariadbTool(),
+    mongodb: await mongodbTool(),
   },
 };
 

@@ -29,6 +29,8 @@ pub enum StopMethod {
     RedisShutdown,
     /// `pg_ctl stop -m fast` on the same data folder: a clean PostgreSQL shutdown.
     PgCtl,
+    /// MongoDB's own `shutdown` command over its port, so it closes its files cleanly.
+    MongoShutdown,
     /// Stateless (php-cgi): end the process.
     Kill,
 }
@@ -234,6 +236,45 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             log: logs.join("postgres.log"),
         });
     }
+    if let Some(dir) = component("mariadb").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "mariadb".into(),
+            name: "MariaDB".into(),
+            version: component("mariadb").and_then(|c| c.version.clone()),
+            exe: dir.join("bin").join("mariadbd.exe"),
+            args: vec![format!("--defaults-file={}", etc.join("mariadb").join("my.ini").display()), "--console".into()],
+            cwd: dir,
+            port: crate::extradb::MARIADB_PORT,
+            managed: true,
+            // MariaDB keeps MySQL's shutdown event on Windows.
+            stop: StopMethod::MysqlEvent,
+            log: logs.join("mariadb_error.log"),
+        });
+    }
+    if let Some(dir) = component("mongodb").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "mongodb".into(),
+            name: "MongoDB".into(),
+            version: component("mongodb").and_then(|c| c.version.clone()),
+            exe: dir.join("bin").join("mongod.exe"),
+            args: vec![
+                "--dbpath".into(),
+                data.join("mongodb").display().to_string(),
+                "--port".into(),
+                crate::extradb::MONGODB_PORT.to_string(),
+                "--bind_ip".into(),
+                "127.0.0.1".into(),
+                "--logpath".into(),
+                logs.join("mongodb.log").display().to_string(),
+                "--logappend".into(),
+            ],
+            cwd: dir,
+            port: crate::extradb::MONGODB_PORT,
+            managed: true,
+            stop: StopMethod::MongoShutdown,
+            log: logs.join("mongodb.log"),
+        });
+    }
     if let Some(dir) = component("mailpit").and_then(|c| dir_of(&c.path)) {
         specs.push(ServiceSpec {
             id: "mailpit".into(),
@@ -436,6 +477,7 @@ impl Supervisor {
                 crate::scan::hide_console(&mut cmd);
                 cmd.status().is_ok_and(|s| s.success())
             }
+            StopMethod::MongoShutdown => crate::extradb::mongodb_shutdown(spec.port),
             StopMethod::Kill => false,
         };
         if asked {

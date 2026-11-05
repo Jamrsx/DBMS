@@ -17,7 +17,7 @@ import {
   type QueryOutput,
   type TableInfo,
 } from "../lib/db";
-import { inDesktopApp } from "../lib/scan";
+import { realDesktopApp } from "../lib/scan";
 import { PhpMyAdmin } from "./PhpMyAdmin";
 import { Backups } from "./Backups";
 import { RowEditor } from "./RowEditor";
@@ -30,6 +30,8 @@ import { FileDown, FileUp } from "lucide-react";
 import { createBackup } from "../lib/backups";
 import { dbUsage, type DbUsage } from "../lib/db";
 import { UseInProject } from "./UseInProject";
+import { SaveQuery, SqlLibrary, remember } from "./SqlLibrary";
+import { TableDesigner } from "./TableDesigner";
 
 const TEMPLATES_KEY = "nexdb.sqlTemplates";
 const ENGINE_KEY = "nexdb.dbEngine";
@@ -253,7 +255,7 @@ export function Database({
       </header>
 
       <div className="panel-body dash-body">
-        {!inDesktopApp && (
+        {!realDesktopApp && (
           <p className="notice" role="note">
             Browser preview: the database is simulated.
           </p>
@@ -353,6 +355,12 @@ export function Database({
                   tables={tables}
                   system={dbs.find((d) => d.name === selected)?.system ?? false}
                   onTable={openTable}
+                  onCreated={async (name) => {
+                    await pick(selected);
+                    void loadDbs();
+                    setTable(name);
+                    setTab("structure");
+                  }}
                   onImport={() => {
                     setTab("backups");
                     setImportToken((n) => n + 1);
@@ -366,7 +374,14 @@ export function Database({
               )}
               {tab === "browse" && !selected && <p className="lede">Pick a database on the left to see its tables.</p>}
               {tab === "structure" && selected && table && (
-                <Structure key={`${selected}.${table}`} db={selected} table={table} />
+                <Structure
+                  key={`${selected}.${table}`}
+                  db={selected}
+                  table={table}
+                  engine={engine}
+                  system={dbs.find((d) => d.name === selected)?.system ?? false}
+                  onChanged={() => void pick(selected).then(() => openTable(table))}
+                />
               )}
               {tab === "structure" && !table && (
                 <p className="lede">
@@ -542,7 +557,14 @@ function TabButton({
   children: React.ReactNode;
 }) {
   return (
-    <button role="tab" className="log-tab" aria-selected={tab === id} disabled={disabled} onClick={() => onSelect(id)}>
+    <button
+      role="tab"
+      className="log-tab"
+      data-guide={`db-tab-${id}`}
+      aria-selected={tab === id}
+      disabled={disabled}
+      onClick={() => onSelect(id)}
+    >
       {children}
     </button>
   );
@@ -609,6 +631,7 @@ function Overview({
   tables,
   system,
   onTable,
+  onCreated,
   onDropped,
   onImport,
 }: {
@@ -621,6 +644,7 @@ function Overview({
   tables: TableInfo[];
   system: boolean;
   onTable: (name: string) => void;
+  onCreated: (table: string) => Promise<void>;
   onDropped: () => Promise<void>;
   onImport: () => void;
 }) {
@@ -630,6 +654,22 @@ function Overview({
   const [error, setError] = useState<string | null>(null);
   const [backupFirst, setBackupFirst] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
+  const [designing, setDesigning] = useState(false);
+
+  if (designing)
+    return (
+      <TableDesigner
+        db={db}
+        table={null}
+        engine={engine}
+        onCancel={() => setDesigning(false)}
+        onDone={(name) => {
+          setDesigning(false);
+          nexCelebrate(`${name} is ready in ${db}.`);
+          void onCreated(name);
+        }}
+      />
+    );
 
   return (
     <div className="db-overview">
@@ -648,17 +688,18 @@ function Overview({
         </div>
       )}
       {!system && connecting && (
-        <UseInProject
-          key={db}
-          database={db}
-          engine={engine}
-          onClose={() => onConnect(false)}
-          onDone={onConnected}
-        />
+        <UseInProject key={db} database={db} engine={engine} onClose={() => onConnect(false)} onDone={onConnected} />
+      )}
+      {!system && (
+        <div className="designer-bar">
+          <button className="btn btn-small" data-guide="new-table" onClick={() => setDesigning(true)}>
+            <Plus size={13} aria-hidden="true" /> New table…
+          </button>
+        </div>
       )}
       {tables.length === 0 ? (
         <p className="lede">
-          <code>{db}</code> has no tables yet. Use the SQL tab to create one.
+          <code>{db}</code> has no tables yet. Press <strong>New table</strong> to design one, or write it in the SQL tab.
         </p>
       ) : (
         <table className="data-table">
@@ -796,14 +837,42 @@ function Overview({
   );
 }
 
-function Structure({ db, table }: { db: string; table: string }) {
+function Structure({
+  db,
+  table,
+  engine,
+  system,
+  onChanged,
+}: {
+  db: string;
+  table: string;
+  engine: DbEngine;
+  system: boolean;
+  onChanged: () => void;
+}) {
   const [cols, setCols] = useState<ColumnInfo[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [n, setN] = useState(0);
   useEffect(() => {
     dbColumns(db, table)
       .then(setCols)
       .catch((e) => setError(String(e)));
-  }, [db, table]);
+  }, [db, table, n]);
+  if (editing)
+    return (
+      <TableDesigner
+        db={db}
+        table={table}
+        engine={engine}
+        onCancel={() => setEditing(false)}
+        onDone={() => {
+          setEditing(false);
+          setN((x) => x + 1);
+          onChanged();
+        }}
+      />
+    );
   if (error)
     return (
       <div className="error-box" role="alert">
@@ -812,30 +881,40 @@ function Structure({ db, table }: { db: string; table: string }) {
     );
   if (!cols) return <p className="lede">Loading…</p>;
   return (
-    <table className="data-table">
-      <thead>
-        <tr>
-          <th>Column</th>
-          <th>Type</th>
-          <th>Null</th>
-          <th>Key</th>
-          <th>Default</th>
-          <th>Extra</th>
-        </tr>
-      </thead>
-      <tbody>
-        {cols.map((c) => (
-          <tr key={c.name}>
-            <td className="mono">{c.name}</td>
-            <td className="mono">{c.column_type}</td>
-            <td>{c.nullable ? "yes" : "no"}</td>
-            <td>{c.key === "PRI" ? "primary" : c.key === "UNI" ? "unique" : c.key === "MUL" ? "index" : ""}</td>
-            <td className="mono">{c.default ?? <span className="null">NULL</span>}</td>
-            <td>{c.extra}</td>
+    <>
+      {!system && (
+        <div className="designer-bar">
+          <button className="btn btn-small" onClick={() => setEditing(true)}>
+            Edit table…
+          </button>
+          <span className="field-hint">Add, rename or remove columns and indexes without writing SQL.</span>
+        </div>
+      )}
+      <table className="data-table">
+        <thead>
+          <tr>
+            <th>Column</th>
+            <th>Type</th>
+            <th>Null</th>
+            <th>Key</th>
+            <th>Default</th>
+            <th>Extra</th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {cols.map((c) => (
+            <tr key={c.name}>
+              <td className="mono">{c.name}</td>
+              <td className="mono">{c.column_type}</td>
+              <td>{c.nullable ? "yes" : "no"}</td>
+              <td>{c.key === "PRI" ? "primary" : c.key === "UNI" ? "unique" : c.key === "MUL" ? "index" : ""}</td>
+              <td className="mono">{c.default ?? <span className="null">NULL</span>}</td>
+              <td>{c.extra}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 
@@ -931,13 +1010,37 @@ function SqlRunner({
     try {
       const result = await dbQuery(db, sql);
       setOut(result);
+      remember({
+        sql,
+        db,
+        engine,
+        at: Date.now(),
+        ok: true,
+        rows: result.sets.length ? result.sets.reduce((n, s) => n + s.rows.length, 0) : result.affected,
+      });
       // Statements that change things may add or remove tables.
       if (result.sets.length === 0 || /\b(create|drop|alter|rename)\b/i.test(sql)) onChanged();
     } catch (e) {
       setOut(null);
       setError(String(e));
+      remember({ sql, db, engine, at: Date.now(), ok: false });
     } finally {
       setBusy(false);
+    }
+  }
+
+  /** Puts an earlier query in the editor, undoable with Ctrl+Z. */
+  function pickEarlier(text: string) {
+    setPicked(null);
+    setTyped(true);
+    setConfirmAll(false);
+    const el = editor.current;
+    if (el) {
+      el.focus();
+      el.select();
+      if (!document.execCommand("insertText", false, text)) setSql(text);
+    } else {
+      setSql(text);
     }
   }
 
@@ -1055,6 +1158,7 @@ function SqlRunner({
         <button className="btn btn-primary" onClick={run} disabled={busy || !sql.trim()}>
           <Play size={14} aria-hidden="true" /> {busy ? "Running…" : "Run"}
         </button>
+        <SaveQuery sql={sql} db={db} engine={engine} />
         <span className="field-hint">Ctrl+Enter runs it · {db ? `using ${db}` : "no database selected"}</span>
       </div>
       {confirmAll && (
@@ -1116,6 +1220,7 @@ function SqlRunner({
           ))}
         </div>
       )}
+      <SqlLibrary engine={engine} onPick={pickEarlier} />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { invoke, pause } from "./invoke";
+import { onPractice } from "./practice";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { inDesktopApp } from "./scan";
 
@@ -237,6 +238,20 @@ export interface ProjectDetails {
   setup: SetupTask[];
   /** Its Laravel app's folder ("" for the project itself, "Backend"…), when it has one. */
   laravel: string | null;
+  /** The Node.js version its .nvmrc asks for and the one it runs on. */
+  node: NodeChoice;
+}
+
+export interface NodeChoice {
+  /** As written in .nvmrc, like "20" or "lts/*". */
+  wanted: string | null;
+  /** The file that says so, relative to the project. */
+  file: string;
+  using: string | null;
+  /** Asks for a version that isn't installed. */
+  missing: boolean;
+  default: string | null;
+  installed: string[];
 }
 
 /** Something a cloned project still needs (PHP or Node packages, a .env, the app key). */
@@ -317,6 +332,10 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
     php: { current: "8.5.12", default: "8.5.12", chosen: null, installed: ["8.4.27", "8.5.12"] },
     setup: previewSetup(name),
     laravel: name === "blog" ? "Backend" : name === "my-shop" ? "" : null,
+    node:
+      name === "blog"
+        ? { wanted: "20", file: ".nvmrc", using: "26.13.0", missing: true, default: "26.13.0", installed: ["26.13.0", "22.11.0"] }
+        : { wanted: null, file: "", using: "26.13.0", missing: false, default: "26.13.0", installed: ["26.13.0", "22.11.0"] },
     // The preview's blog is a monorepo like parish: an API, a Vite app and a mobile app.
     site:
       name === "blog"
@@ -331,6 +350,12 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
 }
 
 /** Picks the PHP version a project runs on; null goes back to the default. Services restart. */
+/** Writes the project's .nvmrc so its terminal and setup run on that Node version. */
+export async function setProjectNode(name: string, version: string): Promise<void> {
+  if (inDesktopApp) return invoke("project_set_node", { name, version });
+  await pause(300);
+}
+
 export async function setProjectPhp(name: string, version: string | null): Promise<void> {
   if (inDesktopApp) return invoke("project_set_php", { name, version });
   await pause(600);
@@ -402,4 +427,70 @@ export async function cloneProject(url: string, name: string, branch: string | n
     { folder: "", kind: "composer", label: "Install its PHP packages (composer install)" },
     { folder: "", kind: "env", label: "Create .env from .env.example, with its own database user" },
   ];
+}
+
+/** One setting in a project's .env. */
+export interface EnvEntry {
+  key: string;
+  value: string;
+  /** Passwords, keys and tokens, hidden until shown. */
+  secret: boolean;
+  /** The comment above it in the file. */
+  note: string | null;
+  /** In .env.example but not set in .env. */
+  missing: boolean;
+}
+
+export interface EnvFile {
+  folder: string;
+  path: string;
+  /** False when only .env.example exists; saving creates .env. */
+  exists: boolean;
+  entries: EnvEntry[];
+}
+
+/** A setting's new value, or null to remove it. */
+export type EnvChange = [string, string | null];
+
+const previewEnvStart = (): EnvFile[] => [
+  {
+    folder: "",
+    path: "C:\\NexDB\\www\\blog\\.env",
+    exists: true,
+    entries: [
+      { key: "APP_NAME", value: "Blog", secret: false, note: null, missing: false },
+      { key: "APP_ENV", value: "local", secret: false, note: null, missing: false },
+      { key: "APP_KEY", value: "base64:Zk3l9QWm2c8xYp0aB7sT4vR1uN6eH5gJ", secret: true, note: null, missing: false },
+      { key: "APP_DEBUG", value: "true", secret: false, note: null, missing: false },
+      { key: "DB_CONNECTION", value: "mysql", secret: false, note: "Database", missing: false },
+      { key: "DB_DATABASE", value: "blog", secret: false, note: null, missing: false },
+      { key: "DB_PASSWORD", value: "Xk7pQ2mL9vR4", secret: true, note: null, missing: false },
+      { key: "MAIL_MAILER", value: "smtp", secret: false, note: null, missing: true },
+    ],
+  },
+];
+
+let previewEnv = previewEnvStart();
+// Practice mode starts from the untouched sample .env each time.
+onPractice(() => {
+  previewEnv = previewEnvStart();
+});
+
+export async function envFiles(project: string): Promise<EnvFile[]> {
+  if (inDesktopApp) return invoke<EnvFile[]>("env_files", { project });
+  return project === "blog" ? structuredClone(previewEnv) : [];
+}
+
+/** Saves changes to one .env; the old file is kept as .env.backup. Returns the file's path. */
+export async function envSave(project: string, folder: string, changes: EnvChange[]): Promise<string> {
+  if (inDesktopApp) return invoke<string>("env_save", { project, folder, changes });
+  await pause(400);
+  for (const [k, v] of changes) {
+    const list = previewEnv[0].entries;
+    const i = list.findIndex((e) => e.key === k);
+    if (v === null) list.splice(i, 1);
+    else if (i >= 0) list[i] = { ...list[i], value: v, missing: false };
+    else list.push({ key: k, value: v, secret: /PASS|SECRET|TOKEN|KEY/.test(k), note: null, missing: false });
+  }
+  return previewEnv[0].path;
 }

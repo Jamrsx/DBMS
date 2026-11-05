@@ -199,7 +199,7 @@ function ComponentCard({
       : onRun(c, version, what);
 
   return (
-    <section className="set-card ver-card" aria-labelledby={`ver-${c.id}`}>
+    <section className="set-card ver-card" data-guide={`ver-${c.id}`} aria-labelledby={`ver-${c.id}`}>
       <div className="ver-head">
         <h2 id={`ver-${c.id}`}>{c.name}</h2>
         {c.missing ? (

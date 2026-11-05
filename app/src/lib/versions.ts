@@ -113,6 +113,8 @@ const NAMES: Record<string, string> = {
   git: "Git",
   mailpit: "Mail catcher (Mailpit)",
   redis: "Redis",
+  mariadb: "MariaDB",
+  mongodb: "MongoDB",
   postgres: "PostgreSQL",
   python: "Python",
   cloudflared: "Public links (Cloudflare Tunnel)",
@@ -126,6 +128,8 @@ const ABOUT: Record<string, string> = {
   git: "Downloads and versions code, for example with git clone in the Terminal.",
   mailpit: "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
   redis: "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
+  mariadb: "A MySQL-compatible database server. Runs beside MySQL on port 3307, user root with no password.",
+  mongodb: "A document database for apps that store JSON-like data. Runs on port 27017, for this PC only.",
   postgres: "A second database server, for apps built on PostgreSQL instead of MySQL.",
   python: "Runs Python scripts and installs packages with pip in the Terminal.",
   cloudflared: "Gives a shared project a temporary public link, so anyone can open it from anywhere.",
@@ -160,6 +164,8 @@ function previewInfo(): VersionsInfo {
     postgres: [["18.6", "18.6", ["latest"], 328]],
     mailpit: [["1.33.0", "1.33.0", ["latest"], 11]],
     redis: [["8.10.3", "8.10.3", ["latest"], 13]],
+    mariadb: [["12.3.3", "12.3", ["lts"], 99]],
+    mongodb: [["9.0.4", "9.0", ["latest"], 943]],
   };
   return {
     catalog_date: "2026-10-30",
@@ -170,7 +176,7 @@ function previewInfo(): VersionsInfo {
       const activeLine = active ? rows.find(([line]) => active.startsWith(line + "."))?.[0] : undefined;
       const kind = ["composer", "git", "python", "cloudflared"].includes(id)
         ? "tool"
-        : ["postgres", "mailpit", "redis"].includes(id)
+        : ["postgres", "mariadb", "mongodb", "mailpit", "redis"].includes(id)
           ? "service"
           : "runtime";
       return {

@@ -13,9 +13,10 @@ use std::path::{Path, PathBuf};
 pub const COMPONENTS: [&str; 5] = ["php", "apache", "mysql", "node", "nginx"];
 pub const MARKER: &str = ".devmanager-installed";
 /// Tools shown on the Versions page, in this order.
-pub const TOOLS: [&str; 7] = ["composer", "git", "python", "cloudflared", "postgres", "mailpit", "redis"];
+pub const TOOLS: [&str; 9] =
+    ["composer", "git", "python", "cloudflared", "postgres", "mariadb", "mongodb", "mailpit", "redis"];
 /// Tools that run as services on the Dashboard once installed.
-pub const SERVICE_TOOLS: [&str; 3] = ["postgres", "mailpit", "redis"];
+pub const SERVICE_TOOLS: [&str; 5] = ["postgres", "mariadb", "mongodb", "mailpit", "redis"];
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Installed {
@@ -110,6 +111,8 @@ pub fn name_of(id: &str) -> &str {
         "mailpit" => "Mail catcher (Mailpit)",
         "redis" => "Redis",
         "postgres" => "PostgreSQL",
+        "mariadb" => "MariaDB",
+        "mongodb" => "MongoDB",
         "python" => "Python",
         "cloudflared" => "Public links (Cloudflare Tunnel)",
         other => other,
@@ -128,6 +131,8 @@ fn about(id: &str) -> &'static str {
         "mailpit" => "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
         "redis" => "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
         "postgres" => "A second database server, for apps built on PostgreSQL instead of MySQL.",
+        "mariadb" => "A MySQL-compatible database server. Runs beside MySQL on port 3307, user root with no password.",
+        "mongodb" => "A document database for apps that store JSON-like data. Runs on port 27017, for this PC only.",
         "python" => "Runs Python scripts and installs packages with pip in the Terminal.",
         "cloudflared" => "Gives a shared project a temporary public link, so anyone can open it from anywhere.",
         _ => "",
@@ -147,6 +152,8 @@ pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
         "mailpit" => dir.join("mailpit.exe"),
         "redis" => dir.join("redis-server.exe"),
         "postgres" => dir.join("bin").join("postgres.exe"),
+        "mariadb" => dir.join("bin").join("mariadbd.exe"),
+        "mongodb" => dir.join("bin").join("mongod.exe"),
         "python" => dir.join("python.exe"),
         "cloudflared" => dir.join("cloudflared.exe"),
         _ => dir.to_path_buf(),

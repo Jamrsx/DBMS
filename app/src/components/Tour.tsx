@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Nex, type NexState } from "./Nex";
+import { isPractice, setPractice } from "../lib/practice";
+import { WHATS_NEW_STEPS, type WhatsNewChapter } from "./whatsNew";
 
 /**
  * The guided tutorial. Nex walks to whatever it's explaining, the rest of the window dims, and
@@ -21,7 +23,7 @@ export const CHAPTERS = [
   "Settings",
   "Search",
 ] as const;
-export type Chapter = (typeof CHAPTERS)[number];
+export type Chapter = (typeof CHAPTERS)[number] | WhatsNewChapter;
 
 interface Step {
   chapter: Chapter;
@@ -34,7 +36,13 @@ interface Step {
   mood?: NexState;
   /** "click": waits for a click on the target. "palette-open"/"palette-close": waits for Ctrl+K / Esc. */
   wait?: "click" | "palette-open" | "palette-close";
+  /** For "click": what to click, when it isn't the lit target (a button inside it). */
+  waitOn?: string;
+  /** Done when the step starts, like opening a sample project. */
+  run?: () => void;
 }
+
+export type GuideStep = Step;
 
 const nav = (page: Page) => `.nav-item[data-page="${page}"]`;
 const here = (sel: string) => `.page:not([hidden]) ${sel}`;
@@ -206,6 +214,8 @@ const STEPS: Step[] = [
   },
 ];
 
+const ALL: Step[] = [...STEPS, ...WHATS_NEW_STEPS];
+
 /** Starts the tutorial, from the beginning or at one chapter. */
 export function showGuide(chapter?: Chapter) {
   window.dispatchEvent(new CustomEvent("nexdb:guide", { detail: chapter ?? null }));
@@ -253,13 +263,20 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   const bubble = useRef<HTMLDivElement>(null);
   const before = useRef<Element | null>(null);
 
-  const step = STEPS[index];
-  const lastIndex = only ? STEPS.map((s) => s.chapter).lastIndexOf(only) : STEPS.length - 1;
-  const firstIndex = only ? STEPS.findIndex((s) => s.chapter === only) : 0;
+  const step = ALL[index];
+  const lastIndex = only ? ALL.map((s) => s.chapter).lastIndexOf(only) : STEPS.length - 1;
+  const firstIndex = only ? ALL.findIndex((s) => s.chapter === only) : 0;
   const last = index === lastIndex;
+  // The page open before a practice chapter, to come back to.
+  const returnTo = useRef<Page | null>(null);
 
   const finish = useCallback(() => {
     setOpen(false);
+    if (isPractice()) {
+      setPractice(false);
+      if (returnTo.current) onPage(returnTo.current);
+      returnTo.current = null;
+    }
     try {
       localStorage.setItem(DONE_KEY, "1");
     } catch {
@@ -267,7 +284,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     }
     (before.current as HTMLElement | null)?.focus?.();
     before.current = null;
-  }, []);
+  }, [onPage]);
 
   const next = useCallback(() => {
     if (index >= lastIndex) finish();
@@ -279,22 +296,39 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     const start = (e: Event) => {
       const chapter = (e as CustomEvent<Chapter | null>).detail;
       before.current = document.activeElement;
+      // What's-new chapters run on sample data, so trying things changes nothing.
+      if (chapter && WHATS_NEW_STEPS.some((s) => s.chapter === chapter)) {
+        try {
+          returnTo.current = (localStorage.getItem("nexdb.page") as Page | null) ?? "dashboard";
+        } catch {
+          returnTo.current = "dashboard";
+        }
+        setPractice(true);
+      }
       setOnly(chapter);
-      setIndex(chapter ? STEPS.findIndex((s) => s.chapter === chapter) : 0);
+      setIndex(chapter ? ALL.findIndex((s) => s.chapter === chapter) : 0);
       setOpen(true);
     };
     window.addEventListener("nexdb:guide", start);
-    return () => window.removeEventListener("nexdb:guide", start);
-  }, []);
+    // The practice banner's Leave practice button.
+    const stop = () => finish();
+    window.addEventListener("nexdb:guide-stop", stop);
+    return () => {
+      window.removeEventListener("nexdb:guide", start);
+      window.removeEventListener("nexdb:guide-stop", stop);
+    };
+  }, [finish]);
 
   // Hide the corner Nex while this one is walking around.
   useEffect(() => {
     document.body.classList.toggle("guiding", open);
   }, [open]);
 
-  // Open the step's page when it isn't showing.
+  // Open the step's page when it isn't showing, and do what the step sets up.
   useEffect(() => {
-    if (open && step.page) onPage(step.page);
+    if (!open) return;
+    if (step.page) onPage(step.page);
+    step.run?.();
   }, [open, step, onPage]);
 
   // Follow the target as the page lays out, scrolls or resizes.
@@ -328,11 +362,22 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   useEffect(() => {
     if (!open || !step.wait) return;
     if (step.wait === "click") {
-      const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
-      if (!el) return;
+      // The target may appear a moment later (after a page or tab opens), so keep looking.
+      let el: HTMLElement | null = null;
       const go = () => window.setTimeout(next, 250);
-      el.addEventListener("click", go, { once: true });
-      return () => el.removeEventListener("click", go);
+      const timer = window.setInterval(() => {
+        const sel = step.waitOn ?? step.target;
+        const found = sel ? document.querySelector<HTMLElement>(sel) : null;
+        if (found && found !== el) {
+          el?.removeEventListener("click", go);
+          el = found;
+          el.addEventListener("click", go, { once: true });
+        }
+      }, 150);
+      return () => {
+        window.clearInterval(timer);
+        el?.removeEventListener("click", go);
+      };
     }
     const want = step.wait === "palette-open";
     const timer = window.setInterval(() => {
@@ -381,7 +426,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     : { x: size.w / 2, y: size.h / 2, w: 0, h: 0 };
   // Clicks outside the lit spot are caught; inside it they reach the app.
   const clip = `path(evenodd, "M0 0 H${size.w} V${size.h} H0 Z M${hole.x} ${hole.y} h${hole.w} v${hole.h} h${-hole.w} Z")`;
-  const chapterNo = CHAPTERS.indexOf(step.chapter) + 1;
+  const chapterNo = (CHAPTERS as readonly string[]).indexOf(step.chapter) + 1;
 
   return (
     <div className="guide" data-side={pos.side}>
@@ -421,9 +466,15 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
               </button>
             )}
             {step.wait ? (
-              <span className="guide-waiting">
-                {step.wait === "click" ? "Your turn" : step.wait === "palette-open" ? "Press Ctrl+K" : "Press Esc"}
-              </span>
+              <>
+                {/* A way on if the thing to click isn't there (it was done already, say). */}
+                <button className="btn btn-small btn-quiet" onClick={next}>
+                  Skip this step
+                </button>
+                <span className="guide-waiting">
+                  {step.wait === "click" ? "Your turn" : step.wait === "palette-open" ? "Press Ctrl+K" : "Press Esc"}
+                </span>
+              </>
             ) : (
               <button className="btn btn-small btn-primary" onClick={next}>
                 {last ? "Finish" : "Next"}

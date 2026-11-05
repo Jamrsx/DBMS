@@ -6632,3 +6632,441 @@ body.guiding .nex-corner {
   font-size: 13px;
   line-height: 1.5;
 }
+
+/* SQL: history and saved queries */
+.sql-bar {
+  flex-wrap: wrap;
+}
+
+.sql-save {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.sql-save .input {
+  width: 220px;
+}
+
+.sql-library {
+  margin-top: 10px;
+}
+
+.sql-library-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.sql-library-tabs [aria-expanded="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.sql-library-panel {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.sql-library-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sql-library-head .input {
+  width: 260px;
+}
+
+.sql-library-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.sql-library-list {
+  display: grid;
+  max-height: 260px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.sql-library-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sql-library-item {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sql-library-item:hover {
+  background: var(--surface-2);
+}
+
+.sql-library-sql {
+  overflow: hidden;
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sql-library-meta {
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+/* Project → Settings (.env) */
+.env-editor {
+  display: grid;
+  gap: 12px;
+  max-width: 860px;
+}
+
+.env-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.env-filter {
+  width: 260px;
+}
+
+.env-table th[scope="row"] {
+  width: 38%;
+  font-weight: 400;
+  vertical-align: top;
+}
+
+.env-table th[scope="row"] code {
+  font-size: 12px;
+}
+
+.env-note {
+  display: block;
+  margin-top: 2px;
+}
+
+.env-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.env-value .input,
+.env-table td > .input {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.env-changed {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.env-removed th code,
+.env-removed .input {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.env-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.env-add .input {
+  width: 220px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.env-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Unsaved changes keep Save in reach while scrolling a long list. */
+.env-foot.pending {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--surface);
+}
+
+.env-foot > span:first-child {
+  margin-right: auto;
+}
+
+.notice-warn {
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--text);
+}
+
+/* Database: table designer */
+.designer {
+  display: grid;
+  gap: 14px;
+}
+
+.designer-head h3 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.designer-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.designer-name {
+  max-width: 320px;
+}
+
+.designer-table td {
+  vertical-align: middle;
+}
+
+.designer-table .input,
+.designer-table select {
+  width: 100%;
+  min-width: 0;
+  height: 30px;
+  font-size: 12px;
+}
+
+.designer-table td:first-child .input {
+  font-family: var(--mono);
+}
+
+.designer-table .input-size {
+  width: 72px;
+}
+
+.designer-other {
+  display: grid;
+  gap: 4px;
+}
+
+.designer-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.designer-key.on {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.designer-indexes h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+.designer-index-list {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.designer-index-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.designer-index-list .input {
+  width: 200px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.designer-index-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.designer-sql summary {
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.designer-sql-text {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font: 12px/1.5 var(--mono);
+  white-space: pre;
+}
+
+/* Share: password for public links */
+.share-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+
+.share-ask-pw {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-ask-pw .input {
+  width: 170px;
+  font-family: var(--mono);
+}
+
+.share-password {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.share-password span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-password code {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* The designer keeps readable columns and scrolls sideways in a narrow window. */
+.designer-scroll {
+  overflow-x: auto;
+}
+
+.designer-table {
+  min-width: 700px;
+  table-layout: fixed;
+}
+
+.designer-table th:nth-child(1) {
+  width: 28%;
+}
+
+.designer-table th:nth-child(2) {
+  width: 24%;
+}
+
+.designer-table th:nth-child(3) {
+  width: 88px;
+}
+
+.designer-table th:nth-child(4) {
+  width: 104px;
+}
+
+.designer-table th:nth-child(6) {
+  width: 76px;
+}
+
+
+/* Practice mode: a strip that says the data is pretend. */
+.practice-banner {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  z-index: 66;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 8px 10px 8px 16px;
+  border: 1px solid var(--warn-border);
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--text);
+  font-size: 13px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+  transform: translateX(-50%);
+}
+
+/* After an update: Nex offers to show what's new. */
+.whatsnew-offer {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 64;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 4px 8px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.3);
+}
+
+.whatsnew-offer h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.whatsnew-offer p {
+  margin: 0 0 10px;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.whatsnew-offer-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+body.guiding .whatsnew-offer {
+  display: none;
+}

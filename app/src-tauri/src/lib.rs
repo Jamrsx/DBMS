@@ -7,6 +7,10 @@ mod db;
 mod dbconnect;
 mod uninstall;
 mod migrate;
+mod envfile;
+mod nodever;
+mod gate;
+mod extradb;
 mod dbedit;
 mod editors;
 mod health;
@@ -322,6 +326,9 @@ pub fn run() {
             db_usage,
             db_use_in_project,
             setup_adopt,
+            env_files,
+            env_save,
+            project_set_node,
             import_sources,
             import_databases,
             import_run,
@@ -565,6 +572,8 @@ struct ShareInfo {
     tunnel_size: Option<u64>,
     public_url: Option<String>,
     public_qr: Option<String>,
+    /// The password its public link asks for, when it asks for one.
+    public_password: Option<String>,
     /// The project's dev server, when it is passed through a share port.
     dev: Option<DevShareInfo>,
     /// Its front end and Laravel backend on one link, when shared that way.
@@ -585,6 +594,7 @@ struct AppShareInfo {
     front_ready: bool,
     public_url: Option<String>,
     public_qr: Option<String>,
+    public_password: Option<String>,
 }
 
 #[derive(serde::Serialize)]
@@ -598,6 +608,7 @@ struct DevShareInfo {
     /// Its public link, when one runs.
     public_url: Option<String>,
     public_qr: Option<String>,
+    public_password: Option<String>,
 }
 
 fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
@@ -622,10 +633,12 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         tunnel_size: tool.as_ref().and_then(|t| t.download.size),
         public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
         public_url,
+        public_password: tunnels.password(&tunnel_key(name, "")),
         dev: settings.preferences.share_dev.get(name).map(|d| {
             let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", d.port));
             let public_url = tunnels.url(&tunnel_key(name, "dev"));
             DevShareInfo {
+                public_password: tunnels.password(&tunnel_key(name, "dev")),
                 public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
                 public_url,
                 port: d.port,
@@ -639,6 +652,7 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
             let url = share::lan_ip().map(|ip| format!("http://{ip}:{}/", a.port));
             let public_url = tunnels.url(&tunnel_key(name, "app"));
             AppShareInfo {
+                public_password: tunnels.password(&tunnel_key(name, "app")),
                 public_qr: public_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
                 public_url,
                 port: a.port,
@@ -958,9 +972,11 @@ async fn share_public_start(
     tunnels: tauri::State<'_, Arc<share::Tunnels>>,
     name: String,
     what: Option<String>,
+    password: Option<String>,
 ) -> Result<ShareInfo, String> {
     let (_, settings, sup) = stack.get()?;
     let what = what.unwrap_or_default();
+    let password = password.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
     let p = &settings.preferences;
     let port = match what.as_str() {
         "dev" => p.share_dev.get(&name).map(|d| d.port).ok_or("Share the dev server first.")?,
@@ -970,7 +986,7 @@ async fn share_public_start(
     let exe = cloudflared_exe(&settings).ok_or("Install public links first.")?;
     let tunnels = tunnels.inner().clone();
     blocking(move || {
-        tunnels.start(&exe, &tunnel_key(&name, &what), port)?;
+        tunnels.start(&exe, &tunnel_key(&name, &what), port, password.as_deref())?;
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
@@ -996,6 +1012,17 @@ async fn share_public_stop(
 async fn project_details(stack: tauri::State<'_, Stack>, name: String) -> Result<projectops::Details, String> {
     let (root, settings, _) = stack.get()?;
     blocking(move || projectops::details(&root, &settings, &name)).await
+}
+
+/// Writes the project's .nvmrc, so its terminal and setup run on that Node version.
+#[tauri::command]
+async fn project_set_node(stack: tauri::State<'_, Stack>, name: String, version: String) -> Result<(), String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
+        nodever::set(&dir, &version)
+    })
+    .await
 }
 
 /// Picks the PHP version a project runs on; None goes back to NexDB's default.
@@ -2006,7 +2033,16 @@ async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, 
             blocking(move || postgres::init(&bin, &data)).await?;
         }
     }
-    // PostgreSQL, the mail catcher and Redis become Dashboard services: rebuild the service list.
+    if id == "mariadb" {
+        let (base, root2) = (target.clone(), root.clone());
+        blocking(move || extradb::setup_mariadb(&base, &root2)).await?;
+    }
+    if id == "mongodb" {
+        let root2 = root.clone();
+        blocking(move || extradb::setup_mongodb(&root2)).await?;
+    }
+    // PostgreSQL, MariaDB, MongoDB, the mail catcher and Redis become Dashboard services:
+    // rebuild the service list.
     if versions::SERVICE_TOOLS.contains(&id.as_str()) {
         apply_service_change(&app, &stack, |_| Ok(())).await?;
     }
@@ -2255,6 +2291,38 @@ async fn health_report(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) ->
         let checks = health::run(&root, &settings, &sup);
         health::support_report(&root, &settings, &sup, &checks, &path)?;
         Ok(Some(path.display().to_string()))
+    })
+    .await
+}
+
+/// A project's .env files (its folder and folders one level down), secrets marked.
+#[tauri::command]
+async fn env_files(stack: tauri::State<'_, Stack>, project: String) -> Result<Vec<envfile::EnvFile>, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &project).ok_or("That project doesn't exist any more.")?;
+        Ok(envfile::files(&dir))
+    })
+    .await
+}
+
+/// Saves changes to one .env (old file kept as .env.backup); Laravel's cached config is cleared.
+#[tauri::command]
+async fn env_save(
+    stack: tauri::State<'_, Stack>,
+    project: String,
+    folder: String,
+    changes: Vec<envfile::Change>,
+) -> Result<String, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &project).ok_or("That project doesn't exist any more.")?;
+        let dir = if folder.is_empty() { dir } else { dir.join(projects::clean_site_folder(&dir, &folder)?) };
+        let path = envfile::save(&dir, &changes)?;
+        if dir.join("artisan").is_file() && dir.join("vendor").is_dir() {
+            let _ = laravel::run(&root, &settings, &project, &dir, "clear");
+        }
+        Ok(path.display().to_string())
     })
     .await
 }

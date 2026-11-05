@@ -1,5 +1,6 @@
 import { invoke } from "./invoke";
 import { isTauri } from "@tauri-apps/api/core";
+import { onPractice } from "./practice";
 
 export interface Install {
   path: string;
@@ -38,8 +39,14 @@ export interface ScanReport {
   duration_ms: number;
 }
 
-/** True when running inside the desktop app; false in a plain browser preview. */
-export const inDesktopApp = isTauri();
+/** True when running inside the desktop app; false in a plain browser preview and in practice mode. */
+export let inDesktopApp = isTauri();
+/** Inside the desktop app, practice mode or not. */
+export const realDesktopApp = inDesktopApp;
+// Practice mode switches every page to the sample data (see practice.ts).
+onPractice((on) => {
+  inDesktopApp = realDesktopApp && !on;
+});
 
 export async function runSystemScan(installRoot: string): Promise<ScanReport> {
   if (inDesktopApp) {

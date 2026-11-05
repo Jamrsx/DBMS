@@ -41,6 +41,8 @@ pub struct Details {
     pub setup: Vec<crate::quickstart::SetupTask>,
     /// Its Laravel app's folder, relative to the project ("" for the project itself).
     pub laravel: Option<String>,
+    /// The Node.js version it asks for (.nvmrc) and gets.
+    pub node: crate::nodever::NodeChoice,
 }
 
 /// Which folder is the website, for projects that keep their app in a subfolder.
@@ -127,6 +129,7 @@ pub fn details(root: &Path, settings: &Settings, name: &str) -> Result<Details, 
         php: Php { current: chosen.clone().or(default.clone()), default, chosen, installed },
         setup: crate::quickstart::setup_plan(&dir),
         laravel: crate::projects::laravel_folder(&dir),
+        node: crate::nodever::choice(root, settings, &dir),
         site: Site {
             chosen: settings.preferences.site_root.get(name).cloned(),
             folders: crate::projects::site_folders(&dir),

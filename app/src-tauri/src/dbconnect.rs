@@ -29,7 +29,7 @@ pub struct Conn {
     pub password: String,
 }
 
-fn subfolders(dir: &Path) -> Vec<String> {
+pub(crate) fn subfolders(dir: &Path) -> Vec<String> {
     let mut subs: Vec<String> = fs::read_dir(dir)
         .into_iter()
         .flatten()
@@ -107,7 +107,7 @@ pub fn env_lines(c: &Conn) -> Vec<(String, String)> {
 }
 
 /// A value for `.env`, quoted when it has spaces or `#` so Laravel reads it whole.
-fn env_quote(v: &str) -> String {
+pub(crate) fn env_quote(v: &str) -> String {
     if v.contains([' ', '#', '"']) { format!("\"{}\"", v.replace('"', "\\\"")) } else { v.to_string() }
 }
 

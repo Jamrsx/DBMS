@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePractice } from "./lib/practice";
 import {
   Database,
   FolderKanban,
@@ -28,6 +29,7 @@ import { SettingsPage } from "./settings/SettingsPage";
 import { VersionsPage } from "./versions/VersionsPage";
 import { HealthPage } from "./health/HealthPage";
 import { Tour } from "./components/Tour";
+import { WhatsNewOffer } from "./components/WhatsNewOffer";
 import { HelpPage } from "./help/HelpPage";
 
 type Page = "dashboard" | "projects" | "database" | "terminal" | "versions" | "health" | "settings" | "help";
@@ -110,6 +112,26 @@ export function Shell() {
   const [openDatabase, setOpenDatabase] = useState<{ name: string; n: number } | null>(null);
   const [collapsed, setCollapsed] = useState(savedCollapsed);
   const updates = useUpdates();
+  // Practice mode reloads every page (except the terminal, which keeps its sessions) on sample data.
+  const practice = usePractice();
+  const mode = practice ? "practice" : "real";
+  // Nex's walkthroughs open a project or database for you.
+  useEffect(() => {
+    const project = (e: Event) => {
+      setOpenProject((r) => ({ name: (e as CustomEvent<string>).detail, n: (r?.n ?? 0) + 1 }));
+      setPage("projects");
+    };
+    const database = (e: Event) => {
+      setOpenDatabase((r) => ({ name: (e as CustomEvent<string>).detail, n: (r?.n ?? 0) + 1 }));
+      setPage("database");
+    };
+    window.addEventListener("nexdb:open-project", project);
+    window.addEventListener("nexdb:open-database", database);
+    return () => {
+      window.removeEventListener("nexdb:open-project", project);
+      window.removeEventListener("nexdb:open-database", database);
+    };
+  }, []);
   const updateReady = updates.state.kind === "available";
 
   useEffect(startUpdateChecks, []);
@@ -239,10 +261,10 @@ export function Shell() {
         </div>
       </aside>
 
-      <div className="page" hidden={page !== "dashboard"}>
+      <div className="page" key={`dashboard-${mode}`} hidden={page !== "dashboard"}>
         <Dashboard onOpenVersions={() => setPage("versions")} />
       </div>
-      <div className="page" hidden={page !== "projects"}>
+      <div className="page" key={`projects-${mode}`} hidden={page !== "projects"}>
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />
       </div>
       <CommandPalette
@@ -256,7 +278,7 @@ export function Shell() {
           setPage("database");
         }}
       />
-      <div className="page" hidden={page !== "health"}>
+      <div className="page" key={`health-${mode}`} hidden={page !== "health"}>
         <HealthPage
           active={page === "health"}
           onNavigate={go}
@@ -266,23 +288,38 @@ export function Shell() {
           }}
         />
       </div>
-      <div className="page" hidden={page !== "database"}>
+      <div className="page" key={`database-${mode}`} hidden={page !== "database"}>
         <DatabasePage active={page === "database"} openRequest={openDatabase} />
       </div>
-      <div className="page" hidden={page !== "versions"}>
+      <div className="page" key={`versions-${mode}`} hidden={page !== "versions"}>
         <VersionsPage active={page === "versions"} />
       </div>
-      <div className="page" hidden={page !== "settings"}>
+      <div className="page" key={`settings-${mode}`} hidden={page !== "settings"}>
         <SettingsPage active={page === "settings"} />
       </div>
-      <div className="page" hidden={page !== "help"}>
+      <div className="page" key={`help-${mode}`} hidden={page !== "help"}>
         <HelpPage />
       </div>
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
+      {practice && (
+        <div className="practice-banner" role="status">
+          <span>
+            <strong>Practice mode.</strong> Nex is using sample projects and databases; nothing here changes your PC.
+          </span>
+          <button
+            type="button"
+            className="btn btn-small"
+            onClick={() => window.dispatchEvent(new Event("nexdb:guide-stop"))}
+          >
+            Leave practice
+          </button>
+        </div>
+      )}
       <NexCorner />
       <Tour onPage={setPage} />
+      <WhatsNewOffer />
     </div>
   );
 }

@@ -364,6 +364,11 @@ impl Run<'_> {
         if let Some(extra) = &own_php {
             dirs.insert(0, extra.dir.clone());
         }
+        // And the Node its .nvmrc names, so npm install runs on it.
+        let www = std::path::PathBuf::from(&self.settings.www_dir);
+        if let Some(node) = crate::nodever::project_of(&www, cwd).and_then(|p| crate::nodever::dir_for(self.root, self.settings, &p)) {
+            dirs.insert(0, node);
+        }
         let path = crate::terminal::path_with(&dirs, &existing);
         let mut cmd = Command::new("cmd");
         cmd.arg("/C").arg(command).current_dir(cwd).env("PATH", path).env("COMPOSER_NO_INTERACTION", "1");

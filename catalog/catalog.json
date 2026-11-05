@@ -16,7 +16,9 @@
     "github.com/redis-windows/redis-windows",
     "get.enterprisedb.com",
     "api.nuget.org (python)",
-    "github.com/cloudflare/cloudflared"
+    "github.com/cloudflare/cloudflared",
+    "archive.mariadb.org",
+    "fastdl.mongodb.org"
   ],
   "components": [
     {
@@ -407,6 +409,30 @@
         },
         "file_version": null,
         "file": "cloudflared.exe"
+      }
+    },
+    "mariadb": {
+      "version": "12.3.3",
+      "download": {
+        "url": "https://archive.mariadb.org/mariadb-12.3.3/winx64-packages/mariadb-12.3.3-winx64.zip",
+        "size": 104081715,
+        "checksum": {
+          "algo": "sha256",
+          "value": "4b5706b47148b47c8f36963c8352d1ddee37a1287b4690428f631a74b09b85a0"
+        },
+        "file_version": null
+      }
+    },
+    "mongodb": {
+      "version": "9.0.4",
+      "download": {
+        "url": "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-9.0.4.zip",
+        "size": 988758776,
+        "checksum": {
+          "algo": "sha256",
+          "value": "1e6234c8c33e75de3659a7e1104cb12f1cb68ae41cba60b625537c1ed9256d43"
+        },
+        "file_version": null
       }
     }
   }

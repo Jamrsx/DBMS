@@ -49,6 +49,7 @@ Rules every release follows:
 | 0.4.4 | Clone from Git: paste an address, NexDB clones it with live progress and sets it up (packages, .env, app key) in one go |
 | 0.4.5 | Connect a database to a project (.env or wp-config.php, own user or root, used-by both ways); remembers window, page and terminal tabs; Ctrl+1–7, skip link, focus on page titles; first-run tour |
 | 0.4.6 | Nex's guided tutorial (spotlight, try-it steps, replay by chapter); Help page with search and Show me; setup picks up a NexDB folder from before, fixing paths when it moved; uninstaller asks to keep or delete the NexDB folder |
+| 0.4.7 | .env editor with secrets hidden; Node version per project from .nvmrc; visual table designer; SQL history and saved queries; MariaDB and MongoDB services; password-protected public links; Nex's what's-new walkthrough in practice mode (sample data) |
 
 ## Next
 

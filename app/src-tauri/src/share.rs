@@ -113,6 +113,9 @@ pub fn allow_firewall() -> Result<(), String> {
 struct Tunnel {
     child: Child,
     url: Arc<Mutex<Option<String>>>,
+    /// The password page in front of it, when the link asks for one (stops when dropped).
+    _gate: Option<crate::gate::Gate>,
+    password: Option<String>,
     #[cfg(windows)]
     _job: crate::supervisor::job::Job,
 }
@@ -133,13 +136,26 @@ impl Tunnels {
         map.get(project).and_then(|t| t.url.lock().unwrap().clone())
     }
 
-    /// Starts `cloudflared` for `http://127.0.0.1:port` and waits for its public address.
-    pub fn start(&self, cloudflared: &Path, project: &str, port: u16) -> Result<String, String> {
+    /// The password a running link asks for, if any.
+    pub fn password(&self, project: &str) -> Option<String> {
+        self.url(project)?;
+        self.0.lock().unwrap().get(project).and_then(|t| t.password.clone())
+    }
+
+    /// Starts `cloudflared` for `http://127.0.0.1:port` and waits for its public address. With a
+    /// password, visitors sign in on NexDB's page first. A running link with a different
+    /// password setting is restarted.
+    pub fn start(&self, cloudflared: &Path, project: &str, port: u16, password: Option<&str>) -> Result<String, String> {
         if let Some(url) = self.url(project) {
-            return Ok(url);
+            if self.password(project).as_deref() == password {
+                return Ok(url);
+            }
+            self.stop(project);
         }
+        let gate = password.map(|p| crate::gate::start(port, p)).transpose()?;
+        let target = gate.as_ref().map_or(port, |g| g.port);
         let mut cmd = Command::new(cloudflared);
-        cmd.args(["tunnel", "--no-autoupdate", "--url", &format!("http://127.0.0.1:{port}")])
+        cmd.args(["tunnel", "--no-autoupdate", "--url", &format!("http://127.0.0.1:{target}")])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());
@@ -174,6 +190,8 @@ impl Tunnels {
                     Tunnel {
                         child,
                         url: url.clone(),
+                        _gate: gate,
+                        password: password.map(str::to_string),
                         #[cfg(windows)]
                         _job: job,
                     },

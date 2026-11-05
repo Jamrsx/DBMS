@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { CopyButton } from "../components/CopyButton";
 
 /** Services that come with a "use it in your project" guide. */
-export type GuideId = "postgres" | "mailpit" | "redis";
+export type GuideId = "postgres" | "mariadb" | "mongodb" | "mailpit" | "redis";
 
 interface Recipe {
   /** Tab name: the framework or language. */
@@ -18,6 +18,62 @@ interface Recipe {
 }
 
 const GUIDES: Record<GuideId, { title: string; lede: string; recipes: Recipe[] }> = {
+  mariadb: {
+    title: "Use MariaDB in your project",
+    lede: "MariaDB listens on 127.0.0.1, port 3307 (MySQL keeps 3306). Sign in as root with no password; only this PC can connect.",
+    recipes: [
+      {
+        name: "Laravel",
+        intro: "Create the database once in the Terminal, then set these in your project's .env.",
+        where: "Terminal",
+        code: 'mariadb -P 3307 -u root -e "CREATE DATABASE my_app;"',
+        then: "In .env: DB_CONNECTION=mariadb, DB_HOST=127.0.0.1, DB_PORT=3307, DB_DATABASE=my_app, DB_USERNAME=root and an empty DB_PASSWORD=. Then run php artisan migrate.",
+      },
+      {
+        name: "Plain PHP",
+        intro: "PDO's MySQL driver talks to MariaDB too.",
+        where: "PHP",
+        code: "$db = new PDO('mysql:host=127.0.0.1;port=3307;dbname=my_app;charset=utf8mb4', 'root', '');",
+      },
+      {
+        name: "WordPress",
+        intro: "In wp-config.php, put the port after the host.",
+        where: "wp-config.php",
+        code: "define( 'DB_HOST', '127.0.0.1:3307' );\ndefine( 'DB_USER', 'root' );\ndefine( 'DB_PASSWORD', '' );",
+      },
+      {
+        name: "Node.js",
+        intro: "With the mariadb or mysql2 package, connect like this.",
+        where: "JavaScript",
+        code: 'const conn = await mysql.createConnection({ host: "127.0.0.1", port: 3307, user: "root", database: "my_app" });',
+      },
+    ],
+  },
+  mongodb: {
+    title: "Use MongoDB in your project",
+    lede: "MongoDB listens on 127.0.0.1, port 27017, with no sign-in; only this PC can connect. Databases are made the first time you write to them.",
+    recipes: [
+      {
+        name: "Node.js",
+        intro: "With Mongoose (or the mongodb package), connect like this.",
+        where: "JavaScript",
+        code: 'await mongoose.connect("mongodb://127.0.0.1:27017/my_app");',
+      },
+      {
+        name: "Laravel",
+        intro:
+          "Laravel needs PHP's mongodb extension, which PHP for Windows doesn't include. Add php_mongodb.dll for your PHP version to its ext folder and turn it on under PHP settings, then run composer require mongodb/laravel-mongodb.",
+        where: ".env",
+        code: "DB_CONNECTION=mongodb\nDB_URI=mongodb://127.0.0.1:27017\nDB_DATABASE=my_app",
+      },
+      {
+        name: "Python",
+        intro: "Install the driver with pip install pymongo in the Terminal, then connect.",
+        where: "Python",
+        code: 'client = MongoClient("mongodb://127.0.0.1:27017")\ndb = client["my_app"]',
+      },
+    ],
+  },
   postgres: {
     title: "Use PostgreSQL in your project",
     lede: "PostgreSQL listens on 127.0.0.1, port 5432. Sign in as postgres with no password; only this PC can connect.",

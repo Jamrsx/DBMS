@@ -16,6 +16,7 @@ import {
   openProject,
   projectDetails,
   renameProject,
+  setProjectNode,
   setProjectPhp,
   setProjectSite,
   type Editor,
@@ -28,6 +29,7 @@ import { LaravelPanel } from "./LaravelPanel";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
 import { MoreMenu } from "../components/MoreMenu";
 import { UseInProject } from "../database/UseInProject";
+import { EnvEditor } from "./EnvEditor";
 
 /** The server the Database page shows; a project connects to that one. */
 function currentEngine(): "mysql" | "postgres" {
@@ -61,7 +63,7 @@ export function ProjectDetails({
   const [saved, setSaved] = useState<string | null>(null);
   const [php, setPhp] = useState<string>("");
   const [siteFolder, setSiteFolder] = useState<string>("");
-  const [tab, setTab] = useState<"overview" | "share" | "laravel" | "manage">("overview");
+  const [tab, setTab] = useState<"overview" | "share" | "env" | "laravel" | "manage">("overview");
   const [newName, setNewName] = useState(name);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [typed, setTyped] = useState("");
@@ -181,13 +183,21 @@ export function ProjectDetails({
           [
             ["overview", "Overview"],
             ["share", "Share"],
+            ["env", "Settings (.env)"],
             ["laravel", "Laravel"],
             ["manage", "Rename or delete"],
           ] as const
         )
           .filter(([id]) => id !== "laravel" || info?.laravel != null)
           .map(([id, label]) => (
-            <button key={id} role="tab" className="log-tab" aria-selected={tab === id} onClick={() => setTab(id)}>
+            <button
+              key={id}
+              role="tab"
+              className="log-tab"
+              data-guide={`tab-${id}`}
+              aria-selected={tab === id}
+              onClick={() => setTab(id)}
+            >
               {label}
               {id === "overview" && ((info?.site.needs_choice && !info.site.chosen) || !!info?.setup.length) && (
                 <span className="details-tab-dot" aria-label="needs attention" />
@@ -267,7 +277,10 @@ export function ProjectDetails({
                   disabled={!!busy}
                   aria-label="Site folder"
                 >
-                  <option value="">The project folder{info.kind === "laravel" ? " (its public folder)" : ""}</option>
+                  <option value="">
+                    The project folder
+                    {info.kind === "laravel" ? " (its public folder)" : ""}
+                  </option>
                   {info.site.folders.map((f) => (
                     <option key={f.path} value={f.path}>
                       {f.path} · {f.label}
@@ -318,7 +331,10 @@ export function ProjectDetails({
                   onChange={(e) => setPhp(e.target.value)}
                   disabled={!!busy}
                 >
-                  <option value="">NexDB default{info.php.default ? ` (PHP ${info.php.default})` : ""}</option>
+                  <option value="">
+                    NexDB default
+                    {info.php.default ? ` (PHP ${info.php.default})` : ""}
+                  </option>
                   {info.php.installed
                     .filter((v) => v !== info.php.default)
                     .map((v) => (
@@ -359,6 +375,8 @@ export function ProjectDetails({
               )}
             </div>
           )}
+
+          {info && <NodeSection name={name} node={info.node} busy={!!busy} onChanged={load} />}
         </>
       )}
 
@@ -369,6 +387,8 @@ export function ProjectDetails({
           needsSite={!!info?.site.needs_choice && !info.site.chosen}
         />
       )}
+
+      {tab === "env" && <EnvEditor key={name} project={name} />}
 
       {tab === "laravel" && info?.laravel != null && <LaravelPanel name={name} folder={info.laravel} />}
 
@@ -472,5 +492,91 @@ export function ProjectDetails({
         </>
       )}
     </section>
+  );
+}
+
+/** Node.js for this project: what its .nvmrc asks for, what it runs on, and a way to change it. */
+function NodeSection({
+  name,
+  node,
+  busy,
+  onChanged,
+}: {
+  name: string;
+  node: import("../lib/projects").NodeChoice;
+  busy: boolean;
+  onChanged: () => void;
+}) {
+  const [pick, setPick] = useState(node.using ?? "");
+  const [working, setWorking] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  useEffect(() => setPick(node.using ?? ""), [node.using]);
+
+  if (node.installed.length === 0) return null;
+  const major = (v: string) => v.split(".")[0];
+  return (
+    <div className="details-section" data-guide="node-section">
+      <h3>Node.js version</h3>
+      <p className="field-hint">
+        {node.wanted ? (
+          <>
+            <code>{node.file}</code> asks for Node <strong>{node.wanted}</strong>. Its terminal and npm use{" "}
+            {node.using ? `Node ${node.using}` : "the default"}.
+          </>
+        ) : (
+          <>Uses NexDB's default, Node {node.default}. Pick a version to save it in the project's .nvmrc.</>
+        )}
+      </p>
+      {node.missing && (
+        <p className="notice notice-warn" role="status">
+          Node {node.wanted} isn't installed, so this project uses Node {node.default} for now. Install Node{" "}
+          {major(node.wanted ?? "")} on the Versions page.
+        </p>
+      )}
+      <div className="details-row">
+        <select
+          className="input input-medium"
+          aria-label={`Node.js version for ${name}`}
+          value={pick}
+          disabled={busy || working}
+          onChange={(e) => setPick(e.target.value)}
+        >
+          {node.installed.map((v) => (
+            <option key={v} value={v}>
+              Node {v}
+              {v === node.default ? " (default)" : ""}
+            </option>
+          ))}
+        </select>
+        <button
+          className="btn"
+          disabled={busy || working || (pick === node.using && !node.missing)}
+          data-working={working || undefined}
+          onClick={async () => {
+            setWorking(true);
+            setMessage(null);
+            try {
+              await setProjectNode(name, pick);
+              setMessage({
+                ok: true,
+                text: `Saved Node ${pick} in ${name}/.nvmrc. Open a new terminal tab to use it.`,
+              });
+              onChanged();
+            } catch (e) {
+              setMessage({ ok: false, text: String(e) });
+            } finally {
+              setWorking(false);
+            }
+          }}
+        >
+          {working ? "Saving…" : "Use this version"}
+        </button>
+      </div>
+      {message && (
+        <p className={message.ok ? "field-hint hint-ok" : "field-error"} role={message.ok ? "status" : "alert"}>
+          {message.text}
+        </p>
+      )}
+    </div>
   );
 }

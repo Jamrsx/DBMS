@@ -1,4 +1,5 @@
 import { invoke as tauriInvoke, type InvokeArgs } from "@tauri-apps/api/core";
+import { isPractice } from "./practice";
 
 /*
  * Feedback for every action (HCI: visibility of system status). The button the user just
@@ -37,6 +38,8 @@ export function track<T>(work: Promise<T>): Promise<T> {
 
 /** Tauri's invoke, with the pressed button's spinner. */
 export function invoke<T>(cmd: string, args?: InvokeArgs): Promise<T> {
+  // A safety net for practice mode: no call reaches the real backend while Nex is showing a feature.
+  if (isPractice()) return Promise.reject("Practice mode: this would change your PC, so NexDB skipped it.");
   return track(tauriInvoke<T>(cmd, args));
 }
 

@@ -69,6 +69,10 @@ pub fn tool_dirs(root: &Path, settings: &Settings) -> Vec<PathBuf> {
     if let Some(postgres) = dir_of("postgres") {
         dirs.push(postgres.join("bin"));
     }
+    // The `mariadb` client; after MySQL's, so `mysql` stays MySQL's own.
+    if let Some(mariadb) = dir_of("mariadb") {
+        dirs.push(mariadb.join("bin"));
+    }
     dirs.extend(dir_of("redis"));
     dirs.push(root.join("bin"));
     dirs.retain(|d| d.is_dir());
@@ -115,6 +119,13 @@ fn shell_command(
         }
         None => root.join("etc").join("php"),
     };
+    // A project with an .nvmrc gets the Node it names, ahead of the default.
+    if let Some(dir) = cwd {
+        let www = PathBuf::from(&settings.www_dir);
+        if let Some(node) = crate::nodever::project_of(&www, dir).and_then(|p| crate::nodever::dir_for(root, settings, &p)) {
+            dirs.insert(0, node);
+        }
+    }
     cmd.env("PATH", path_with(&dirs, &existing));
     if php_ini.join("php.ini").is_file() {
         cmd.env("PHPRC", php_ini);

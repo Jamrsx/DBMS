@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { CHAPTERS, showGuide } from "../components/Tour";
+import { WHATS_NEW } from "../components/whatsNew";
 import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
 import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
@@ -625,6 +626,14 @@ function TutorialCard() {
           Start from the beginning
         </button>
         <span className="field-hint">Ctrl+K searches everything. Ctrl+1 to Ctrl+8 open the sidebar's pages.</span>
+      </div>
+      <div className="guide-chapters" role="group" aria-label="What's new">
+        {WHATS_NEW.map((w) => (
+          <button key={w.version} className="btn btn-small btn-primary" onClick={() => showGuide(w.chapter)}>
+            What's new in {w.version}
+          </button>
+        ))}
+        <span className="field-hint">Practice mode, on sample data: nothing on your PC changes.</span>
       </div>
       <div className="guide-chapters" role="group" aria-label="Replay one part">
         {CHAPTERS.slice(1).map((c) => (

@@ -1,4 +1,5 @@
 import { invoke, pause } from "./invoke";
+import { onPractice } from "./practice";
 import { inDesktopApp } from "./scan";
 
 /** Sharing state for one project, from the Share panel's point of view. */
@@ -19,6 +20,8 @@ export interface ShareInfo {
   tunnel_size: number | null;
   public_url: string | null;
   public_qr: string | null;
+  /** The password its public link asks for, when it asks for one. */
+  public_password?: string | null;
   /** The project's dev server, when it is passed through a share port. */
   dev: {
     port: number;
@@ -28,6 +31,7 @@ export interface ShareInfo {
     running: boolean;
     public_url: string | null;
     public_qr: string | null;
+    public_password?: string | null;
   } | null;
   /** Its front end and Laravel backend on one link, when shared that way. */
   app: {
@@ -42,6 +46,7 @@ export interface ShareInfo {
     front_ready: boolean;
     public_url: string | null;
     public_qr: string | null;
+    public_password?: string | null;
   } | null;
   /** The front end and backend folders found in the project. */
   app_parts: AppParts | null;
@@ -63,6 +68,11 @@ export type ShareKind = "" | "dev" | "app";
 const qr =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21"><rect width="21" height="21" fill="#fff"/><path d="M1 1h7v7H1zM13 1h7v7h-7zM1 13h7v7H1zM10 10h2v2h-2zM14 14h3v3h-3z" fill="#000"/></svg>';
 const preview: Record<string, ShareInfo> = {};
+// Practice mode: the sample blog is already on the Wi-Fi with public links installed, and starts fresh each time.
+onPractice((on) => {
+  for (const k of Object.keys(preview)) delete preview[k];
+  if (on) preview.blog = { ...base("blog"), port: 8181, lan_url: "http://192.168.1.20:8181/", lan_qr: qr, firewall_ready: true, tunnel_installed: true };
+});
 const base = (name: string): ShareInfo => ({
   port: null,
   lan_ip: "192.168.1.20",
@@ -119,11 +129,15 @@ export async function allowFirewall(): Promise<void> {
 }
 
 /** A public link to the shared site, its shared dev server ("dev") or its whole app ("app"). */
-export async function startPublicLink(name: string, what: ShareKind = ""): Promise<ShareInfo> {
-  if (inDesktopApp) return invoke("share_public_start", { name, what });
+export async function startPublicLink(
+  name: string,
+  what: ShareKind = "",
+  password: string | null = null,
+): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_public_start", { name, what, password });
   await pause(1500);
   const s = (preview[name] ??= base(name));
-  const link = { public_url: "https://brave-otter-sample.trycloudflare.com", public_qr: qr };
+  const link = { public_url: "https://brave-otter-sample.trycloudflare.com", public_qr: qr, public_password: password };
   Object.assign((what && s[what]) || s, link);
   return { ...s };
 }
@@ -131,7 +145,7 @@ export async function startPublicLink(name: string, what: ShareKind = ""): Promi
 export async function stopPublicLink(name: string, what: ShareKind = ""): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_public_stop", { name, what });
   const s = (preview[name] ??= base(name));
-  Object.assign((what && s[what]) || s, { public_url: null, public_qr: null });
+  Object.assign((what && s[what]) || s, { public_url: null, public_qr: null, public_password: null });
   return { ...s };
 }
 
@@ -194,4 +208,13 @@ export async function stopDevShare(name: string): Promise<ShareInfo> {
 /** Marks public links as installed in the browser preview (the real install goes through Versions). */
 export function previewTunnelInstalled(name: string) {
   if (!inDesktopApp) (preview[name] ??= base(name)).tunnel_installed = true;
+}
+
+/** A password that's easy to read out and type, like k7mq-2xpa-9rtd. */
+export function sharePassword(): string {
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  const bytes = new Uint8Array(12);
+  crypto.getRandomValues(bytes);
+  const s = Array.from(bytes, (b) => chars[b % chars.length]).join("");
+  return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`;
 }

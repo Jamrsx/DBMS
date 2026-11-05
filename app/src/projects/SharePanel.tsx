@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, Globe, Layers, LoaderCircle, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, Globe, Layers, LoaderCircle, Lock, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
 import type { DevApp } from "../lib/projects";
 import { CopyButton } from "../components/CopyButton";
 import { nexCelebrate } from "../lib/nex";
@@ -10,6 +10,7 @@ import {
   shareInfo,
   startAppShare,
   startDevShare,
+  sharePassword,
   startPublicLink,
   startShare,
   stopAppShare,
@@ -44,6 +45,13 @@ export function SharePanel({
   const [appDev, setAppDev] = useState<boolean | null>(null);
   const [appPort, setAppPort] = useState<string | null>(null);
   const [busy, setBusy] = useState<{ where: Where; label: string } | null>(null);
+  // Public links ask for a password unless unticked; a fresh one is filled in per link.
+  const [askPassword, setAskPassword] = useState<Record<string, boolean>>({});
+  const [passwords, setPasswords] = useState<Record<string, string>>(() => ({
+    site: sharePassword(),
+    dev: sharePassword(),
+    app: sharePassword(),
+  }));
   const [error, setError] = useState<{ where: Where; text: string } | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -177,8 +185,17 @@ export function SharePanel({
   );
 
   // A public link through Cloudflare, under the link it belongs to.
-  const publicLink = (where: Block, kind: ShareKind, url: string | null, qr: string | null, ready: boolean) => {
+  const publicLink = (
+    where: Block,
+    kind: ShareKind,
+    url: string | null,
+    qr: string | null,
+    ready: boolean,
+    password: string | null = null,
+  ) => {
     const what = kind === "dev" ? `${name}'s dev server` : name;
+    const ask = askPassword[where] ?? true;
+    const pw = passwords[where] ?? "";
     return (
       <div className="share-sub">
         <h5>
@@ -189,12 +206,24 @@ export function SharePanel({
             url,
             qr,
             "the public link",
-            "Anyone with this link can open it, from anywhere:",
+            password
+              ? "Send this link and the password below. Visitors need both, from anywhere:"
+              : "Anyone with this link can open it, from anywhere:",
             <>
-              <p className="share-note">
-                <AlertTriangle size={14} aria-hidden="true" /> Anyone with this link can open {what}. It ends when you
-                stop it or close NexDB.
-              </p>
+              {password ? (
+                <div className="share-password">
+                  <span>
+                    <Lock size={13} aria-hidden="true" /> Visitors type this password first:
+                  </span>
+                  <code>{password}</code>
+                  <CopyButton text={password} label="the password" />
+                </div>
+              ) : (
+                <p className="share-note">
+                  <AlertTriangle size={14} aria-hidden="true" /> Anyone with this link can open {what}. It ends when you
+                  stop it or close NexDB.
+                </p>
+              )}
               <div className="share-row">
                 <button
                   className="btn btn-small"
@@ -216,15 +245,53 @@ export function SharePanel({
               account, and the link changes each time.
             </p>
             {info.tunnel_installed ? (
-              <button
-                className="btn btn-small"
-                disabled={!!busy || !ready}
-                onClick={() =>
-                  void act(`${where}:public`, "Asking Cloudflare for a link…", () => startPublicLink(name, kind))
-                }
-              >
-                Create public link
-              </button>
+              <>
+                <div className="share-ask">
+                  <label className="check-row">
+                    <input
+                      type="checkbox"
+                      checked={ask}
+                      onChange={(e) => setAskPassword((m) => ({ ...m, [where]: e.target.checked }))}
+                    />
+                    Ask visitors for a password (recommended)
+                  </label>
+                  {ask && (
+                    <span className="share-ask-pw">
+                      <label className="visually-hidden" htmlFor={`share-pw-${where}`}>
+                        Password for the public link
+                      </label>
+                      <input
+                        id={`share-pw-${where}`}
+                        className="input input-small"
+                        value={pw}
+                        spellCheck={false}
+                        autoComplete="off"
+                        onChange={(e) => setPasswords((m) => ({ ...m, [where]: e.target.value }))}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-small btn-quiet"
+                        onClick={() => setPasswords((m) => ({ ...m, [where]: sharePassword() }))}
+                      >
+                        New password
+                      </button>
+                    </span>
+                  )}
+                </div>
+                {ask && pw.trim().length < 4 && <p className="field-hint hint-bad">Use at least 4 characters.</p>}
+                <button
+                  className="btn btn-small"
+                  data-guide={`public-create-${where}`}
+                  disabled={!!busy || !ready || (ask && pw.trim().length < 4)}
+                  onClick={() =>
+                    void act(`${where}:public`, "Asking Cloudflare for a link…", () =>
+                      startPublicLink(name, kind, ask ? pw.trim() : null),
+                    )
+                  }
+                >
+                  Create public link
+                </button>
+              </>
             ) : (
               info.tunnel_version && (
                 <button
@@ -306,7 +373,14 @@ export function SharePanel({
                 {app.backend ? `${app.backend}/.env` : ".env"}.
               </p>,
             )}
-          {publicLink("app", "app", app.public_url, app.public_qr, info.web_running && app.front_ready)}
+          {publicLink(
+            "app",
+            "app",
+            app.public_url,
+            app.public_qr,
+            info.web_running && app.front_ready,
+            app.public_password ?? null,
+          )}
           {stopButton("app", "Stop sharing the whole app", () => stopAppShare(name))}
         </>
       ) : (
@@ -398,7 +472,7 @@ export function SharePanel({
         ) : (
           <p className="field-error">This PC isn't connected to a network, so there's no address to share yet.</p>
         )}
-        {publicLink("site", "", info.public_url, info.public_qr, info.web_running)}
+        {publicLink("site", "", info.public_url, info.public_qr, info.web_running, info.public_password ?? null)}
         {stopButton("site", "Stop sharing", () => stopShare(name))}
       </>
     ) : (
@@ -461,7 +535,14 @@ export function SharePanel({
               {info.lan_url ? <code>{info.lan_url}</code> : "the shared site address"} so the phone can reach it.
             </p>,
           )}
-        {publicLink("dev", "dev", info.dev.public_url, info.dev.public_qr, info.web_running && info.dev.running)}
+        {publicLink(
+          "dev",
+          "dev",
+          info.dev.public_url,
+          info.dev.public_qr,
+          info.web_running && info.dev.running,
+          info.dev.public_password ?? null,
+        )}
         {stopButton("dev", "Stop sharing the dev server", () => stopDevShare(name))}
       </>
     ) : (

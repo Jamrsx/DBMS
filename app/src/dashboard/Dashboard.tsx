@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ServiceGuide, type GuideId } from "./ServiceGuide";
-import { inDesktopApp } from "../lib/scan";
+import { inDesktopApp, realDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops, nexSay } from "../lib/nex";
 import { readable, type LogLevel } from "../lib/logs";
@@ -150,7 +150,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
       </header>
 
       <div className="panel-body dash-body">
-        {!inDesktopApp && (
+        {!realDesktopApp && (
           <p className="notice" role="note">
             Browser preview: services are simulated.
           </p>
@@ -191,7 +191,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                           guideOpen={guide === s.id}
                           onSelect={() => setSelected(s.id)}
                           onGuide={
-                            s.id === "postgres" || s.id === "mailpit" || s.id === "redis"
+                            ["postgres", "mariadb", "mongodb", "mailpit", "redis"].includes(s.id)
                               ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
                               : undefined
                           }
@@ -244,6 +244,8 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   php: { role: "Runs your projects' PHP code", Icon: FileCode2 },
   mysql: { role: "Database server", Icon: DatabaseIcon },
   postgres: { role: "PostgreSQL database server", Icon: DatabaseIcon },
+  mariadb: { role: "MySQL-compatible database server, port 3307", Icon: DatabaseIcon },
+  mongodb: { role: "Document database, port 27017", Icon: DatabaseIcon },
   mailpit: { role: "Catches the emails your apps send", Icon: Mail },
   redis: { role: "Cache, sessions and queues for your apps", Icon: Zap },
 };
@@ -581,7 +583,7 @@ function grouped(services: ServiceStatus[]): [string, ServiceStatus[]][] {
       ? "Web server"
       : id === "php" || id.startsWith("php-")
         ? "PHP"
-        : id === "mysql" || id === "postgres"
+        : id === "mysql" || id === "postgres" || id === "mariadb" || id === "mongodb"
           ? "Databases"
           : "Extras";
   const groups: [string, ServiceStatus[]][] = [];

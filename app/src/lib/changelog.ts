@@ -7,6 +7,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.7",
+    title: "Projects, database and sharing extras",
+    changes: [
+      "Settings (.env) on each project: edit its settings as a form, with passwords and keys hidden until you show them. The old file is kept as .env.backup.",
+      "Node.js per project: NexDB reads the project's .nvmrc and runs its terminal and npm on that version, and tells you when it isn't installed.",
+      "Table designer: make a table or change its columns and indexes without SQL. It shows the SQL first, and offers a backup before anything that deletes data.",
+      "The SQL tab keeps a history of what you ran, and you can save queries with a name.",
+      "MariaDB and MongoDB on the Versions page, as Dashboard services with a guide for using them in your project.",
+      "Public links can ask for a password: visitors see a sign-in page first. It's on by default.",
+      "After an update, Nex offers to show what's new, hands on, in practice mode: sample projects and databases, so nothing on your PC changes. Settings → Tutorial replays it.",
+    ],
+  },
+  {
     version: "0.4.6",
     title: "Nex shows you around",
     changes: [

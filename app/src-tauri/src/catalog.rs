@@ -39,6 +39,12 @@ pub struct Tools {
     /// Cloudflare's tunnel client, for public links to shared projects.
     #[serde(default)]
     pub cloudflared: Option<Tool>,
+    /// MariaDB server (the official Windows zip), beside MySQL on its own port.
+    #[serde(default)]
+    pub mariadb: Option<Tool>,
+    /// MongoDB Community server (the official Windows zip).
+    #[serde(default)]
+    pub mongodb: Option<Tool>,
 }
 
 impl Tools {
@@ -52,6 +58,8 @@ impl Tools {
             "postgres" => self.postgres.as_ref(),
             "python" => self.python.as_ref(),
             "cloudflared" => self.cloudflared.as_ref(),
+            "mariadb" => self.mariadb.as_ref(),
+            "mongodb" => self.mongodb.as_ref(),
             _ => None,
         }
     }

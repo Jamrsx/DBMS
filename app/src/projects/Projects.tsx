@@ -30,7 +30,7 @@ import {
   type ProjectsInfo,
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
-import { inDesktopApp } from "../lib/scan";
+import { realDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
@@ -210,7 +210,7 @@ export function Projects({
       </header>
 
       <div className="panel-body dash-body">
-        {!inDesktopApp && (
+        {!realDesktopApp && (
           <p className="notice" role="note">
             Browser preview: projects are simulated.
           </p>
