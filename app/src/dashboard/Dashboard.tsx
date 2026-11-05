@@ -28,7 +28,11 @@ import {
   startServices,
   stopServices,
   type ServiceStatus,
+  serviceUsage,
+  type ServiceUsage,
 } from "../lib/services";
+import { mailList } from "../lib/mail";
+import { InboxPanel } from "./InboxPanel";
 
 const POLL_MS = 1500;
 
@@ -43,6 +47,11 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
   const [busy, setBusy] = useState<Busy>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [guide, setGuide] = useState<GuideId | null>(null);
+  // Memory and CPU of running services, read with the status.
+  const [usage, setUsage] = useState<Record<string, ServiceUsage>>({});
+  // The caught-emails inbox, and how many are new (while the mail catcher runs).
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
   // Bumped after every Start/Stop so the log reloads right away instead of on its timer.
   const [actionCount, setActionCount] = useState(0);
 
@@ -53,6 +62,12 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
     } catch (err) {
       setLoadError(String(err));
     }
+    serviceUsage()
+      .then((list) => setUsage(Object.fromEntries(list.map((u) => [u.id, u]))))
+      .catch(() => setUsage({}));
+    mailList()
+      .then((i) => setUnread(i.unread))
+      .catch(() => setUnread(0));
   }, []);
 
   useEffect(() => {
@@ -186,12 +201,15 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                         <ServiceRow
                           key={s.id}
                           service={s}
+                          usage={usage[s.id]}
+                          unread={s.id === "mailpit" ? unread : 0}
+                          onInbox={() => setInboxOpen(true)}
                           busy={busy[s.id]}
                           selected={selected === s.id}
                           guideOpen={guide === s.id}
                           onSelect={() => setSelected(s.id)}
                           onGuide={
-                            ["postgres", "mariadb", "mongodb", "mailpit", "redis"].includes(s.id)
+                            ["postgres", "mariadb", "mongodb", "mailpit", "redis", "memcached"].includes(s.id)
                               ? () => setGuide(guide === s.id ? null : (s.id as GuideId))
                               : undefined
                           }
@@ -233,6 +251,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
           </>
         )}
       </div>
+      {inboxOpen && <InboxPanel onClose={() => setInboxOpen(false)} onOpenInBrowser={openInbox} />}
     </main>
   );
 }
@@ -248,6 +267,7 @@ const ROLE: Record<string, { role: string; Icon: typeof Globe }> = {
   mongodb: { role: "Document database, port 27017", Icon: DatabaseIcon },
   mailpit: { role: "Catches the emails your apps send", Icon: Mail },
   redis: { role: "Cache, sessions and queues for your apps", Icon: Zap },
+  memcached: { role: "A fast in-memory cache, port 11211", Icon: Zap },
 };
 
 /** The mail catcher's inbox, served by Mailpit itself. */
@@ -260,6 +280,9 @@ function openInbox() {
 
 function ServiceRow({
   service: s,
+  usage,
+  unread,
+  onInbox,
   busy,
   selected,
   guideOpen,
@@ -269,6 +292,11 @@ function ServiceRow({
   onStop,
 }: {
   service: ServiceStatus;
+  /** Memory and CPU while it runs. */
+  usage?: ServiceUsage;
+  /** New caught emails (the mail catcher's row). */
+  unread: number;
+  onInbox: () => void;
   busy: "starting" | "stopping" | undefined;
   selected: boolean;
   guideOpen: boolean;
@@ -309,13 +337,15 @@ function ServiceRow({
               <button
                 type="button"
                 className="link-btn"
-                onClick={openInbox}
+                onClick={onInbox}
+                data-guide="open-inbox"
                 disabled={s.state !== "running"}
                 title={
-                  s.state === "running" ? `Open the inbox at ${MAIL_INBOX}` : "Start the mail catcher to open its inbox"
+                  s.state === "running" ? "Read the emails your apps sent" : "Start the mail catcher to open its inbox"
                 }
               >
                 <Inbox size={13} strokeWidth={2} aria-hidden="true" /> Open inbox
+                {unread > 0 && <span className="svc-badge">{unread} new</span>}
               </button>
             )}
             {onGuide && (
@@ -333,6 +363,12 @@ function ServiceRow({
               {" · "}Up <code>{formatUptime(s.uptime_secs)}</code>
             </>
           )}
+          {usage && (
+            <>
+              {" · "}Uses <code>{formatMemory(usage.memory_bytes)}</code>, <code>{usage.cpu_percent.toFixed(1)}%</code>{" "}
+              CPU
+            </>
+          )}
         </p>
       </div>
       <dl className="svc-facts">
@@ -343,6 +379,31 @@ function ServiceRow({
         <div>
           <dt>Up for</dt>
           <dd>{s.uptime_secs !== null ? formatUptime(s.uptime_secs) : "–"}</dd>
+        </div>
+        <div
+          title={
+            usage
+              ? `${usage.processes} process${usage.processes === 1 ? "" : "es"}: ${formatMemory(usage.memory_bytes)} of memory, ${usage.cpu_percent.toFixed(1)}% of the PC's CPU`
+              : "Shown while it runs"
+          }
+        >
+          <dt>Uses</dt>
+          <dd className="svc-usage">
+            {usage ? (
+              <>
+                <span>{formatMemory(usage.memory_bytes)}</span>
+                <span className="svc-cpu" aria-label={`${usage.cpu_percent.toFixed(1)} percent CPU`}>
+                  <span
+                    className="svc-cpu-bar"
+                    style={{ width: `${Math.max(2, Math.min(100, usage.cpu_percent))}%` }}
+                  />
+                </span>
+                <span className="muted">{usage.cpu_percent.toFixed(1)}% CPU</span>
+              </>
+            ) : (
+              "–"
+            )}
+          </dd>
         </div>
       </dl>
       <span className={`status-pill status-${view.tone}`} title={s.pid !== null ? `Process ID ${s.pid}` : undefined}>
@@ -672,4 +733,10 @@ function MissingBanner({ onOpenVersions }: { onOpenVersions: () => void }) {
       </button>
     </div>
   );
+}
+
+/** 48 MB, 1.2 GB. */
+function formatMemory(bytes: number): string {
+  const mb = bytes / 1024 / 1024;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.max(1, Math.round(mb))} MB`;
 }

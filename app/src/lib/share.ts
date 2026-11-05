@@ -8,6 +8,12 @@ export interface ShareInfo {
   port: number | null;
   lan_ip: string | null;
   lan_url: string | null;
+  /** Its fixed name on the Wi-Fi (blog.local) while it's shared. */
+  lan_name?: string | null;
+  /** The user's fixed link (https://my-app.ngrok-free.app), when one is set up in Settings. */
+  fixed_address?: string | null;
+  /** The share using the fixed link right now ("blog", "blog#dev"), its link and password. */
+  fixed?: { key: string; url: string; password: string | null } | null;
   /** QR code of `lan_url`, as SVG markup made by NexDB. */
   lan_qr: string | null;
   firewall_ready: boolean;
@@ -71,7 +77,16 @@ const preview: Record<string, ShareInfo> = {};
 // Practice mode: the sample blog is already on the Wi-Fi with public links installed, and starts fresh each time.
 onPractice((on) => {
   for (const k of Object.keys(preview)) delete preview[k];
-  if (on) preview.blog = { ...base("blog"), port: 8181, lan_url: "http://192.168.1.20:8181/", lan_qr: qr, firewall_ready: true, tunnel_installed: true };
+  if (on)
+    preview.blog = {
+      ...base("blog"),
+      port: 8181,
+      lan_url: "http://192.168.1.20:8181/",
+      lan_name: "blog.local",
+      lan_qr: qr,
+      firewall_ready: true,
+      tunnel_installed: true,
+    };
 });
 const base = (name: string): ShareInfo => ({
   port: null,
@@ -106,7 +121,7 @@ export async function startShare(name: string): Promise<ShareInfo> {
   if (inDesktopApp) return invoke("share_start", { name });
   await pause(600);
   const s = (preview[name] ??= base(name));
-  Object.assign(s, { port: 8181, lan_url: "http://192.168.1.20:8181/", lan_qr: qr });
+  Object.assign(s, { port: 8181, lan_url: "http://192.168.1.20:8181/", lan_name: `${name}.local`, lan_qr: qr });
   return { ...s };
 }
 
@@ -217,4 +232,64 @@ export function sharePassword(): string {
   crypto.getRandomValues(bytes);
   const s = Array.from(bytes, (b) => chars[b % chars.length]).join("");
   return `${s.slice(0, 4)}-${s.slice(4, 8)}-${s.slice(8, 12)}`;
+}
+
+/** Points the fixed link (ngrok or Cloudflare) at this project's site ("") , dev server or app. */
+export async function startFixedLink(
+  name: string,
+  what: ShareKind = "",
+  password: string | null = null,
+): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_fixed_start", { name, what, password });
+  await pause(1200);
+  const s = (preview[name] ??= base(name));
+  s.fixed = { key: what ? `${name}#${what}` : name, url: s.fixed_address ?? "https://my-app.ngrok-free.app", password };
+  return { ...s };
+}
+
+export async function stopFixedLink(name: string): Promise<ShareInfo> {
+  if (inDesktopApp) return invoke("share_fixed_stop", { name });
+  await pause(300);
+  const s = (preview[name] ??= base(name));
+  s.fixed = null;
+  return { ...s };
+}
+
+export interface FixedLinkInfo {
+  provider: "ngrok" | "cloudflare" | null;
+  address: string | null;
+  has_token: boolean;
+  /** Where NexDB found ngrok.exe. */
+  ngrok: string | null;
+  /** The port the provider points at on this PC. */
+  port: number;
+}
+
+const previewFixed: FixedLinkInfo = { provider: null, address: null, has_token: false, ngrok: null, port: 8899 };
+
+export async function fixedLinkInfo(): Promise<FixedLinkInfo> {
+  if (inDesktopApp) return invoke("fixed_link_info");
+  return { ...previewFixed };
+}
+
+/** Saves the fixed-link account; provider null removes it. An empty token keeps the saved one. */
+export async function saveFixedLink(
+  provider: "ngrok" | "cloudflare" | null,
+  address: string,
+  token: string,
+): Promise<void> {
+  if (inDesktopApp) return invoke("fixed_link_save", { provider, address, token });
+  await pause(300);
+  Object.assign(previewFixed, {
+    provider,
+    address: provider ? address.replace(/^https?:\/\//, "").split("/")[0] : null,
+    has_token: !!provider && (!!token || previewFixed.has_token),
+  });
+  for (const s of Object.values(preview)) s.fixed_address = provider ? `https://${previewFixed.address}` : null;
+}
+
+export async function pickNgrok(): Promise<string | null> {
+  if (inDesktopApp) return invoke("fixed_link_pick_ngrok");
+  previewFixed.ngrok = "C:\\Users\\you\\AppData\\Local\\ngrok\\ngrok.exe";
+  return previewFixed.ngrok;
 }

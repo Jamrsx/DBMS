@@ -52,6 +52,7 @@ Rules every release follows:
 | 0.4.7 | .env editor with secrets hidden; Node version per project from .nvmrc; visual table designer; SQL history and saved queries; MariaDB and MongoDB services; password-protected public links; Nex's what's-new walkthrough in practice mode (sample data) |
 | 0.4.8 | Walkthrough fixes: scrolls to each step, wheel scrolls during it, bubble never covers the button to click; offers walkthroughs missed when skipping versions |
 | 0.4.9 | Relationship diagram in its own window (drag, zoom, list view); compare two databases; automatic backups copied to another drive or USB; restore a backup as a new database |
+| 0.5.0 | Nex organizes the diagram (wizard hat, sparkles, undo); build tables and links in the diagram; in-app mail inbox; memory and CPU per service; Memcached; .local names on the Wi-Fi; fixed public links with ngrok or Cloudflare |
 
 ## Next
 

@@ -18,7 +18,8 @@
     "api.nuget.org (python)",
     "github.com/cloudflare/cloudflared",
     "archive.mariadb.org",
-    "fastdl.mongodb.org"
+    "fastdl.mongodb.org",
+    "github.com/jefyt/memcached-windows"
   ],
   "components": [
     {
@@ -431,6 +432,18 @@
         "checksum": {
           "algo": "sha256",
           "value": "1e6234c8c33e75de3659a7e1104cb12f1cb68ae41cba60b625537c1ed9256d43"
+        },
+        "file_version": null
+      }
+    },
+    "memcached": {
+      "version": "1.6.8",
+      "download": {
+        "url": "https://github.com/jefyt/memcached-windows/releases/download/1.6.8_mingw_libressl/memcached-1.6.8-win64-mingw.zip",
+        "size": 3540169,
+        "checksum": {
+          "algo": "sha256",
+          "value": "48ec62cef718f0d73698414b783c0e4a69821013553ca00afe0eed324eb5994b"
         },
         "file_version": null
       }

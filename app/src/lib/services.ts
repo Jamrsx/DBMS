@@ -55,6 +55,31 @@ export async function setupInfo(): Promise<SetupInfo> {
   };
 }
 
+/** Memory and CPU of a running service, with the processes it started. */
+export interface ServiceUsage {
+  id: string;
+  /** Share of the whole PC's CPU, 0–100. */
+  cpu_percent: number;
+  memory_bytes: number;
+  processes: number;
+}
+
+export async function serviceUsage(): Promise<ServiceUsage[]> {
+  if (inDesktopApp) return invoke<ServiceUsage[]>("services_usage");
+  // Sample numbers that move a little, like the real ones.
+  const running = (await listServices()).filter((s) => s.state === "running" && s.pid !== null);
+  const base: Record<string, [number, number]> = { apache: [62, 4], php: [38, 3], mysql: [410, 9], postgres: [96, 2] };
+  return running.map((s) => {
+    const [mb, procs] = base[s.id] ?? [24, 1];
+    return {
+      id: s.id,
+      cpu_percent: Math.round(Math.random() * 30) / 10,
+      memory_bytes: (mb + Math.round(Math.random() * 6)) * 1024 * 1024,
+      processes: procs,
+    };
+  });
+}
+
 export async function listServices(): Promise<ServiceStatus[]> {
   if (inDesktopApp) return invoke<ServiceStatus[]>("services");
   return preview.status();

@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { CopyButton } from "../components/CopyButton";
 
 /** Services that come with a "use it in your project" guide. */
-export type GuideId = "postgres" | "mariadb" | "mongodb" | "mailpit" | "redis";
+export type GuideId = "postgres" | "mariadb" | "mongodb" | "mailpit" | "redis" | "memcached";
 
 interface Recipe {
   /** Tab name: the framework or language. */
@@ -18,6 +18,29 @@ interface Recipe {
 }
 
 const GUIDES: Record<GuideId, { title: string; lede: string; recipes: Recipe[] }> = {
+  memcached: {
+    title: "Use Memcached in your project",
+    lede: "Memcached listens on 127.0.0.1, port 11211, with no password; only this PC can connect. It holds 64 MB and forgets everything when it stops, as a cache should.",
+    recipes: [
+      {
+        name: "Node.js",
+        intro: "With the memjs package, connect like this.",
+        where: "JavaScript",
+        code: 'const cache = memjs.Client.create("127.0.0.1:11211");\nawait cache.set("greeting", "hello", { expires: 600 });',
+      },
+      {
+        name: "Python",
+        intro: "Install the client with pip install pymemcache in the Terminal, then connect.",
+        where: "Python",
+        code: 'client = pymemcache.client.base.Client(("127.0.0.1", 11211))\nclient.set("greeting", "hello")',
+      },
+      {
+        name: "Laravel",
+        intro:
+          "Laravel's memcached cache needs PHP's memcached extension, which PHP for Windows doesn't include. Redis works out of the box instead: install it on the Versions page and use CACHE_STORE=redis.",
+      },
+    ],
+  },
   mariadb: {
     title: "Use MariaDB in your project",
     lede: "MariaDB listens on 127.0.0.1, port 3307 (MySQL keeps 3306). Sign in as root with no password; only this PC can connect.",

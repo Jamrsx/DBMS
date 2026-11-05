@@ -12,6 +12,10 @@ mod nodever;
 mod gate;
 mod extradb;
 mod schema;
+mod usage;
+mod mail;
+mod localname;
+mod fixedlink;
 mod dbedit;
 mod editors;
 mod health;
@@ -267,6 +271,17 @@ pub fn run() {
                 tray::show_window(app.handle());
             }
             autobackup::spawn(app.handle().clone());
+            // Shared projects keep their .local names: announced at start, and again when the
+            // PC's address on the network changes.
+            {
+                let handle = app.handle().clone();
+                std::thread::spawn(move || loop {
+                    if let Ok((_, settings, _)) = handle.state::<Stack>().get() {
+                        localname::sync(&shared_projects(&settings), share::lan_ip().as_deref());
+                    }
+                    std::thread::sleep(std::time::Duration::from_secs(60));
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -308,6 +323,11 @@ pub fn run() {
             share_stop,
             share_allow_firewall,
             share_public_start,
+            share_fixed_start,
+            share_fixed_stop,
+            fixed_link_info,
+            fixed_link_save,
+            fixed_link_pick_ngrok,
             share_public_stop,
             share_dev_start,
             share_dev_stop,
@@ -331,6 +351,10 @@ pub fn run() {
             env_save,
             project_set_node,
             db_schema,
+            services_usage,
+            mail_list,
+            mail_get,
+            mail_delete,
             db_compare,
             diagram_window,
             import_sources,
@@ -564,6 +588,12 @@ struct ShareInfo {
     port: Option<u16>,
     lan_ip: Option<String>,
     lan_url: Option<String>,
+    /// Its fixed name on the Wi-Fi (blog.local) while one of its shares is on.
+    lan_name: Option<String>,
+    /// The fixed link's address, when an account is set up.
+    fixed_address: Option<String>,
+    /// The share using the fixed link right now (tunnel key: "blog", "blog#dev"), its link and password.
+    fixed: Option<FixedInUse>,
     /// QR code of `lan_url`, as SVG.
     lan_qr: Option<String>,
     firewall_ready: bool,
@@ -616,11 +646,20 @@ struct DevShareInfo {
     public_password: Option<String>,
 }
 
+#[derive(serde::Serialize)]
+struct FixedInUse {
+    key: String,
+    url: String,
+    password: Option<String>,
+}
+
 fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, tunnels: &share::Tunnels, name: &str) -> ShareInfo {
     let project = std::path::Path::new(&settings.www_dir).join(name);
     let port = settings.preferences.shared.get(name).copied();
     let lan_ip = share::lan_ip();
     let lan_url = port.zip(lan_ip.as_ref()).map(|(p, ip)| format!("http://{ip}:{p}/"));
+    let announced = localname::sync(&shared_projects(settings), lan_ip.as_deref());
+    let lan_name = announced.iter().any(|p| p == name).then(|| format!("{}.local", localname::host_for(name)));
     let public_url = tunnels.url(&tunnel_key(name, ""));
     let web = settings.web().map(|w| w.0);
     let tool = catalog::bundled().tools.cloudflared;
@@ -628,6 +667,14 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         port,
         lan_qr: lan_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
         lan_url,
+        lan_name,
+        fixed_address: settings
+            .preferences
+            .fixed_link
+            .as_ref()
+            .filter(|a| !a.token.is_empty())
+            .map(|a| format!("https://{}", a.address)),
+        fixed: fixedlink::current().map(|(key, url, password)| FixedInUse { key, url, password }),
         lan_ip,
         firewall_ready: share::firewall_ready(),
         network_private: share::network_private(),
@@ -674,6 +721,19 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
         }),
         app_parts: projects::app_parts(&project),
     }
+}
+
+/// Every project with something shared on the Wi-Fi, with one of its share ports (for its .local name).
+fn shared_projects(settings: &settings::Settings) -> std::collections::BTreeMap<String, u16> {
+    let p = &settings.preferences;
+    let mut out: std::collections::BTreeMap<String, u16> = p.shared.clone();
+    for (n, d) in &p.share_dev {
+        out.entry(n.clone()).or_insert(d.port);
+    }
+    for (n, a) in &p.share_app {
+        out.entry(n.clone()).or_insert(a.port);
+    }
+    out
 }
 
 /// Every share port in use, by any project's site, dev server or whole app.
@@ -995,6 +1055,136 @@ async fn share_public_start(
         Ok(share_info_for(&settings, &sup, &tunnels, &name))
     })
     .await
+}
+
+/// Points the user's fixed link (ngrok or Cloudflare) at a share, with an optional password.
+#[tauri::command]
+async fn share_fixed_start(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+    what: Option<String>,
+    password: Option<String>,
+) -> Result<ShareInfo, String> {
+    let (_, settings, sup) = stack.get()?;
+    let what = what.unwrap_or_default();
+    let p = &settings.preferences;
+    let port = match what.as_str() {
+        "dev" => p.share_dev.get(&name).map(|d| d.port).ok_or("Share the dev server first.")?,
+        "app" => p.share_app.get(&name).map(|a| a.port).ok_or("Share the whole app first.")?,
+        _ => *p.shared.get(&name).ok_or("Share the project on your network first.")?,
+    };
+    let account = p.fixed_link.clone().filter(|a| !a.token.is_empty()).ok_or("Set up your fixed link in Settings first.")?;
+    let password = password.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
+    let cloudflared = cloudflared_exe(&settings);
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        fixedlink::start(&account, cloudflared.as_deref(), &tunnel_key(&name, &what), port, password.as_deref())?;
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn share_fixed_stop(
+    stack: tauri::State<'_, Stack>,
+    tunnels: tauri::State<'_, Arc<share::Tunnels>>,
+    name: String,
+) -> Result<ShareInfo, String> {
+    let (_, settings, sup) = stack.get()?;
+    let tunnels = tunnels.inner().clone();
+    blocking(move || {
+        fixedlink::stop();
+        Ok(share_info_for(&settings, &sup, &tunnels, &name))
+    })
+    .await
+}
+
+#[derive(serde::Serialize)]
+struct FixedLinkInfo {
+    provider: Option<String>,
+    address: Option<String>,
+    /// A token is saved (it never leaves this PC's settings).
+    has_token: bool,
+    /// Where NexDB found ngrok.exe, if anywhere.
+    ngrok: Option<String>,
+    /// The port the provider must point at.
+    port: u16,
+}
+
+#[tauri::command]
+fn fixed_link_info(stack: tauri::State<Stack>) -> Result<FixedLinkInfo, String> {
+    let (_, settings, _) = stack.get()?;
+    let a = settings.preferences.fixed_link.clone();
+    Ok(FixedLinkInfo {
+        provider: a.as_ref().map(|a| a.provider.clone()),
+        address: a.as_ref().map(|a| a.address.clone()),
+        has_token: a.as_ref().is_some_and(|a| !a.token.is_empty()),
+        ngrok: fixedlink::find_ngrok(a.as_ref().and_then(|a| a.ngrok_path.as_deref())).map(|p| p.display().to_string()),
+        port: fixedlink::FIXED_PORT,
+    })
+}
+
+/// Saves (or, with no provider, removes) the fixed-link account. An empty token keeps the saved one.
+#[tauri::command]
+fn fixed_link_save(stack: tauri::State<Stack>, provider: Option<String>, address: String, token: String) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    let next = match provider {
+        None => None,
+        Some(provider) => {
+            if provider != "ngrok" && provider != "cloudflare" {
+                return Err("Pick ngrok or Cloudflare.".into());
+            }
+            let old = settings.preferences.fixed_link.clone();
+            let same = old.clone().filter(|a| a.provider == provider);
+            let token = if token.trim().is_empty() {
+                same.as_ref().map(|a| a.token.clone()).unwrap_or_default()
+            } else {
+                token.trim().to_string()
+            };
+            if token.is_empty() {
+                return Err(if provider == "ngrok" { "Paste your ngrok authtoken." } else { "Paste the tunnel token from Cloudflare." }.into());
+            }
+            Some(fixedlink::Account {
+                provider,
+                address: fixedlink::clean_address(&address)?,
+                token,
+                ngrok_path: old.and_then(|a| a.ngrok_path),
+            })
+        }
+    };
+    if next.is_none() {
+        fixedlink::stop();
+    }
+    let value = serde_json::to_value(&next).map_err(|e| e.to_string())?;
+    settings::edit(&root, |v| {
+        v["preferences"]["fixed_link"] = value.clone();
+        Ok(())
+    })?;
+    stack.update_settings(|s| s.preferences.fixed_link = next);
+    Ok(())
+}
+
+/// Lets the user point to ngrok.exe when NexDB can't find it.
+#[tauri::command]
+async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (root, settings, _) = stack.get()?;
+    let picked = app.dialog().file().set_title("Where is ngrok.exe?").add_filter("ngrok", &["exe"]).blocking_pick_file();
+    let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
+    if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("ngrok.exe")) {
+        return Err("Pick the file called ngrok.exe.".into());
+    }
+    let mut account =
+        settings.preferences.fixed_link.clone().unwrap_or(fixedlink::Account { provider: "ngrok".into(), ..Default::default() });
+    account.ngrok_path = Some(path.display().to_string());
+    let value = serde_json::to_value(&account).map_err(|e| e.to_string())?;
+    settings::edit(&root, |v| {
+        v["preferences"]["fixed_link"] = value.clone();
+        Ok(())
+    })?;
+    stack.update_settings(|s| s.preferences.fixed_link = Some(account));
+    Ok(Some(path.display().to_string()))
 }
 
 #[tauri::command]
@@ -1451,6 +1641,35 @@ async fn db_databases(db: tauri::State<'_, db::Db>) -> Result<Vec<db::DatabaseIn
 async fn db_tables(db: tauri::State<'_, db::Db>, name: String) -> Result<Vec<db::TableInfo>, String> {
     let db = db.inner().clone_handle();
     blocking(move || db.tables(&name)).await
+}
+
+/// The emails the mail catcher caught, newest first.
+#[tauri::command]
+async fn mail_list(limit: Option<u32>) -> Result<mail::Inbox, String> {
+    mail::list(limit.unwrap_or(100)).await
+}
+
+/// One caught email (marks it read).
+#[tauri::command]
+async fn mail_get(id: String) -> Result<mail::Message, String> {
+    mail::get(&id).await
+}
+
+/// Deletes caught emails; an empty list deletes them all.
+#[tauri::command]
+async fn mail_delete(ids: Vec<String>) -> Result<(), String> {
+    mail::delete(&ids).await
+}
+
+/// Memory and CPU of each running service (with the processes it started), for the Dashboard.
+#[tauri::command]
+async fn services_usage(stack: tauri::State<'_, Stack>) -> Result<Vec<usage::Usage>, String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || {
+        let running: Vec<(String, u32)> = sup.status().into_iter().filter_map(|s| s.pid.map(|p| (s.id, p))).collect();
+        Ok(usage::of(&running))
+    })
+    .await
 }
 
 /// A database's tables, columns, indexes and foreign keys, for the relationship diagram.

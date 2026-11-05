@@ -5,8 +5,10 @@
  * Every release with new features adds its chapter here (newest first in WHATS_NEW).
  */
 import type { GuideStep } from "./Tour";
+import { startServices } from "../lib/services";
 
 export const WHATS_NEW = [
+  { version: "0.5.0", chapter: "New in 0.5.0" },
   { version: "0.4.9", chapter: "New in 0.4.9" },
   { version: "0.4.7", chapter: "New in 0.4.7" },
 ] as const;
@@ -19,6 +21,121 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.0",
+    title: "A little magic this time",
+    body: "Building in the diagram, Nex organizing it, a mail inbox, memory and CPU per service, names on the Wi-Fi and links that stay the same. Practice mode: nothing on your PC changes.",
+    mood: "wizard",
+  },
+  // Nex organizes the diagram
+  {
+    chapter: "New in 0.5.0",
+    title: "A messy diagram",
+    body: "Here's the sample blog database. Click Relationships.",
+    page: "database",
+    run: openDatabase("blog"),
+    target: here('[data-guide="diagram-open"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Let me organize it",
+    body: "Lines everywhere. Click Nex, organize and watch.",
+    target: '[data-guide="diagram-organize"]',
+    wait: "click",
+    mood: "wizard",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Abracadabra",
+    body: "I read how the tables connect: the most-linked ones go in the middle, related ones side by side, and I keep the layout with the fewest crossing lines. Undo puts it back if you liked it better before.",
+    target: '[data-guide="diagram-organize"]',
+    mood: "wizard",
+  },
+  // Build in the diagram
+  {
+    chapter: "New in 0.5.0",
+    title: "Link tables without SQL",
+    body: "Click Add a link. (You can also drag from the dot next to a column onto another table.)",
+    target: '[data-guide="diagram-add-link"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Pick, check, make",
+    body: "Choose the column and the table it points at, and what happens when that row is deleted. The SQL is shown before anything runs. Pick a table to point at, then click Make the link.",
+    target: '[data-guide="link-dialog"]',
+    waitOn: '[data-guide="link-apply"]:not([disabled])',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "New tables too",
+    body: "New table opens the table designer right here. And clicking a line offers to remove that link. Click Close when you're done looking.",
+    target: '[data-guide="diagram-close"]',
+    wait: "click",
+  },
+  // Memory and CPU, the inbox
+  {
+    chapter: "New in 0.5.0",
+    title: "What each service uses",
+    body: "Running services now show their memory and CPU, counting the extra processes they start (Apache and PHP run several).",
+    page: "dashboard",
+    run: () => void startServices().catch(() => {}),
+    target: here('[data-guide="services"]'),
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Your apps' emails, right here",
+    body: "The mail catcher's inbox now opens inside NexDB. Click Open inbox.",
+    target: here('[data-guide="open-inbox"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Read them like any inbox",
+    body: "Click an email to read it as it looks, or as plain text. New ones arrive by themselves. Close it when you're done.",
+    target: '[data-guide="inbox"] .inbox',
+    waitOn: '[aria-label="Close the inbox"]',
+    wait: "click",
+  },
+  // Memcached
+  {
+    chapter: "New in 0.5.0",
+    title: "Memcached",
+    body: "A simple, fast cache, on the Versions page with Redis. Once installed it runs on the Dashboard, with a guide for your app.",
+    page: "versions",
+    target: here('[data-guide="ver-memcached"]'),
+  },
+  // Names on the Wi-Fi, fixed links
+  {
+    chapter: "New in 0.5.0",
+    title: "A name instead of numbers",
+    body: "Click Share.",
+    page: "projects",
+    run: openProject("blog"),
+    target: here('[data-guide="tab-share"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "blog.local",
+    body: "Shared projects also get a name on the Wi-Fi, so phones open blog.local instead of an address that changes with the network.",
+    target: here('[data-guide="share-named"]'),
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "Links that stay the same",
+    body: "With your own free ngrok or Cloudflare account, a project can keep one public address. Set it up here once, then turn it on from the Share tab.",
+    page: "settings",
+    target: here('[data-guide="fixed-link-card"]'),
+  },
+  {
+    chapter: "New in 0.5.0",
+    title: "That's 0.5.0!",
+    body: "Practice is over; your real projects are back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.4.9",
     title: "Four database tools, hands on",

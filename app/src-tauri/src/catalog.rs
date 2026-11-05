@@ -45,6 +45,9 @@ pub struct Tools {
     /// MongoDB Community server (the official Windows zip).
     #[serde(default)]
     pub mongodb: Option<Tool>,
+    /// Memcached, built for Windows from its own source.
+    #[serde(default)]
+    pub memcached: Option<Tool>,
 }
 
 impl Tools {
@@ -60,6 +63,7 @@ impl Tools {
             "cloudflared" => self.cloudflared.as_ref(),
             "mariadb" => self.mariadb.as_ref(),
             "mongodb" => self.mongodb.as_ref(),
+            "memcached" => self.memcached.as_ref(),
             _ => None,
         }
     }

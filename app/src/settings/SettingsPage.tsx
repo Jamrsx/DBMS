@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { FixedLinkCard } from "./FixedLinkCard";
 import { CHAPTERS, showGuide } from "../components/Tour";
 import { WHATS_NEW } from "../components/whatsNew";
 import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
@@ -56,6 +57,7 @@ export function SettingsPage({ active }: { active: boolean }) {
             <WebServerCard settings={settings} onChanged={load} />
             <PortsCard settings={settings} onSaved={load} />
             <HttpsCard active={active} />
+            <FixedLinkCard active={active} />
             <AutoBackupCard active={active} />
             <FoldersCard settings={settings} />
             <UpdatesCard version={settings.app_version} />

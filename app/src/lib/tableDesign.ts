@@ -323,3 +323,47 @@ export function starterColumns(): ColDraft[] {
     },
   ];
 }
+
+/** What happens to rows that point at a row that gets deleted. */
+export type OnDelete = "restrict" | "cascade" | "set null";
+
+/** A foreign key's default name, Laravel style: posts_user_id_foreign (64 characters at most). */
+export function foreignKeyName(table: string, columns: string[]): string {
+  return `${table}_${columns.join("_")}_foreign`.slice(0, 64);
+}
+
+/** ALTER TABLE … ADD CONSTRAINT … FOREIGN KEY, for a link drawn in the diagram. */
+export function addForeignKeySql(
+  engine: DbEngine,
+  table: string,
+  columns: string[],
+  toTable: string,
+  toColumns: string[],
+  name: string,
+  onDelete: OnDelete,
+): string {
+  const list = (cs: string[]) => cs.map((c) => q(engine, c)).join(", ");
+  return (
+    `ALTER TABLE ${q(engine, table)} ADD CONSTRAINT ${q(engine, name)} ` +
+    `FOREIGN KEY (${list(columns)}) REFERENCES ${q(engine, toTable)} (${list(toColumns)}) ON DELETE ${onDelete.toUpperCase()};`
+  );
+}
+
+/** Removes a foreign key (the columns and data stay). */
+export function dropForeignKeySql(engine: DbEngine, table: string, name: string): string {
+  return engine === "postgres"
+    ? `ALTER TABLE ${q(engine, table)} DROP CONSTRAINT ${q(engine, name)};`
+    : `ALTER TABLE ${q(engine, table)} DROP FOREIGN KEY ${q(engine, name)};`;
+}
+
+/** Plain words for why a link may not work: the two columns must hold the same kind of value. */
+export function linkProblem(fromType: string, toType: string): string | null {
+  const norm = (t: string) =>
+    t
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .replace(/\(\d+\)/, "")
+      .trim();
+  if (norm(fromType) === norm(toType)) return null;
+  return `The two columns hold different kinds of values (${fromType} and ${toType}). The database will probably refuse the link; make them the same type first (Edit table on the Structure tab).`;
+}

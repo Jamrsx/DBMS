@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, Globe, Layers, LoaderCircle, Lock, MonitorSmartphone, ShieldCheck, Smartphone } from "lucide-react";
+import {
+  AlertTriangle,
+  Globe,
+  Layers,
+  LoaderCircle,
+  Lock,
+  MonitorSmartphone,
+  ShieldCheck,
+  Smartphone,
+} from "lucide-react";
 import type { DevApp } from "../lib/projects";
 import { CopyButton } from "../components/CopyButton";
 import { nexCelebrate } from "../lib/nex";
@@ -11,7 +20,9 @@ import {
   startAppShare,
   startDevShare,
   sharePassword,
+  startFixedLink,
   startPublicLink,
+  stopFixedLink,
   startShare,
   stopAppShare,
   stopDevShare,
@@ -47,6 +58,8 @@ export function SharePanel({
   const [busy, setBusy] = useState<{ where: Where; label: string } | null>(null);
   // Public links ask for a password unless unticked; a fresh one is filled in per link.
   const [askPassword, setAskPassword] = useState<Record<string, boolean>>({});
+  // Per link: a new address each time, or the user's fixed one (when set up in Settings).
+  const [linkType, setLinkType] = useState<Record<string, "temp" | "fixed">>({});
   const [passwords, setPasswords] = useState<Record<string, string>>(() => ({
     site: sharePassword(),
     dev: sharePassword(),
@@ -179,6 +192,19 @@ export function SharePanel({
           <code>{url}</code>
           <CopyButton text={url} label={label} />
         </div>
+        {/* The same link by name, for phones and other devices on the Wi-Fi. */}
+        {info.lan_name && info.lan_ip && url.includes(`//${info.lan_ip}:`) && (
+          <div className="share-named" data-guide="share-named">
+            <span className="field-hint">Or by name, which stays the same when the network changes:</span>
+            <div className="share-url">
+              <code>{url.replace(`//${info.lan_ip}:`, `//${info.lan_name}:`)}</code>
+              <CopyButton text={url.replace(`//${info.lan_ip}:`, `//${info.lan_name}:`)} label={`${label} by name`} />
+            </div>
+            <span className="field-hint">
+              Works on iPhones, Macs, other PCs and most Android phones. If one can't open it, use the number address.
+            </span>
+          </div>
+        )}
         {after}
       </div>
     </div>
@@ -196,12 +222,48 @@ export function SharePanel({
     const what = kind === "dev" ? `${name}'s dev server` : name;
     const ask = askPassword[where] ?? true;
     const pw = passwords[where] ?? "";
+    const key = kind ? `${name}#${kind}` : name;
+    const fixedHere = info.fixed?.key === key ? info.fixed : null;
+    const fixedElsewhere = info.fixed && info.fixed.key !== key ? info.fixed : null;
+    const useFixed = !!info.fixed_address && (linkType[where] ?? "temp") === "fixed";
     return (
       <div className="share-sub">
         <h5>
           <Globe size={13} aria-hidden="true" /> Public link
         </h5>
-        {url ? (
+        {fixedHere ? (
+          linkBox(
+            fixedHere.url,
+            null,
+            "the fixed link",
+            "Your fixed link, the same every time, from anywhere:",
+            <>
+              {fixedHere.password ? (
+                <div className="share-password">
+                  <span>
+                    <Lock size={13} aria-hidden="true" /> Visitors type this password first:
+                  </span>
+                  <code>{fixedHere.password}</code>
+                  <CopyButton text={fixedHere.password} label="the password" />
+                </div>
+              ) : (
+                <p className="share-note">
+                  <AlertTriangle size={14} aria-hidden="true" /> Anyone with this link can open {what} while it's on.
+                </p>
+              )}
+              <div className="share-row">
+                <button
+                  className="btn btn-small"
+                  disabled={!!busy}
+                  onClick={() => void act(`${where}:public`, "Turning the fixed link off…", () => stopFixedLink(name))}
+                >
+                  Turn off the fixed link
+                </button>
+                {status(`${where}:public`)}
+              </div>
+            </>,
+          )
+        ) : url ? (
           linkBox(
             url,
             qr,
@@ -244,7 +306,33 @@ export function SharePanel({
               Open {what} from anywhere, for example to show a client. Through Cloudflare's free quick tunnels: no
               account, and the link changes each time.
             </p>
-            {info.tunnel_installed ? (
+            {info.fixed_address && (
+              <fieldset className="share-link-type" data-guide="share-link-type">
+                <legend className="visually-hidden">Kind of link</legend>
+                <label className="check-row">
+                  <input
+                    type="radio"
+                    checked={!useFixed}
+                    onChange={() => setLinkType((m) => ({ ...m, [where]: "temp" }))}
+                  />
+                  A new address each time
+                </label>
+                <label className="check-row">
+                  <input
+                    type="radio"
+                    checked={useFixed}
+                    onChange={() => setLinkType((m) => ({ ...m, [where]: "fixed" }))}
+                  />
+                  My fixed link, <code>{info.fixed_address}</code>
+                </label>
+                {useFixed && fixedElsewhere && (
+                  <p className="field-hint">
+                    Your fixed link shows {fixedElsewhere.key.replace("#", "'s ")} right now. Using it here moves it.
+                  </p>
+                )}
+              </fieldset>
+            )}
+            {info.tunnel_installed || useFixed ? (
               <>
                 <div className="share-ask">
                   <label className="check-row">
@@ -284,12 +372,17 @@ export function SharePanel({
                   data-guide={`public-create-${where}`}
                   disabled={!!busy || !ready || (ask && pw.trim().length < 4)}
                   onClick={() =>
-                    void act(`${where}:public`, "Asking Cloudflare for a link…", () =>
-                      startPublicLink(name, kind, ask ? pw.trim() : null),
+                    void act(
+                      `${where}:public`,
+                      useFixed ? "Turning on your fixed link…" : "Asking Cloudflare for a link…",
+                      () =>
+                        useFixed
+                          ? startFixedLink(name, kind, ask ? pw.trim() : null)
+                          : startPublicLink(name, kind, ask ? pw.trim() : null),
                     )
                   }
                 >
-                  Create public link
+                  {useFixed ? "Turn on my fixed link" : "Create public link"}
                 </button>
               </>
             ) : (

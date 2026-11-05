@@ -1,5 +1,24 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { KeyRound, LayoutGrid, List, Maximize2, Minus, Plus, RefreshCw, Search } from "lucide-react";
+import {
+  KeyRound,
+  LayoutGrid,
+  List,
+  Maximize2,
+  Minus,
+  Plus,
+  RefreshCw,
+  Search,
+  Table2,
+  Link2,
+  Undo2,
+  WandSparkles,
+} from "lucide-react";
+import { measure, organize, score } from "../lib/organize";
+import { LinkDialog } from "./LinkDialog";
+import { TableDesigner } from "./TableDesigner";
+import { realDesktopApp } from "../lib/scan";
+import { isPractice } from "../lib/practice";
+import { Nex } from "../components/Nex";
 import { dbSchema, type Schema, type SchemaLink, type SchemaTable } from "../lib/schema";
 
 const CARD_W = 230;
@@ -52,6 +71,29 @@ export function autoLayout(schema: Schema, keysOnly: boolean): Pos {
   return pos;
 }
 
+/** Tables in name order, four to a row: how a diagram looks before anyone arranges it. */
+function gridLayout(schema: Schema): Pos {
+  const pos: Pos = {};
+  const sorted = [...schema.tables].sort((a, b) => a.name.localeCompare(b.name));
+  const perRow = 4;
+  let y = 20;
+  for (let i = 0; i < sorted.length; i += perRow) {
+    const row = sorted.slice(i, i + perRow);
+    row.forEach((t, j) => (pos[t.name] = { x: 20 + j * (CARD_W + 60), y }));
+    y += Math.max(...row.map((t) => cardHeight(t, false))) + 40;
+  }
+  return pos;
+}
+
+/** Nex's layout for a schema (see lib/organize.ts). */
+function nexLayout(schema: Schema, keysOnly: boolean, linkedCols: Set<string>) {
+  return organize(
+    schema.tables.map((t) => ({ name: t.name, h: cardHeight(t, keysOnly, linkedCols) })),
+    schema.links.map((l) => ({ from: l.table, to: l.to_table })),
+    { cardW: CARD_W, gapX: GAP_X, gapY: GAP_Y },
+  );
+}
+
 function shownColumns(t: SchemaTable, keysOnly: boolean, linkedCols: Set<string>) {
   return keysOnly ? t.columns.filter((c) => c.key === "PRI" || linkedCols.has(`${t.name}.${c.name}`)) : t.columns;
 }
@@ -93,7 +135,13 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
       .then((s) => {
         setSchema(s);
         const saved = loadPositions(db);
-        const auto = autoLayout(s, false);
+        // Tables new since last time get a spot of their own.
+        // Practice starts from a plain alphabetical grid, so Nex has something to untangle.
+        const auto = isPractice() ? gridLayout(s) : nexLayout(s, false, new Set()).pos;
+        if (isPractice()) {
+          setPos(auto);
+          return;
+        }
         // Keep saved spots for known tables; new tables get the automatic place.
         setPos(Object.fromEntries(s.tables.map((t) => [t.name, saved?.[t.name] ?? auto[t.name]])));
       })
@@ -186,7 +234,69 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
       drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
     }
   };
+  // Building: a link being drawn, the link dialog, the new-table designer.
+  const [linking, setLinking] = useState<{ table: string; column: string; x: number; y: number } | null>(null);
+  const [dialog, setDialog] = useState<
+    { kind: "add"; table?: string; column?: string; toTable?: string } | { kind: "drop"; link: SchemaLink } | null
+  >(null);
+  const [designing, setDesigning] = useState(false);
+  const toWorld = (clientX: number, clientY: number) => {
+    const box = svg.current!.getBoundingClientRect();
+    return { x: (clientX - box.left - view.x) / view.zoom, y: (clientY - box.top - view.y) / view.zoom };
+  };
+  const startLink = (e: React.PointerEvent, table: string, column: string) => {
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    setLinking({ table, column, ...toWorld(e.clientX, e.clientY) });
+  };
+  const tableAt = (x: number, y: number) =>
+    schema?.tables.find((t) => {
+      const p = pos[t.name];
+      return p && x >= p.x && x <= p.x + CARD_W && y >= p.y && y <= p.y + cardHeight(t, keysOnly, linkedCols);
+    });
+  /** After a change: read the real database again, or (practice, preview) change the drawing only. */
+  const applied = (change: { added?: SchemaLink; removed?: SchemaLink; table?: string }) => {
+    setDialog(null);
+    setDesigning(false);
+    if (realDesktopApp && !isPractice()) {
+      load();
+      return;
+    }
+    setSchema((s) => {
+      if (!s) return s;
+      let links = s.links;
+      if (change.removed)
+        links = links.filter((l) => !(l.table === change.removed!.table && l.name === change.removed!.name));
+      if (change.added) links = [...links, change.added];
+      let tables = s.tables;
+      if (change.table && !tables.some((t) => t.name === change.table))
+        tables = [
+          ...tables,
+          {
+            name: change.table,
+            is_view: false,
+            rows: 0,
+            columns: [
+              {
+                name: "id",
+                column_type: "bigint unsigned",
+                nullable: false,
+                key: "PRI",
+                default: null,
+                extra: "auto_increment",
+              },
+            ],
+            indexes: [],
+          },
+        ];
+      return { ...s, links, tables };
+    });
+  };
   const onPointerMove = (e: React.PointerEvent) => {
+    if (linking) {
+      setLinking({ ...linking, ...toWorld(e.clientX, e.clientY) });
+      return;
+    }
     const d = drag.current;
     if (!d) return;
     const dx = e.clientX - d.sx;
@@ -195,17 +305,110 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
     else setPos((p) => ({ ...p, [d.name!]: { x: d.ox + dx / view.zoom, y: d.oy + dy / view.zoom } }));
   };
   const onPointerUp = () => {
+    if (linking) {
+      const target = tableAt(linking.x, linking.y);
+      setLinking(null);
+      if (target && target.name !== linking.table)
+        setDialog({ kind: "add", table: linking.table, column: linking.column, toTable: target.name });
+      return;
+    }
     if (drag.current?.kind === "card") save(pos);
     drag.current = null;
   };
 
-  const resetLayout = () => {
+  // "Nex, organize this": Nex (in his wizard hat) lays the tables out, they glide into place,
+  // and he says what changed. Undo puts them back.
+  const [wizard, setWizard] = useState<{ stage: "casting" | "done"; text: string; undo: Pos | null } | null>(null);
+  const [magic, setMagic] = useState<"casting" | "gliding" | "landed" | null>(null);
+  const anim = useRef(0);
+  const organizeNow = () => {
     if (!schema) return;
-    const auto = autoLayout(schema, keysOnly);
-    setPos(auto);
-    save(auto);
-    fitted.current = false;
+    const before = pos;
+    const boxes = schema.tables.map((t) => ({ name: t.name, h: cardHeight(t, keysOnly, linkedCols) }));
+    const edges = schema.links.map((l) => ({ from: l.table, to: l.to_table }));
+    const was = measure(boxes, edges, before, CARD_W);
+    setWizard({ stage: "casting", text: `Reading how ${schema.tables.length} tables connect…`, undo: before });
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) setMagic("casting");
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // A short pause so you see Nex at work; the layout itself takes a fraction of a second.
+    window.setTimeout(
+      () => {
+        const next = nexLayout(schema, keysOnly, linkedCols).pos;
+        const now = measure(boxes, edges, next, CARD_W);
+        // Already clearer than anything Nex found: leave it, and say so.
+        if (score(now) >= score(was)) {
+          setWizard({
+            stage: "done",
+            undo: null,
+            text: "This is already about as clear as it gets, so I left it as it is.",
+          });
+          setMagic(null);
+          return;
+        }
+        let finished = false;
+        const done = () => {
+          if (finished) return;
+          finished = true;
+          cancelAnimationFrame(anim.current);
+          setPos(next);
+          save(next);
+          setMagic((m) => (m ? "landed" : null));
+          window.setTimeout(() => setMagic(null), 900);
+          fitted.current = false;
+          const lonely = schema.tables.filter(
+            (t) => !schema.links.some((l) => l.table === t.name || l.to_table === t.name),
+          ).length;
+          // Say what got better, in numbers people can check by looking.
+          const better: string[] = [];
+          if (now.through < was.through) better.push(`lines through other tables ${was.through} → ${now.through}`);
+          if (now.crossings < was.crossings) better.push(`crossing lines ${was.crossings} → ${now.crossings}`);
+          const shorter = Math.round((1 - now.length / Math.max(1, was.length)) * 100);
+          if (better.length === 0 && shorter > 0) better.push(`lines ${shorter}% shorter`);
+          setWizard({
+            stage: "done",
+            undo: before,
+            text: `${better.length ? `Done: ${better.join(", ")}.` : "Done."} The most-linked tables are in the middle, related ones side by side${lonely ? `, and ${lonely} tables with no links are grouped to the right` : ""}.`,
+          });
+        };
+        if (reduce) return done();
+        // Glide from where they are to where they go.
+        const start = performance.now();
+        const from = before;
+        cancelAnimationFrame(anim.current);
+        setMagic("gliding");
+        const step = (now: number) => {
+          const t = Math.min(1, (now - start) / 700);
+          const e = 1 - Math.pow(1 - t, 3);
+          setPos(
+            Object.fromEntries(
+              Object.entries(next).map(([n, p]) => {
+                const a = from[n] ?? p;
+                return [n, { x: a.x + (p.x - a.x) * e, y: a.y + (p.y - a.y) * e }];
+              }),
+            ),
+          );
+          if (t < 1) anim.current = requestAnimationFrame(step);
+          else done();
+        };
+        anim.current = requestAnimationFrame(step);
+        // A minimized or background window gets no animation frames: finish anyway.
+        window.setTimeout(done, 1000);
+      },
+      reduce ? 0 : 900,
+    );
   };
+  const undoOrganize = () => {
+    if (!wizard?.undo) return;
+    setPos(wizard.undo);
+    save(wizard.undo);
+    setWizard(null);
+  };
+  useEffect(() => () => cancelAnimationFrame(anim.current), []);
+  // After Nex moves things, show them all.
+  useEffect(() => {
+    if (wizard?.stage === "done") fit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wizard?.stage]);
 
   if (error)
     return (
@@ -298,12 +501,25 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
               <button className="btn btn-small" onClick={fit} title="Show every table">
                 <Maximize2 size={13} aria-hidden="true" /> Fit
               </button>
+              <button className="btn btn-small" data-guide="diagram-new-table" onClick={() => setDesigning(true)}>
+                <Table2 size={13} aria-hidden="true" /> New table
+              </button>
               <button
-                className="btn btn-small btn-quiet"
-                onClick={resetLayout}
-                title="Put the tables back in their automatic places"
+                className="btn btn-small"
+                data-guide="diagram-add-link"
+                onClick={() => setDialog({ kind: "add" })}
+                title="Link a column to another table (or drag from a column's dot onto a table)"
               >
-                Tidy up
+                <Link2 size={13} aria-hidden="true" /> Add a link
+              </button>
+              <button
+                className="btn btn-small btn-primary"
+                data-guide="diagram-organize"
+                disabled={wizard?.stage === "casting"}
+                onClick={organizeNow}
+                title="Nex reads how the tables connect and lays them out: fewer crossing lines, related tables together"
+              >
+                <WandSparkles size={13} aria-hidden="true" /> Nex, organize
               </button>
             </>
           )}
@@ -389,9 +605,11 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
                     className={on ? (selected ? "diagram-link on" : "diagram-link") : "diagram-link dim"}
                     markerStart="url(#dg-many)"
                     markerEnd="url(#dg-one)"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => setDialog({ kind: "drop", link: l })}
                   >
                     <title>
-                      {l.table}.{l.columns.join(", ")} → {l.to_table}.{l.to_columns.join(", ")}
+                      {l.table}.{l.columns.join(", ")} → {l.to_table}.{l.to_columns.join(", ")} (click to remove)
                     </title>
                   </path>
                 );
@@ -412,7 +630,7 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
                   <g
                     key={t.name}
                     transform={`translate(${p.x} ${p.y})`}
-                    className={`diagram-card${selected === t.name ? " selected" : ""}${dim ? " dim" : ""}`}
+                    className={`diagram-card${selected === t.name ? " selected" : ""}${dim ? " dim" : ""}${magic === "gliding" ? " gliding" : ""}`}
                     onPointerDown={(e) => onPointerDown(e, t.name)}
                     tabIndex={0}
                     role="button"
@@ -454,14 +672,87 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
                           <text x={CARD_W - 12} y="15" textAnchor="end" className="diagram-type">
                             {c.column_type.length > 18 ? `${c.column_type.slice(0, 17)}…` : c.column_type}
                           </text>
+                          {c.key !== "PRI" && (
+                            <circle
+                              cx={CARD_W}
+                              cy="11"
+                              r="6"
+                              className="diagram-handle"
+                              data-guide={`handle-${t.name}-${c.name}`}
+                              onPointerDown={(e) => startLink(e, t.name, c.name)}
+                            >
+                              <title>Drag onto another table to link {c.name} to it</title>
+                            </circle>
+                          )}
                         </g>
                       );
                     })}
                   </g>
                 );
               })}
+              {linking && pos[linking.table] && (
+                <path
+                  className="diagram-link drawing"
+                  d={`M${pos[linking.table].x + CARD_W} ${rowY(
+                    schema.tables.find((t) => t.name === linking.table)!,
+                    linking.column,
+                  )} L${linking.x} ${linking.y}`}
+                />
+              )}
             </g>
           </svg>
+          {magic && <Sparkles stage={magic} />}
+          {dialog && (
+            <div className="diagram-dialog-wrap">
+              <LinkDialog schema={schema} db={db} mode={dialog} onCancel={() => setDialog(null)} onDone={applied} />
+            </div>
+          )}
+          {designing && (
+            <div className="diagram-dialog-wrap">
+              <div className="diagram-designer">
+                <TableDesigner
+                  db={db}
+                  table={null}
+                  engine={schema.engine}
+                  onCancel={() => setDesigning(false)}
+                  onDone={(name) => {
+                    // Place it where the user is looking.
+                    const box = svg.current?.getBoundingClientRect();
+                    if (box)
+                      setPos((p) => ({
+                        ...p,
+                        [name]: {
+                          x: (box.width / 2 - view.x) / view.zoom - CARD_W / 2,
+                          y: (box.height / 3 - view.y) / view.zoom,
+                        },
+                      }));
+                    applied({ table: name });
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          {wizard && (
+            <div className="diagram-wizard" role="status" data-guide="diagram-wizard">
+              <Nex state={wizard.stage === "casting" ? "wizard" : "success"} size={72} />
+              <div className="diagram-wizard-bubble">
+                <strong>{wizard.stage === "casting" ? "Abracadabra…" : "All organized"}</strong>
+                <p>{wizard.text}</p>
+                {wizard.stage === "done" && (
+                  <div className="diagram-wizard-actions">
+                    {wizard.undo && (
+                      <button className="btn btn-small" onClick={undoOrganize}>
+                        <Undo2 size={13} aria-hidden="true" /> Undo
+                      </button>
+                    )}
+                    <button className="btn btn-small btn-quiet" onClick={() => setWizard(null)}>
+                      OK
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <p className="diagram-help field-hint">
             <KeyRound size={12} aria-hidden="true" /> PK primary key · FK points at another table · drag tables to
             arrange them · drag the background or scroll to move · Ctrl+scroll to zoom · click a table to see its links
@@ -517,6 +808,40 @@ function LinkList({ schema }: { schema: Schema }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** Twinkling sparkles and a golden shimmer over the diagram while Nex works (decorative only). */
+function Sparkles({ stage }: { stage: "casting" | "gliding" | "landed" }) {
+  // Fixed spots, so the sparkles don't jump around between renders.
+  const spots = useMemo(
+    () =>
+      Array.from({ length: 28 }, (_, i) => {
+        const r = (n: number) => ((Math.sin(i * 97.13 + n * 13.7) + 1) / 2) % 1;
+        return {
+          left: `${4 + r(1) * 92}%`,
+          top: `${6 + r(2) * 86}%`,
+          size: 8 + Math.round(r(3) * 14),
+          delay: `${(r(4) * 1.2).toFixed(2)}s`,
+          hue: i % 3,
+        };
+      }),
+    [],
+  );
+  return (
+    <div className={`diagram-magic ${stage}`} aria-hidden="true">
+      <div className="diagram-magic-shimmer" />
+      {spots.map((p, i) => (
+        <svg
+          key={i}
+          className={`diagram-spark h${p.hue}`}
+          style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDelay: p.delay }}
+          viewBox="-12 -12 24 24"
+        >
+          <path d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3 Z" />
+        </svg>
+      ))}
     </div>
   );
 }

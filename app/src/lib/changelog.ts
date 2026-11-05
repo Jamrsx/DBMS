@@ -7,6 +7,19 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.0",
+    title: "A little magic",
+    changes: [
+      "Nex, organize: in the relationship diagram, Nex puts on his wizard hat and lays your tables out: the most-linked in the middle, related ones together, fewest crossing lines. Undo if you liked it before.",
+      "Build in the diagram: make a new table there, or drag from a column onto another table to link them. The SQL is shown first; click a line to remove a link.",
+      "Read caught emails inside NexDB: the mail catcher's inbox opens in the app, with new ones counted on the Dashboard.",
+      "The Dashboard shows the memory and CPU each running service uses.",
+      "Memcached on the Versions page, as a Dashboard service.",
+      "Shared projects get a name on the Wi-Fi, like blog.local, so phones don't need a number address.",
+      "Public links that stay the same, with your own free ngrok or Cloudflare account (Settings).",
+    ],
+  },
+  {
     version: "0.4.9",
     title: "Database tools",
     changes: [

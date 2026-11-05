@@ -155,7 +155,28 @@
 @keyframes nx-ledsleep{0%,100%{opacity:.15}50%{opacity:.4}}
 @keyframes nx-mouth{0%,100%{transform:scale(1)}50%{transform:scale(1.3,1.4)}}
 @keyframes nx-zzz{0%{transform:translate(0,0) scale(.6);opacity:0}20%{opacity:1}100%{transform:translate(46px,-120px) scale(1.2);opacity:0}}
-@media (prefers-reduced-motion:reduce){.nex *{animation-play-state:paused!important}}</style>
+@media (prefers-reduced-motion:reduce){.nex *{animation-play-state:paused!important}}
+/* ---------- wizard (organizing the diagram) ---------- */
+.nex.s-wizard .antenna,.nex.s-wizard .armR,.nex.s-wizard .eye-open,.nex.s-wizard .m-smile{display:none}
+.nex.s-wizard .eye-happy,.nex.s-wizard .m-happy,.nex.s-wizard .x-hat,.nex.s-wizard .x-wand,.nex.s-wizard .x-magic{display:inline}
+.nex.s-wizard .body{animation:nx-cast 1.6s ease-in-out infinite}
+.nex.s-wizard .armL{transform-origin:100% 0;animation:nx-armL 1.6s ease-in-out infinite}
+.nex.s-wizard .wand{transform-origin:0% 100%;animation:nx-wand .8s ease-in-out infinite}
+.nex.s-wizard .hat-tip{transform-origin:0% 100%;animation:nx-hat 1.6s ease-in-out infinite}
+.nex.s-wizard .hat-star{animation:nx-twinkle 1.2s ease-in-out infinite}
+.nex.s-wizard .hat-star.s2{animation-delay:-.4s}
+.nex.s-wizard .hat-star.s3{animation-delay:-.8s}
+.nex.s-wizard .mg1{animation:nx-magic 1.2s ease-out infinite}
+.nex.s-wizard .mg2{animation:nx-magic 1.2s ease-out -.3s infinite}
+.nex.s-wizard .mg3{animation:nx-magic 1.2s ease-out -.6s infinite}
+.nex.s-wizard .mg4{animation:nx-magic 1.2s ease-out -.9s infinite}
+.nex.s-wizard .wand-tip{animation:nx-twinkle .8s ease-in-out infinite}
+@keyframes nx-cast{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-10px) rotate(-1.5deg)}}
+@keyframes nx-wand{0%,100%{transform:rotate(-14deg)}50%{transform:rotate(16deg)}}
+@keyframes nx-hat{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(6deg)}}
+@keyframes nx-twinkle{0%,100%{transform:scale(.7);opacity:.6}50%{transform:scale(1.15);opacity:1}}
+@keyframes nx-magic{0%{transform:translate(0,0) scale(.3);opacity:0}25%{opacity:1}100%{transform:translate(var(--mx),var(--my)) scale(1.1);opacity:0}}
+</style>
 
   <g transform="translate(0 40)">
     <ellipse class="shadow a" cx="538" cy="824" rx="170" ry="16" fill="#0A70FF" opacity=".16"/>
@@ -167,6 +188,14 @@
       <g fill="none" stroke="#3D8CFF" stroke-width="28" stroke-linejoin="round" stroke-linecap="round">
         <g class="armL a"><path d="M262 470 Q236 470 236 496 V520 Q236 540 220 548 Q236 556 236 576 V600 Q236 626 262 626"/></g>
         <g class="armR a"><path d="M814 470 Q840 470 840 496 V520 Q840 540 856 548 Q840 556 840 576 V600 Q840 626 814 626"/></g>
+      </g>
+      <g class="x x-wand">
+        <path d="M814 470 Q846 470 852 500 L866 540" fill="none" stroke="#3D8CFF" stroke-width="28" stroke-linecap="round"/>
+        <g class="wand a">
+          <path d="M866 540 L952 330" stroke="#5A3A1E" stroke-width="26" stroke-linecap="round"/>
+          <path d="M866 540 L952 330" stroke="#8A5A2E" stroke-width="12" stroke-linecap="round"/>
+          <path class="wand-tip a" d="M956 280 l14 30 33 5 -24 22 6 33 -29 -16 -29 16 6 -33 -24 -22 33 -5 Z" fill="#FFD54A" stroke="#040B16" stroke-width="6" stroke-linejoin="round"/>
+        </g>
       </g>
       <g class="base a" stroke="#040B16" stroke-width="10" stroke-linejoin="round">
         <path d="M343 640 V710 A195 48 0 0 0 733 710 V640 Z" fill="#0A70FF"/>
@@ -220,6 +249,17 @@
           <ellipse cx="538" cy="496" rx="22" ry="10" fill="#3D8CFF"/>
         </g>
         <ellipse class="m-zzz a" cx="538" cy="488" rx="10" ry="12" fill="#040B16"/>
+        <g class="x x-hat">
+          <ellipse cx="538" cy="296" rx="236" ry="50" fill="#2E1D6E" stroke="#040B16" stroke-width="10"/>
+          <path class="hat-tip a" d="M376 286 Q430 190 500 120 Q560 62 640 36 Q622 92 650 150 Q676 214 700 286 Z" fill="#4B2FB0" stroke="#040B16" stroke-width="10" stroke-linejoin="round"/>
+          <path d="M392 262 Q538 300 690 262 L700 286 Q538 326 376 286 Z" fill="#FFC83D" stroke="#040B16" stroke-width="8" stroke-linejoin="round"/>
+          <g fill="#FFD54A" stroke="#040B16" stroke-width="4" stroke-linejoin="round">
+            <path class="hat-star a" d="M520 200 l8 16 18 3 -13 12 3 18 -16 -9 -16 9 3 -18 -13 -12 18 -3 Z"/>
+            <path class="hat-star s2 a" d="M600 130 l6 12 13 2 -10 9 3 13 -12 -6 -12 6 3 -13 -10 -9 13 -2 Z"/>
+            <path class="hat-star s3 a" d="M460 244 l5 10 11 2 -8 7 2 11 -10 -5 -10 5 2 -11 -8 -7 11 -2 Z"/>
+          </g>
+          <circle class="hat-star a" cx="640" cy="36" r="14" fill="#FFD54A" stroke="#040B16" stroke-width="6"/>
+        </g>
         <g class="x x-sweat"><g transform="translate(722 366)"><path class="drop a" d="M0 -26 Q22 4 0 18 Q-22 4 0 -26Z" fill="#A8CBFF" stroke="#040B16" stroke-width="6" stroke-linejoin="round" opacity="0"/></g></g>
       </g>
     </g>
@@ -235,6 +275,12 @@
       </g>
     </g>
     <g class="x x-spark"><g transform="translate(150 270)"><path class="a sp1" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g><g transform="translate(930 270)"><path class="a sp2" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#5FA3FF" opacity="0"/></g><g transform="translate(300 130)"><path class="a sp3" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#5FA3FF" opacity="0"/></g><g transform="translate(780 130)"><path class="a sp4" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g><g transform="translate(120 430)"><path class="a sp5" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#3D8CFF" opacity="0"/></g><g transform="translate(950 430)"><path class="a sp6" d="M0 -24 L6 -6 L24 0 L6 6 L0 24 L-6 6 L-24 0 L-6 -6 Z" fill="#A8CBFF" opacity="0"/></g></g>
+    <g class="x x-magic" fill="#FFD54A">
+      <g transform="translate(960 320)"><path class="a mg1" style="--mx:60px;--my:-80px" d="M0 -16 L4 -4 L16 0 L4 4 L0 16 L-4 4 L-16 0 L-4 -4 Z"/></g>
+      <g transform="translate(960 320)"><path class="a mg2" style="--mx:-70px;--my:-100px" d="M0 -12 L3 -3 L12 0 L3 3 L0 12 L-3 3 L-12 0 L-3 -3 Z" fill="#A8CBFF"/></g>
+      <g transform="translate(960 320)"><path class="a mg3" style="--mx:90px;--my:20px" d="M0 -14 L4 -4 L14 0 L4 4 L0 14 L-4 4 L-14 0 L-4 -4 Z"/></g>
+      <g transform="translate(960 320)"><path class="a mg4" style="--mx:-20px;--my:-140px" d="M0 -10 L3 -3 L10 0 L3 3 L0 10 L-3 3 L-10 0 L-3 -3 Z" fill="#FFFFFF"/></g>
+    </g>
     <g class="x x-zzz" fill="#5FA3FF" font-family="Arial,Helvetica,sans-serif" font-weight="800">
       <text class="z1 a" x="790" y="270" font-size="48">Z</text>
       <text class="z2 a" x="790" y="270" font-size="60">Z</text>

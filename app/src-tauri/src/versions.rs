@@ -13,10 +13,10 @@ use std::path::{Path, PathBuf};
 pub const COMPONENTS: [&str; 5] = ["php", "apache", "mysql", "node", "nginx"];
 pub const MARKER: &str = ".devmanager-installed";
 /// Tools shown on the Versions page, in this order.
-pub const TOOLS: [&str; 9] =
-    ["composer", "git", "python", "cloudflared", "postgres", "mariadb", "mongodb", "mailpit", "redis"];
+pub const TOOLS: [&str; 10] =
+    ["composer", "git", "python", "cloudflared", "postgres", "mariadb", "mongodb", "mailpit", "redis", "memcached"];
 /// Tools that run as services on the Dashboard once installed.
-pub const SERVICE_TOOLS: [&str; 5] = ["postgres", "mariadb", "mongodb", "mailpit", "redis"];
+pub const SERVICE_TOOLS: [&str; 6] = ["postgres", "mariadb", "mongodb", "mailpit", "redis", "memcached"];
 
 #[derive(Debug, Serialize, PartialEq)]
 pub struct Installed {
@@ -113,6 +113,7 @@ pub fn name_of(id: &str) -> &str {
         "postgres" => "PostgreSQL",
         "mariadb" => "MariaDB",
         "mongodb" => "MongoDB",
+        "memcached" => "Memcached",
         "python" => "Python",
         "cloudflared" => "Public links (Cloudflare Tunnel)",
         other => other,
@@ -130,6 +131,7 @@ fn about(id: &str) -> &'static str {
         "git" => "Downloads and versions code, for example with git clone in the Terminal.",
         "mailpit" => "Catches every email your apps send and shows it in an inbox, so nothing reaches real people.",
         "redis" => "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
+        "memcached" => "A simple, fast in-memory cache. Runs on port 11211, for this PC only.",
         "postgres" => "A second database server, for apps built on PostgreSQL instead of MySQL.",
         "mariadb" => "A MySQL-compatible database server. Runs beside MySQL on port 3307, user root with no password.",
         "mongodb" => "A document database for apps that store JSON-like data. Runs on port 27017, for this PC only.",
@@ -154,6 +156,7 @@ pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
         "postgres" => dir.join("bin").join("postgres.exe"),
         "mariadb" => dir.join("bin").join("mariadbd.exe"),
         "mongodb" => dir.join("bin").join("mongod.exe"),
+        "memcached" => dir.join("bin").join("memcached.exe"),
         "python" => dir.join("python.exe"),
         "cloudflared" => dir.join("cloudflared.exe"),
         _ => dir.to_path_buf(),

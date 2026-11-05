@@ -31,18 +31,31 @@ impl Drop for Gate {
 }
 
 struct Secret {
-    password: String,
+    /// None: an open forwarder (a fixed link without a password).
+    password: Option<String>,
     token: String,
 }
 
 pub fn start(upstream: u16, password: &str) -> Result<Gate, String> {
-    if password.chars().count() < 4 {
+    start_on(upstream, Some(password), 0)
+}
+
+/// Like `start`, on a chosen port (0 picks a free one). Without a password it only forwards,
+/// which is how a fixed link reaches whichever project uses it.
+pub fn start_on(upstream: u16, password: Option<&str>, port: u16) -> Result<Gate, String> {
+    if password.is_some_and(|p| p.chars().count() < 4) {
         return Err("Use a password of at least 4 characters.".into());
     }
-    let listener = TcpListener::bind(("127.0.0.1", 0)).map_err(|e| format!("Couldn't start the password page: {e}"))?;
+    let listener = TcpListener::bind(("127.0.0.1", port)).map_err(|e| {
+        if port != 0 {
+            format!("Port {port} is in use by another program, so the fixed link can't start. Close that program, or stop the other fixed link.")
+        } else {
+            format!("Couldn't start the password page: {e}")
+        }
+    })?;
     let port = listener.local_addr().map_err(|e| e.to_string())?.port();
     let stop = Arc::new(AtomicBool::new(false));
-    let secret = Arc::new(Secret { password: password.to_string(), token: token()? });
+    let secret = Arc::new(Secret { password: password.map(str::to_string), token: token()? });
     let flag = stop.clone();
     std::thread::spawn(move || {
         for conn in listener.incoming() {
@@ -136,10 +149,10 @@ fn serve(mut conn: TcpStream, upstream: u16, secret: &Secret) -> std::io::Result
     let text = String::from_utf8_lossy(&raw).to_string();
     let Some(head) = parse_head(&text) else { return Ok(()) };
 
-    if head.path.starts_with(LOGIN_PATH) {
+    if secret.password.is_some() && head.path.starts_with(LOGIN_PATH) {
         return sign_in(conn, &head, rest, secret);
     }
-    if !signed_in(&head, &secret.token) {
+    if secret.password.is_some() && !signed_in(&head, &secret.token) {
         let wants_page = head.method == "GET" && head.header("accept").is_some_and(|a| a.contains("text/html"));
         let body = if wants_page { page(&head.path, false) } else { "Sign in first: open this link in a browser.".into() };
         let status = if wants_page { "200 OK" } else { "401 Unauthorized" };
@@ -209,7 +222,7 @@ fn sign_in(mut conn: TcpStream, head: &Head, mut body: Vec<u8>, secret: &Secret)
     let next = field("next")
         .filter(|n| n.starts_with('/') && !n.starts_with("//") && !n.contains('\\') && !n.contains(['\r', '\n']))
         .unwrap_or_else(|| "/".into());
-    if field("password").is_some_and(|p| same(&p, &secret.password)) {
+    if field("password").is_some_and(|p| secret.password.as_deref().is_some_and(|want| same(&p, want))) {
         let cookie = format!("Set-Cookie: {COOKIE}={}; Path=/; HttpOnly; Secure; SameSite=Lax", secret.token);
         return respond(conn, "303 See Other", "text/plain; charset=utf-8", &[&cookie, &format!("Location: {next}")], "");
     }
@@ -360,6 +373,14 @@ mod tests {
         let mut out = String::new();
         s.read_to_string(&mut out).unwrap();
         assert!(out.starts_with("HTTP/1.1 401"), "{out}");
+    }
+
+    #[test]
+    fn without_a_password_it_only_forwards() {
+        let gate = start_on(upstream(), None, 0).unwrap();
+        let site = get(gate.port, "/blog", "");
+        assert!(site.contains("site /blog close=close"), "{site}");
+        assert!(!site.contains("Password needed"));
     }
 
     #[test]

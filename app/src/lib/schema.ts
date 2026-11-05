@@ -145,12 +145,42 @@ function sampleSchema(name: string): Schema {
       indexes: [pk()],
     },
   ];
+  // More of a real app, so there's something to organize.
+  const more = (n: string, rows: number, cols: ColumnInfo[]): SchemaTable => ({
+    name: n,
+    is_view: false,
+    rows,
+    columns: [id(), ...cols],
+    indexes: [pk()],
+  });
+  const ref = (c: string) => col(c, "bigint unsigned", "MUL");
+  tables.push(
+    more("tags", 14, [col("name", "varchar(60)")]),
+    more("post_tag", 90, [ref("post_id"), ref("tag_id")]),
+    more("likes", 400, [ref("user_id"), ref("post_id")]),
+    more("follows", 52, [ref("follower_id"), ref("followed_id")]),
+    more("profiles", 12, [ref("user_id"), col("bio", "text", "", true)]),
+    more("media", 33, [ref("post_id"), col("path", "varchar(255)")]),
+    more("notifications", 120, [ref("user_id"), col("data", "json")]),
+    more("sessions", 4, [ref("user_id"), col("payload", "longtext")]),
+    more("password_reset_tokens", 0, [col("email", "varchar(255)"), col("token", "varchar(255)")]),
+  );
   const links = [
     fk("posts", "user_id", "users"),
     fk("comments", "post_id", "posts"),
     fk("comments", "user_id", "users"),
     fk("category_post", "post_id", "posts"),
     fk("category_post", "category_id", "categories"),
+    fk("post_tag", "post_id", "posts"),
+    fk("post_tag", "tag_id", "tags"),
+    fk("likes", "user_id", "users"),
+    fk("likes", "post_id", "posts"),
+    fk("follows", "follower_id", "users"),
+    fk("follows", "followed_id", "users"),
+    fk("profiles", "user_id", "users"),
+    fk("media", "post_id", "posts"),
+    fk("notifications", "user_id", "users"),
+    fk("sessions", "user_id", "users"),
   ];
   return { database: name, engine: "mysql", tables, links, partial: false };
 }

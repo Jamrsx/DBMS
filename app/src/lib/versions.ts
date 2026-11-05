@@ -115,6 +115,7 @@ const NAMES: Record<string, string> = {
   redis: "Redis",
   mariadb: "MariaDB",
   mongodb: "MongoDB",
+  memcached: "Memcached",
   postgres: "PostgreSQL",
   python: "Python",
   cloudflared: "Public links (Cloudflare Tunnel)",
@@ -130,6 +131,7 @@ const ABOUT: Record<string, string> = {
   redis: "A fast in-memory store Laravel and other apps use for cache, sessions and queues.",
   mariadb: "A MySQL-compatible database server. Runs beside MySQL on port 3307, user root with no password.",
   mongodb: "A document database for apps that store JSON-like data. Runs on port 27017, for this PC only.",
+  memcached: "A simple, fast in-memory cache. Runs on port 11211, for this PC only.",
   postgres: "A second database server, for apps built on PostgreSQL instead of MySQL.",
   python: "Runs Python scripts and installs packages with pip in the Terminal.",
   cloudflared: "Gives a shared project a temporary public link, so anyone can open it from anywhere.",
@@ -166,6 +168,7 @@ function previewInfo(): VersionsInfo {
     redis: [["8.10.3", "8.10.3", ["latest"], 13]],
     mariadb: [["12.3.3", "12.3", ["lts"], 99]],
     mongodb: [["9.0.4", "9.0", ["latest"], 943]],
+    memcached: [["1.6.8", "1.6", ["latest"], 3]],
   };
   return {
     catalog_date: "2026-10-30",
@@ -176,7 +179,7 @@ function previewInfo(): VersionsInfo {
       const activeLine = active ? rows.find(([line]) => active.startsWith(line + "."))?.[0] : undefined;
       const kind = ["composer", "git", "python", "cloudflared"].includes(id)
         ? "tool"
-        : ["postgres", "mariadb", "mongodb", "mailpit", "redis"].includes(id)
+        : ["postgres", "mariadb", "mongodb", "mailpit", "redis", "memcached"].includes(id)
           ? "service"
           : "runtime";
       return {

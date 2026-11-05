@@ -239,4 +239,48 @@ mod tests {
         sup.stop("mongodb").unwrap();
         assert!(!mongodb_ping(port));
     }
+
+    /// Downloads Memcached from the catalog (a community Windows build), starts it on a spare
+    /// port, stores and reads a value. `cargo test real_memcached -- --ignored --nocapture`
+    #[test]
+    #[ignore]
+    fn real_memcached() {
+        use crate::supervisor::{ServiceSpec, StopMethod, Supervisor};
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let tool = crate::catalog::bundled().tools.memcached.expect("catalog has Memcached");
+        let base = root.join("bin").join("memcached").join(format!("memcached-{}", tool.version));
+        tauri::async_runtime::block_on(crate::installer::install_archive(&tool.download, root, &base, "get-memcached", &|_| {}))
+            .unwrap();
+        assert!(crate::versions::exe_for("memcached", &base).is_file(), "memcached.exe where NexDB looks for it");
+        let port = 11311u16;
+        let sup = Supervisor::new(vec![ServiceSpec {
+            id: "memcached".into(),
+            name: "Memcached".into(),
+            version: Some(tool.version.clone()),
+            exe: base.join("bin").join("memcached.exe"),
+            args: vec!["-p".into(), port.to_string(), "-U".into(), "0".into(), "-l".into(), "127.0.0.1".into(), "-m".into(), "64".into()],
+            cwd: base.clone(),
+            port,
+            managed: true,
+            stop: StopMethod::Kill,
+            log: root.join("memcached.log"),
+        }]);
+        sup.start("memcached").unwrap();
+        let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        s.write_all(b"set greeting 0 60 5\r\nhello\r\nget greeting\r\n").unwrap();
+        let mut got = String::new();
+        let mut buf = [0u8; 256];
+        while !got.contains("END") {
+            let n = s.read(&mut buf).unwrap();
+            if n == 0 {
+                break;
+            }
+            got.push_str(&String::from_utf8_lossy(&buf[..n]));
+        }
+        println!("{got}");
+        assert!(got.contains("STORED") && got.contains("VALUE greeting 0 5\r\nhello"), "{got}");
+        sup.stop("memcached").unwrap();
+    }
 }

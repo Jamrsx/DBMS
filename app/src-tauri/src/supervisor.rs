@@ -296,6 +296,31 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             log: logs.join("mailpit.log"),
         });
     }
+    if let Some(dir) = component("memcached").and_then(|c| dir_of(&c.path)) {
+        specs.push(ServiceSpec {
+            id: "memcached".into(),
+            name: "Memcached".into(),
+            version: component("memcached").and_then(|c| c.version.clone()),
+            exe: dir.join("bin").join("memcached.exe"),
+            // 64 MB of memory, TCP only, this PC only.
+            args: vec![
+                "-p".into(),
+                MEMCACHED_PORT.to_string(),
+                "-U".into(),
+                "0".into(),
+                "-l".into(),
+                "127.0.0.1".into(),
+                "-m".into(),
+                "64".into(),
+            ],
+            cwd: dir,
+            port: MEMCACHED_PORT,
+            managed: true,
+            // A cache: nothing to save, so ending it is fine.
+            stop: StopMethod::Kill,
+            log: logs.join("memcached.log"),
+        });
+    }
     if let Some(dir) = component("redis").and_then(|c| dir_of(&c.path)) {
         specs.push(ServiceSpec {
             id: "redis".into(),
@@ -324,6 +349,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
 pub const MAIL_SMTP_PORT: u16 = 1025;
 pub const MAIL_WEB_PORT: u16 = 8025;
 pub const REDIS_PORT: u16 = 6379;
+pub const MEMCACHED_PORT: u16 = 11211;
 pub const POSTGRES_PORT: u16 = 5432;
 
 impl Supervisor {

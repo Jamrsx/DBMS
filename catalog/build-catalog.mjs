@@ -278,6 +278,7 @@ const catalog = {
     "github.com/cloudflare/cloudflared",
     "archive.mariadb.org",
     "fastdl.mongodb.org",
+    "github.com/jefyt/memcached-windows",
   ],
   components,
   tools: { composer: await composerTool(), phpmyadmin: await phpmyadminTool(), git: await gitTool(),
@@ -291,6 +292,8 @@ const catalog = {
     })),
     redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
     mariadb: await mariadbTool(),
+    // No official Windows build; this one is built from memcached's own source, with a GitHub checksum.
+    memcached: await githubTool("jefyt/memcached-windows", /^memcached-[\d.]+-win64-mingw\.zip$/),
     mongodb: await mongodbTool(),
   },
 };

@@ -64,6 +64,9 @@ pub struct Preferences {
     /// A second folder (another drive, a USB stick) that automatic backups are copied to.
     #[serde(default)]
     pub auto_backup_copy: Option<String>,
+    /// The user's own ngrok or Cloudflare account, for a public link that stays the same.
+    #[serde(default)]
+    pub fixed_link: Option<crate::fixedlink::Account>,
     /// Projects that use another installed PHP version than the default: project -> version.
     #[serde(default)]
     pub project_php: std::collections::BTreeMap<String, String>,
@@ -110,6 +113,7 @@ impl Default for Preferences {
             auto_backup: default_auto_backup(),
             auto_backup_keep: default_auto_backup_keep(),
             auto_backup_copy: None,
+            fixed_link: None,
             project_php: Default::default(),
             shared: Default::default(),
             site_root: Default::default(),
