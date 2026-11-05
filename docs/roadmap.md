@@ -378,6 +378,21 @@ Mail catcher (with 0.3.2's services):
 
 ### 0.5.2: Teams and your own services
 
+Fixes first, from the "Link two tables" walkthrough step (in a ~1100 px wide window):
+
+- The Link two tables dialog keeps everything inside it. The type warning and the SQL line ran
+  past its right edge, and Cancel and "Make the link" were cut off. Long text now wraps, the SQL
+  scrolls inside its box, and the buttons always stay in view.
+- Nex never sits on the dialog's text. When there's no room beside a big dialog, he shrinks to a
+  small bubble without the avatar, or waits beside it in the dim area, instead of covering the
+  warning.
+- The walkthrough check also:
+  - runs at a ~1100 × 780 window;
+  - repeats each step after changing its choices, since the warning only appears then;
+  - fails when anything spills outside the highlighted dialog or a button is cut off.
+
+New:
+
 - Docker containers as services.
 - Share a project's setup (versions, services, `.env` template) with a team as one file.
 - Plugins, or custom services you define yourself.
