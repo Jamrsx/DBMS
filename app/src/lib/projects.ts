@@ -84,8 +84,16 @@ export async function listEditors(): Promise<Editor[]> {
   ];
 }
 
+/**
+ * Opens a project in an editor. VS Code, Cursor and Windsurf also get the project's PHP in their
+ * settings, so their new terminals use it; Nex says which.
+ */
 export async function openInEditor(name: string, editor: string): Promise<void> {
-  if (inDesktopApp) return invoke("project_open_in", { name, editor });
+  if (!inDesktopApp) return;
+  const opened = await invoke<{ php: string | null; note: string | null }>("project_open_in", { name, editor });
+  const { nexSay, nexOops } = await import("./nex");
+  if (opened.note) nexOops(opened.note);
+  else if (opened.php) nexSay("hello", `${name} opens with PHP ${opened.php} in the editor's new terminals.`, 5000);
 }
 
 /** Updates code newer PHP warns about; resolves to how many lines changed. */
@@ -334,8 +342,22 @@ export async function projectDetails(name: string): Promise<ProjectDetails> {
     laravel: name === "blog" ? "Backend" : name === "my-shop" ? "" : null,
     node:
       name === "blog"
-        ? { wanted: "20", file: ".nvmrc", using: "26.13.0", missing: true, default: "26.13.0", installed: ["26.13.0", "22.11.0"] }
-        : { wanted: null, file: "", using: "26.13.0", missing: false, default: "26.13.0", installed: ["26.13.0", "22.11.0"] },
+        ? {
+            wanted: "20",
+            file: ".nvmrc",
+            using: "26.13.0",
+            missing: true,
+            default: "26.13.0",
+            installed: ["26.13.0", "22.11.0"],
+          }
+        : {
+            wanted: null,
+            file: "",
+            using: "26.13.0",
+            missing: false,
+            default: "26.13.0",
+            installed: ["26.13.0", "22.11.0"],
+          },
     // The preview's blog is a monorepo like parish: an API, a Vite app and a mobile app.
     site:
       name === "blog"

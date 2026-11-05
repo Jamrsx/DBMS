@@ -9043,3 +9043,16 @@ body:has(.welcome) .nex-corner {
     transform: scaleX(1);
   }
 }
+
+/* Check my setup: which PHP other terminals use. */
+.other-php-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin: 10px 0 6px;
+}
+
+.other-php-pick .field {
+  min-width: 260px;
+}

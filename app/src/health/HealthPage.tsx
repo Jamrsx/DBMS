@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { OtherTerminalsCard } from "./OtherTerminalsCard";
 import { AlertTriangle, CheckCircle2, FileArchive, Info, RefreshCw, XCircle } from "lucide-react";
 import { Nex, type NexState } from "../components/Nex";
 import { allowFirewall } from "../lib/share";
@@ -186,6 +187,7 @@ export function HealthPage({
                       </li>
                     );
                   })}
+                  {area === "This PC" && <OtherTerminalsCard />}
                 </ul>
               </section>
             );

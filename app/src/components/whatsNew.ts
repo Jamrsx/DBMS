@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.3", chapter: "New in 0.5.3" },
   { version: "0.5.2", chapter: "New in 0.5.2" },
   { version: "0.5.1", chapter: "New in 0.5.1" },
   { version: "0.5.0", chapter: "New in 0.5.0" },
@@ -24,6 +25,40 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.3",
+    title: "The right PHP, everywhere",
+    body: "Your editor and your other terminals can use the same PHP as NexDB now. Practice mode: nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.3",
+    title: "Each project's PHP",
+    body: "Opening a project in VS Code, Cursor or Windsurf from NexDB gives the editor this PHP: its terminals and PHP checks use it, whatever Windows has first.",
+    page: "projects",
+    run: openProject("blog"),
+    target: here('[data-guide="project-php"]'),
+  },
+  {
+    chapter: "New in 0.5.3",
+    title: "Other terminals",
+    body: "Click Check my setup.",
+    target: '.nav-item[data-page="health"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.3",
+    title: "Pick from every PHP on this PC",
+    body: "NexDB's, Laragon's, XAMPP's… Pick one and cmd, PowerShell and other terminals use it. The first time, Windows asks for permission; As Windows has it puts things back.",
+    page: "health",
+    target: here('[data-guide="other-php"]'),
+  },
+  {
+    chapter: "New in 0.5.3",
+    title: "That's 0.5.3!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.2",
     title: "Faster, and for teams",

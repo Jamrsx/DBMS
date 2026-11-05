@@ -321,10 +321,11 @@ export function ProjectDetails({
           )}
 
           {info && (
-            <div className="details-section">
+            <div className="details-section" data-guide="project-php">
               <h3>PHP version</h3>
               <p className="field-hint">
-                The website, its terminal and Composer all use this version. Install more versions on the Versions page.
+                The website, its terminal, Composer, and VS Code or Cursor opened from here all use this version.
+                Install more versions on the Versions page.
               </p>
               <div className="details-row">
                 <select

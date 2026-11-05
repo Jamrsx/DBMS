@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.3",
+    title: "The right PHP, everywhere",
+    changes: [
+      "Opening a project in VS Code, Cursor or Windsurf from NexDB gives the editor that project's PHP (8.5, or 8.4 if the project is set to it): its terminals and PHP checks use it, even when Windows lists another PHP, like Laragon's, first.",
+      "It follows along: change a project's PHP, or NexDB's default, and the editor settings update too.",
+      "Check my setup → This PC: pick which PHP other terminals use, from every PHP on the PC (NexDB's, Laragon's, XAMPP's, WAMP's…). Composer follows it. The first time, Windows asks for permission; As Windows has it puts things back.",
+    ],
+  },
+  {
     version: "0.5.2",
     title: "Faster, and for teams",
     changes: [

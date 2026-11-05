@@ -267,7 +267,7 @@ fn projects(settings: &Settings, out: &mut Vec<Check>) {
     }
 }
 
-fn this_pc(root: &Path, settings: &Settings, out: &mut Vec<Check>) {
+fn this_pc(root: &Path, _settings: &Settings, out: &mut Vec<Check>) {
     let before = out.len();
     if let Some(disk) = crate::scan::disk_space(root) {
         let gb = disk.free_bytes as f64 / 1e9;
@@ -282,20 +282,7 @@ fn this_pc(root: &Path, settings: &Settings, out: &mut Vec<Check>) {
             ));
         }
     }
-    // Other terminals (not NexDB's) may find another PHP first.
-    let nexdb_php = component_dir(settings, "php");
-    let first_php = std::env::var("PATH").unwrap_or_default().split(';').map(PathBuf::from).find(|d| d.join("php.exe").is_file());
-    if let Some(dir) = first_php {
-        if nexdb_php.as_ref().is_none_or(|p| !dir.starts_with(p)) && !dir.starts_with(root) {
-            out.push(check(
-                "This PC",
-                "info",
-                format!("Other terminals use PHP from {}", dir.display()),
-                Some("NexDB's own terminal always uses NexDB's PHP, Composer and Node. Windows' other terminals find this PHP first on PATH.".into()),
-                None,
-            ));
-        }
-    }
+    // Which PHP other terminals use is its own card on the page, with a choice (see syspath).
     if out.len() == before {
         out.push(check("This PC", "ok", "Enough disk space", None, None));
     }

@@ -55,6 +55,7 @@ Rules every release follows:
 | 0.5.0 | Nex organizes the diagram (wizard hat, sparkles, undo); build tables and links in the diagram; in-app mail inbox; memory and CPU per service; Memcached; .local names on the Wi-Fi; fixed public links with ngrok or Cloudflare |
 | 0.5.1 | Settings in six parts; Mail page in the sidebar with a new-email count; skipped updates install on the next launch; Nex and the practice banner never cover what's explained (with an automated check at three window sizes); no sample update notice in practice |
 | 0.5.2 | Welcome screen after setup (blue flash, Nex says hello, the tour starts); Start all side by side; Performance page; clearer service details; Docker containers on the Dashboard; team setup file; services of your own; Link two tables dialog fits its window and Nex stays off its text; walkthrough check runs at ~1100 x 780 and after changing choices |
+| 0.5.3 | Editors opened from NexDB use the project's PHP (.vscode/settings.json, kept up to date); Check my setup lets you pick which PHP other terminals use from every PHP on the PC |
 
 ## Next
 

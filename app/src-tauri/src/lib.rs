@@ -21,6 +21,7 @@ mod localname;
 mod fixedlink;
 mod dbedit;
 mod editors;
+mod editorphp;
 mod health;
 mod importer;
 mod installer;
@@ -38,6 +39,7 @@ mod quickstart;
 mod scan;
 mod settings;
 mod share;
+mod syspath;
 mod supervisor;
 mod terminal;
 mod tray;
@@ -350,6 +352,8 @@ pub fn run() {
             services_usage,
             performance,
             docker_info,
+            other_terminals_info,
+            other_terminals_choose,
             team_setup_export,
             team_setup_check,
             team_setup_apply,
@@ -1239,6 +1243,7 @@ async fn project_set_php(
     if name.contains(['/', '\\']) || name.starts_with('.') || !folder.is_dir() {
         return Err("That project doesn't exist any more.".into());
     }
+    let name_for_editor = name.clone();
     let version = version.filter(|v| Some(v) != phpver::default_version(&settings).as_ref());
     if let Some(v) = &version {
         if !phpver::installed(&root, &settings).contains_key(v) {
@@ -1259,7 +1264,11 @@ async fn project_set_php(
         v["preferences"]["project_php"] = map.into();
         Ok(())
     })
-    .await
+    .await?;
+    if let Ok((root, settings, _)) = stack.get() {
+        refresh_editor_php(&root, &settings, Some(&name_for_editor));
+    }
+    Ok(())
 }
 
 /// The project's folder and its Laravel app's folder (the project itself, or Backend…).
@@ -1459,10 +1468,50 @@ fn editors_list() -> Vec<editors::Editor> {
 
 /// Opens a project folder in one of the installed editors.
 #[tauri::command]
-fn project_open_in(stack: tauri::State<Stack>, name: String, editor: String) -> Result<(), String> {
-    let (_, settings, _) = stack.get()?;
+fn project_open_in(stack: tauri::State<Stack>, name: String, editor: String) -> Result<OpenedIn, String> {
+    let (root, settings, _) = stack.get()?;
     let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
-    editors::open(&editor, &dir)
+    // VS Code and its kin get the project's PHP in their settings first, so their terminals use it.
+    let mut opened = OpenedIn { php: None, note: None };
+    if editorphp::VSCODE_FAMILY.contains(&editor.as_str()) {
+        if let Some(php) = editorphp::for_project(&root, &settings, &name, &dir) {
+            match editorphp::write(&dir, &php) {
+                Ok(_) => opened.php = Some(php.version),
+                Err(e) => opened.note = Some(e),
+            }
+        }
+    }
+    editors::open(&editor, &dir)?;
+    Ok(opened)
+}
+
+#[derive(serde::Serialize)]
+struct OpenedIn {
+    /// The PHP version the editor's new terminals use.
+    php: Option<String>,
+    /// Why the editor settings couldn't be written, when they couldn't.
+    note: Option<String>,
+}
+
+/// Rewrites the PHP in editor settings NexDB wrote before (after a PHP change), for one project
+/// or all of them. Projects never opened in VS Code from NexDB are left alone.
+fn refresh_editor_php(root: &std::path::Path, settings: &settings::Settings, only: Option<&str>) {
+    let www = std::path::Path::new(&settings.www_dir);
+    let names: Vec<String> = match only {
+        Some(n) => vec![n.to_string()],
+        None => std::fs::read_dir(www)
+            .map(|rd| rd.flatten().filter(|e| e.path().is_dir()).map(|e| e.file_name().to_string_lossy().to_string()).collect())
+            .unwrap_or_default(),
+    };
+    for name in names {
+        let Some(dir) = projects::project_dir(www, &name) else { continue };
+        if editorphp::written(&dir).is_none() {
+            continue;
+        }
+        if let Some(php) = editorphp::for_project(root, settings, &name, &dir) {
+            let _ = editorphp::write(&dir, &php);
+        }
+    }
 }
 
 /// Updates code newer PHP warns about (see `phpfix`) in one project. Returns how many uses changed.
@@ -1798,6 +1847,24 @@ async fn custom_service_pick(app: tauri::AppHandle) -> Result<Option<String>, St
     use tauri_plugin_dialog::DialogExt;
     let picked = app.dialog().file().set_title("Which program should NexDB run?").add_filter("Programs", &["exe"]).blocking_pick_file();
     Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
+}
+
+/// Every PHP on the PC and which one Windows' other terminals use, for "Check my setup".
+#[tauri::command]
+async fn other_terminals_info(stack: tauri::State<'_, Stack>) -> Result<syspath::OtherTerminals, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || Ok(syspath::state(&root, &settings))).await
+}
+
+/// Makes other terminals use the PHP in `dir`; None goes back to how Windows had it.
+#[tauri::command]
+async fn other_terminals_choose(stack: tauri::State<'_, Stack>, dir: Option<String>) -> Result<syspath::OtherTerminals, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        syspath::choose(&root, &settings, dir.as_deref())?;
+        Ok(syspath::state(&root, &settings))
+    })
+    .await
 }
 
 /// Whether Docker is installed and running, for the Dashboard's Docker group.
@@ -2191,6 +2258,8 @@ async fn save_ports(
     .await?;
     stack.load(&app);
     let (root, settings, sup) = stack.get()?;
+    // Projects on the default PHP follow it in their editor settings too.
+    refresh_editor_php(&root, &settings, None);
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
         let errors = sup.start_many(&was_running);
