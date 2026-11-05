@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import nexSvg from "../assets/nex.svg?raw";
 
 /** Nex's moods. One drawing holds them all; the state is a class on its root. */
-export type NexState = "hello" | "idle" | "thinking" | "loading" | "success" | "error" | "sleeping" | "wizard";
+export type NexState = "hello" | "idle" | "thinking" | "loading" | "success" | "error" | "sleeping" | "wizard" | "teacher";
 
 // The drawing without its fixed size, title and label, so CSS sizes it and each use labels it.
 const BASE = nexSvg

@@ -156,6 +156,19 @@
 @keyframes nx-mouth{0%,100%{transform:scale(1)}50%{transform:scale(1.3,1.4)}}
 @keyframes nx-zzz{0%{transform:translate(0,0) scale(.6);opacity:0}20%{opacity:1}100%{transform:translate(46px,-120px) scale(1.2);opacity:0}}
 @media (prefers-reduced-motion:reduce){.nex *{animation-play-state:paused!important}}
+/* ---------- teacher (the welcome after setup) ---------- */
+.nex.s-teacher .armR{display:none}
+.nex.s-teacher .x-glasses,.nex.s-teacher .x-bowtie,.nex.s-teacher .x-pointer{display:inline}
+.nex.s-teacher .body{animation:nx-breathe 3.6s ease-in-out infinite}
+.nex.s-teacher .head{animation:nx-nod 3.6s ease-in-out infinite}
+.nex.s-teacher .eye-open{animation:nx-blink 4s infinite}
+.nex.s-teacher .armL{transform-origin:100% 0;animation:nx-armL 3.6s ease-in-out infinite}
+.nex.s-teacher .pointer{transform-origin:0% 100%;animation:nx-point 1.8s ease-in-out infinite}
+.nex.s-teacher .lens{animation:nx-glint 3.6s ease-in-out infinite}
+@keyframes nx-nod{0%,100%{transform:rotate(0)}30%{transform:rotate(-2deg)}60%{transform:rotate(1.5deg)}}
+@keyframes nx-point{0%,100%{transform:rotate(0)}35%{transform:rotate(-9deg)}50%{transform:rotate(-3deg)}62%{transform:rotate(-8deg)}}
+@keyframes nx-glint{0%,70%,100%{opacity:.18}80%{opacity:.45}}
+
 /* ---------- wizard (organizing the diagram) ---------- */
 .nex.s-wizard .antenna,.nex.s-wizard .armR,.nex.s-wizard .eye-open,.nex.s-wizard .m-smile{display:none}
 .nex.s-wizard .eye-happy,.nex.s-wizard .m-happy,.nex.s-wizard .x-hat,.nex.s-wizard .x-wand,.nex.s-wizard .x-magic{display:inline}
@@ -197,6 +210,14 @@
           <path class="wand-tip a" d="M956 280 l14 30 33 5 -24 22 6 33 -29 -16 -29 16 6 -33 -24 -22 33 -5 Z" fill="#FFD54A" stroke="#040B16" stroke-width="6" stroke-linejoin="round"/>
         </g>
       </g>
+      <g class="x x-pointer">
+        <path d="M814 470 Q846 470 852 500 L866 540" fill="none" stroke="#3D8CFF" stroke-width="28" stroke-linecap="round"/>
+        <g class="pointer a">
+          <path d="M866 540 L996 262" stroke="#2A1A0E" stroke-width="22" stroke-linecap="round"/>
+          <path d="M866 540 L996 262" stroke="#7A5230" stroke-width="10" stroke-linecap="round"/>
+          <circle cx="1000" cy="254" r="15" fill="#FFFFFF" stroke="#040B16" stroke-width="6"/>
+        </g>
+      </g>
       <g class="base a" stroke="#040B16" stroke-width="10" stroke-linejoin="round">
         <path d="M343 640 V710 A195 48 0 0 0 733 710 V640 Z" fill="#0A70FF"/>
         <ellipse cx="538" cy="640" rx="195" ry="48" fill="#3D8CFF"/>
@@ -210,6 +231,12 @@
           <circle class="led led1" cx="392" cy="584" r="10"/>
           <circle class="led led2" cx="428" cy="584" r="10"/>
           <circle class="led led3" cx="464" cy="584" r="10"/>
+        </g>
+        <g class="x x-bowtie" stroke="#040B16" stroke-width="8" stroke-linejoin="round">
+          <path d="M538 536 L478 506 Q466 536 478 566 Z" fill="#E0475B"/>
+          <path d="M538 536 L598 506 Q610 536 598 566 Z" fill="#E0475B"/>
+          <path d="M486 520 L520 532 M590 520 L556 532" stroke="#9E2338" stroke-width="5" fill="none"/>
+          <rect x="522" y="518" width="32" height="36" rx="10" fill="#B8304A"/>
         </g>
       </g>
       <g class="head a">
@@ -240,6 +267,20 @@
           <g class="eye-x" fill="none" stroke="#040B16" stroke-width="12" stroke-linecap="round">
             <path d="M432 399 L472 439 M472 399 L432 439"/><path d="M604 399 L644 439 M644 399 L604 439"/>
           </g>
+        </g>
+        <g class="x x-glasses">
+          <g fill="#A8CBFF">
+            <rect class="lens a" x="398" y="370" width="108" height="96" rx="30" opacity=".18"/>
+            <rect class="lens a" x="570" y="370" width="108" height="96" rx="30" opacity=".18"/>
+          </g>
+          <g fill="none" stroke="#040B16" stroke-width="11" stroke-linejoin="round" stroke-linecap="round">
+            <rect x="398" y="370" width="108" height="96" rx="30"/>
+            <rect x="570" y="370" width="108" height="96" rx="30"/>
+            <path d="M506 408 Q538 390 570 408"/>
+            <path d="M398 404 L304 388 M678 404 L772 388"/>
+          </g>
+          <path d="M414 388 Q426 378 444 378" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none" opacity=".7"/>
+          <path d="M586 388 Q598 378 616 378" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" fill="none" opacity=".7"/>
         </g>
         <path class="m-smile" d="M492 462 Q538 508 584 462" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round"/>
         <path class="m-flat" d="M510 484 H566" fill="none" stroke="#040B16" stroke-width="13" stroke-linecap="round"/>

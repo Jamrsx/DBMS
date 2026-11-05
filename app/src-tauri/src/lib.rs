@@ -13,6 +13,9 @@ mod gate;
 mod extradb;
 mod schema;
 mod usage;
+mod teamfile;
+mod custom;
+mod docker;
 mod mail;
 mod localname;
 mod fixedlink;
@@ -196,15 +199,8 @@ async fn start_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> R
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
         let ids = id.map(|i| vec![i]).unwrap_or_else(|| sup.ids());
-        let mut errors = Vec::new();
-        for id in ids {
-            match sup.start(&id) {
-                Ok(()) => {}
-                // Watched-only services are skipped by Start All.
-                Err(e) if e.contains("managed outside") => {}
-                Err(e) => errors.push(e),
-            }
-        }
+        // All at once; watched-only services are skipped by Start All.
+        let errors = sup.start_many(&ids);
         if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
     })
     .await
@@ -352,6 +348,17 @@ pub fn run() {
             project_set_node,
             db_schema,
             services_usage,
+            performance,
+            docker_info,
+            team_setup_export,
+            team_setup_check,
+            team_setup_apply,
+            custom_service_add,
+            custom_service_remove,
+            custom_service_pick,
+            docker_list,
+            docker_action,
+            docker_logs,
             mail_list,
             mail_get,
             mail_delete,
@@ -454,9 +461,7 @@ pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
         let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
         if start {
             if installer::refresh_configs(&root, &settings).is_ok() {
-                for id in sup.ids() {
-                    let _ = sup.start(&id);
-                }
+                let _ = sup.start_many(&sup.ids());
             }
         } else {
             sup.stop_all();
@@ -1672,6 +1677,168 @@ async fn services_usage(stack: tauri::State<'_, Stack>) -> Result<Vec<usage::Usa
     .await
 }
 
+/// The project's `.env` to share: in the project folder, or its Laravel app's folder.
+fn team_env(dir: &std::path::Path) -> (String, Vec<envfile::Entry>) {
+    let files = envfile::files(dir);
+    let pick = files.iter().find(|f| f.exists && f.folder.is_empty()).or_else(|| files.iter().find(|f| f.exists)).or(files.first());
+    pick.map(|f| (f.folder.clone(), f.entries.clone())).unwrap_or_default()
+}
+
+fn project_php_version(root: &std::path::Path, settings: &settings::Settings, name: &str) -> Option<String> {
+    settings.preferences.project_php.get(name).cloned().or_else(|| phpver::default_version(settings)).filter(|_| !root.as_os_str().is_empty())
+}
+
+#[derive(serde::Serialize)]
+struct TeamCheck {
+    setup: teamfile::TeamSetup,
+    /// What this PC still lacks, in plain words.
+    missing: Vec<String>,
+    /// The project has its own .env already (applying leaves it alone).
+    has_env: bool,
+    /// The PHP version the project uses here now.
+    php_here: Option<String>,
+}
+
+/// Saves `nexdb-setup.json` in the project: its PHP version, the services it uses, and a
+/// `.env` template with every password, key and token left blank.
+#[tauri::command]
+async fn team_setup_export(stack: tauri::State<'_, Stack>, name: String) -> Result<String, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
+        let (folder, env) = team_env(&dir);
+        let setup = teamfile::build(&name, project_php_version(&root, &settings, &name), &folder, &env);
+        teamfile::write(&dir, &setup).map(|p| p.display().to_string())
+    })
+    .await
+}
+
+/// The project's `nexdb-setup.json`, when it has one, and what this PC lacks for it.
+#[tauri::command]
+async fn team_setup_check(stack: tauri::State<'_, Stack>, name: String) -> Result<Option<TeamCheck>, String> {
+    let (root, settings, sup) = stack.get()?;
+    blocking(move || {
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
+        let Some(setup) = teamfile::read(&dir)? else { return Ok(None) };
+        let php: Vec<String> = phpver::installed(&root, &settings).keys().cloned().collect();
+        let missing = teamfile::missing(&setup, &php, &sup.ids());
+        let has_env = dir.join(&setup.env_folder).join(".env").is_file();
+        Ok(Some(TeamCheck { setup, missing, has_env, php_here: project_php_version(&root, &settings, &name) }))
+    })
+    .await
+}
+
+/// Sets the project up from its `nexdb-setup.json`: its PHP version (when installed here) and
+/// a `.env` from the template when it has none. Returns what was done, in plain words.
+#[tauri::command]
+async fn team_setup_apply(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<String>, String> {
+    let (root, settings, _) = stack.get()?;
+    let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &name).ok_or("That project doesn't exist any more.")?;
+    let setup = teamfile::read(&dir)?.ok_or("This project has no nexdb-setup.json.")?;
+    let mut done = Vec::new();
+    let env_path = dir.join(&setup.env_folder).join(".env");
+    if !env_path.is_file() {
+        std::fs::write(&env_path, teamfile::env_text(&setup)).map_err(|e| format!("Couldn't write the .env: {e}"))?;
+        done.push("Made the .env from the template. Fill in the empty passwords and keys on the Settings (.env) tab.".to_string());
+    }
+    if let Some(v) = setup.php.clone() {
+        let here = project_php_version(&root, &settings, &name);
+        if here.as_deref() != Some(v.as_str()) && phpver::installed(&root, &settings).contains_key(&v) {
+            project_set_php(app.clone(), stack.clone(), name.clone(), Some(v.clone())).await?;
+            done.push(format!("The project now runs on PHP {v}."));
+        }
+    }
+    if done.is_empty() {
+        done.push("Everything the file asks for was already set.".into());
+    }
+    Ok(done)
+}
+
+/// Adds a program of your own to start and stop with NexDB's services.
+#[tauri::command]
+async fn custom_service_add(
+    app: tauri::AppHandle,
+    stack: tauri::State<'_, Stack>,
+    name: String,
+    exe: String,
+    args: String,
+    port: u16,
+) -> Result<(), String> {
+    let (_, _, sup) = stack.get()?;
+    let taken: Vec<(String, u16)> = sup.status().into_iter().map(|s| (s.id, s.port)).collect();
+    let service = custom::check(&name, &exe, &args, port, &taken)?;
+    let value = serde_json::to_value(&service).map_err(|e| e.to_string())?;
+    apply_service_change(&app, &stack, move |v| {
+        let list = v["preferences"]["custom_services"].as_array_mut().map(std::mem::take).unwrap_or_default();
+        let mut list = list;
+        list.push(value);
+        v["preferences"]["custom_services"] = list.into();
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn custom_service_remove(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String) -> Result<(), String> {
+    if !id.starts_with("custom-") {
+        return Err("Only services you added can be removed here.".into());
+    }
+    apply_service_change(&app, &stack, move |v| {
+        if let Some(list) = v["preferences"]["custom_services"].as_array_mut() {
+            list.retain(|s| s["id"].as_str() != Some(id.as_str()));
+        }
+        Ok(())
+    })
+    .await
+}
+
+/// Asks for the program to run.
+#[tauri::command]
+async fn custom_service_pick(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let picked = app.dialog().file().set_title("Which program should NexDB run?").add_filter("Programs", &["exe"]).blocking_pick_file();
+    Ok(picked.and_then(|p| p.into_path().ok()).map(|p| p.display().to_string()))
+}
+
+/// Whether Docker is installed and running, for the Dashboard's Docker group.
+#[tauri::command]
+async fn docker_info() -> Result<docker::DockerInfo, String> {
+    blocking(|| Ok(docker::info())).await
+}
+
+#[tauri::command]
+async fn docker_list() -> Result<Vec<docker::Container>, String> {
+    blocking(docker::list).await
+}
+
+/// Start, stop or restart one container.
+#[tauri::command]
+async fn docker_action(id: String, what: String) -> Result<(), String> {
+    blocking(move || docker::action(&id, &what)).await
+}
+
+#[tauri::command]
+async fn docker_logs(id: String) -> Result<String, String> {
+    blocking(move || docker::logs(&id)).await
+}
+
+#[derive(serde::Serialize)]
+struct Performance {
+    services: Vec<usage::Usage>,
+    pc: usage::Pc,
+}
+
+/// The Performance page: each running service's use and the whole PC's, in one reading.
+#[tauri::command]
+async fn performance(stack: tauri::State<'_, Stack>) -> Result<Performance, String> {
+    let (_, _, sup) = stack.get()?;
+    blocking(move || {
+        let running: Vec<(String, u32)> = sup.status().into_iter().filter_map(|s| s.pid.map(|p| (s.id, p))).collect();
+        Ok(Performance { services: usage::of(&running), pc: usage::pc() })
+    })
+    .await
+}
+
 /// A database's tables, columns, indexes and foreign keys, for the relationship diagram.
 #[tauri::command]
 async fn db_schema(db: tauri::State<'_, db::Db>, name: String) -> Result<schema::Schema, String> {
@@ -2026,12 +2193,7 @@ async fn save_ports(
     let (root, settings, sup) = stack.get()?;
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
-        let mut errors = Vec::new();
-        for id in was_running {
-            if let Err(e) = sup.start(&id) {
-                errors.push(e);
-            }
-        }
+        let errors = sup.start_many(&was_running);
         if errors.is_empty() { Ok(()) } else { Err(format!("Saved, but some services didn't start again: {}", errors.join(" "))) }
     })
     .await

@@ -7,6 +7,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.2",
+    title: "Faster, and for teams",
+    changes: [
+      'A welcome after setup: a blue flash, "Welcome to NexDB", then Nex says hello and the tour starts by itself (or Skip for now).',
+      "Start all is quicker: services start side by side, so the slowest one sets the wait instead of all of them added up. Each row says Running as soon as its own service is up.",
+      "A Performance page in the sidebar: the memory and CPU NexDB's services use next to the whole PC's, graphs of the last five minutes, and which service uses the most.",
+      "Each service's details on the Dashboard are small labelled chips (port, uptime, memory, CPU with a bar) instead of one faint line.",
+      "Docker containers show on the Dashboard when Docker Desktop is installed: start, stop or restart them, see their address and read their log.",
+      "Team setup: save a project's setup as nexdb-setup.json (PHP version, services, and a .env with the passwords left blank). A teammate's NexDB sets the project up from it.",
+      "Services of your own: add any program (a search engine, a queue worker) on the Versions page, and it starts and stops with the rest.",
+      "The Link two tables box keeps everything inside it, with its buttons always in view, and Nex never sits on its warning.",
+      "Ctrl+1 to Ctrl+9 and Ctrl+0 open the sidebar's pages.",
+    ],
+  },
+  {
     version: "0.5.1",
     title: "Tidier, and out of the way",
     changes: [

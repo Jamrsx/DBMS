@@ -69,6 +69,30 @@ pub fn of(services: &[(String, u32)]) -> Vec<Usage> {
         .collect()
 }
 
+/// The whole PC, for the Performance page: CPU in use (all cores, 0–100) and memory.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub struct Pc {
+    pub cpu_percent: f32,
+    pub memory_used: u64,
+    pub memory_total: u64,
+}
+
+pub fn pc() -> Pc {
+    let mut guard = SYS.lock().unwrap();
+    if guard.is_none() {
+        let Ok(made) = System::new() else { return Pc { cpu_percent: 0.0, memory_used: 0, memory_total: 0 } };
+        *guard = Some(made);
+    }
+    let sys = guard.as_mut().unwrap();
+    sys.refresh_cpu_usage();
+    sys.refresh_memory();
+    Pc {
+        cpu_percent: sys.global_cpu_usage().clamp(0.0, 100.0),
+        memory_used: sys.used_memory(),
+        memory_total: sys.total_memory(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -81,6 +105,15 @@ mod tests {
         t.sort();
         assert_eq!(t, vec![10, 11, 12, 13]);
         assert_eq!(tree(99, &parents), vec![99]);
+    }
+
+    #[test]
+    fn reads_the_whole_pc() {
+        let _ = pc();
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        let p = pc();
+        assert!(p.memory_total > 0 && p.memory_used > 0 && p.memory_used <= p.memory_total);
+        assert!((0.0..=100.0).contains(&p.cpu_percent));
     }
 
     #[test]

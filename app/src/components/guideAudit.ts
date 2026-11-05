@@ -1,4 +1,4 @@
-import { findShown, guideObstacles } from "./Tour";
+import { findShown, folded, guideObstacles } from "./Tour";
 import { WHATS_NEW } from "./whatsNew";
 
 /*
@@ -29,6 +29,15 @@ const overlap = (a: Box, b: Box) =>
   Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x)) *
   Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
 
+/** Inside a box of its own that scrolls or clips (a long SQL line), so it can't spill. */
+function clipped(el: Element, stop: Element): boolean {
+  for (let p = el.parentElement; p && p !== stop; p = p.parentElement) {
+    const s = getComputedStyle(p);
+    if (s.overflowX !== "visible" || s.overflowY !== "visible") return true;
+  }
+  return false;
+}
+
 /** What's wrong with the step on screen now; nothing when it's clear. */
 function checkStep(): string[] {
   const guide = document.querySelector<HTMLElement>(".guide");
@@ -49,6 +58,12 @@ function checkStep(): string[] {
     out.push("Nex is partly off the window");
 
   if (guide.dataset.target && !target) out.push("what Nex points at isn't on the screen");
+  // The button the step asks you to click has to be in view, even before it's enabled.
+  const button = guide.dataset.waitOn ? findShown(guide.dataset.waitOn.replace(/:not\(\[disabled\]\)/g, "")) : null;
+  if (button) {
+    const b = button.getBoundingClientRect();
+    if (b.bottom > vh || b.top < 0) out.push("the button to click is out of view");
+  }
   if (target) {
     const t = box(target.getBoundingClientRect());
     if (t.y + t.h <= 0 || t.y >= vh) out.push("what Nex points at is scrolled out of view");
@@ -56,6 +71,16 @@ function checkStep(): string[] {
     if (controls.some((c) => nex.some((n) => overlap(n, c) > 4)))
       out.push("Nex covers a button or field he's explaining");
     if (text.some((c) => nex.some((n) => overlap(n, c) > 4))) out.push("Nex covers text he's explaining");
+    // A box that doesn't scroll must hold all it shows: nothing poking out, no button cut off.
+    const style = getComputedStyle(target);
+    if (style.overflowX === "visible" && style.overflowY === "visible") {
+      const spills = [...target.querySelectorAll("*")].some((el) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height || folded(el) || clipped(el, target)) return false;
+        return r.right > t.x + t.w + 2 || r.bottom > t.y + t.h + 2 || r.left < t.x - 2;
+      });
+      if (spills) out.push("something spills outside the highlighted box");
+    }
     // The banner covers something only when it's what you'd hit there.
     const banner = document.querySelector(".practice-banner");
     if (banner) {
@@ -94,6 +119,24 @@ function advance(guide: HTMLElement) {
   else [...guide.querySelectorAll<HTMLElement>("button")].find((b) => b.textContent === "Skip this step")?.click();
 }
 
+/** Picks other choices in the step's lists, like a user trying it out (a warning may appear). */
+async function tryChoices(): Promise<boolean> {
+  const guide = document.querySelector<HTMLElement>(".guide");
+  const target = guide?.dataset.target ? findShown(guide.dataset.target) : null;
+  const selects = target ? [...target.querySelectorAll("select")] : [];
+  if (!selects.length) return false;
+  const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!;
+  for (const sel of selects) {
+    const options = [...sel.options].filter((o) => !o.disabled && o.value);
+    const other = options.find((o) => o.value !== sel.value && o.index > 0) ?? options[options.length - 1];
+    if (!other || other.value === sel.value) continue;
+    set.call(sel, other.value);
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(150);
+  }
+  return true;
+}
+
 async function playChapter(chapter: string | null, problems: GuideProblem[], stopAt?: string) {
   window.dispatchEvent(new CustomEvent("nexdb:guide", { detail: chapter }));
   let last = "";
@@ -118,6 +161,16 @@ async function playChapter(chapter: string | null, problems: GuideProblem[], sto
         await sleep(2000);
         found = checkStep();
       }
+      // Then again after changing its choices, since some text only shows up then.
+      if (await tryChoices()) {
+        await sleep(1300);
+        let after = checkStep();
+        if (after.length) {
+          await sleep(2000);
+          after = checkStep();
+        }
+        for (const p of after) if (!found.includes(p)) found.push(`${p} (after changing its choices)`);
+      }
       for (const problem of found) problems.push({ chapter: name, step, problem });
     }
     if (stopAt && step === stopAt) return;
@@ -130,9 +183,9 @@ async function playChapter(chapter: string | null, problems: GuideProblem[], sto
 /** `stopAt`: leave the walkthrough open on the step with this title, to look at it. */
 export async function auditGuide(chapter?: string, stopAt?: string): Promise<GuideProblem[]> {
   const problems: GuideProblem[] = [];
-  // Measure where Nex ends up, not where his walk is (a hidden window doesn't animate).
+  // Measure where things end up, not mid-animation (a hidden window doesn't animate at all).
   const still = document.createElement("style");
-  still.textContent = ".guide *, .guide { transition: none !important; animation: none !important; }";
+  still.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
   document.head.append(still);
   const chapters = chapter ? [chapter] : [null, ...WHATS_NEW.map((w) => w.chapter)];
   try {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { TeamSetupCard } from "./TeamSetupCard";
 import {
   ArrowLeft,
   Code2,
@@ -211,6 +212,7 @@ export function ProjectDetails({
       {tab === "overview" && (
         <>
           {info && <SetupPanel name={name} tasks={info.setup} onDone={load} />}
+          {info && <TeamSetupCard name={name} />}
           {info && (
             <dl className="details-facts">
               <div>

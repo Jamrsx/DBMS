@@ -4,7 +4,7 @@
 
 use crate::settings::Settings;
 use serde::Serialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::{SocketAddr, TcpStream};
@@ -88,6 +88,8 @@ struct Running {
 struct Inner {
     running: HashMap<String, Running>,
     errors: HashMap<String, String>,
+    /// Launched and not answering yet, so its row says Starting (each on its own).
+    launching: HashSet<String>,
 }
 
 pub struct Supervisor {
@@ -342,6 +344,10 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             log: logs.join("redis.log"),
         });
     }
+    // The user's own services, last.
+    for c in &settings.preferences.custom_services {
+        specs.push(crate::custom::spec(c, &logs));
+    }
     specs
 }
 
@@ -380,12 +386,32 @@ impl Supervisor {
                 inner.running.remove(id);
             }
             inner.errors.remove(id);
+            inner.launching.insert(id.into());
         }
         let result = self.launch(&spec);
+        let mut inner = self.inner.lock().unwrap();
+        inner.launching.remove(id);
         if let Err(msg) = &result {
-            self.inner.lock().unwrap().errors.insert(id.into(), msg.clone());
+            inner.errors.insert(id.into(), msg.clone());
         }
         result
+    }
+
+    /// Starts several services at the same time (none needs another to be up first), so the
+    /// slowest one sets the wait instead of all of them added up. Watched-only services are
+    /// skipped. Returns each failure's message.
+    pub fn start_many(&self, ids: &[String]) -> Vec<String> {
+        std::thread::scope(|scope| {
+            let jobs: Vec<_> = ids.iter().map(|id| scope.spawn(move || self.start(id))).collect();
+            jobs.into_iter()
+                .filter_map(|job| match job.join() {
+                    Ok(Ok(())) => None,
+                    Ok(Err(e)) if e.contains("managed outside") => None,
+                    Ok(Err(e)) => Some(e),
+                    Err(_) => Some("A service crashed NexDB's starter; try Start again.".into()),
+                })
+                .collect()
+        })
     }
 
     fn launch(&self, spec: &ServiceSpec) -> Result<(), String> {
@@ -560,6 +586,7 @@ impl Supervisor {
                 let state = match (running, listening) {
                     (Some(_), true) => State::Running,
                     (Some(_), false) => State::Starting,
+                    (None, _) if inner.launching.contains(&spec.id) => State::Starting,
                     (None, _) if inner.errors.contains_key(&spec.id) => State::Failed,
                     (None, _) => State::Stopped,
                 };
@@ -880,5 +907,54 @@ mod tests {
         assert!(t.elapsed() < STOP_TIMEOUT, "stopped by signal, not by the timeout");
         assert!(log.contains("Shutdown complete"), "clean shutdown expected");
         assert!(!port_listening(port));
+    }
+
+    /// Start all runs services side by side: three that each take ~3 s to answer are all up in
+    /// about 3 s, not 9. Stand-ins (Python listening after a pause) on spare ports, so services
+    /// already running on this PC are never touched.
+    #[test]
+    #[ignore]
+    fn real_start_all_runs_side_by_side() {
+        let python = which_python().expect("python on PATH");
+        let dir = std::env::temp_dir().join("nexdb-start-many-test");
+        let _ = fs::create_dir_all(&dir);
+        let spec = |n: u16| ServiceSpec {
+            id: format!("slow{n}"),
+            name: format!("Slow {n}"),
+            version: None,
+            exe: python.clone(),
+            args: vec![
+                "-c".into(),
+                format!("import socket,time; time.sleep(3); s=socket.socket(); s.bind(('127.0.0.1',{n})); s.listen(); time.sleep(60)"),
+            ],
+            cwd: dir.clone(),
+            port: n,
+            managed: true,
+            stop: StopMethod::Kill,
+            log: dir.join(format!("slow{n}.log")),
+        };
+        let sup = Supervisor::new(vec![spec(47811), spec(47812), spec(47813)]);
+        let ids = sup.ids();
+
+        // While they start, each row says Starting on its own.
+        let started = Instant::now();
+        std::thread::scope(|scope| {
+            let job = scope.spawn(|| sup.start_many(&ids));
+            std::thread::sleep(Duration::from_millis(800));
+            assert!(sup.status().iter().all(|s| s.state == State::Starting), "rows say Starting while they start");
+            let errors = job.join().unwrap();
+            assert!(errors.is_empty(), "{errors:?}");
+        });
+        let took = started.elapsed();
+        println!("3 services that take 3 s each started in {:.1} s", took.as_secs_f32());
+        assert!(sup.status().iter().all(|s| s.state == State::Running));
+        assert!(took < Duration::from_secs(7), "side by side, not one after another: {took:?}");
+        sup.stop_all();
+        assert!(sup.status().iter().all(|s| s.state == State::Stopped));
+    }
+
+    fn which_python() -> Option<PathBuf> {
+        let out = Command::new("where").arg("python").output().ok()?;
+        String::from_utf8_lossy(&out.stdout).lines().next().map(|l| PathBuf::from(l.trim()))
     }
 }

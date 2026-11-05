@@ -33,6 +33,7 @@ import {
 } from "../lib/services";
 import { mailList } from "../lib/mail";
 import { InboxPanel } from "./InboxPanel";
+import { DockerSection } from "./DockerSection";
 
 const POLL_MS = 1500;
 
@@ -41,7 +42,7 @@ const PATH_ORDER = ["apache", "nginx", "php", "mysql", "postgres"];
 
 type Busy = Record<string, "starting" | "stopping">;
 
-export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
+export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: () => void; active?: boolean }) {
   const [services, setServices] = useState<ServiceStatus[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>({});
@@ -220,6 +221,7 @@ export function Dashboard({ onOpenVersions }: { onOpenVersions: () => void }) {
                     </ul>
                   </div>
                 ))}
+                <DockerSection active={active} />
               </div>
             </section>
 
@@ -313,7 +315,9 @@ function ServiceRow({
     ROLE[s.id] ??
     (s.id.startsWith("php-")
       ? { role: "Runs the projects you set to this version", Icon: FileCode2 }
-      : { role: "", Icon: Server });
+      : s.id.startsWith("custom-")
+        ? { role: "A program you added on the Versions page", Icon: Server }
+        : { role: "", Icon: Server });
   const role = s.state === "external" ? `Managed outside NexDB · ${what}` : what;
   // Under the PHP heading each version is simply "PHP 8.5.12".
   const php = s.id === "php" || s.id.startsWith("php-");
@@ -357,19 +361,27 @@ function ServiceRow({
         )}
         {/* Port and uptime move here when the window is too narrow for their own column. */}
         <p className="svc-inline-facts">
-          Port <code>{s.port}</code>
+          <span className="svc-chip" title="The port it answers on">
+            <span className="svc-chip-k">Port</span> <code>{s.port}</code>
+          </span>
           {s.uptime_secs !== null && (
-            <>
-              {" · "}Up <code>{formatUptime(s.uptime_secs)}</code>
-            </>
+            <span className="svc-chip" title="How long it has been running">
+              <span className="svc-chip-k">Up</span> <code>{formatUptime(s.uptime_secs)}</code>
+            </span>
           )}
           {usage && (
-            <>
-              {" · "}
-              <span data-guide="svc-uses">
-                Uses <code>{formatMemory(usage.memory_bytes)}</code>, <code>{usage.cpu_percent.toFixed(1)}%</code> CPU
+            <span
+              className="svc-chip svc-chip-use"
+              data-guide="svc-uses"
+              title={`${usage.processes} process${usage.processes === 1 ? "" : "es"}, counting the extra ones it starts`}
+            >
+              <span className="svc-chip-k">Memory</span> <code>{formatMemory(usage.memory_bytes)}</code>
+              <span className="svc-chip-gap" aria-hidden="true" />
+              <span className="svc-chip-k">CPU</span> <code>{usage.cpu_percent.toFixed(1)}%</code>
+              <span className="svc-mini-bar" aria-hidden="true">
+                <span style={{ width: `${Math.max(3, Math.min(100, usage.cpu_percent))}%` }} />
               </span>
-            </>
+            </span>
           )}
         </p>
       </div>
@@ -649,7 +661,9 @@ function grouped(services: ServiceStatus[]): [string, ServiceStatus[]][] {
         ? "PHP"
         : id === "mysql" || id === "postgres" || id === "mariadb" || id === "mongodb"
           ? "Databases"
-          : "Extras";
+          : id.startsWith("custom-")
+            ? "Your own"
+            : "Extras";
   const groups: [string, ServiceStatus[]][] = [];
   for (const s of ordered(services)) {
     const name = groupOf(s.id);
@@ -668,7 +682,9 @@ function stateView(
   s: ServiceStatus,
   busy: "starting" | "stopping" | undefined,
 ): { label: string; tone: "ok" | "warn" | "bad" | "idle"; spinning: boolean } {
-  if (busy === "starting" || s.state === "starting") return { label: "Starting…", tone: "idle", spinning: true };
+  // Each row on its own: during Start all, one that's already up says Running straight away.
+  const waiting = busy === "starting" && (s.state === "stopped" || s.state === "starting");
+  if (waiting || s.state === "starting") return { label: "Starting…", tone: "idle", spinning: true };
   if (busy === "stopping") return { label: "Stopping…", tone: "idle", spinning: true };
   switch (s.state) {
     case "running":

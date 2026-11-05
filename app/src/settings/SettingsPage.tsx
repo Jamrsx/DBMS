@@ -784,7 +784,9 @@ function TutorialCard() {
         <button className="btn btn-primary btn-small" onClick={() => showGuide()}>
           Start from the beginning
         </button>
-        <span className="field-hint">Ctrl+K searches everything. Ctrl+1 to Ctrl+9 open the sidebar's pages.</span>
+        <span className="field-hint">
+          Ctrl+K searches everything. Ctrl+1 to Ctrl+9 and Ctrl+0 open the sidebar's pages.
+        </span>
       </div>
       <div className="guide-chapters" role="group" aria-label="What's new">
         {WHATS_NEW.map((w) => (

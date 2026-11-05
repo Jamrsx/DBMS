@@ -11,7 +11,17 @@ import { showSettingsSection } from "../lib/settingsNav";
 
 const DONE_KEY = "nexdb.guideDone";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
+type Page =
+  | "dashboard"
+  | "projects"
+  | "database"
+  | "terminal"
+  | "mail"
+  | "versions"
+  | "health"
+  | "performance"
+  | "settings"
+  | "help";
 
 export const CHAPTERS = [
   "Welcome",
@@ -59,7 +69,7 @@ const STEPS: Step[] = [
   {
     chapter: "Welcome",
     title: "The sidebar",
-    body: "Every page lives here. Ctrl+1 to Ctrl+9 jump straight to them.",
+    body: "Every page lives here. Ctrl+1 to Ctrl+9 and Ctrl+0 jump straight to them.",
     target: '[data-guide="rail"]',
   },
   {
@@ -252,6 +262,12 @@ const CONTROLS =
   'button, a[href], input, select, textarea, summary, [role="button"], [role="tab"], [role="radio"], [tabindex]:not([tabindex="-1"])';
 const TEXT = "h1, h2, h3, h4, p, label, li, dt, dd, th, td, code, legend, pre";
 
+/** Folded away in a closed <details> (its summary stays): the browser still reports a size for it. */
+export function folded(el: Element): boolean {
+  const d = el.closest("details:not([open])");
+  return !!d && !el.closest("summary");
+}
+
 /** What Nex must keep clear of, around the lit target: its buttons and fields, and its words. */
 export function guideObstacles(target: Element | null, also: (Element | null)[], vw: number, vh: number) {
   const visible = (b: Box) => b.w > 0 && b.h > 0 && b.x < vw && b.y < vh && b.x + b.w > 0 && b.y + b.h > 0;
@@ -262,6 +278,7 @@ export function guideObstacles(target: Element | null, also: (Element | null)[],
     // A small target (a button, a sidebar item) stays clear as a whole.
     if (own.w * own.h < 40000 || target.matches(CONTROLS)) controls.push(own);
     for (const el of target.querySelectorAll(CONTROLS)) {
+      if (folded(el)) continue;
       const b = toBox(el.getBoundingClientRect());
       if (visible(b)) controls.push(b);
       if (controls.length > 200) break;
@@ -269,7 +286,7 @@ export function guideObstacles(target: Element | null, also: (Element | null)[],
     // The words themselves, line by line: a paragraph's box is often much wider than its text.
     const range = document.createRange();
     for (const el of target.querySelectorAll(TEXT)) {
-      if (!visible(toBox(el.getBoundingClientRect()))) continue;
+      if (folded(el) || !visible(toBox(el.getBoundingClientRect()))) continue;
       range.selectNodeContents(el);
       for (const r of range.getClientRects()) {
         const b = toBox(r);
@@ -377,8 +394,10 @@ function scrollUnder(e: React.WheelEvent) {
   document.scrollingElement?.scrollBy({ top: e.deltaY });
 }
 
-export function Tour({ onPage }: { onPage: (page: Page) => void }) {
+/** `hold`: the welcome screen is showing; it starts the tour itself when it's done. */
+export function Tour({ onPage, hold = false }: { onPage: (page: Page) => void; hold?: boolean }) {
   const [open, setOpen] = useState(() => {
+    if (hold) return false;
     try {
       return localStorage.getItem(DONE_KEY) !== "1";
     } catch {
@@ -398,9 +417,10 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   const bubble = useRef<HTMLDivElement>(null);
   const guy = useRef<HTMLDivElement>(null);
   const placed = useRef({ key: "", at: 0 });
-  // A narrower bubble, for a step where the usual one can't sit clear of what it explains.
-  const [compact, setCompact] = useState(false);
-  useEffect(() => setCompact(false), [index]);
+  // Smaller, for a step where the usual size can't sit clear of what it explains:
+  // 1 is a narrower bubble, 2 the bubble alone without Nex beside it.
+  const [shrink, setShrink] = useState(0);
+  useEffect(() => setShrink(0), [index]);
   const before = useRef<Element | null>(null);
 
   const step = ALL[index];
@@ -409,6 +429,12 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
   const last = index === lastIndex;
   // The page open before a practice chapter, to come back to.
   const returnTo = useRef<Page | null>(null);
+
+  // Until Nex has his first spot he's hidden, then he appears there (no walk in from a corner).
+  const [arrived, setArrived] = useState(false);
+  useEffect(() => {
+    if (!open) setArrived(false);
+  }, [open]);
 
   const finish = useCallback(() => {
     setOpen(false);
@@ -470,7 +496,8 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     if (step.page) onPage(step.page);
     step.run?.();
     // Bring what Nex points at into view; it may appear a moment later, after a page opens.
-    const sel = step.waitOn ?? step.target;
+    // The button to click comes first, even while it's still greyed out.
+    const sel = step.waitOn ? `${step.waitOn.replace(/:not\(\[disabled\]\)/g, "")}` : step.target;
     if (!sel) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let tries = 0;
@@ -523,10 +550,12 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
       const waitOn = step.waitOn ? document.querySelector(step.waitOn) : null;
       const obstacles = guideObstacles(el ?? null, [waitOn], window.innerWidth, window.innerHeight);
       const next = placeGuide(box, size, window.innerWidth, window.innerHeight, top, obstacles);
-      if (!next.clear) setCompact(true);
+      if (!next.clear) setShrink((n) => Math.min(2, n + 1));
       setPos((old) =>
         Math.abs(old.x - next.x) < 1 && Math.abs(old.y - next.y) < 1 && old.side === next.side ? old : next,
       );
+      // Placed for the first time: show him there next tick, so he pops up in place.
+      window.setTimeout(() => setArrived(true), 30);
     };
     measure();
     const timer = window.setInterval(measure, 200);
@@ -618,7 +647,8 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
     <div
       className="guide"
       data-side={pos.side}
-      data-compact={compact || undefined}
+      data-compact={shrink >= 1 || undefined}
+      data-mini={shrink >= 2 || undefined}
       data-target={step.target}
       data-wait-on={step.waitOn}
     >
@@ -630,7 +660,7 @@ export function Tour({ onPage }: { onPage: (page: Page) => void }) {
       />
       <div
         ref={guy}
-        className="guide-nex"
+        className={arrived ? "guide-nex" : "guide-nex guide-nex-waiting"}
         style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}
         role="dialog"
         aria-modal="false"

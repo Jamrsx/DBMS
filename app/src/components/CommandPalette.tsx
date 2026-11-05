@@ -5,7 +5,16 @@ import { listServices, startServices, stopServices, type ServiceStatus } from ".
 import { dbDatabases } from "../lib/db";
 
 export type PalettePage =
-  "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
+  | "dashboard"
+  | "projects"
+  | "database"
+  | "terminal"
+  | "mail"
+  | "versions"
+  | "health"
+  | "performance"
+  | "settings"
+  | "help";
 
 interface Command {
   id: string;
@@ -24,6 +33,7 @@ const PAGES: [PalettePage, string][] = [
   ["mail", "Mail (caught emails)"],
   ["versions", "Versions"],
   ["health", "Check my setup"],
+  ["performance", "Performance (memory and CPU)"],
   ["settings", "Settings"],
   ["help", "Help and tutorial"],
 ];

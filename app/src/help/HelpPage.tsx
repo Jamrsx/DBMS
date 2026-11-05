@@ -114,7 +114,7 @@ const TOPICS: Topic[] = [
     chapter: "Search",
     steps: [
       "Ctrl+K: search pages, projects, databases and actions.",
-      "Ctrl+1 to Ctrl+9: open the sidebar's pages, top to bottom.",
+      "Ctrl+1 to Ctrl+9 and Ctrl+0: open the sidebar's pages, top to bottom.",
       "Tab moves between controls; the first Tab press offers Skip to page content.",
       "Esc closes menus, panels and the tutorial.",
     ],

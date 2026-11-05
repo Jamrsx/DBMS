@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
+import { CustomServicesCard } from "./CustomServicesCard";
 import { MoreMenu } from "../components/MoreMenu";
 import { createBackup } from "../lib/backups";
 import { nexCelebrate } from "../lib/nex";
@@ -169,6 +170,7 @@ export function VersionsPage({ active }: { active: boolean }) {
           .map((c) => (
             <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
           ))}
+        {info && <CustomServicesCard active={active} />}
       </div>
     </main>
   );

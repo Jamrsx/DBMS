@@ -5,6 +5,7 @@ import {
   FolderKanban,
   Layers,
   LayoutDashboard,
+  Activity,
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
@@ -33,9 +34,20 @@ import { Tour } from "./components/Tour";
 import { WhatsNewOffer } from "./components/WhatsNewOffer";
 import { HelpPage } from "./help/HelpPage";
 import { InboxPanel } from "./dashboard/InboxPanel";
+import { PerformancePage } from "./performance/PerformancePage";
 import { mailList } from "./lib/mail";
 
-type Page = "dashboard" | "projects" | "database" | "terminal" | "mail" | "versions" | "health" | "settings" | "help";
+type Page =
+  | "dashboard"
+  | "projects"
+  | "database"
+  | "terminal"
+  | "mail"
+  | "versions"
+  | "health"
+  | "performance"
+  | "settings"
+  | "help";
 
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
@@ -56,12 +68,14 @@ const PAGES: Page[] = [
   "mail",
   "versions",
   "health",
+  "performance",
   "settings",
   "help",
 ];
-/** "Control+6": each page's shortcut follows its place in the sidebar. */
-const keys = (p: Page) => `Control+${PAGES.indexOf(p) + 1}`;
-const keyHint = (p: Page) => `Ctrl+${PAGES.indexOf(p) + 1}`;
+/** Each page's shortcut follows its place in the sidebar: Ctrl+1 to Ctrl+9, then Ctrl+0. */
+const keyNo = (p: Page) => (PAGES.indexOf(p) + 1) % 10;
+const keys = (p: Page) => `Control+${keyNo(p)}`;
+const keyHint = (p: Page) => `Ctrl+${keyNo(p)}`;
 
 /** The page open when NexDB last closed, so it opens where the user left off. */
 function savedPage(): Page {
@@ -82,7 +96,8 @@ function savedCollapsed(): boolean {
 }
 
 /** The rail plus the open page. Pages stay mounted so the terminal keeps its session. */
-export function Shell() {
+/** `holdTour`: the welcome screen is up, so the first-run tour waits for it. */
+export function Shell({ holdTour = false }: { holdTour?: boolean }) {
   const [page, setPage] = useState<Page>(savedPage);
   useEffect(() => {
     try {
@@ -114,10 +129,12 @@ export function Shell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
-      const n = Number(e.key);
-      if (n >= 1 && n <= PAGES.length) {
+      if (!/^[0-9]$/.test(e.key)) return;
+      // 1 is the first page; 0 is the tenth.
+      const i = e.key === "0" ? 9 : Number(e.key) - 1;
+      if (i < PAGES.length) {
         e.preventDefault();
-        go(PAGES[n - 1]);
+        go(PAGES[i]);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -276,6 +293,18 @@ export function Shell() {
           </button>
           <button
             type="button"
+            className={page === "performance" ? "nav-item current" : "nav-item"}
+            aria-current={page === "performance" ? "page" : undefined}
+            data-page="performance"
+            aria-keyshortcuts={keys("performance")}
+            title={collapsed ? `Performance (${keyHint("performance")})` : keyHint("performance")}
+            onClick={() => go("performance")}
+          >
+            <Activity size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="nav-label">Performance</span>
+          </button>
+          <button
+            type="button"
             className={page === "settings" ? "nav-item current" : "nav-item"}
             aria-current={page === "settings" ? "page" : undefined}
             data-page="settings"
@@ -313,7 +342,7 @@ export function Shell() {
       </aside>
 
       <div className="page" key={`dashboard-${mode}`} hidden={page !== "dashboard"}>
-        <Dashboard onOpenVersions={() => setPage("versions")} />
+        <Dashboard active={page === "dashboard"} onOpenVersions={() => setPage("versions")} />
       </div>
       <div className="page" key={`projects-${mode}`} hidden={page !== "projects"}>
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />
@@ -354,6 +383,9 @@ export function Shell() {
       <div className="page" key={`mail-${mode}`} hidden={page !== "mail"}>
         <InboxPanel page active={page === "mail"} onOpenInBrowser={openInbox} />
       </div>
+      <div className="page" key={`performance-${mode}`} hidden={page !== "performance"}>
+        <PerformancePage active={page === "performance"} />
+      </div>
       <div className="page" hidden={page !== "terminal"}>
         <TerminalPage active={page === "terminal"} />
       </div>
@@ -372,7 +404,7 @@ export function Shell() {
         </div>
       )}
       <NexCorner />
-      <Tour onPage={setPage} />
+      <Tour onPage={setPage} hold={holdTour} />
       <WhatsNewOffer />
     </div>
   );

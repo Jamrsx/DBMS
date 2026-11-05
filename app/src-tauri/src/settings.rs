@@ -70,6 +70,9 @@ pub struct Preferences {
     /// Projects that use another installed PHP version than the default: project -> version.
     #[serde(default)]
     pub project_php: std::collections::BTreeMap<String, String>,
+    /// Programs the user added to start and stop with NexDB's services.
+    #[serde(default)]
+    pub custom_services: Vec<crate::custom::CustomService>,
     /// Projects shared on the local network: project -> its own port.
     #[serde(default)]
     pub shared: std::collections::BTreeMap<String, u16>,
@@ -115,6 +118,7 @@ impl Default for Preferences {
             auto_backup_copy: None,
             fixed_link: None,
             project_php: Default::default(),
+            custom_services: Vec::new(),
             shared: Default::default(),
             site_root: Default::default(),
             share_dev: Default::default(),

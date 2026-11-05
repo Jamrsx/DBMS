@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.2", chapter: "New in 0.5.2" },
   { version: "0.5.1", chapter: "New in 0.5.1" },
   { version: "0.5.0", chapter: "New in 0.5.0" },
   { version: "0.4.9", chapter: "New in 0.4.9" },
@@ -23,6 +24,76 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.2",
+    title: "Faster, and for teams",
+    body: "A Performance page, a quicker Start all, Docker containers, a setup file for your team and services of your own. Practice mode: nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "How much NexDB uses",
+    body: "Click Performance.",
+    target: '.nav-item[data-page="performance"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "Right now",
+    body: "The memory and CPU NexDB's services use, next to the whole PC's, and which service uses the most.",
+    page: "performance",
+    target: here('[data-guide="perf-tiles"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "The last five minutes",
+    body: "Blue is NexDB's services, orange the whole PC. Point at a graph to read any moment. The table below lists each service.",
+    page: "performance",
+    target: here('[data-guide="perf-charts"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "Start all, quicker",
+    body: "Services now start side by side, and each row says Running as soon as its own service is up. Click Start all.",
+    page: "dashboard",
+    target: here('[data-guide="start-all"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "Clearer details",
+    body: "Each service's port, uptime, memory and CPU sit in small labelled chips, with a bar for the CPU.",
+    page: "dashboard",
+    target: here('[data-guide="svc-uses"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "Docker, next to the rest",
+    body: "With Docker Desktop installed, your containers show here: start, stop or restart them, see their address and read their log.",
+    page: "dashboard",
+    target: here('[data-guide="docker"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "One file for the team",
+    body: "Save the setup file and commit it with the code. It holds the PHP version, the services and a .env with the passwords left blank. A teammate's NexDB sets the project up from it.",
+    page: "projects",
+    run: openProject("blog"),
+    target: here('[data-guide="team-setup"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "Services of your own",
+    body: "Any other program, like a search engine or a queue worker, can start and stop with the rest. Add it here; it shows on the Dashboard under Your own.",
+    page: "versions",
+    target: here('[data-guide="custom-services"]'),
+  },
+  {
+    chapter: "New in 0.5.2",
+    title: "That's 0.5.2!",
+    body: "The Link two tables box also keeps everything inside it now. Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.1",
     title: "A tidier NexDB",
@@ -208,7 +279,8 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     chapter: "New in 0.4.9",
     title: "The relationship diagram",
     body: "Each box is a table; each line is a link, from a column like posts.user_id to the table it points at. Drag tables around, Ctrl+scroll to zoom, click one to see only its links. In the app it opens in its own window, so phpMyAdmin isn't needed.",
-    target: ".diagram-canvas",
+    // One table, so Nex can stand beside it: the whole diagram leaves him no room in a small window.
+    target: ".diagram-card",
   },
   {
     chapter: "New in 0.4.9",
