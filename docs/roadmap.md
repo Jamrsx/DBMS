@@ -331,6 +331,28 @@ Mail catcher (with 0.3.2's services):
 - MariaDB and MongoDB as extra services.
 - Password-protected share links.
 
+### 0.4.8: Database tools
+
+- Relationship diagram from foreign keys, in its own window, so there's no need to open
+  phpMyAdmin or another panel for it.
+- Compare two databases (tables, columns and indexes that differ).
+- Scheduled backups to another folder or a USB drive.
+- Restore a backup into a new database, leaving the original as it is.
+
+### 0.4.9: Services and sharing
+
+- Memcached as an extra service.
+- Read caught emails (Mailpit) inside NexDB.
+- Memory and CPU use per service on the Dashboard.
+- Links that stay the same, with your own Cloudflare or ngrok account.
+- A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
+
+### 0.5.0: Teams and your own services
+
+- Docker containers as services.
+- Share a project's setup (versions, services, `.env` template) with a team as one file.
+- Plugins, or custom services you define yourself.
+
 ## Toward 1.0.0
 
 Before calling it 1.0.0:
@@ -340,26 +362,4 @@ Before calling it 1.0.0:
 
 ## Ideas, not scheduled
 
-Database:
-
-- Relationship diagram from foreign keys.
-- Compare two databases (schema differences).
-- Scheduled backups to another folder or USB drive; restore into a new database.
-
-Services:
-
-- Memcached as an extra service.
-- Read caught emails inside NexDB.
-- Memory and CPU per service.
-
-Sharing:
-
-- Named tunnels with your own Cloudflare or ngrok account (a link that stays the same).
-- A fixed `.local` name on the Wi-Fi (mDNS), instead of an IP address.
-
-Later:
-
-- Docker containers as services.
-- Share a project's setup (versions, services, `.env` template) as one file for a team.
-- Plugins or custom services defined by the user.
 - macOS or Linux version.
