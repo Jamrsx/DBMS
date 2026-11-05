@@ -391,6 +391,21 @@ Fixes first, from the "Link two tables" walkthrough step (in a ~1100 px wide win
   - repeats each step after changing its choices, since the warning only appears then;
   - fails when anything spills outside the highlighted dialog or a button is cut off.
 
+Dashboard:
+
+- Start all is quicker. It took about a minute before anything showed Running, and every row said
+  "Starting…" even when that service was already up.
+  - Services that don't depend on each other start at the same time.
+  - Each row turns Running as soon as its own service is up.
+  - Real test: time Start all before and after.
+- Each service's details line (port, uptime, memory, CPU) is easier to read. It is split into
+  small labelled parts, with a little CPU bar, instead of one faint line of text.
+- A Performance page in the sidebar shows the overall usage:
+  - the total memory and CPU of NexDB's services, next to the whole PC's;
+  - a short history graph for the last minutes;
+  - which service uses the most.
+  - Nex shows it in the 0.5.2 walkthrough.
+
 New:
 
 - Docker containers as services.
