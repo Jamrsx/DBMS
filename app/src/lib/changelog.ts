@@ -7,6 +7,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.4.9",
+    title: "Database tools",
+    changes: [
+      "Relationships: see how your tables connect through their foreign keys, in a window of its own. Drag tables around, zoom, click one to see its links, or read them as a list.",
+      "Compare: put two databases side by side and see the tables, columns, indexes and links that differ. It only reads.",
+      "Automatic backups can also be copied to another drive or a USB stick. If it's unplugged, NexDB copies them the next time it's there.",
+      "Restoring a backup makes a new database by default, so the original stays as it is. Replacing still works, and backs up first.",
+      "Nex shows all four in practice mode.",
+    ],
+  },
+  {
     version: "0.4.8",
     title: "Smoother walkthroughs",
     changes: [

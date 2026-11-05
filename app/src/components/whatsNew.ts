@@ -6,7 +6,10 @@
  */
 import type { GuideStep } from "./Tour";
 
-export const WHATS_NEW = [{ version: "0.4.7", chapter: "New in 0.4.7" }] as const;
+export const WHATS_NEW = [
+  { version: "0.4.9", chapter: "New in 0.4.9" },
+  { version: "0.4.7", chapter: "New in 0.4.7" },
+] as const;
 export type WhatsNewChapter = (typeof WHATS_NEW)[number]["chapter"];
 
 const here = (sel: string) => `.page:not([hidden]) ${sel}`;
@@ -16,6 +19,100 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.4.9",
+    title: "Four database tools, hands on",
+    body: "Relationships, Compare, a second copy of your backups, and restoring as a copy. Practice mode again: sample databases, nothing on your PC changes.",
+    mood: "hello",
+  },
+  // Relationship diagram
+  {
+    chapter: "New in 0.4.9",
+    title: "How tables connect",
+    body: "Here's the sample blog database. Click Relationships.",
+    page: "database",
+    run: openDatabase("blog"),
+    target: here('[data-guide="diagram-open"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "The relationship diagram",
+    body: "Each box is a table; each line is a link, from a column like posts.user_id to the table it points at. Drag tables around, Ctrl+scroll to zoom, click one to see only its links. In the app it opens in its own window, so phpMyAdmin isn't needed.",
+    target: ".diagram-canvas",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "Also as a list",
+    body: "List shows the same links as text, easier with a keyboard or a screen reader. Click Close when you're done looking.",
+    target: '[data-guide="diagram-close"]',
+    wait: "click",
+  },
+  // Compare
+  {
+    chapter: "New in 0.4.9",
+    title: "Compare two databases",
+    body: "Click Compare…",
+    target: here('[data-guide="compare-open"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "Pick the other one",
+    body: "Choose a database to compare with, then click Compare. It only reads; nothing is changed.",
+    target: here('[data-guide="compare-panel"]'),
+    waitOn: here('[data-guide="compare-run"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "What's different",
+    body: "Tables, columns, indexes and links that are only on one side, or different on both. Handy before you copy changes from one database to another.",
+    target: here(".compare-result"),
+  },
+  // Restore as a copy
+  {
+    chapter: "New in 0.4.9",
+    title: "Restore as a copy",
+    body: "Click the Backups tab.",
+    target: here('[data-guide="db-tab-backups"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "Pick a backup",
+    body: "Click Restore… on one of the backups.",
+    target: here('[data-guide="restore"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "A new database by default",
+    body: "Restoring now makes a new database next to the original, so nothing is overwritten by accident. Replace is still there, and it backs up first.",
+    target: here(".backups-mode"),
+  },
+  // Copy backups to another drive
+  {
+    chapter: "New in 0.4.9",
+    title: "A second copy, somewhere safe",
+    body: "Automatic backups can also go to another drive or a USB stick. Click Choose a folder or USB drive…",
+    page: "settings",
+    target: here('[data-guide="backup-copy"]'),
+    waitOn: here('[data-guide="backup-copy-pick"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "Kept up to date",
+    body: "After each automatic backup the copy is refreshed. If the USB drive isn't plugged in, NexDB says so and copies it the next time it's there.",
+    target: here('[data-guide="backup-copy"]'),
+  },
+  {
+    chapter: "New in 0.4.9",
+    title: "That's 0.4.9!",
+    body: "Practice is over; your real databases are back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.4.7",
     title: "Six new things, hands on",

@@ -7070,3 +7070,378 @@ body.guiding .nex-corner {
 body.guiding .whatsnew-offer {
   display: none;
 }
+
+/* Database: relationship diagram (its own window, or over the page) */
+.diagram-window {
+  display: flex;
+  height: 100vh;
+  background: var(--bg);
+}
+
+.diagram-overlay {
+  position: fixed;
+  inset: 16px;
+  z-index: 50;
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+
+.diagram {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface);
+}
+
+.diagram-message {
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.diagram-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.diagram-title {
+  font-size: 15px;
+}
+
+.diagram-find {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+}
+
+.diagram-find .input {
+  width: 180px;
+}
+
+.diagram-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.diagram-zoom {
+  min-width: 42px;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-2);
+}
+
+.diagram-canvas-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.diagram-canvas {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, color-mix(in srgb, var(--text-3) 35%, transparent) 1px, transparent 1px);
+  background-size: 22px 22px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.diagram-canvas:active {
+  cursor: grabbing;
+}
+
+.diagram-empty {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: 1;
+  max-width: 560px;
+  transform: translateX(-50%);
+}
+
+.diagram-help {
+  margin: 0;
+  padding: 6px 14px;
+  border-top: 1px solid var(--border);
+}
+
+.diagram-card {
+  cursor: move;
+}
+
+.diagram-card:focus {
+  outline: none;
+}
+
+.diagram-card:focus-visible .diagram-card-bg {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.diagram-card-bg {
+  fill: var(--surface);
+  stroke: var(--border-strong);
+  stroke-width: 1;
+}
+
+.diagram-card.selected .diagram-card-bg {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.diagram-card-head {
+  fill: var(--surface-2);
+}
+
+.diagram-card.selected .diagram-card-head {
+  fill: color-mix(in srgb, var(--accent) 22%, var(--surface-2));
+}
+
+.diagram-card.dim {
+  opacity: 0.35;
+}
+
+.diagram-card-title {
+  fill: var(--text);
+  font: 600 13px var(--font);
+}
+
+.diagram-card-rows,
+.diagram-type {
+  fill: var(--text-3);
+  font: 11px var(--mono);
+}
+
+.diagram-col {
+  fill: var(--text);
+  font: 12px var(--mono);
+}
+
+.diagram-col.key {
+  font-weight: 700;
+}
+
+.diagram-tag {
+  fill: var(--warn);
+  font: 700 9px var(--font);
+}
+
+.diagram-tag.fk {
+  fill: var(--accent);
+}
+
+.diagram-link {
+  fill: none;
+  stroke: color-mix(in srgb, var(--text-3) 70%, transparent);
+  stroke-width: 1.6;
+}
+
+.diagram-link.on {
+  stroke: var(--accent);
+  stroke-width: 2.4;
+}
+
+.diagram-link.dim {
+  opacity: 0.15;
+}
+
+.diagram-mark {
+  fill: none;
+  stroke: var(--text-3);
+  stroke-width: 1.4;
+}
+
+.diagram-list {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+}
+
+/* Database: compare two databases */
+.compare {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.compare-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compare-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+}
+
+.compare-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-pick select {
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--text);
+}
+
+.compare-result p {
+  margin: 0 0 8px;
+}
+
+.compare-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.compare-filter [aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.compare-table td {
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.compare-change {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.compare-change.only_a {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.compare-change.only_b {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+}
+
+.compare-change.different {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+/* Settings: second folder for automatic backups */
+.set-copy {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.set-copy > code {
+  justify-self: start;
+}
+
+.set-copy-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.set-copy p {
+  margin: 0;
+}
+
+/* Backups: restore as a copy or replace */
+.backups-mode {
+  display: grid;
+  gap: 8px;
+  margin: 4px 0 6px;
+  padding: 0;
+  border: 0;
+}
+
+.backups-mode .check-row {
+  align-items: flex-start;
+}
+
+.backups-mode .check-row input {
+  margin-top: 3px;
+}
+
+.backups-mode-sub {
+  display: block;
+}
+
+.backups-open {
+  margin-left: 10px;
+}
+
+/* Compare: stays inside the page; long names wrap, the table scrolls sideways if it must. */
+.compare,
+.compare-result {
+  min-width: 0;
+}
+
+.compare-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.compare-table td {
+  overflow-wrap: anywhere;
+}
+
+.compare-table td:first-child {
+  width: 1%;
+}
+
+
+/* The restore/import form reads top to bottom: how, where, back up first, then the buttons. */
+.backups-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  align-items: start;
+  gap: 12px;
+  max-width: 560px;
+}
+
+.backups-form .field,
+.backups-form .set-check {
+  margin: 0;
+}
+
+.backups-form-actions {
+  display: flex;
+  gap: 8px;
+}

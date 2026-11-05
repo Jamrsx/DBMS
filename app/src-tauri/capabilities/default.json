@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window and terminal windows",
+  "description": "Capability for the main window, terminal and diagram windows",
   "windows": [
     "main",
-    "terminal-*"
+    "terminal-*",
+    "diagram-*"
   ],
   "permissions": [
     "core:default",

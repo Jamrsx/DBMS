@@ -3,7 +3,7 @@ import { CHAPTERS, showGuide } from "../components/Tour";
 import { WHATS_NEW } from "../components/whatsNew";
 import { CheckCircle2, Download, LoaderCircle, RefreshCw, RotateCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
-import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup } from "../lib/backups";
+import { formatWhen, getAutoBackup, setAutoBackup, type AutoBackup, setAutoBackupCopy } from "../lib/backups";
 import { Nex, type NexState } from "../components/Nex";
 import { nexCelebrate } from "../lib/nex";
 import { CHANGELOG, type Release } from "../lib/changelog";
@@ -102,6 +102,16 @@ function AutoBackupCard({ active }: { active: boolean }) {
     load();
   }
 
+  async function pickCopy(pick: boolean) {
+    setError(null);
+    try {
+      await setAutoBackupCopy(pick);
+    } catch (e) {
+      if (String(e) !== "CANCELLED") setError(String(e));
+    }
+    load();
+  }
+
   if (!info) return null;
   const on = info.schedule !== "off";
   return (
@@ -151,6 +161,41 @@ function AutoBackupCard({ active }: { active: boolean }) {
                 ? `Last automatic backup: ${formatWhen(info.last_ok)} (${info.last_count} ${info.last_count === 1 ? "database" : "databases"}).`
                 : "The first automatic backup runs within a few minutes while MySQL is running."}
           </p>
+        )}
+        {on && (
+          <div className="set-copy" data-guide="backup-copy">
+            <span className="field-label">Also keep a copy in</span>
+            {info.copy_to ? (
+              <>
+                <code>{info.copy_to}\NexDB backups</code>
+                <span className="set-copy-actions">
+                  <button className="btn btn-small" onClick={() => void pickCopy(true)}>
+                    Change…
+                  </button>
+                  <button className="btn btn-small btn-quiet" onClick={() => void pickCopy(false)}>
+                    Stop copying
+                  </button>
+                </span>
+                <p className={info.copy_problem ? "field-warn" : "field-hint"} role="status">
+                  {info.copy_problem
+                    ? info.copy_problem
+                    : info.last_copied
+                      ? `Copies up to date: ${formatWhen(info.last_copied)}. The same ${info.keep} newest are kept there.`
+                      : "Copied after the next automatic backup."}
+                </p>
+              </>
+            ) : (
+              <>
+                <button className="btn btn-small" data-guide="backup-copy-pick" onClick={() => void pickCopy(true)}>
+                  Choose a folder or USB drive…
+                </button>
+                <p className="field-hint">
+                  A second copy on another drive keeps your databases safe if this one fails. If the drive is unplugged,
+                  NexDB copies the backups the next time it's there.
+                </p>
+              </>
+            )}
+          </div>
         )}
         {error && (
           <p className="field-error" role="alert">

@@ -1,4 +1,5 @@
 import { invoke, pause } from "./invoke";
+import { onPractice } from "./practice";
 import { inDesktopApp } from "./scan";
 
 export interface BackupFile {
@@ -22,9 +23,36 @@ export interface AutoBackup {
   last_count: number;
   /** Why the latest attempt didn't back up, in plain words. */
   problem: string | null;
+  /** A second folder (another drive, a USB stick) the backups are copied to. */
+  copy_to?: string | null;
+  last_copied?: number | null;
+  /** Why the copy didn't happen (an unplugged drive), in plain words. */
+  copy_problem?: string | null;
 }
 
-const previewAuto: AutoBackup = { schedule: "off", keep: 7, last_ok: null, last_count: 0, problem: null };
+const previewAuto: AutoBackup = {
+  schedule: "off",
+  keep: 7,
+  last_ok: null,
+  last_count: 0,
+  problem: null,
+  copy_to: null,
+  last_copied: null,
+  copy_problem: null,
+};
+
+/**
+ * Picks a second folder for automatic backups (pick = true opens the folder picker) or stops
+ * copying (pick = false). Resolves to the folder, or null; rejects with "CANCELLED" when the
+ * picker was closed.
+ */
+export async function setAutoBackupCopy(pick: boolean): Promise<string | null> {
+  if (inDesktopApp) return invoke<string | null>("set_auto_backup_copy", { pick });
+  await pause(400);
+  previewAuto.copy_to = pick ? "E:\\Backups" : null;
+  previewAuto.last_copied = pick ? Math.floor(Date.now() / 1000) : null;
+  return previewAuto.copy_to;
+}
 
 export async function getAutoBackup(): Promise<AutoBackup> {
   if (inDesktopApp) return invoke<AutoBackup>("auto_backup_status");
@@ -111,4 +139,16 @@ function fake(db: string, created: number): BackupFile {
   };
 }
 
-let preview: BackupFile[] = [fake("shop", Date.now() / 1000 - 86_400 * 2), fake("blog", Date.now() / 1000 - 3600)];
+const previewStart = () => [fake("shop", Date.now() / 1000 - 86_400 * 2), fake("blog", Date.now() / 1000 - 3600)];
+let preview: BackupFile[] = previewStart();
+onPractice((on) => {
+  preview = previewStart();
+  Object.assign(previewAuto, {
+    schedule: on ? "daily" : "off",
+    last_ok: on ? Math.floor(Date.now() / 1000) - 3600 : null,
+    last_count: on ? 2 : 0,
+    copy_to: null,
+    last_copied: null,
+    copy_problem: null,
+  });
+});

@@ -11,6 +11,7 @@ mod envfile;
 mod nodever;
 mod gate;
 mod extradb;
+mod schema;
 mod dbedit;
 mod editors;
 mod health;
@@ -329,6 +330,9 @@ pub fn run() {
             env_files,
             env_save,
             project_set_node,
+            db_schema,
+            db_compare,
+            diagram_window,
             import_sources,
             import_databases,
             import_run,
@@ -346,6 +350,7 @@ pub fn run() {
             https_trust,
             auto_backup_status,
             set_auto_backup,
+            set_auto_backup_copy,
             versions_overview,
             missing_components,
             backups_list,
@@ -1448,6 +1453,44 @@ async fn db_tables(db: tauri::State<'_, db::Db>, name: String) -> Result<Vec<db:
     blocking(move || db.tables(&name)).await
 }
 
+/// A database's tables, columns, indexes and foreign keys, for the relationship diagram.
+#[tauri::command]
+async fn db_schema(db: tauri::State<'_, db::Db>, name: String) -> Result<schema::Schema, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || schema::read(&db, &name)).await
+}
+
+/// What differs between two databases on the same server.
+#[tauri::command]
+async fn db_compare(db: tauri::State<'_, db::Db>, a: String, b: String) -> Result<Vec<schema::Diff>, String> {
+    let db = db.inner().clone_handle();
+    blocking(move || Ok(schema::compare(&schema::read(&db, &a)?, &schema::read(&db, &b)?))).await
+}
+
+/// Opens a database's relationship diagram in a window of its own.
+#[tauri::command]
+async fn diagram_window(app: tauri::AppHandle, name: String) -> Result<(), String> {
+    if !db::valid_name(&name) {
+        return Err(format!("\"{name}\" isn't a database name NexDB can show."));
+    }
+    // One window per database: opening it again brings the open one forward.
+    let label = format!("diagram-{}", name.replace('$', "_"));
+    if let Some(w) = tauri::Manager::get_webview_window(&app, &label) {
+        let _ = w.set_focus();
+        return Ok(());
+    }
+    let url = format!("index.html?view=diagram&db={name}");
+    tauri::WebviewWindowBuilder::new(&app, label, tauri::WebviewUrl::App(url.into()))
+        .title(format!("{name} · relationships · NexDB"))
+        .inner_size(1100.0, 720.0)
+        .min_inner_size(600.0, 400.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map(|_| ())
+        .map_err(|e| format!("Couldn't open the diagram window: {e}"))
+}
+
 #[tauri::command]
 async fn db_columns(db: tauri::State<'_, db::Db>, name: String, table: String) -> Result<Vec<db::ColumnInfo>, String> {
     let db = db.inner().clone_handle();
@@ -1902,6 +1945,8 @@ async fn https_trust() -> Result<bool, String> {
 struct AutoBackupInfo {
     schedule: String,
     keep: u32,
+    /// The second folder backups are copied to, if any.
+    copy_to: Option<String>,
     #[serde(flatten)]
     status: autobackup::Status,
 }
@@ -1912,6 +1957,7 @@ fn auto_backup_status(stack: tauri::State<Stack>) -> Result<AutoBackupInfo, Stri
     Ok(AutoBackupInfo {
         schedule: settings.preferences.auto_backup.clone(),
         keep: settings.preferences.auto_backup_keep,
+        copy_to: settings.preferences.auto_backup_copy.clone(),
         status: autobackup::load_status(&root),
     })
 }
@@ -1934,6 +1980,56 @@ fn set_auto_backup(stack: tauri::State<Stack>, schedule: String, keep: u32) -> R
         loaded.settings.preferences.auto_backup_keep = keep;
     }
     Ok(())
+}
+
+/// Picks (or, with no folder, stops using) a second folder for automatic backups, and copies the
+/// existing ones there straight away so you can see it works.
+#[tauri::command]
+async fn set_auto_backup_copy(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, pick: bool) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (root, _, _) = stack.get()?;
+    let folder = if pick {
+        let Some(f) = app
+            .dialog()
+            .file()
+            .set_title("Choose where to keep a copy of your backups (another drive or a USB stick)")
+            .blocking_pick_folder()
+        else {
+            return Err("CANCELLED".into());
+        };
+        let path = f.into_path().map_err(|e| e.to_string())?;
+        if path.starts_with(&root) {
+            return Err("Pick a folder outside NexDB's own folder, ideally on another drive, so the copy survives if that drive fails.".into());
+        }
+        Some(path.display().to_string())
+    } else {
+        None
+    };
+    settings::edit(&root, |v| {
+        v["preferences"]["auto_backup_copy"] = folder.clone().map_or(serde_json::Value::Null, Into::into);
+        Ok(())
+    })?;
+    if let Some(loaded) = stack.current.lock().unwrap().as_mut() {
+        loaded.settings.preferences.auto_backup_copy = folder.clone();
+    }
+    if let Some(dest) = folder.clone() {
+        let keep = stack.get()?.1.preferences.auto_backup_keep as usize;
+        let root2 = root.clone();
+        blocking(move || {
+            let mut status = autobackup::load_status(&root2);
+            match autobackup::copy_backups(&root2, std::path::Path::new(&dest), keep) {
+                Ok(_) => {
+                    status.last_copied = Some(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0));
+                    status.copy_problem = None;
+                }
+                Err(e) => status.copy_problem = Some(e),
+            }
+            autobackup::save_status_pub(&root2, &status);
+            Ok(())
+        })
+        .await?;
+    }
+    Ok(folder)
 }
 
 #[derive(serde::Serialize)]

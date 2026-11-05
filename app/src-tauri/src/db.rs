@@ -43,7 +43,7 @@ pub struct TableInfo {
     pub size_bytes: u64,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct ColumnInfo {
     pub name: String,
     pub column_type: String,

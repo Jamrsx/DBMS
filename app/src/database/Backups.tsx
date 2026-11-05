@@ -18,7 +18,7 @@ import { nexCelebrate } from "../lib/nex";
 import { runTask } from "../lib/tasks";
 
 type Pending =
-  | { kind: "restore"; file: BackupFile; target: string }
+  | { kind: "restore"; file: BackupFile; target: string; original: string }
   | { kind: "import"; path: string; target: string }
   | { kind: "delete"; file: BackupFile }
   | null;
@@ -29,8 +29,11 @@ export function Backups({
   selected,
   databases,
   onChanged,
+  onOpen,
   importToken = 0,
 }: {
+  /** Opens a database, for the "Open it" button after restoring a copy. */
+  onOpen?: (name: string) => void;
   /** Only this server's backups are listed (a MySQL file can't go into PostgreSQL). */
   engine?: "mysql" | "postgres";
   selected: string | null;
@@ -43,6 +46,21 @@ export function Backups({
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [pending, setPending] = useState<Pending>(null);
+  // The copy just restored, so "Open it" can take you there.
+  const [restored, setRestored] = useState<string | null>(null);
+  const exists = (name: string) => databases.some((d) => d.toLowerCase() === name.toLowerCase());
+  /** shop → shop_restored_2026_11_05 (or _2, _3… when taken). */
+  const copyName = (db: string) => {
+    const d = new Date();
+    const base =
+      `${db}_restored_${d.getFullYear()}_${String(d.getMonth() + 1).padStart(2, "0")}_${String(d.getDate()).padStart(2, "0")}`.slice(
+        0,
+        60,
+      );
+    let name = base;
+    for (let n = 2; exists(name); n++) name = `${base}_${n}`;
+    return name;
+  };
 
   const load = useCallback(() => {
     listBackups()
@@ -98,8 +116,6 @@ export function Backups({
     if (path) setPending({ kind: "import", path, target: nameFromFile(path) });
   }
 
-  const exists = (name: string) => databases.some((d) => d.toLowerCase() === name.toLowerCase());
-
   return (
     <div className="backups">
       <p className="field-hint backups-lede">
@@ -136,6 +152,11 @@ export function Backups({
       {message && (
         <p className={message.ok ? "set-ok backups-msg" : "field-error"} role={message.ok ? "status" : "alert"}>
           {message.text}
+          {message.ok && restored && onOpen && (
+            <button className="btn btn-small backups-open" onClick={() => onOpen(restored)}>
+              Open {restored}
+            </button>
+          )}
         </p>
       )}
 
@@ -145,17 +166,38 @@ export function Backups({
             pending.kind === "restore" ? `Restore ${pending.file.name}` : `Import ${pending.path.split(/[\\/]/).pop()}`
           }
           target={pending.target}
+          original={pending.kind === "restore" ? pending.original : null}
+          suggested={pending.kind === "restore" ? copyName(pending.original) : null}
           exists={exists}
           busy={!!busy}
           onTarget={(target) => setPending({ ...pending, target })}
           onCancel={() => setPending(null)}
-          onConfirm={() =>
+          onConfirm={(backupFirst) =>
             pending.kind === "restore"
               ? act(`Restoring into ${pending.target}…`, async () => {
-                  await restoreBackup(pending.file.name, pending.target);
-                  return `Restored into ${pending.target}.`;
+                  const target = pending.target;
+                  const copy = !exists(target);
+                  if (backupFirst) {
+                    try {
+                      await createBackup(target);
+                    } catch (e) {
+                      throw `The backup of ${target} didn't work, so nothing was restored. ${e} Untick “Back up first” to restore without one.`;
+                    }
+                  }
+                  await restoreBackup(pending.file.name, target);
+                  setRestored(copy ? target : null);
+                  return copy
+                    ? `Restored as a new database, ${target}. ${pending.original} is unchanged.`
+                    : `Restored into ${target}.`;
                 })
               : act(`Importing into ${pending.target}…`, async () => {
+                  if (backupFirst) {
+                    try {
+                      await createBackup(pending.target);
+                    } catch (e) {
+                      throw `The backup of ${pending.target} didn't work, so nothing was imported. ${e} Untick “Back up first” to import without one.`;
+                    }
+                  }
                   await importSqlFile(pending.path, pending.target);
                   return `Imported into ${pending.target}.`;
                 })
@@ -216,13 +258,15 @@ export function Backups({
                   ) : (
                     <>
                       <button
+                        data-guide="restore"
                         className="btn btn-small"
                         disabled={!!busy}
                         onClick={() =>
                           setPending({
                             kind: "restore",
                             file: f,
-                            target: f.database ?? selected ?? nameFromFile(f.name),
+                            target: copyName(f.database ?? selected ?? nameFromFile(f.name)),
+                            original: f.database ?? selected ?? nameFromFile(f.name),
                           })
                         }
                       >
@@ -252,6 +296,8 @@ export function Backups({
 function TargetForm({
   title,
   target,
+  original,
+  suggested,
   exists,
   busy,
   onTarget,
@@ -260,12 +306,17 @@ function TargetForm({
 }: {
   title: string;
   target: string;
+  /** For a restore: the database the backup came from, and a free name for a copy. */
+  original: string | null;
+  suggested: string | null;
   exists: (name: string) => boolean;
   busy: boolean;
   onTarget: (t: string) => void;
   onCancel: () => void;
-  onConfirm: () => void;
+  /** `backupFirst`: back up the database being replaced before restoring over it. */
+  onConfirm: (backupFirst: boolean) => void;
 }) {
+  const [backupFirst, setBackupFirst] = useState(true);
   // An existing name is fine here: it is restored into, not created.
   const problem = target ? dbNameProblem(target, []) : "Type a database name.";
   const into = target && !problem && exists(target);
@@ -274,10 +325,36 @@ function TargetForm({
       className="new-project backups-form"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!problem) onConfirm();
+        if (!problem) onConfirm(!!into && backupFirst);
       }}
     >
       <strong className="backups-form-title">{title}</strong>
+      {original && suggested && (
+        <fieldset className="backups-mode">
+          <legend className="visually-hidden">Restore how</legend>
+          <label className="check-row">
+            <input
+              type="radio"
+              name="restore-mode"
+              checked={target !== original}
+              onChange={() => onTarget(suggested)}
+            />
+            <span>
+              As a new database <span className="muted">(recommended)</span>
+              <span className="field-hint backups-mode-sub">
+                {original} stays exactly as it is, so you can compare first.
+              </span>
+            </span>
+          </label>
+          <label className="check-row">
+            <input type="radio" name="restore-mode" checked={target === original} onChange={() => onTarget(original)} />
+            <span>
+              Replace {original}
+              <span className="field-hint backups-mode-sub">Its tables are replaced by the ones in the backup.</span>
+            </span>
+          </label>
+        </fieldset>
+      )}
       <label className="field">
         <span className="field-label">Into database</span>
         <input
@@ -294,6 +371,12 @@ function TargetForm({
               : `A new database named ${target} is created.`)}
         </span>
       </label>
+      {into && (
+        <label className="set-check">
+          <input type="checkbox" checked={backupFirst} onChange={(e) => setBackupFirst(e.target.checked)} />
+          <span>Back up {target} first (recommended)</span>
+        </label>
+      )}
       <div className="backups-form-actions">
         <button type="button" className="btn" onClick={onCancel}>
           Cancel

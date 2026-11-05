@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronRight, DatabaseZap, Play, Plus, Table2, Trash2 } from "lucide-react";
+import { ArrowLeftRight, ChevronRight, DatabaseZap, Network, Play, Plus, Table2, Trash2 } from "lucide-react";
 import {
   NEEDS_PASSWORD,
   dbColumns,
@@ -32,6 +32,9 @@ import { dbUsage, type DbUsage } from "../lib/db";
 import { UseInProject } from "./UseInProject";
 import { SaveQuery, SqlLibrary, remember } from "./SqlLibrary";
 import { TableDesigner } from "./TableDesigner";
+import { Diagram } from "./Diagram";
+import { ComparePanel } from "./ComparePanel";
+import { openDiagramWindow } from "../lib/schema";
 
 const TEMPLATES_KEY = "nexdb.sqlTemplates";
 const ENGINE_KEY = "nexdb.dbEngine";
@@ -165,6 +168,8 @@ export function Database({
   useEffect(() => {
     if (openRequest && dbs.some((d) => d.name === openRequest.name)) {
       setListOpen(true);
+      // Opened from elsewhere (Ctrl+K, Nex): show its overview, not the last tab used.
+      setTab("browse");
       void pick(openRequest.name);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -347,6 +352,7 @@ export function Database({
               {tab === "browse" && selected && !table && (
                 <Overview
                   db={selected}
+                  others={userDbs.map((d) => d.name).filter((n) => n !== selected)}
                   engine={engine}
                   usedBy={usage.filter((u) => u.database === selected && u.engine === engine)}
                   connecting={connectFor === selected}
@@ -406,6 +412,10 @@ export function Database({
                   importToken={importToken}
                   selected={selected}
                   databases={dbs.map((d) => d.name)}
+                  onOpen={(name) => {
+                    void loadDbs().then(() => pick(name));
+                    setTab("browse");
+                  }}
                   onChanged={() => {
                     void loadDbs();
                     if (selected) void pick(selected);
@@ -623,6 +633,7 @@ function NewDatabase({ existing, onDone }: { existing: string[]; onDone: (name: 
 
 function Overview({
   db,
+  others,
   engine,
   usedBy,
   connecting,
@@ -636,6 +647,8 @@ function Overview({
   onImport,
 }: {
   db: string;
+  /** The user's other databases on this server, for Compare. */
+  others: string[];
   engine: DbEngine;
   usedBy: DbUsage[];
   connecting: boolean;
@@ -655,6 +668,9 @@ function Overview({
   const [backupFirst, setBackupFirst] = useState(true);
   const [working, setWorking] = useState<string | null>(null);
   const [designing, setDesigning] = useState(false);
+  // Shown in place when there's no second window (browser preview, practice mode).
+  const [diagramHere, setDiagramHere] = useState(false);
+  const [comparing, setComparing] = useState(false);
 
   if (designing)
     return (
@@ -695,11 +711,41 @@ function Overview({
           <button className="btn btn-small" data-guide="new-table" onClick={() => setDesigning(true)}>
             <Plus size={13} aria-hidden="true" /> New table…
           </button>
+          <button
+            className="btn btn-small"
+            data-guide="diagram-open"
+            title="See how the tables connect, in a window of its own"
+            onClick={async () => {
+              setError(null);
+              try {
+                if (!(await openDiagramWindow(db))) setDiagramHere(true);
+              } catch (e) {
+                setError(String(e));
+              }
+            }}
+          >
+            <Network size={13} aria-hidden="true" /> Relationships
+          </button>
+          <button
+            className="btn btn-small"
+            data-guide="compare-open"
+            aria-expanded={comparing}
+            onClick={() => setComparing((v) => !v)}
+          >
+            <ArrowLeftRight size={13} aria-hidden="true" /> Compare…
+          </button>
+        </div>
+      )}
+      {comparing && <ComparePanel key={db} db={db} others={others} onClose={() => setComparing(false)} />}
+      {diagramHere && (
+        <div className="diagram-overlay" role="dialog" aria-modal="true" aria-label={`Relationships in ${db}`}>
+          <Diagram db={db} onClose={() => setDiagramHere(false)} />
         </div>
       )}
       {tables.length === 0 ? (
         <p className="lede">
-          <code>{db}</code> has no tables yet. Press <strong>New table</strong> to design one, or write it in the SQL tab.
+          <code>{db}</code> has no tables yet. Press <strong>New table</strong> to design one, or write it in the SQL
+          tab.
         </p>
       ) : (
         <table className="data-table">

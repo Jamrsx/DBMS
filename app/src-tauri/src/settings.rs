@@ -61,6 +61,9 @@ pub struct Preferences {
     /// How many automatic backups to keep per database.
     #[serde(default = "default_auto_backup_keep")]
     pub auto_backup_keep: u32,
+    /// A second folder (another drive, a USB stick) that automatic backups are copied to.
+    #[serde(default)]
+    pub auto_backup_copy: Option<String>,
     /// Projects that use another installed PHP version than the default: project -> version.
     #[serde(default)]
     pub project_php: std::collections::BTreeMap<String, String>,
@@ -106,6 +109,7 @@ impl Default for Preferences {
             https_port: default_https_port(),
             auto_backup: default_auto_backup(),
             auto_backup_keep: default_auto_backup_keep(),
+            auto_backup_copy: None,
             project_php: Default::default(),
             shared: Default::default(),
             site_root: Default::default(),

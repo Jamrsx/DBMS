@@ -51,6 +51,7 @@ Rules every release follows:
 | 0.4.6 | Nex's guided tutorial (spotlight, try-it steps, replay by chapter); Help page with search and Show me; setup picks up a NexDB folder from before, fixing paths when it moved; uninstaller asks to keep or delete the NexDB folder |
 | 0.4.7 | .env editor with secrets hidden; Node version per project from .nvmrc; visual table designer; SQL history and saved queries; MariaDB and MongoDB services; password-protected public links; Nex's what's-new walkthrough in practice mode (sample data) |
 | 0.4.8 | Walkthrough fixes: scrolls to each step, wheel scrolls during it, bubble never covers the button to click; offers walkthroughs missed when skipping versions |
+| 0.4.9 | Relationship diagram in its own window (drag, zoom, list view); compare two databases; automatic backups copied to another drive or USB; restore a backup as a new database |
 
 ## Next
 
