@@ -219,8 +219,14 @@ async fn license_status() -> license::Status {
 
 /// Activates a key on this PC (needs internet once). `move_here` moves it from another PC.
 #[tauri::command]
-async fn license_activate(key: String, name: String, email: String, move_here: Option<bool>) -> license::Outcome {
-    license::activate(&key, &name, &email, move_here.unwrap_or(false)).await
+async fn license_activate(key: String, name: String, email: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    license::activate(&key, &name, &email, &password, move_here.unwrap_or(false)).await
+}
+
+/// Signs in with the NexDB account on this PC (email and password) instead of a key.
+#[tauri::command]
+async fn license_sign_in(email: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    license::sign_in(&email, &password, move_here.unwrap_or(false)).await
 }
 
 /// The quiet check with the website, when online.
@@ -346,6 +352,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             license_status,
             license_activate,
+            license_sign_in,
             license_check_in,
             license_unlink,
             license_device,

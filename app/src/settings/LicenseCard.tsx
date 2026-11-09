@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
-import { checkInLicense, dateOf, licenseStatus, unlinkLicense, type LicenseStatus } from "../lib/license";
+import { checkInLicense, dateOf, licenseStatus, timeLeft, unlinkLicense, type LicenseStatus } from "../lib/license";
+import { RenewOptions } from "../components/RenewOptions";
 import { isPractice } from "../lib/practice";
 import { nexCelebrate } from "../lib/nex";
 
@@ -14,6 +15,19 @@ export function LicenseCard() {
     licenseStatus().then(setStatus).catch(() => {});
   }, []);
 
+  if (status?.state === "grace")
+    return (
+      <section className="set-card" data-guide="license-card">
+        <h2 className="license-card-title">
+          <KeyRound size={16} aria-hidden="true" /> Your license has ended
+        </h2>
+        <p>
+          {status.plan ?? "Your plan"} ended {dateOf(status.expires_at)}. NexDB keeps working for another {timeLeft(status.grace_until)}. Renew it, or
+          upgrade to a longer plan:
+        </p>
+        <RenewOptions plan={status.plan} seller={status.seller} />
+      </section>
+    );
   if (!status || status.state !== "active") return null;
 
   async function checkNow() {
@@ -63,7 +77,7 @@ export function LicenseCard() {
             ) : (
               <>
                 {dateOf(status.expires_at)}
-                {status.days_left !== null && <span className="license-days"> · {status.days_left} days left</span>}
+                <span className="license-days"> · {timeLeft(status.expires_at)} left</span>
               </>
             )}
           </dd>
@@ -90,17 +104,17 @@ export function LicenseCard() {
         </button>
         {confirming ? (
           <>
-            <span className="license-confirm">Unlink it from this PC? NexDB here will ask for a key again.</span>
+            <span className="license-confirm">Sign out of this PC? Then sign in on your other PC with your email and password.</span>
             <button className="btn btn-small" onClick={() => setConfirming(false)}>
               Keep it
             </button>
             <button className="btn btn-small btn-danger" onClick={() => void unlink()}>
-              Unlink
+              Sign out
             </button>
           </>
         ) : (
           <button className="btn btn-small" onClick={() => setConfirming(true)}>
-            Move to another PC
+            Sign out of this PC
           </button>
         )}
       </div>

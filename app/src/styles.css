@@ -9454,3 +9454,38 @@ html.theme-fading *::after {
 .license-back {
   margin-top: 12px;
 }
+
+/* License screen: I have a key / Sign in. */
+.license-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.license-tab {
+  padding: 7px 10px;
+  border: 0;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.license-tab.is-on {
+  background: var(--accent);
+  color: var(--accent-on);
+}
+
+.license-forgot {
+  justify-self: start;
+}
+
+/* Names, emails and passwords read in the normal font; only the key is monospace. */
+.license-form .field input:not(.license-key) {
+  font-family: inherit;
+}

@@ -64,8 +64,23 @@ export const licenseStatus = (): Promise<LicenseStatus> =>
       ? Promise.resolve(SAMPLE)
       : invoke<LicenseStatus>("license_status");
 
-export const activateLicense = (key: string, name: string, email: string, moveHere = false) =>
-  invoke<LicenseOutcome>("license_activate", { key, name, email, moveHere });
+export const activateLicense = (key: string, name: string, email: string, password: string, moveHere = false) =>
+  invoke<LicenseOutcome>("license_activate", { key, name, email, password, moveHere });
+
+/** Sign in with the NexDB account (made on the first activation) on another PC. */
+export const signInLicense = (email: string, password: string, moveHere = false) =>
+  invoke<LicenseOutcome>("license_sign_in", { email, password, moveHere });
+
+/** Where people reset a forgotten NexDB account password. */
+export const FORGOT_URL = `${licenseServer.site.replace(/\/+$/, "")}/forgot-password`;
+
+/** "3 days", "5 hours", "12 minutes" from now until `until` (seconds). */
+export function timeLeft(until: number): string {
+  const secs = Math.max(0, until - Math.floor(Date.now() / 1000));
+  const [n, unit] =
+    secs >= 86400 ? [Math.ceil(secs / 86400), "day"] : secs >= 3600 ? [Math.ceil(secs / 3600), "hour"] : [Math.max(1, Math.ceil(secs / 60)), "minute"];
+  return `${n} ${unit}${n === 1 ? "" : "s"}`;
+}
 
 export const checkInLicense = (): Promise<LicenseOutcome> =>
   !realDesktopApp || isPractice()

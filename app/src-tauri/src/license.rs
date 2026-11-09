@@ -459,14 +459,37 @@ fn accept(key: &str, json: &serde_json::Value) -> Outcome {
     Outcome { ok: true, status: Some(status()), moves_left: json["moves_left"].as_i64(), ..Default::default() }
 }
 
-/// Activates a key on this PC. `move_here` moves it from another PC (uses one of the monthly moves).
-pub async fn activate(key: &str, name: &str, email: &str, move_here: bool) -> Outcome {
+/// Signs in with the NexDB account (email and password) instead of a key: the website puts the
+/// account's license on this PC. `move_here` moves it from another PC (uses one of the monthly moves).
+pub async fn sign_in(email: &str, password: &str, move_here: bool) -> Outcome {
+    let body = serde_json::json!({
+        "email": email.trim(),
+        "password": password,
+        "machine_id": machine_id(),
+        "device_name": device_name(),
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "move": move_here,
+    });
+    match post("signin", body).await {
+        Ok((200, json)) => match json["key"].as_str() {
+            Some(key) => accept(key, &json),
+            None => failure(&json, "The license server sent an answer NexDB doesn't understand."),
+        },
+        Ok((_, json)) => failure(&json, "Couldn't sign in."),
+        Err(e) => Outcome { ok: false, code: Some("offline".into()), message: Some(e), ..Default::default() },
+    }
+}
+
+/// Activates a key on this PC. The first activation makes the person's NexDB account with this
+/// email and password. `move_here` moves it from another PC (uses one of the monthly moves).
+pub async fn activate(key: &str, name: &str, email: &str, password: &str, move_here: bool) -> Outcome {
     let body = serde_json::json!({
         "key": key.trim(),
         "machine_id": machine_id(),
         "device_name": device_name(),
         "name": name.trim(),
         "email": email.trim(),
+        "password": password,
         "app_version": env!("CARGO_PKG_VERSION"),
         "move": move_here,
     });
@@ -594,11 +617,11 @@ mod tests {
         assert!(matches!(status(), Status::None { .. }));
         assert!(require().is_err());
 
-        let bad = tauri::async_runtime::block_on(activate("NEXDB-AAAA-BBBB-CCCC-DDDD", "Test Person", "test@example.com", false));
+        let bad = tauri::async_runtime::block_on(activate("NEXDB-AAAA-BBBB-CCCC-DDDD", "Test Person", "test@example.com", "test-pass-123", false));
         assert!(!bad.ok);
         assert_eq!(bad.code.as_deref(), Some("not_found"), "{bad:?}");
 
-        let out = tauri::async_runtime::block_on(activate(&key, "Test Person", "test@example.com", false));
+        let out = tauri::async_runtime::block_on(activate(&key, "Test Person", "test@example.com", "test-pass-123", false));
         assert!(out.ok, "{out:?}");
         assert!(status().is_active());
         assert!(require().is_ok());

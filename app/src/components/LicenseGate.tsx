@@ -3,16 +3,7 @@ import { RenewOptions } from "./RenewOptions";
 import { useEffect, useRef, useState } from "react";
 import { Nex } from "./Nex";
 import type { NexState } from "./Nex";
-import {
-  activateLicense,
-  BUY_URL,
-  checkInLicense,
-  dateOf,
-  formatKey,
-  keyLooksComplete,
-  thisDevice,
-  type LicenseStatus,
-} from "../lib/license";
+import { activateLicense, BUY_URL, checkInLicense, dateOf, formatKey, keyLooksComplete, thisDevice, type LicenseStatus, signInLicense, FORGOT_URL } from "../lib/license";
 
 /**
  * The license screen. Shown after setup, and on every start until this PC has a valid license.
@@ -33,6 +24,8 @@ export function LicenseGate({
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState<"key" | "signin">("key");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(status.state === "none" ? status.notice : null);
   const [move, setMove] = useState<{ device: string | null; left: number | null } | null>(null);
@@ -60,13 +53,15 @@ export function LicenseGate({
             ? { state: "thinking", line: "It's been a while! Connect to the internet so I can check your license." }
             : clockBack
               ? { state: "error", line: "Your PC's date looks wrong. Fix the date and time in Windows, then try again." }
-              : { state: "hello", line: "Almost there! Type your license key and you're in." };
+              : mode === "signin"
+                ? { state: "hello", line: "Welcome back! Sign in and I'll bring your license to this PC." }
+                : { state: "hello", line: "Almost there! Type your license key and you're in." };
 
   async function submit(moveHere = false) {
     setBusy(true);
     setProblem(null);
     try {
-      const out = await activateLicense(key, name, email, moveHere);
+      const out = mode === "signin" ? await signInLicense(email, password, moveHere) : await activateLicense(key, name, email, password, moveHere);
       if (out.ok && (out.status?.state === "active" || out.status?.state === "grace")) {
         onActive(out.status);
         return;
@@ -97,7 +92,9 @@ export function LicenseGate({
     }
   }
 
-  const canSubmit = keyLooksComplete(key) && name.trim().length >= 2 && /\S+@\S+\.\S+/.test(email) && !busy;
+  const emailOk = /\S+@\S+\.\S+/.test(email);
+  const canSubmit =
+    !busy && emailOk && (mode === "signin" ? password.length > 0 : keyLooksComplete(key) && name.trim().length >= 2 && password.length >= 8);
 
   return (
     <div className="license-gate" role="dialog" aria-modal="true" aria-labelledby="license-title" onKeyDown={(e) => e.key === "Escape" && e.preventDefault()}>
@@ -128,7 +125,9 @@ export function LicenseGate({
               ? "Type the new key you bought. Until then NexDB keeps working for the rest of the 3 grace days."
               : status.state === "expired"
               ? "Your license has ended and the 3 grace days are over. Your projects and databases are safe; renew or upgrade, then type the new key."
-              : "Type the license key you bought from NexDB or got from a reseller."}
+              : mode === "signin"
+                ? "Sign in with your NexDB account to use your license on this PC."
+                : "Type the license key you bought from NexDB or got from a reseller."}
           </p>
 
           {needsInternet || clockBack ? (
@@ -170,6 +169,31 @@ export function LicenseGate({
                 if (canSubmit) void submit();
               }}
             >
+              <div className="license-tabs" role="tablist" aria-label="How to start">
+                <button type="button" role="tab" aria-selected={mode === "key"} className={mode === "key" ? "license-tab is-on" : "license-tab"} onClick={() => setMode("key")}>
+                  I have a key
+                </button>
+                <button type="button" role="tab" aria-selected={mode === "signin"} className={mode === "signin" ? "license-tab is-on" : "license-tab"} onClick={() => setMode("signin")}>
+                  Sign in
+                </button>
+              </div>
+              {mode === "signin" ? (
+                <>
+                  <p className="field-hint">Used NexDB on another PC? Sign in with the email and password you chose when you activated.</p>
+                  <label className="field">
+                    <span className="field-label">Email</span>
+                    <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" autoFocus />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Password</span>
+                    <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+                  </label>
+                  <button type="button" className="link-button license-forgot" onClick={() => void openUrl(FORGOT_URL).catch(() => {})}>
+                    Forgot your password?
+                  </button>
+                </>
+              ) : (
+              <>
               <label className="field">
                 <span className="field-label">License key</span>
                 <input
@@ -196,8 +220,17 @@ export function LicenseGate({
                   <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" placeholder="you@example.com" />
                 </label>
               </div>
+              <label className="field">
+                <span className="field-label">Password</span>
+                <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" aria-describedby="license-password-hint" />
+                <span className="field-hint" id="license-password-hint">
+                  At least 8 characters. This makes your NexDB account, so you can sign in on another PC. Already have one? Use its password.
+                </span>
+              </label>
+              </>
+              )}
               <button type="submit" className="btn btn-primary license-submit" disabled={!canSubmit}>
-                {busy ? "Activating…" : "Activate"}
+                {busy ? (mode === "signin" ? "Signing in…" : "Activating…") : mode === "signin" ? "Sign in" : "Activate"}
               </button>
               <p className="license-small">
                 Your name and email are linked to this key so it can't be used by someone else. NexDB sends them only to the NexDB
