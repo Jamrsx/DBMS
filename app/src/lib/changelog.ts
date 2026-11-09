@@ -18,6 +18,7 @@ export const CHANGELOG: Release[] = [
       "Starting services, from the app or the tray, needs an active license.",
       "Setup and Versions now ask the official release sites which versions exist today, so you're offered what can actually be downloaded. Without internet, the list that came with NexDB is used.",
       "If a site takes a version down while you install (Apache did, for 2.4.69), Nex explains what happened and offers the versions it has today, instead of a checksum error. Apache 2.4.70 replaces 2.4.69.",
+      "Switching between light and dark now fades gently instead of flashing.",
     ],
   },
   {

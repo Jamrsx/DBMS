@@ -16,10 +16,35 @@ function readChoice(): ThemeChoice {
   return "system";
 }
 
+/** How long switching between light and dark fades, so it never flashes. Matches styles.css. */
+const FADE_MS = 700;
+
 function apply(choice: ThemeChoice) {
+  const root = document.documentElement;
   const theme = choice === "system" ? (darkQuery().matches ? "dark" : "light") : choice;
-  document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
+  const set = () => {
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+  };
+  // First paint, or no change: apply at once.
+  if (!root.dataset.theme || root.dataset.theme === theme) return set();
+
+  // Cross-fade the whole window from the old look to the new one.
+  const doc = document as Document & { startViewTransition?: (update: () => void) => unknown };
+  if (doc.startViewTransition && !document.hidden) {
+    let done = false;
+    const once = () => {
+      if (!done) (done = true), set();
+    };
+    doc.startViewTransition(once);
+    // A window that isn't drawing (minimised to the tray) would hold the change back.
+    window.setTimeout(once, FADE_MS);
+    return;
+  }
+  // Older engines: let colours ease over instead.
+  root.classList.add("theme-fading");
+  set();
+  window.setTimeout(() => root.classList.remove("theme-fading"), FADE_MS);
 }
 
 /** Current theme choice and a setter that saves it and applies it immediately. */

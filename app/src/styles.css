@@ -9330,3 +9330,23 @@ body:has(.welcome) .nex-corner {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* Light and dark fade into each other instead of flashing (lib/theme.ts). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.7s;
+  animation-timing-function: ease-in-out;
+}
+
+html.theme-fading,
+html.theme-fading *,
+html.theme-fading *::before,
+html.theme-fading *::after {
+  transition:
+    background-color 0.7s ease-in-out,
+    color 0.7s ease-in-out,
+    border-color 0.7s ease-in-out,
+    fill 0.7s ease-in-out,
+    stroke 0.7s ease-in-out,
+    box-shadow 0.7s ease-in-out !important;
+}
