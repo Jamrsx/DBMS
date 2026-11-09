@@ -115,7 +115,7 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
           <p className="license-lede">
             {status.state === "expired"
               ? "Your license has ended. Your projects and databases are safe; type a new key to open NexDB again."
-              : "Type the license key you got from NexDB, your school or a reseller."}
+              : "Type the license key you bought from NexDB or got from a reseller."}
           </p>
 
           {needsInternet || clockBack ? (
@@ -176,7 +176,7 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
               <div className="license-row">
                 <label className="field">
                   <span className="field-label">Full name</span>
-                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="As on your school ID" />
+                  <input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your full name" />
                 </label>
                 <label className="field">
                   <span className="field-label">Email</span>

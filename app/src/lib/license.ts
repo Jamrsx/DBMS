@@ -1,6 +1,7 @@
 import { invoke } from "./invoke";
 import { isPractice } from "./practice";
 import { realDesktopApp } from "./scan";
+import licenseServer from "../../license-server.json";
 
 /** The license on this PC, as the Rust side reports it. */
 export type LicenseStatus =
@@ -31,8 +32,11 @@ export interface LicenseOutcome {
   moves_left: number | null;
 }
 
+/** The license website, from app/license-server.json (the one file to change when the site goes live). */
+export const LICENSE_SITE = licenseServer.site.replace(/\/+$/, "");
+
 /** Where people get a key. */
-export const BUY_URL = "https://nexdb.test/#price";
+export const BUY_URL = `${LICENSE_SITE}/#price`;
 
 /** Sample license for practice mode and the browser preview: nothing real is read or changed. */
 const SAMPLE: LicenseStatus = {

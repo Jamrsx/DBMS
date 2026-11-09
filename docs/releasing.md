@@ -16,6 +16,18 @@ reinstall once with a build that has a new public key. Back the key up somewhere
 Releases are published in the **public** repository `Jamrsx/nexdb-releases`. The source code
 stays private in `Jamrsx/DBMS`; only installers and `latest.json` go to the public one.
 
+## Which license website the app uses
+
+`app/license-server.json` is the one place that says it:
+
+- `site`: the website the app activates against. While testing it is `http://nexdb.test` (Laragon).
+- `publicKey`: the public half of that website's signing key. Print it on the server with
+  `php artisan nexdb:license-keys`.
+
+When the website is live, put the live `https://` address and the live public key there, then
+rebuild. Never release a build that still points at `nexdb.test`: every user would be locked out.
+`NEXDB_LICENSE_API` / `NEXDB_LICENSE_PUBKEY`, when set while building, still win over the file.
+
 ## Making a release
 
 1. Raise the version in `app/src-tauri/tauri.conf.json` and `app/package.json` (e.g. `0.1.0` → `0.2.0`).

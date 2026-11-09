@@ -15,21 +15,37 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// The website's license API. Set NEXDB_LICENSE_API when building (or running) to point at the
-/// live site; the default is the local development site.
+/// Which website the app activates against: app/license-server.json, built into the app.
+/// Change that one file (site and publicKey) when the website goes live, then rebuild.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ServerConfig {
+    site: String,
+    public_key: String,
+}
+
+fn server_config() -> &'static ServerConfig {
+    static CONFIG: std::sync::OnceLock<ServerConfig> = std::sync::OnceLock::new();
+    CONFIG.get_or_init(|| {
+        serde_json::from_str(include_str!("../../license-server.json")).expect("app/license-server.json is valid")
+    })
+}
+
+/// The website's license API. NEXDB_LICENSE_API (when running or building) wins over
+/// license-server.json, for tests against another copy of the site.
 pub fn api_base() -> String {
     std::env::var("NEXDB_LICENSE_API")
         .ok()
         .or_else(|| option_env!("NEXDB_LICENSE_API").map(str::to_string))
-        .unwrap_or_else(|| "http://nexdb.test".to_string())
+        .unwrap_or_else(|| server_config().site.clone())
         .trim_end_matches('/')
         .to_string()
 }
 
-/// The public half of the website's signing key (base64). Set NEXDB_LICENSE_PUBKEY when
-/// building for the live site; the default matches the local development site.
+/// The public half of the website's signing key (base64). NEXDB_LICENSE_PUBKEY, when set while
+/// building, wins over license-server.json.
 fn public_key_b64() -> &'static str {
-    option_env!("NEXDB_LICENSE_PUBKEY").unwrap_or("hYO59l60p0q/D8BlGSnGBoB2qtaYE/zsL8pHoPUyr3U=")
+    option_env!("NEXDB_LICENSE_PUBKEY").unwrap_or(&server_config().public_key)
 }
 
 /// A clock more than this far behind the newest time seen counts as turned back.

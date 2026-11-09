@@ -1,0 +1,5 @@
+{
+  "_read_me": "The one place that says which website NexDB activates against. While testing, site is your local Laragon site. When the website is live, change site to the live address (https://...) and publicKey to the live key (run: php artisan nexdb:license-keys on the server), then rebuild. Both the app window and the Rust side read this file at build time. NEXDB_LICENSE_API and NEXDB_LICENSE_PUBKEY, when set while building, still win over it.",
+  "site": "http://nexdb.test",
+  "publicKey": "hYO59l60p0q/D8BlGSnGBoB2qtaYE/zsL8pHoPUyr3U="
+}
