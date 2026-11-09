@@ -235,6 +235,12 @@ async fn license_unlink() -> license::Outcome {
     license::unlink().await
 }
 
+/// Plans and prices from the website, for renewing or upgrading.
+#[tauri::command]
+async fn license_plans() -> Result<serde_json::Value, String> {
+    license::plans().await
+}
+
 /// This PC's name, for the license screen.
 #[tauri::command]
 fn license_device() -> String {
@@ -293,6 +299,7 @@ pub fn run() {
             tray::setup(app.handle())?;
             // Check which versions the official sites offer today (quietly; at most every 12 hours).
             tauri::async_runtime::spawn(async { let _ = livecatalog::refresh(false).await; });
+            license::watch_end(app.handle().clone());
             // "Start services when NexDB opens", from Settings.
             let handle = app.handle().clone();
             let stack = handle.state::<Stack>();
@@ -342,6 +349,7 @@ pub fn run() {
             license_check_in,
             license_unlink,
             license_device,
+            license_plans,
             system_scan,
             component_choices,
             port_status,

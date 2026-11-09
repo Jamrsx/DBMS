@@ -18,7 +18,8 @@ export type LicenseStatus =
       days_left: number | null;
     }
   | { state: "needs_checkin"; key_hint: string; check_by: number }
-  | { state: "expired"; key_hint: string; expires_at: number }
+  | { state: "grace"; plan: string | null; seller: string | null; key_hint: string; expires_at: number; grace_until: number }
+  | { state: "expired"; key_hint: string; expires_at: number; plan: string | null; seller: string | null }
   | { state: "clock_back"; key_hint: string };
 
 /** What the website said to an activate, check-in or unlink. */
@@ -57,6 +58,8 @@ const previewNone = !realDesktopApp && new URLSearchParams(location.search).get(
 export const licenseStatus = (): Promise<LicenseStatus> =>
   previewNone
     ? Promise.resolve({ state: "none", notice: null })
+    : previewLicense()
+      ? Promise.resolve(previewLicense()!)
     : !realDesktopApp || isPractice()
       ? Promise.resolve(SAMPLE)
       : invoke<LicenseStatus>("license_status");
@@ -73,6 +76,40 @@ export const unlinkLicense = (): Promise<LicenseOutcome> =>
   isPractice()
     ? Promise.resolve({ ok: true, status: { state: "none", notice: null }, code: null, message: null, device: null, moves_left: 2 })
     : invoke<LicenseOutcome>("license_unlink");
+
+/** A plan people can buy, from the website. */
+export interface BuyPlan {
+  id: number;
+  name: string;
+  price: number;
+  days: number | null;
+  lifetime: boolean;
+}
+
+const SAMPLE_PLANS: { plans: BuyPlan[]; buy_url: string } = {
+  plans: [
+    { id: 1, name: "6 months", price: 25000, days: 182, lifetime: false },
+    { id: 2, name: "1 year", price: 45000, days: 365, lifetime: false },
+    { id: 3, name: "Lifetime", price: 349900, days: null, lifetime: true },
+  ],
+  buy_url: BUY_URL,
+};
+
+export const licensePlans = (): Promise<{ plans: BuyPlan[]; buy_url: string }> =>
+  realDesktopApp ? invoke("license_plans") : Promise.resolve(SAMPLE_PLANS);
+
+/** NexDB works normally: an active license, or one that ended within the last 3 days. */
+export const licenseWorks = (s: LicenseStatus | null) => s?.state === "active" || s?.state === "grace";
+
+/** Browser preview only: `?license=grace` or `?license=expired` shows those screens. */
+const previewState = !realDesktopApp ? new URLSearchParams(location.search).get("license") : null;
+const nowSecs = () => Math.floor(Date.now() / 1000);
+export const previewLicense = (): LicenseStatus | null =>
+  previewState === "grace"
+    ? { state: "grace", plan: "6 months", seller: null, key_hint: "7KQ2", expires_at: nowSecs() - 3600, grace_until: nowSecs() + 3 * 86400 - 3600 }
+    : previewState === "expired"
+      ? { state: "expired", plan: "6 months", seller: "Alpha Shop", key_hint: "7KQ2", expires_at: nowSecs() - 4 * 86400 }
+      : null;
 
 export const thisDevice = (): Promise<string> => (realDesktopApp ? invoke<string>("license_device") : Promise.resolve("THIS-PC"));
 

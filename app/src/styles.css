@@ -9350,3 +9350,107 @@ html.theme-fading *::after {
     stroke 0.7s ease-in-out,
     box-shadow 0.7s ease-in-out !important;
 }
+
+/* License ended: 3 grace days with a notice, and the renew-or-upgrade choices (GraceNotice, RenewOptions). */
+.grace-bar {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: min(720px, calc(100vw - 32px));
+  padding: 10px 12px 10px 16px;
+  transform: translateX(-50%);
+  border: 1px solid var(--warn-border);
+  border-radius: var(--radius-sm);
+  background: var(--warn-soft);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+  font-size: 13px;
+}
+
+.grace-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(0 0 0 / 0.45);
+}
+
+.grace-card {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  width: min(560px, 100%);
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.grace-card h2 {
+  margin: 4px 0 6px;
+  font-size: 17px;
+}
+
+.grace-card p {
+  margin: 0 0 12px;
+}
+
+.grace-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.renew-options {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.renew-seller {
+  margin: 0;
+  font-size: 13px;
+}
+
+.renew-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.renew-plan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.renew-plan.is-current {
+  border-color: var(--accent);
+}
+
+.renew-tag {
+  margin-left: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.renew-price {
+  margin-left: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+.license-back {
+  margin-top: 12px;
+}

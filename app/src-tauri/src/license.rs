@@ -48,6 +48,8 @@ fn public_key_b64() -> &'static str {
     option_env!("NEXDB_LICENSE_PUBKEY").unwrap_or(&server_config().public_key)
 }
 
+/// After a license ends, NexDB keeps working this long so there's time to renew or upgrade.
+const GRACE_SECS: i64 = 3 * 24 * 3600;
 /// A clock more than this far behind the newest time seen counts as turned back.
 const CLOCK_SLACK_SECS: i64 = 24 * 3600;
 /// How long a quiet background check waits for the website.
@@ -60,6 +62,9 @@ pub struct Claims {
     pub lid: u64,
     pub key_hint: String,
     pub plan: Option<String>,
+    /// The reseller who sold it, if any (newer licenses only).
+    #[serde(default)]
+    pub seller: Option<String>,
     pub name: Option<String>,
     pub email: Option<String>,
     pub machine: String,
@@ -99,15 +104,17 @@ pub enum Status {
     },
     /// Valid, but it hasn't checked in with the website for too long.
     NeedsCheckin { key_hint: String, check_by: i64 },
-    /// Its time ran out.
-    Expired { key_hint: String, expires_at: i64 },
+    /// Its time ran out, but NexDB keeps working for a few days so there's time to renew.
+    Grace { plan: Option<String>, seller: Option<String>, key_hint: String, expires_at: i64, grace_until: i64 },
+    /// Its time ran out and the grace days are over.
+    Expired { key_hint: String, expires_at: i64, plan: Option<String>, seller: Option<String> },
     /// The PC clock is behind the newest time NexDB has seen.
     ClockBack { key_hint: String },
 }
 
 impl Status {
     pub fn is_active(&self) -> bool {
-        matches!(self, Status::Active { .. })
+        matches!(self, Status::Active { .. } | Status::Grace { .. })
     }
 }
 
@@ -145,8 +152,11 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
     }
     let at = at.max(last_seen);
     if let Some(end) = claims.expires_at {
+        if at >= end + GRACE_SECS {
+            return Status::Expired { key_hint: hint, expires_at: end, plan: claims.plan.clone(), seller: claims.seller.clone() };
+        }
         if at >= end {
-            return Status::Expired { key_hint: hint, expires_at: end };
+            return Status::Grace { plan: claims.plan.clone(), seller: claims.seller.clone(), key_hint: hint, expires_at: end, grace_until: end + GRACE_SECS };
         }
     }
     if at > claims.check_by {
@@ -320,6 +330,48 @@ pub fn status() -> Status {
 }
 
 /// For commands that should only run with a license (starting services, installing...).
+/// Every minute: re-reads the license so it ends on time while NexDB is open. Says so once with
+/// a Windows notification when it ends (grace days start) and once when the grace days are over,
+/// and tells the window (`license-changed`) so it can show the renew screen.
+pub fn watch_end(app: tauri::AppHandle) {
+    use tauri::Emitter;
+    std::thread::spawn(move || {
+        let mut last = status();
+        loop {
+            std::thread::sleep(Duration::from_secs(60));
+            let now_status = status();
+            let changed = std::mem::discriminant(&now_status) != std::mem::discriminant(&last);
+            if changed {
+                match &now_status {
+                    Status::Grace { grace_until, .. } => crate::tray::notify(
+                        &app,
+                        "Your NexDB license has ended",
+                        &format!("NexDB keeps working for {} more. Open NexDB to renew or upgrade.", time_left(grace_until - now())),
+                    ),
+                    Status::Expired { .. } => crate::tray::notify(
+                        &app,
+                        "NexDB needs a new license",
+                        "The 3 grace days are over. Open NexDB to renew or upgrade; your projects and databases are safe.",
+                    ),
+                    _ => {}
+                }
+                let _ = app.emit("license-changed", &now_status);
+            }
+            last = now_status;
+        }
+    });
+}
+
+/// "2 days", "5 hours", "12 minutes".
+fn time_left(secs: i64) -> String {
+    let (n, unit) = match secs.max(0) {
+        s if s >= 86_400 => ((s as f64 / 86_400.0).ceil() as i64, "day"),
+        s if s >= 3_600 => ((s as f64 / 3_600.0).ceil() as i64, "hour"),
+        s => (((s as f64) / 60.0).ceil().max(1.0) as i64, "minute"),
+    };
+    format!("{n} {unit}{}", if n == 1 { "" } else { "s" })
+}
+
 pub fn require() -> Result<(), String> {
     let cached = CACHE.lock().ok().and_then(|c| c.clone());
     let s = cached.unwrap_or_else(status);
@@ -350,6 +402,18 @@ fn client() -> Result<reqwest::Client, String> {
         .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
         .build()
         .map_err(|e| e.to_string())
+}
+
+/// The plans people can buy, from the website, for the renew-or-upgrade screen.
+pub async fn plans() -> Result<serde_json::Value, String> {
+    let res = client()?
+        .get(format!("{}/api/v1/plans", api_base()))
+        .header("Accept", "application/json")
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|_| "Couldn't load the plans. Check your internet connection.".to_string())?;
+    res.json::<serde_json::Value>().await.map_err(|e| e.to_string())
 }
 
 async fn post(path: &str, body: serde_json::Value) -> Result<(u16, serde_json::Value), String> {
@@ -422,7 +486,7 @@ pub async fn check_in() -> Outcome {
     let body = serde_json::json!({ "key": stored.key, "machine_id": machine_id(), "app_version": env!("CARGO_PKG_VERSION") });
     match post("check", body).await {
         Ok((200, json)) => accept(&stored.key, &json),
-        Ok((code, json)) if matches!(json["code"].as_str(), Some("revoked" | "moved" | "expired" | "lapsed" | "not_found")) || code == 404 => {
+        Ok((code, json)) if matches!(json["code"].as_str(), Some("revoked" | "moved" | "lapsed" | "not_found")) || code == 404 => {
             let out = failure(&json, "This license can no longer be used on this PC.");
             forget(out.message.clone());
             Outcome { status: Some(status()), ..out }
@@ -465,6 +529,7 @@ mod tests {
             lid: 4,
             key_hint: "7KQ2".into(),
             plan: Some("6 months".into()),
+            seller: Some("Alpha Shop".into()),
             name: Some("Maria".into()),
             email: Some("maria@example.com".into()),
             machine: "a".repeat(64),
@@ -491,7 +556,11 @@ mod tests {
         let c = claims(Some(5_000_000));
         assert!(evaluate(&c, 1_000, 2_000).is_active());
         assert!(matches!(evaluate(&c, 1_000, c.check_by + 1), Status::NeedsCheckin { .. }));
-        assert!(matches!(evaluate(&c, 1_000, 5_000_001), Status::Expired { .. }));
+        // Ended: 3 days of grace (still works), then expired.
+        let grace = evaluate(&c, 1_000, 5_000_001);
+        assert!(grace.is_active() && matches!(grace, Status::Grace { grace_until: 5_259_200, .. }));
+        assert!(matches!(evaluate(&c, 1_000, 5_000_000 + GRACE_SECS), Status::Expired { .. }));
+        assert!(!evaluate(&c, 1_000, 5_000_000 + GRACE_SECS).is_active());
         assert!(matches!(evaluate(&claims(None), 1_000, 2_000), Status::Active { lifetime: true, .. }));
     }
 

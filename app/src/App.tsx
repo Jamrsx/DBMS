@@ -3,7 +3,10 @@ import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
 import { Welcome } from "./components/Welcome";
 import { LicenseGate } from "./components/LicenseGate";
-import { checkInLicense, licenseStatus, type LicenseStatus } from "./lib/license";
+import { checkInLicense, licenseStatus, licenseWorks, type LicenseStatus } from "./lib/license";
+import { GraceNotice } from "./components/GraceNotice";
+import { listen } from "@tauri-apps/api/event";
+import { realDesktopApp } from "./lib/scan";
 import { showGuide } from "./components/Tour";
 import { Diagram } from "./database/Diagram";
 import { TerminalPage } from "./terminal/TerminalPage";
@@ -46,6 +49,7 @@ function MainApp() {
   const [welcome, setWelcome] = useState(false);
   // No valid license: the license screen, and nothing else, until one is activated.
   const [license, setLicense] = useState<LicenseStatus | null>(null);
+  const [typingKey, setTypingKey] = useState(false);
 
   const check = useCallback(() => {
     setupInfo()
@@ -80,14 +84,37 @@ function MainApp() {
     };
   }, [view]);
 
+  // While open: read the license again every minute (and when the Rust side says it changed), so
+  // it ends on time. Ended within 3 days: a notice, nothing locked. After that: the license screen.
+  useEffect(() => {
+    if (view !== "dashboard") return;
+    const reread = () => void licenseStatus().then(setLicense).catch(() => {});
+    const timer = window.setInterval(reread, 60_000);
+    const unlisten = realDesktopApp ? listen("license-changed", reread) : null;
+    return () => {
+      window.clearInterval(timer);
+      void unlisten?.then((stop) => stop());
+    };
+  }, [view]);
+
   if (view === "loading") return null;
   if (view === "dashboard" && license === null) return null;
-  if (view === "dashboard" && license?.state !== "active")
-    return <LicenseGate status={license!} onActive={setLicense} />;
+  if (view === "dashboard" && (!licenseWorks(license) || typingKey))
+    return (
+      <LicenseGate
+        status={license!}
+        onActive={(s) => {
+          setTypingKey(false);
+          setLicense(s);
+        }}
+        onClose={licenseWorks(license) ? () => setTypingKey(false) : undefined}
+      />
+    );
   if (view === "dashboard")
     return (
       <>
         <Shell holdTour={welcome} />
+        {license?.state === "grace" && <GraceNotice status={license} onNewKey={() => setTypingKey(true)} />}
         {welcome && (
           <Welcome
             onDone={(tour) => {

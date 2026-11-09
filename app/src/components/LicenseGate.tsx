@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { RenewOptions } from "./RenewOptions";
 import { useEffect, useRef, useState } from "react";
 import { Nex } from "./Nex";
 import type { NexState } from "./Nex";
@@ -18,7 +19,17 @@ import {
  * There is no way past it: no close button, no skip, Escape does nothing. Activating needs the
  * internet once; after that NexDB works offline.
  */
-export function LicenseGate({ status, onActive }: { status: LicenseStatus; onActive: (s: LicenseStatus) => void }) {
+export function LicenseGate({
+  status,
+  onActive,
+  onClose,
+}: {
+  status: LicenseStatus;
+  onActive: (s: LicenseStatus) => void;
+  /** Only while NexDB still works (grace days): goes back without a new key. */
+  onClose?: () => void;
+}) {
+  const ended = status.state === "expired" || status.state === "grace";
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,8 +54,8 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
       ? { state: "error", line: problem }
       : move
         ? { state: "thinking", line: "That key is on another PC. Move it here?" }
-        : status.state === "expired"
-          ? { state: "sleeping", line: `Your license ended on ${dateOf(status.expires_at)}. Type a new key to keep going.` }
+        : ended
+          ? { state: "sleeping", line: `Your license ended on ${dateOf(status.expires_at)}. Renew or upgrade, then type the new key.` }
           : needsInternet
             ? { state: "thinking", line: "It's been a while! Connect to the internet so I can check your license." }
             : clockBack
@@ -56,7 +67,7 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
     setProblem(null);
     try {
       const out = await activateLicense(key, name, email, moveHere);
-      if (out.ok && out.status?.state === "active") {
+      if (out.ok && (out.status?.state === "active" || out.status?.state === "grace")) {
         onActive(out.status);
         return;
       }
@@ -111,10 +122,12 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
         </aside>
 
         <main className="license-main">
-          <h1 id="license-title">{status.state === "expired" ? "Renew your license" : "Activate NexDB"}</h1>
+          <h1 id="license-title">{ended ? "Renew your license" : "Activate NexDB"}</h1>
           <p className="license-lede">
-            {status.state === "expired"
-              ? "Your license has ended. Your projects and databases are safe; type a new key to open NexDB again."
+            {status.state === "grace"
+              ? "Type the new key you bought. Until then NexDB keeps working for the rest of the 3 grace days."
+              : status.state === "expired"
+              ? "Your license has ended and the 3 grace days are over. Your projects and databases are safe; renew or upgrade, then type the new key."
               : "Type the license key you bought from NexDB or got from a reseller."}
           </p>
 
@@ -199,12 +212,21 @@ export function LicenseGate({ status, onActive }: { status: LicenseStatus; onAct
             </p>
           )}
 
-          <p className="license-buy">
-            No key yet?{" "}
-            <button type="button" className="link-button" onClick={() => void openUrl(BUY_URL).catch(() => {})}>
-              Get one
+          {ended ? (
+            <RenewOptions plan={status.plan} seller={status.seller} />
+          ) : (
+            <p className="license-buy">
+              No key yet?{" "}
+              <button type="button" className="link-button" onClick={() => void openUrl(BUY_URL).catch(() => {})}>
+                Get one
+              </button>
+            </p>
+          )}
+          {onClose && (
+            <button type="button" className="link-button license-back" onClick={onClose}>
+              Back to NexDB
             </button>
-          </p>
+          )}
         </main>
       </div>
     </div>
