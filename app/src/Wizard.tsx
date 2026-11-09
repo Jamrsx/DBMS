@@ -198,6 +198,13 @@ export function Wizard({
             mysqlPassword={mysql?.value.noPassword ? "" : (mysql?.value.password ?? "")}
             onBack={() => goTo("review")}
             onFinish={onFinish}
+            onSwitch={(id, version, fresh) => {
+              if (!selections) return;
+              const next = { ...selections, [id]: { ...selections[id], version, existingPath: null } };
+              setSelections(next);
+              setChoices(fresh);
+              setInstallPlan(buildPlan({ settings, selections: next, choices: fresh, scan: scanReport, mysql }));
+            }}
           />
         ) : (
         <>

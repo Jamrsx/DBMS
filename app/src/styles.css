@@ -9303,3 +9303,30 @@ body:has(.welcome) .nex-corner {
   font-size: 13px;
   color: var(--text-2);
 }
+
+/* Install: a version the vendor took down. Nex explains and offers today's versions. */
+.version-gone {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.version-gone h2 {
+  margin: 2px 0 6px;
+  font-size: 15px;
+}
+
+.version-gone p {
+  margin: 0 0 8px;
+}
+
+.version-gone-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

@@ -3,6 +3,11 @@ import { listen } from "@tauri-apps/api/event";
 import { inDesktopApp } from "./scan";
 import type { InstallPlan } from "./plan";
 
+/** Start of the installer's error when a version was taken down by its official site (Rust: installer::GONE). */
+export const GONE = "This version is no longer available from its official site.";
+
+export const isGone = (message: string | null | undefined) => !!message?.startsWith(GONE);
+
 export type StepStatus = "running" | "done" | "failed" | "cancelled";
 
 export interface Progress {

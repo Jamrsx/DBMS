@@ -618,7 +618,7 @@ async fn install_item(
 ) -> Result<Option<String>, StepError> {
     let download = catalog
         .download_for(&item.id, &item.version)
-        .ok_or_else(|| format!("No Windows download is listed for {} {}.", item.id, item.version))?;
+        .ok_or_else(|| format!("{GONE} No Windows download is listed for {} {} any more.", item.id, item.version))?;
     let target = target_dir(root, &item.id, &item.version);
 
     let installed_marker = target.join(".devmanager-installed");
@@ -717,12 +717,17 @@ async fn fetch(
     emit: &impl Fn(Progress),
 ) -> Result<(), StepError> {
     let partial = dest.with_extension("part");
-    let response = client
-        .get(&download.url)
-        .send()
-        .await
-        .and_then(|r| r.error_for_status())
-        .map_err(|err| format!("Download failed: {err}"))?;
+    let response = client.get(&download.url).send().await.map_err(|err| format!("Download failed: {err}"))?;
+    // A removed file: some sites answer with a "not found" web page instead of an error.
+    let html = response
+        .headers()
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|t| t.starts_with("text/html"));
+    if matches!(response.status().as_u16(), 404 | 410) || (response.status().is_success() && html) {
+        return Err(StepError::Failed(format!("{GONE} The official site no longer offers this file.")));
+    }
+    let response = response.error_for_status().map_err(|err| format!("Download failed: {err}"))?;
     let total = response.content_length().or(download.size);
 
     let mut file = File::create(&partial).map_err(|err| format!("Couldn't save the download: {err}"))?;
@@ -759,6 +764,10 @@ async fn fetch(
     // Signed installers are checked by their Authenticode signature after download instead.
     if download.checksum.algo != AUTHENTICODE && actual != download.checksum.value {
         let _ = fs::remove_file(&partial);
+        // A very different size means the site now serves another file under this name.
+        if download.size.is_some_and(|size| done.abs_diff(size) > size / 10) {
+            return Err(StepError::Failed(format!("{GONE} The official site now serves a different file under this name.")));
+        }
         return Err(StepError::Failed(format!(
             "The downloaded file didn't match its {} checksum, so it was deleted. Try again; \
              if it keeps failing, the download may have been tampered with.",
@@ -768,6 +777,10 @@ async fn fetch(
     fs::rename(&partial, dest).map_err(|err| format!("Couldn't save the download: {err}"))?;
     Ok(())
 }
+
+/// Start of the error when a version can't be downloaded any more (the vendor took it down or
+/// replaced it). The app then offers another version instead of "Try again".
+pub const GONE: &str = "This version is no longer available from its official site.";
 
 /// Checksum type for vendor installers verified by their code signature, not a hash.
 const AUTHENTICODE: &str = "authenticode";

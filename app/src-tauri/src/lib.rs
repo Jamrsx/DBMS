@@ -27,6 +27,7 @@ mod importer;
 mod installer;
 mod laravel;
 mod license;
+mod livecatalog;
 mod phpmyadmin;
 mod phpfix;
 mod phpini;
@@ -79,14 +80,14 @@ async fn suggest_port(start: u16) -> Result<Option<u16>, String> {
 /// Installable versions with labels and a recommended pick per component, as of today.
 #[tauri::command]
 fn component_choices() -> catalog::Choices {
-    catalog::choices(&catalog::bundled(), catalog::today())
+    catalog::choices(&livecatalog::current(), catalog::today())
 }
 
 /// Downloads, verifies and unpacks the requested components, emitting
 /// `install-progress` events. Returns the first error, if any.
 #[tauri::command]
 async fn run_install(app: tauri::AppHandle, request: installer::InstallRequest) -> Result<(), String> {
-    let catalog = catalog::bundled();
+    let catalog = livecatalog::current();
     let config_dir = app.path().app_config_dir().ok();
     installer::run(&catalog, &request, &installer::RunOptions::for_app(config_dir), |progress| {
         let _ = app.emit("install-progress", progress);
@@ -290,6 +291,8 @@ pub fn run() {
         )
         .setup(|app| {
             tray::setup(app.handle())?;
+            // Check which versions the official sites offer today (quietly; at most every 12 hours).
+            tauri::async_runtime::spawn(async { let _ = livecatalog::refresh(false).await; });
             // "Start services when NexDB opens", from Settings.
             let handle = app.handle().clone();
             let stack = handle.state::<Stack>();
@@ -712,7 +715,7 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
     let lan_name = announced.iter().any(|p| p == name).then(|| format!("{}.local", localname::host_for(name)));
     let public_url = tunnels.url(&tunnel_key(name, ""));
     let web = settings.web().map(|w| w.0);
-    let tool = catalog::bundled().tools.cloudflared;
+    let tool = livecatalog::current().tools.cloudflared;
     ShareInfo {
         port,
         lan_qr: lan_url.as_deref().and_then(|u| share::qr_svg(u).ok()),
@@ -2133,7 +2136,7 @@ async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack
     let Some((web, _)) = settings.web() else {
         return Err("phpMyAdmin needs a web server (Apache or nginx), which isn't part of this install.".into());
     };
-    let catalog = catalog::bundled();
+    let catalog = livecatalog::current();
     let emit_app = app.clone();
     phpmyadmin::install(&catalog.tools.phpmyadmin.download, &root, settings.mysql.as_ref().map(|m| m.port), &move |p| {
         let _ = emit_app.emit("tool-progress", p);
@@ -2534,9 +2537,9 @@ struct VersionsInfo {
 async fn versions_overview(stack: tauri::State<'_, Stack>) -> Result<VersionsInfo, String> {
     let (root, settings, _) = stack.get()?;
     blocking(move || {
-        let choices = catalog::choices(&catalog::bundled(), catalog::today());
+        let choices = catalog::choices(&livecatalog::current(), catalog::today());
         let mut components = versions::overview(&root, &settings, &choices.components);
-        components.extend(versions::tools(&root, &settings, &catalog::bundled()));
+        components.extend(versions::tools(&root, &settings, &livecatalog::current()));
         Ok(VersionsInfo {
             components,
             catalog_date: choices.catalog_date,
@@ -2558,7 +2561,7 @@ fn missing_components(stack: tauri::State<Stack>) -> Result<Vec<versions::Missin
 #[tauri::command]
 async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<Option<String>, String> {
     let (root, _, sup) = stack.get()?;
-    let catalog = catalog::bundled();
+    let catalog = livecatalog::current();
     let tool = catalog.tools.get(&id);
     // Reinstalling a running helper: its files are in use, so stop it first.
     if versions::SERVICE_TOOLS.contains(&id.as_str()) {
@@ -2661,7 +2664,7 @@ async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, 
 #[tauri::command]
 async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
     let (root, settings, sup) = stack.get()?;
-    let choices = catalog::choices(&catalog::bundled(), catalog::today());
+    let choices = catalog::choices(&livecatalog::current(), catalog::today());
     let dir = versions::check_switch(&root, &settings, &id, &version, &choices.components)?;
     let was_running: Vec<String> = sup
         .status()

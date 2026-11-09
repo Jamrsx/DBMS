@@ -2,7 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Circle, CircleSlash, LoaderCircle, X } from "lucide-react";
 import type { InstallPlan } from "../lib/plan";
 import { inDesktopApp } from "../lib/scan";
-import { cancelInstall, runInstall, type Progress } from "../lib/install";
+import { cancelInstall, isGone, runInstall, type Progress } from "../lib/install";
+import { loadChoices, type Choices } from "../lib/catalog";
+import { Nex } from "../components/Nex";
+
+/** Pick another version for a component whose download was taken down, then install again. */
+export type SwitchVersion = (id: string, version: string, choices: Choices) => void;
 
 export type RunState = "running" | "done" | "failed" | "cancelled";
 
@@ -39,11 +44,18 @@ export function useInstall(plan: InstallPlan, mysqlPassword: string) {
 export function Install({
   plan,
   run,
+  onSwitch,
 }: {
   plan: InstallPlan;
   run: ReturnType<typeof useInstall>;
+  onSwitch?: SwitchVersion;
 }) {
   const { state, steps, error } = run;
+  const gone = state === "failed" && isGone(error);
+  const failedId = Object.values(steps)
+    .find((p) => p.status === "failed" && p.step.startsWith("get-"))
+    ?.step.slice(4);
+  const failed = gone ? plan.components.find((c) => c.id === failedId) : undefined;
 
   return (
     <>
@@ -74,10 +86,15 @@ export function Install({
         ))}
       </ol>
 
-      {error && state === "failed" && (
-        <div className="error-box" role="alert">
-          <p>{error}</p>
-        </div>
+      {failed && onSwitch ? (
+        <VersionGone name={failed.name} id={failed.id} version={failed.version ?? ""} onSwitch={onSwitch} />
+      ) : (
+        error &&
+        state === "failed" && (
+          <div className="error-box" role="alert">
+            <p>{error}</p>
+          </div>
+        )
       )}
     </>
   );
@@ -139,6 +156,77 @@ function InstallStep({
         </span>
       )}
     </li>
+  );
+}
+
+/**
+ * Nex explains that the vendor took the version down (not a problem with this PC) and offers
+ * the versions the official site has today, the recommended one first.
+ */
+function VersionGone({
+  name,
+  id,
+  version,
+  onSwitch,
+}: {
+  name: string;
+  id: string;
+  version: string;
+  onSwitch: SwitchVersion;
+}) {
+  const [choices, setChoices] = useState<Choices | null>(null);
+  const [offline, setOffline] = useState(false);
+
+  useEffect(() => {
+    loadChoices(true)
+      .then(setChoices)
+      .catch(() => setOffline(true));
+  }, []);
+
+  const component = choices?.components.find((c) => c.id === id);
+  const recommended = component?.recommended;
+  const others = (component?.versions ?? [])
+    .filter((v) => v.downloadable && v.version !== version)
+    .sort((a, b) => Number(b.version === recommended) - Number(a.version === recommended));
+
+  return (
+    <aside className="version-gone" role="alert" aria-labelledby="version-gone-title">
+      <Nex state={choices ? "teacher" : "thinking"} size={72} />
+      <div>
+        <h2 id="version-gone-title">
+          {name} {version} isn't offered any more
+        </h2>
+        <p>
+          The official {name} download site took this version down, usually because a newer build replaced it. Nothing
+          is wrong with your PC, and nothing half-installed was left behind.
+        </p>
+        {!choices && !offline && <p className="field-hint">Checking which versions the official site has today…</p>}
+        {offline && (
+          <p className="field-hint">Couldn't reach the release sites. Check the internet connection, then press Try again.</p>
+        )}
+        {choices && others.length === 0 && (
+          <p className="field-hint">The site has no other version right now. Try again in a little while.</p>
+        )}
+        {choices && others.length > 0 && (
+          <>
+            <p>Pick one it has today and I'll carry on from where we stopped:</p>
+            <div className="version-gone-actions">
+              {others.map((v, i) => (
+                <button
+                  key={v.version}
+                  className={i === 0 ? "btn btn-small btn-primary" : "btn btn-small"}
+                  autoFocus={i === 0}
+                  onClick={() => onSwitch(id, v.version, choices)}
+                >
+                  Install {name} {v.version}
+                  {v.version === recommended && " (recommended)"}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </aside>
   );
 }
 

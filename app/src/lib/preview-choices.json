@@ -7,8 +7,8 @@
       "versions": [
         {
           "line": "2.4",
-          "version": "2.4.69",
-          "released": "2026-10-01",
+          "version": "2.4.70",
+          "released": "2026-11-06",
           "eol": null,
           "labels": [
             "recommended",
@@ -16,10 +16,10 @@
           ],
           "note": null,
           "downloadable": true,
-          "download_size": 14495691
+          "download_size": 14512491
         }
       ],
-      "recommended": "2.4.69"
+      "recommended": "2.4.70"
     },
     {
       "id": "nginx",
@@ -191,7 +191,8 @@
           "eol": "2027-04-30",
           "labels": [
             "lts",
-            "security-fix"
+            "security-fix",
+            "ends-soon"
           ],
           "note": null,
           "downloadable": true,

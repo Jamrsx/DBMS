@@ -76,20 +76,20 @@ pub struct Tool {
 }
 
 /// An official Windows x64 download and the checksum it must match.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Download {
     pub url: String,
     pub size: Option<u64>,
     pub checksum: Checksum,
     /// Only this folder of the archive is unpacked (Python's package keeps it in `tools`).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subdir: Option<String>,
     /// The download is a program, not an archive: it is saved into the folder under this name.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Checksum {
     /// "sha256" or "md5".
     pub algo: String,
@@ -97,14 +97,14 @@ pub struct Checksum {
     pub value: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CatalogComponent {
     pub id: String,
     pub name: String,
     pub lines: Vec<CatalogLine>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CatalogLine {
     pub line: String,
     pub latest: String,

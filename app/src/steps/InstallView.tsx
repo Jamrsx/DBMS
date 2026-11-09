@@ -1,5 +1,6 @@
 import type { InstallPlan } from "../lib/plan";
-import { Install, useInstall } from "./Install";
+import { isGone } from "../lib/install";
+import { Install, useInstall, type SwitchVersion } from "./Install";
 
 /** The Install step's body and footer; the footer changes with the run state. */
 export function InstallView({
@@ -7,19 +8,23 @@ export function InstallView({
   mysqlPassword,
   onBack,
   onFinish,
+  onSwitch,
 }: {
   plan: InstallPlan;
   mysqlPassword: string;
   onBack: () => void;
   onFinish: () => void;
+  onSwitch: SwitchVersion;
 }) {
   const run = useInstall(plan, mysqlPassword);
   const running = run.state === "running";
+  // When the version was taken down, Nex's choices lead; Try again would only fail the same way.
+  const gone = run.state === "failed" && isGone(run.error);
 
   return (
     <>
       <div className="panel-body">
-        <Install plan={plan} run={run} />
+        <Install plan={plan} run={run} onSwitch={onSwitch} />
       </div>
       <footer className="panel-foot">
         <button className="btn btn-quiet" onClick={onBack} disabled={running}>
@@ -32,7 +37,7 @@ export function InstallView({
           </button>
         )}
         {(run.state === "failed" || run.state === "cancelled") && (
-          <button className="btn btn-primary" onClick={run.retry}>
+          <button className={gone ? "btn" : "btn btn-primary"} onClick={run.retry}>
             Try again
           </button>
         )}

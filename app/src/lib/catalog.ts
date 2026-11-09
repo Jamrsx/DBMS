@@ -30,9 +30,13 @@ export interface Choices {
   git_version: string | null;
 }
 
-export async function loadChoices(): Promise<Choices> {
+/**
+ * Versions to offer. The app asks the official release sites (at most every 12 hours, or now
+ * with `fresh`) and falls back to the list that came with NexDB when offline.
+ */
+export async function loadChoices(fresh = false): Promise<Choices> {
   if (inDesktopApp) {
-    return invoke<Choices>("component_choices");
+    return invoke<Choices>("component_choices", { fresh });
   }
   // Browser preview: generated from the same Rust rules by
   // `cargo test write_preview_choices -- --ignored`.
