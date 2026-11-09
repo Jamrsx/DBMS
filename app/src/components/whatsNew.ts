@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.4", chapter: "New in 0.5.4" },
   { version: "0.5.3", chapter: "New in 0.5.3" },
   { version: "0.5.2", chapter: "New in 0.5.2" },
   { version: "0.5.1", chapter: "New in 0.5.1" },
@@ -25,6 +26,41 @@ const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.4",
+    title: "Your NexDB license",
+    body: "NexDB now runs with a license key. You activated it once with the internet; it works offline from then on. Practice mode: this is a sample license, nothing changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.4",
+    title: "Settings → License",
+    body: "Click Settings.",
+    target: '.nav-item[data-page="settings"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.4",
+    title: "What you have",
+    body: "Your plan, when it ends (or Never, for a lifetime license), who activated it, and the end of the key. NexDB checks it quietly whenever you're online.",
+    page: "settings",
+    run: () => showSettingsSection("license"),
+    target: here('[data-guide="license-card"]'),
+  },
+  {
+    chapter: "New in 0.5.4",
+    title: "New PC? Take it with you",
+    body: "Move to another PC frees the key here, so you can activate it on the new one. You can move it up to 3 times a month.",
+    page: "settings",
+    run: () => showSettingsSection("license"),
+    target: here('[data-guide="license-actions"]'),
+  },
+  {
+    chapter: "New in 0.5.4",
+    title: "That's 0.5.4!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.3",
     title: "The right PHP, everywhere",

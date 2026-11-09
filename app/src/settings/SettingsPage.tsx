@@ -15,8 +15,7 @@ import {
   Share2,
   ShieldAlert,
   ShieldCheck,
-  SlidersHorizontal,
-} from "lucide-react";
+  SlidersHorizontal, KeyRound } from "lucide-react";
 import { SETTINGS_SECTIONS, type SettingsSection } from "../lib/settingsNav";
 import { storageKey } from "../lib/practice";
 import { getHttps, setHttps, trustHttps, type HttpsInfo } from "../lib/https";
@@ -33,6 +32,7 @@ import {
   switchWebServer,
   type AppSettings,
 } from "../lib/appsettings";
+import { LicenseCard } from "./LicenseCard";
 import { autoUpdateOn, checkUpdates, installUpdates, setAutoUpdate, useUpdates } from "../lib/updates";
 
 const SECTION_INFO: Record<SettingsSection, { label: string; lede: string; Icon: typeof Globe }> = {
@@ -45,6 +45,7 @@ const SECTION_INFO: Record<SettingsSection, { label: string; lede: string; Icon:
   sharing: { label: "Sharing", lede: "Public links that keep the same address.", Icon: Share2 },
   backups: { label: "Backups", lede: "Automatic backups of all your databases.", Icon: DatabaseBackup },
   updates: { label: "Updates", lede: "New versions of NexDB, and what each one brought.", Icon: CircleArrowUp },
+  license: { label: "License", lede: "Your NexDB license, and moving it to another PC.", Icon: KeyRound },
   tutorial: { label: "Tutorial", lede: "Nex shows you around, all of NexDB or one part.", Icon: GraduationCap },
 };
 
@@ -163,6 +164,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                   <WhatsNewCard version={settings.app_version} />
                 </>
               )}
+              {show("license") && <LicenseCard />}
               {show("tutorial") && <TutorialCard />}
             </>
           )}

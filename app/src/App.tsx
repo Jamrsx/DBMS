@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
 import { Welcome } from "./components/Welcome";
+import { LicenseGate } from "./components/LicenseGate";
+import { checkInLicense, licenseStatus, type LicenseStatus } from "./lib/license";
 import { showGuide } from "./components/Tour";
 import { Diagram } from "./database/Diagram";
 import { TerminalPage } from "./terminal/TerminalPage";
@@ -42,6 +44,8 @@ function MainApp() {
   const [found, setFound] = useState<FoundInstall[]>([]);
   // Just finished setup: the welcome screen plays, then the tour.
   const [welcome, setWelcome] = useState(false);
+  // No valid license: the license screen, and nothing else, until one is activated.
+  const [license, setLicense] = useState<LicenseStatus | null>(null);
 
   const check = useCallback(() => {
     setupInfo()
@@ -55,7 +59,31 @@ function MainApp() {
 
   useEffect(check, [check]);
 
+  // Once installed: read the license on this PC, then check it with the website quietly. A key
+  // turned off or moved to another PC brings the license screen back.
+  useEffect(() => {
+    if (view !== "dashboard") return;
+    let live = true;
+    licenseStatus()
+      .then((s) => {
+        if (!live) return;
+        setLicense(s);
+        if (s.state === "active" || s.state === "needs_checkin") {
+          checkInLicense()
+            .then((out) => live && out.status && setLicense(out.status))
+            .catch(() => {});
+        }
+      })
+      .catch(() => live && setLicense({ state: "none", notice: null }));
+    return () => {
+      live = false;
+    };
+  }, [view]);
+
   if (view === "loading") return null;
+  if (view === "dashboard" && license === null) return null;
+  if (view === "dashboard" && license?.state !== "active")
+    return <LicenseGate status={license!} onActive={setLicense} />;
   if (view === "dashboard")
     return (
       <>

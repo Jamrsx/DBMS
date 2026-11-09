@@ -26,6 +26,7 @@ mod health;
 mod importer;
 mod installer;
 mod laravel;
+mod license;
 mod phpmyadmin;
 mod phpfix;
 mod phpini;
@@ -197,6 +198,7 @@ async fn services(stack: tauri::State<'_, Stack>) -> Result<Vec<supervisor::Serv
 /// from the saved settings first, so template fixes reach existing installs.
 #[tauri::command]
 async fn start_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> Result<(), String> {
+    license::require()?;
     let (root, settings, sup) = stack.get()?;
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
@@ -206,6 +208,36 @@ async fn start_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> R
         if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
     })
     .await
+}
+
+/// The license on this PC: none, active, ended, needs a check-in, or clock turned back.
+#[tauri::command]
+async fn license_status() -> license::Status {
+    blocking(|| Ok::<_, String>(license::status())).await.unwrap_or(license::Status::None { notice: None })
+}
+
+/// Activates a key on this PC (needs internet once). `move_here` moves it from another PC.
+#[tauri::command]
+async fn license_activate(key: String, name: String, email: String, move_here: Option<bool>) -> license::Outcome {
+    license::activate(&key, &name, &email, move_here.unwrap_or(false)).await
+}
+
+/// The quiet check with the website, when online.
+#[tauri::command]
+async fn license_check_in() -> license::Outcome {
+    license::check_in().await
+}
+
+/// Frees the key from this PC so it can be activated on another one.
+#[tauri::command]
+async fn license_unlink() -> license::Outcome {
+    license::unlink().await
+}
+
+/// This PC's name, for the license screen.
+#[tauri::command]
+fn license_device() -> String {
+    license::device_name()
 }
 
 /// Stops one service, or all of them when `id` is None.
@@ -302,6 +334,11 @@ pub fn run() {
         .manage(Arc::new(share::Tunnels::default()))
         .manage(Arc::new(laravel::Workers::default()))
         .invoke_handler(tauri::generate_handler![
+            license_status,
+            license_activate,
+            license_check_in,
+            license_unlink,
+            license_device,
             system_scan,
             component_choices,
             port_status,
@@ -464,6 +501,10 @@ pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
     std::thread::spawn(move || {
         let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
         if start {
+            // No license: the tray can't start services either.
+            if license::require().is_err() {
+                return;
+            }
             if installer::refresh_configs(&root, &settings).is_ok() {
                 let _ = sup.start_many(&sup.ids());
             }

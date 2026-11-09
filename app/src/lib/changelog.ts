@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.4",
+    title: "Your NexDB license",
+    changes: [
+      "NexDB asks for a license key after setup, before the welcome, and on every start until this PC has one. It can't be skipped.",
+      "Activate once with the internet: type the key, your full name and email. After that NexDB works offline.",
+      "The license is signed by the NexDB server, so it can't be edited, and kept encrypted by Windows in a hidden file, so it can't be copied to another PC. Turning the PC's clock back doesn't stretch it.",
+      "NexDB checks the license quietly whenever you're online, and needs to at least once every 30 days.",
+      "One PC at a time: activating on another PC offers to move the key there, up to 3 times a month. Settings → License shows your plan and end date, and Move to another PC frees it.",
+      "Starting services, from the app or the tray, needs an active license.",
+    ],
+  },
+  {
     version: "0.5.3",
     title: "The right PHP, everywhere",
     changes: [
