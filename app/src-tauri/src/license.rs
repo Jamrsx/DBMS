@@ -227,7 +227,7 @@ pub fn device_name() -> String {
 // ---------- Encrypted file ----------
 
 #[cfg(windows)]
-mod dpapi {
+pub(crate) mod dpapi {
     use windows_sys::Win32::Foundation::LocalFree;
     use windows_sys::Win32::Security::Cryptography::{
         CryptProtectData, CryptUnprotectData, CRYPTPROTECT_UI_FORBIDDEN, CRYPT_INTEGER_BLOB,
@@ -275,7 +275,7 @@ mod dpapi {
 }
 
 #[cfg(not(windows))]
-mod dpapi {
+pub(crate) mod dpapi {
     pub fn protect(data: &[u8]) -> Result<Vec<u8>, String> {
         Ok(data.to_vec())
     }

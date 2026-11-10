@@ -410,6 +410,68 @@ pub fn remove(root: &Path, site: &str, rel: &str) -> Result<(), String> {
     std::fs::rename(&from, unique(&bin, &format!("{stamp}-{site}-{name}"))).map_err(|e| format!("Couldn't delete it: {e}"))
 }
 
+// ---------- Database ----------
+
+/// A site's database and its own user, as the panel shows them.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct DbInfo {
+    pub name: String,
+    pub user: String,
+    pub password: String,
+    pub host: String,
+    pub port: u16,
+}
+
+/// `nh_` + the site name with dashes as underscores, at most 32 characters (MySQL user limit).
+pub fn db_name(site: &str) -> String {
+    format!("nh_{}", site.replace('-', "_")).chars().take(32).collect()
+}
+
+/// The database name for a new site database, or why it can't be made.
+pub fn create_db_plan(prefs: &BTreeMap<String, NexSite>, site: &str) -> Result<String, String> {
+    let me = prefs.get(site).ok_or("That site doesn't exist any more.")?;
+    if let Some(db) = &me.db {
+        return Err(format!("{site} already has a database ({db})."));
+    }
+    let name = db_name(site);
+    if let Some((other, _)) = prefs.iter().find(|(n, s)| n.as_str() != site && s.db.as_deref() == Some(name.as_str())) {
+        return Err(format!("The database name {name} is already used by {other}. Give this site a shorter name."));
+    }
+    Ok(name)
+}
+
+/// A Laravel `.env` pointing at the site's database; every other line stays.
+pub fn env_with_db(env: &str, info: &DbInfo) -> String {
+    let port = info.port.to_string();
+    [
+        ("DB_CONNECTION", "mysql"),
+        ("DB_HOST", info.host.as_str()),
+        ("DB_PORT", port.as_str()),
+        ("DB_DATABASE", info.name.as_str()),
+        ("DB_USERNAME", info.user.as_str()),
+        ("DB_PASSWORD", info.password.as_str()),
+    ]
+    .iter()
+    .fold(env.to_string(), |text, (k, v)| crate::quickstart::set_env(&text, k, v))
+}
+
+/// Where a site's database password is kept, encrypted for this Windows user.
+fn secret_path(root: &Path, site: &str) -> PathBuf {
+    dir(root).join(".secrets").join(site)
+}
+
+pub fn save_password(root: &Path, site: &str, password: &str) -> Result<(), String> {
+    let path = secret_path(root, site);
+    std::fs::create_dir_all(path.parent().unwrap()).map_err(|e| e.to_string())?;
+    let sealed = crate::license::dpapi::protect(password.as_bytes())?;
+    std::fs::write(path, sealed).map_err(|e| format!("Couldn't save the database password: {e}"))
+}
+
+pub fn load_password(root: &Path, site: &str) -> Option<String> {
+    let sealed = std::fs::read(secret_path(root, site)).ok()?;
+    String::from_utf8(crate::license::dpapi::unprotect(&sealed)?).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -547,6 +609,45 @@ mod tests {
         let kept = std::fs::read_dir(dir(root.path()).join(".deleted")).unwrap().count();
         assert_eq!(kept, 1);
         assert!(remove(root.path(), "shop", "").is_err(), "not the whole site from here");
+    }
+
+    #[test]
+    fn db_names() {
+        assert_eq!(db_name("my-shop"), "nh_my_shop");
+        assert_eq!(db_name(&"a".repeat(40)).len(), 32);
+    }
+
+    #[test]
+    fn env_keeps_other_lines() {
+        let info = DbInfo { name: "nh_shop".into(), user: "nh_shop".into(), password: "pw".into(), host: "127.0.0.1".into(), port: 3306 };
+        let out = env_with_db("APP_NAME=Shop
+DB_HOST=old
+", &info);
+        assert!(out.contains("APP_NAME=Shop"));
+        assert!(out.contains("DB_DATABASE=nh_shop") && out.contains("DB_USERNAME=nh_shop") && out.contains("DB_PASSWORD=pw"));
+        assert!(out.contains("DB_CONNECTION=mysql") && out.contains("DB_PORT=3306"));
+        assert!(!out.contains("DB_HOST=old"));
+    }
+
+    #[test]
+    fn same_cut_name_is_refused() {
+        let a = format!("{}-a", "x".repeat(35));
+        let b = format!("{}-b", "x".repeat(35));
+        let mut prefs = BTreeMap::from([(a.clone(), NexSite { port: 8201, ..Default::default() }), (b.clone(), NexSite { port: 8202, ..Default::default() })]);
+        let name = create_db_plan(&prefs, &a).unwrap();
+        prefs.get_mut(&a).unwrap().db = Some(name);
+        assert!(create_db_plan(&prefs, &b).unwrap_err().contains("already used by"));
+        assert!(create_db_plan(&prefs, &a).unwrap_err().contains("already has"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn db_password_is_kept_encrypted() {
+        let root = tempfile::tempdir().unwrap();
+        save_password(root.path(), "shop", "s3cret").unwrap();
+        let raw = std::fs::read(dir(root.path()).join(".secrets").join("shop")).unwrap();
+        assert!(!raw.windows(6).any(|w| w == b"s3cret"));
+        assert_eq!(load_password(root.path(), "shop").as_deref(), Some("s3cret"));
     }
 
     #[test]
