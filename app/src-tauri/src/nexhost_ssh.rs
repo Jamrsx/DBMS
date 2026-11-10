@@ -229,9 +229,114 @@ fn leaves_site(arg: &str) -> bool {
     })
 }
 
+// ---------- Host key and log ----------
+
+fn ssh_dir(root: &std::path::Path) -> std::path::PathBuf {
+    crate::nexhost::dir(root).join(".ssh")
+}
+
+/// The server's own key, made once and kept encrypted for this Windows user.
+pub fn host_key(root: &std::path::Path) -> Result<russh::keys::PrivateKey, String> {
+    use russh::keys::ssh_key::{private::Ed25519Keypair, LineEnding, PrivateKey};
+    let path = ssh_dir(root).join("host_key");
+    if let Some(text) = std::fs::read(&path).ok().and_then(|b| crate::license::dpapi::unprotect(&b)).and_then(|b| String::from_utf8(b).ok()) {
+        if let Ok(key) = PrivateKey::from_openssh(&text) {
+            return Ok(key);
+        }
+    }
+    let mut seed = [0u8; 32];
+    getrandom::fill(&mut seed).map_err(|e| format!("Couldn't make the SSH key: {e}"))?;
+    let key = PrivateKey::from(Ed25519Keypair::from_seed(&seed));
+    let text = key.to_openssh(LineEnding::LF).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(ssh_dir(root)).map_err(|e| e.to_string())?;
+    let sealed = crate::license::dpapi::protect(text.as_bytes())?;
+    std::fs::write(&path, sealed).map_err(|e| format!("Couldn't save the SSH key: {e}"))?;
+    Ok(key)
+}
+
+/// `SHA256:…`, what SSH shows people the first time they connect.
+pub fn fingerprint(key: &russh::keys::PrivateKey) -> String {
+    key.public_key().fingerprint(russh::keys::ssh_key::HashAlg::Sha256).to_string()
+}
+
+/// One line of the SSH log.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct LogEntry {
+    pub at: i64,
+    pub login: String,
+    pub site: String,
+    pub from: Option<String>,
+    /// login_ok, login_failed, locked, command, sftp_write, sftp_delete
+    pub event: String,
+    pub detail: Option<String>,
+}
+
+const KEEP_SECS: i64 = 30 * 86400;
+
+/// Adds an entry; entries older than 30 days are dropped.
+pub fn log(root: &std::path::Path, e: &LogEntry) {
+    static WRITE: Mutex<()> = Mutex::new(());
+    let _guard = WRITE.lock().unwrap();
+    let path = ssh_dir(root).join("log.jsonl");
+    let mut kept: Vec<String> = std::fs::read_to_string(&path)
+        .unwrap_or_default()
+        .lines()
+        .filter(|l| serde_json::from_str::<LogEntry>(l).is_ok_and(|x| e.at - x.at < KEEP_SECS))
+        .map(str::to_string)
+        .collect();
+    if let Ok(line) = serde_json::to_string(e) {
+        kept.push(line);
+    }
+    let _ = std::fs::create_dir_all(ssh_dir(root));
+    let _ = std::fs::write(&path, kept.join("\n") + "\n");
+}
+
+/// A site's newest entries first.
+pub fn recent(root: &std::path::Path, site: &str, limit: usize) -> Vec<LogEntry> {
+    let mut list: Vec<LogEntry> = std::fs::read_to_string(ssh_dir(root).join("log.jsonl"))
+        .unwrap_or_default()
+        .lines()
+        .filter_map(|l| serde_json::from_str::<LogEntry>(l).ok())
+        .filter(|e| e.site == site)
+        .collect();
+    list.sort_by(|a, b| b.at.cmp(&a.at));
+    list.truncate(limit);
+    list
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn host_key_is_made_once_and_kept_encrypted() {
+        let root = tempfile::tempdir().unwrap();
+        let a = fingerprint(&host_key(root.path()).unwrap());
+        let b = fingerprint(&host_key(root.path()).unwrap());
+        assert_eq!(a, b);
+        assert!(a.starts_with("SHA256:"));
+        let raw = std::fs::read(ssh_dir(root.path()).join("host_key")).unwrap();
+        assert!(!String::from_utf8_lossy(&raw).contains("OPENSSH PRIVATE KEY"));
+    }
+
+    fn entry(at: i64, site: &str, event: &str) -> LogEntry {
+        LogEntry { at, login: format!("{site}-maria"), site: site.into(), from: None, event: event.into(), detail: None }
+    }
+
+    #[test]
+    fn log_keeps_30_days_and_lists_newest_first() {
+        let root = tempfile::tempdir().unwrap();
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64;
+        log(root.path(), &entry(now - 31 * 86400, "shop", "login_ok"));
+        log(root.path(), &entry(now - 10, "shop", "login_ok"));
+        log(root.path(), &entry(now - 5, "blog", "command"));
+        log(root.path(), &entry(now, "shop", "command"));
+        let shop = recent(root.path(), "shop", 10);
+        assert_eq!(shop.iter().map(|e| e.at).collect::<Vec<_>>(), vec![now, now - 10]);
+        assert_eq!(recent(root.path(), "shop", 1).len(), 1);
+    }
+
 
     fn check(line: &str) -> Result<(), String> {
         split_args(line).and_then(|a| check_command(&a))
