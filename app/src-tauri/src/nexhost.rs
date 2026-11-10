@@ -66,11 +66,17 @@ pub fn valid_name(name: &str) -> Result<(), String> {
 
 /// `public/` for Laravel (it has `artisan`), else the site folder itself.
 pub fn detect_web_root(site_dir: &Path) -> PathBuf {
-    let public = site_dir.join("public");
-    if site_dir.join("artisan").is_file() && public.is_dir() {
-        public
-    } else {
-        site_dir.to_path_buf()
+    let laravel = |d: &Path| d.join("artisan").is_file() && d.join("public").is_dir();
+    if laravel(site_dir) {
+        return site_dir.join("public");
+    }
+    // A project folder dragged in whole: site/myapp/artisan.
+    let inner: Vec<PathBuf> = std::fs::read_dir(site_dir)
+        .map(|it| it.flatten().map(|e| e.path()).filter(|p| p.is_dir() && laravel(p)).collect())
+        .unwrap_or_default();
+    match inner.as_slice() {
+        [one] => one.join("public"),
+        _ => site_dir.to_path_buf(),
     }
 }
 
@@ -95,15 +101,22 @@ Listen 127.0.0.1:{port}
         Options FollowSymLinks
         AllowOverride All
         Require all granted
-        <FilesMatch "\.php$">
+        # Windows file names ignore case, so .PHP must run as PHP too, never be sent as text.
+        <FilesMatch "(?i)\.php$">
             SetHandler "proxy:fcgi://127.0.0.1:{fcgi_port}/"
         </FilesMatch>
-        # .env, .git and other hidden files are never served.
+        # .env, .git and other hidden files are never served; nor databases and logs.
         <FilesMatch "^\.">
+            Require all denied
+        </FilesMatch>
+        <FilesMatch "(?i)\.(sqlite|sqlite3|db|log)$">
             Require all denied
         </FilesMatch>
     </Directory>
     <DirectoryMatch "/\.">
+        Require all denied
+    </DirectoryMatch>
+    <DirectoryMatch "(?i)[/\\]vendor([/\\]|$)">
         Require all denied
     </DirectoryMatch>
 </VirtualHost>
@@ -124,14 +137,21 @@ server {{
     root "{root}";
     index index.php index.html index.htm;
 
-    # .env, .git and other hidden files are never served.
-    location ~ /\. {{
+    # .env, .git and other hidden files are never served; nor databases, logs or vendor/.
+    # ~* ignores case, as Windows file names do.
+    location ~* /\. {{
+        deny all;
+    }}
+    location ~* \.(sqlite|sqlite3|db|log)$ {{
+        deny all;
+    }}
+    location ~* (^|/)vendor/ {{
         deny all;
     }}
     location / {{
         try_files $uri $uri/ /index.php?$query_string;
     }}
-    location ~ \.php$ {{
+    location ~* \.php$ {{
         try_files $uri =404;
         fastcgi_pass 127.0.0.1:{fcgi_port};
         fastcgi_index index.php;
@@ -142,6 +162,32 @@ server {{
 }}
 "#
     )
+}
+
+/// Whether serving `web_root` would show a Laravel app's code (artisan in it or a folder below).
+pub fn exposes_code(web_root: &Path) -> bool {
+    fn has_artisan(dir: &Path, depth: u32) -> bool {
+        if dir.join("artisan").is_file() {
+            return true;
+        }
+        depth > 0
+            && std::fs::read_dir(dir)
+                .map(|it| it.flatten().any(|e| e.file_type().is_ok_and(|t| t.is_dir()) && has_artisan(&e.path(), depth - 1)))
+                .unwrap_or(false)
+    }
+    has_artisan(web_root, 2)
+}
+
+/// The folder `rel` of a site, when it exists and serving it shows no app code.
+pub fn check_web_root(site_dir: &Path, rel: &str) -> Result<PathBuf, String> {
+    let dir = safe_join(site_dir, rel)?;
+    if !dir.is_dir() {
+        return Err(format!("{rel} isn't a folder in this site."));
+    }
+    if exposes_code(&dir) {
+        return Err("That folder holds a Laravel app's code, so visitors could download it. Pick its public folder instead.".into());
+    }
+    Ok(dir)
 }
 
 /// Makes a new site folder with a starter page that says the site works.
@@ -200,7 +246,8 @@ pub fn list(root: &Path, prefs: &BTreeMap<String, NexSite>) -> Vec<Site> {
 pub fn web_root_of(root: &Path, name: &str, site: &NexSite) -> PathBuf {
     let site_dir = dir(root).join(name);
     match &site.web_root {
-        Some(rel) if !rel.is_empty() => site_dir.join(rel),
+        // A chosen folder that would show Laravel's code is never served.
+        Some(rel) if !rel.is_empty() && !exposes_code(&site_dir.join(rel)) => site_dir.join(rel),
         _ => detect_web_root(&site_dir),
     }
 }
@@ -280,6 +327,10 @@ fn unique(dir: &Path, name: &str) -> PathBuf {
 }
 
 fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    // Links and junctions are skipped: they can point anywhere, even back into the site.
+    if std::fs::symlink_metadata(from)?.file_type().is_symlink() {
+        return Ok(());
+    }
     if from.is_dir() {
         std::fs::create_dir_all(to)?;
         for entry in std::fs::read_dir(from)? {
@@ -317,6 +368,12 @@ pub fn files(site_dir: &Path, rel: &str) -> Result<Vec<Entry>, String> {
 pub fn add(site_dir: &Path, rel: &str, sources: &[PathBuf]) -> Result<u32, String> {
     let folder = safe_join(site_dir, rel)?;
     std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let target = std::fs::canonicalize(&folder).map_err(|e| e.to_string())?;
+    for src in sources {
+        if std::fs::canonicalize(src).is_ok_and(|s| target.starts_with(&s)) {
+            return Err("A folder can't be copied inside itself. Drop the files from inside it instead.".into());
+        }
+    }
     let mut count = 0;
     for src in sources {
         let Some(name) = src.file_name() else { continue };
@@ -549,7 +606,7 @@ mod tests {
         assert!(a.contains("proxy:fcgi://127.0.0.1:9000/"));
         let n = nginx_listener("shop", Path::new("C:/NexDB/nexhost/shop/public"), 8201, 9000, Path::new("C:/nginx/conf/fastcgi_params"));
         assert!(n.contains("listen 127.0.0.1:8201;"));
-        assert!(n.contains("location ~ /\\."));
+        assert!(n.contains("location ~* /\\."));
         assert!(n.contains("fastcgi_pass 127.0.0.1:9000;"));
     }
 
@@ -725,6 +782,59 @@ DB_HOST=old
         let mut prefs = BTreeMap::from([("blog".to_string(), live(8201, "a")), ("shop".to_string(), live(8202, "b")), ("off".to_string(), NexSite::default())]);
         assert_eq!(offline_all(&mut prefs), vec!["blog".to_string(), "shop".to_string()]);
         assert!(prefs.values().all(|s| !s.live));
+    }
+
+    #[test]
+    fn laravel_one_folder_down_serves_its_public() {
+        let d = tempfile::tempdir().unwrap();
+        let app = d.path().join("myapp");
+        std::fs::create_dir_all(app.join("public")).unwrap();
+        std::fs::write(app.join("artisan"), "").unwrap();
+        assert_eq!(detect_web_root(d.path()), app.join("public"));
+    }
+
+    #[test]
+    fn a_web_root_above_laravel_code_is_refused() {
+        let d = tempfile::tempdir().unwrap();
+        let app = d.path().join("myapp");
+        std::fs::create_dir_all(app.join("public")).unwrap();
+        std::fs::write(app.join("artisan"), "").unwrap();
+        assert!(exposes_code(d.path()), "site folder shows myapp/ code");
+        assert!(exposes_code(&app), "the Laravel folder itself");
+        assert!(!exposes_code(&app.join("public")));
+    }
+
+    #[test]
+    fn configs_are_case_blind_and_hide_laravel_internals() {
+        let a = apache_listener("shop", Path::new("C:/s"), 8201, 9000);
+        assert!(a.contains("(?i)\\.php$"));
+        assert!(a.contains("sqlite") && a.contains("vendor"));
+        let n = nginx_listener("shop", Path::new("C:/s"), 8201, 9000, Path::new("p"));
+        assert!(n.contains("location ~* \\.php$"));
+        assert!(n.contains("location ~* /\\."));
+        assert!(n.contains("sqlite") && n.contains("vendor"));
+    }
+
+    #[test]
+    fn adding_a_folder_into_itself_is_refused() {
+        let t = tempfile::tempdir().unwrap();
+        let site = t.path().join("site");
+        std::fs::create_dir_all(site.join("css")).unwrap();
+        assert!(add(&site, "", &[site.clone()]).unwrap_err().contains("inside itself"));
+        assert!(add(&site, "css", &[t.path().to_path_buf()]).unwrap_err().contains("inside itself"));
+        assert!(!site.join("site").exists());
+    }
+
+    #[test]
+    fn chosen_web_root_must_not_show_code() {
+        let d = tempfile::tempdir().unwrap();
+        let app = d.path().join("myapp");
+        std::fs::create_dir_all(app.join("public")).unwrap();
+        std::fs::write(app.join("artisan"), "").unwrap();
+        assert!(check_web_root(d.path(), "myapp").unwrap_err().contains("public"));
+        assert!(check_web_root(d.path(), ".").is_err());
+        assert!(check_web_root(d.path(), "nope").is_err());
+        assert_eq!(check_web_root(d.path(), "myapp/public").unwrap(), app.join("public"));
     }
 
     #[test]

@@ -307,14 +307,15 @@ pub fn run() {
             // Check which versions the official sites offer today (quietly; at most every 12 hours).
             tauri::async_runtime::spawn(async { let _ = livecatalog::refresh(false).await; });
             license::watch_end(app.handle().clone());
-            let handle = app.handle().clone();
-            std::thread::spawn(move || restore_nexhost(&handle));
             // "Start services when NexDB opens", from Settings.
             let handle = app.handle().clone();
             let stack = handle.state::<Stack>();
             if stack.load(&handle) && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
                 tray_services(&handle, true);
             }
+            // After the install is loaded (and services asked to start): live NexHost sites return.
+            let handle = app.handle().clone();
+            std::thread::spawn(move || restore_nexhost(&handle));
             // The Windows startup entry launches hidden in the tray; a normal launch shows the window.
             if !std::env::args().any(|a| a == tray::TRAY_ARG) {
                 tray::show_window(app.handle());
@@ -1044,7 +1045,13 @@ fn nexhost_site(settings: &settings::Settings, name: &str) -> Result<nexhost::Ne
 
 /// Sites as the page shows them; "live" only while the router really serves them.
 fn nexhost_sites(root: &std::path::Path, settings: &settings::Settings) -> Vec<nexhost::Site> {
-    let hosts = fixedlink::ROUTER.lock().unwrap().as_ref().map(|r| r.hosts()).unwrap_or_default();
+    // A tunnel that stopped (crash, network) serves nothing, whatever the route table says.
+    let hosts = match fixedlink::ROUTER.lock().unwrap().as_mut() {
+        Some(r) => {
+            if r.alive() { r.hosts() } else { vec![] }
+        }
+        None => vec![],
+    };
     let mut sites = nexhost::list(root, &settings.preferences.nexhost);
     for s in sites.iter_mut() {
         s.live = s.live && s.address.as_deref().is_some_and(|a| hosts.contains(&fixedlink::host_key(a)));
@@ -1119,9 +1126,7 @@ async fn nexhost_set_root(stack: tauri::State<'_, Stack>, name: String, web_root
     let mut site = nexhost_site(&settings, &name)?;
     let web_root = web_root.map(|r| r.trim().trim_matches('/').to_string()).filter(|r| !r.is_empty());
     if let Some(rel) = &web_root {
-        if !nexhost::safe_join(&nexhost::dir(&root).join(&name), rel)?.is_dir() {
-            return Err(format!("{rel} isn't a folder in this site."));
-        }
+        nexhost::check_web_root(&nexhost::dir(&root).join(&name), rel)?;
     }
     site.web_root = web_root;
     let mut sites = settings.preferences.nexhost.clone();
@@ -1247,7 +1252,14 @@ fn ensure_router(settings: &settings::Settings) -> Result<(), String> {
     let mut guard = fixedlink::ROUTER.lock().unwrap();
     if !guard.as_mut().is_some_and(|r| r.alive()) {
         *guard = None;
-        *guard = Some(fixedlink::Router::start(&account, cloudflared_exe(settings).as_deref())?);
+        let router = fixedlink::Router::start(&account, cloudflared_exe(settings).as_deref())?;
+        // A restarted tunnel takes back every site that was live, not only the one asked for.
+        for s in settings.preferences.nexhost.values().filter(|s| s.live) {
+            if let Some(a) = s.address.as_deref() {
+                let _ = router.set(a, s.port, s.password.as_deref());
+            }
+        }
+        *guard = Some(router);
     }
     Ok(())
 }
@@ -1322,22 +1334,22 @@ fn restore_nexhost(app: &tauri::AppHandle) {
         return;
     }
     let Some(stack) = app.try_state::<Stack>() else { return };
-    let Ok((root, settings, sup)) = stack.get() else { return };
-    let mut sites = settings.preferences.nexhost.clone();
-    if !sites.values().any(|s| s.live) {
+    let Ok((_, settings, sup)) = stack.get() else { return };
+    if !settings.preferences.nexhost.values().any(|s| s.live) {
         return;
     }
-    let web_up = settings.web().is_some_and(|(web, _)| sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running));
-    let ok = web_up && ensure_router(&settings).is_ok();
-    let guard = fixedlink::ROUTER.lock().unwrap();
-    for s in sites.values_mut().filter(|s| s.live) {
-        let set = ok && guard.as_ref().zip(s.address.as_deref()).is_some_and(|(r, a)| r.set(a, s.port, s.password.as_deref()).is_ok());
-        if !set {
-            s.live = false;
+    // The web server may still be starting: wait for it (up to a minute). If it never runs, the
+    // sites stay marked live and come back on a later start; the page shows them offline now.
+    let Some((web, _)) = settings.web() else { return };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while !sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running) {
+        if std::time::Instant::now() > deadline {
+            return;
         }
+        std::thread::sleep(std::time::Duration::from_secs(2));
     }
-    drop(guard);
-    let _ = save_nexhost(&stack, &root, &sites);
+    // ensure_router puts every live site back on the new tunnel.
+    let _ = ensure_router(&settings);
 }
 
 /// The license no longer includes NexHost: every public link and fixed link stops.
