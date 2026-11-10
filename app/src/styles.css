@@ -9687,3 +9687,140 @@ body.grace-ended .palette-backdrop {
   color: var(--text-3);
   font-size: 13px;
 }
+
+/* NexHost: hosted test sites. */
+.nh-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nh-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.nh-row:hover {
+  border-color: var(--border-strong);
+}
+.nh-name {
+  font-weight: 600;
+}
+.nh-kind,
+.nh-live {
+  color: var(--text-3);
+  font-size: 13px;
+}
+.nh-live,
+.nh-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.nh-live.on,
+.nh-state.on {
+  color: var(--ok);
+}
+.nh-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 48px 16px;
+  color: var(--text-3);
+  text-align: center;
+}
+.nh-new {
+  display: grid;
+  gap: 6px;
+  max-width: 420px;
+}
+.nh-files.over {
+  outline: 2px dashed var(--accent);
+  outline-offset: 2px;
+}
+.nh-files-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nh-drop,
+.nh-notes li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.nh-notes {
+  display: grid;
+  gap: 4px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.nh-zip {
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent-soft);
+}
+.nh-zip p {
+  margin: 0 0 8px;
+}
+.nh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.nh-table th,
+.nh-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.nh-table th {
+  color: var(--text-3);
+  font-weight: 500;
+}
+.nh-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+}
+.nh-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.nh-db {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+.nh-db div {
+  display: grid;
+  grid-template-columns: 90px minmax(0, 1fr);
+  align-items: center;
+}
+.nh-db dt {
+  color: var(--text-3);
+}
+.nh-db dd {
+  margin: 0;
+}
+.nh-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

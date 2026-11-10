@@ -9,6 +9,7 @@ import {
   Mail,
   PanelLeftClose,
   PanelLeftOpen,
+  Server,
   Settings,
   Search,
   SquareTerminal,
@@ -26,6 +27,7 @@ import { nexGreet } from "./lib/nex";
 import { Dashboard, openInbox } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
+import { NexHostPage } from "./nexhost/NexHostPage";
 import { TerminalPage } from "./terminal/TerminalPage";
 import { isNewTerminalKey } from "./terminal/TerminalView";
 import { AccountButton } from "./components/AccountButton";
@@ -42,6 +44,7 @@ import { mailList } from "./lib/mail";
 type Page =
   | "dashboard"
   | "projects"
+  | "nexhost"
   | "database"
   | "terminal"
   | "mail"
@@ -54,6 +57,7 @@ type Page =
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "projects", label: "Projects", Icon: FolderKanban },
+  { id: "nexhost", label: "NexHost", Icon: Server },
   { id: "database", label: "Database", Icon: Database },
   { id: "terminal", label: "Terminal", Icon: SquareTerminal },
   { id: "mail", label: "Mail", Icon: Mail },
@@ -65,6 +69,7 @@ const PAGE_KEY = "nexdb.page";
 const PAGES: Page[] = [
   "dashboard",
   "projects",
+  "nexhost",
   "database",
   "terminal",
   "mail",
@@ -364,6 +369,9 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
 
       <div className="page" key={`dashboard-${mode}`} hidden={page !== "dashboard"}>
         <Dashboard active={page === "dashboard"} onOpenVersions={() => setPage("versions")} />
+      </div>
+      <div className="page" key={`nexhost-${mode}`} hidden={page !== "nexhost"}>
+        <NexHostPage active={page === "nexhost"} />
       </div>
       <div className="page" key={`projects-${mode}`} hidden={page !== "projects"}>
         <Projects active={page === "projects"} onOpenTerminal={() => setPage("terminal")} openRequest={openProject} />

@@ -56,17 +56,19 @@ export function FixedLinkCard({ active }: { active: boolean }) {
   if (nexhost === false) {
     return (
       <section className="set-card" data-guide="fixed-link-card">
-        <h2>Public links that stay the same</h2>
+        <h2>NexHost connection</h2>
         <PlanLock title="Fixed public link" text="Use your own ngrok or Cloudflare account for a link that never changes." />
       </section>
     );
   }
   return (
     <section className="set-card" data-guide="fixed-link-card">
-      <h2>Public links that stay the same</h2>
+      <h2>NexHost connection</h2>
       <p className="set-lede">
-        Normal public links get a new address every time. With your own free ngrok or Cloudflare account, a project can
-        use one fixed address instead, like https://my-shop.ngrok-free.app.
+        Your own free ngrok or Cloudflare account puts NexHost sites and projects online at a fixed https address. No domain:
+        use ngrok's free address, like my-shop.ngrok-free.app. Your own domain: use Cloudflare and type the domain
+        (myshop.com) as the address; then in Cloudflare add a public hostname per site, or *.myshop.com, pointing at
+        http://localhost:8899.
       </p>
 
       {set ? (
