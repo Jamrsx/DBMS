@@ -183,6 +183,11 @@
   - On/Off switch; the exact warning line (Global Constraints); running/stopped status.
   - Users table: login, role (Files and site commands / Full shell), on/off, Reset password, Delete (confirm). Add user form (name). After add/reset: password shown once with Copy and "It won't be shown again."
   - Full shell switch per user shows a confirm: "Full shell can reach this whole PC. Turn it on for <login>?".
+  - **Run this on the other PC** box per user, picked by a Windows / macOS / Linux switch, with one Copy button and everything filled in (login and address):
+    - Windows (PowerShell): `winget install --id Cloudflare.cloudflared -e; ssh -o ProxyCommand="cloudflared access ssh --hostname %h" shop-maria@ssh.myshop.com`
+    - macOS: `brew install cloudflared && ssh -o ProxyCommand="cloudflared access ssh --hostname %h" shop-maria@ssh.myshop.com`
+    - Linux: `ssh -o ProxyCommand="cloudflared access ssh --hostname %h" shop-maria@ssh.myshop.com` (with a note to install cloudflared from Cloudflare's downloads page first)
+    - Under it: "Then type the password you were given. The first time, check the fingerprint matches: SHA256:…".
   - **How to connect from another PC**: the six steps from the spec with the site's SSH address (from Settings → NexHost connection domain: `ssh.<domain>`, editable field) and the login filled in; each command with Copy; fingerprint shown. Per-user **Copy instructions** copies the same steps as plain text without the password.
   - Cloudflare setup box: add public hostname type SSH `ssh.<domain>` → `ssh://localhost:2222`.
   - Recent activity list (last 100 from `nexhost_ssh_log`).
