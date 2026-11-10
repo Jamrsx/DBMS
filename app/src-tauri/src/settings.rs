@@ -76,6 +76,9 @@ pub struct Preferences {
     /// Projects shared on the local network: project -> its own port.
     #[serde(default)]
     pub shared: std::collections::BTreeMap<String, u16>,
+    /// NexHost sites by name (4-year plan).
+    #[serde(default)]
+    pub nexhost: std::collections::BTreeMap<String, crate::nexhost::NexSite>,
     /// Projects whose website is a subfolder: project -> folder ("Backend/public").
     #[serde(default)]
     pub site_root: std::collections::BTreeMap<String, String>,
@@ -120,6 +123,7 @@ impl Default for Preferences {
             project_php: Default::default(),
             custom_services: Vec::new(),
             shared: Default::default(),
+            nexhost: Default::default(),
             site_root: Default::default(),
             share_dev: Default::default(),
             share_app: Default::default(),

@@ -401,7 +401,9 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
     let roots = &settings.preferences.site_root;
     if web == "apache" {
         write_vhosts(&etc, www, port, https.as_ref(), &php_ports, roots)?;
-        return write_apache_shares(&etc, www, port, &settings.preferences, roots);
+        write_apache_shares(&etc, www, port, &settings.preferences, roots)?;
+        let nexhost = crate::nexhost::conf(root, "apache", &settings.preferences.nexhost, settings.php_fastcgi_port, Path::new(""));
+        return crate::configure::write_file(&etc.join("apache").join("sites-enabled").join("zz-nexhost.conf"), &nexhost);
     }
     let nginx_dir = settings
         .components
@@ -409,6 +411,7 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         .find(|c| c.id == "nginx")
         .map(|c| PathBuf::from(&c.path))
         .ok_or("nginx isn't installed.")?;
+    let params = nginx_dir.join("conf").join("fastcgi_params");
     write_nginx_sites(&NginxSites {
         etc: &etc,
         www,
@@ -422,7 +425,9 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         share_dev: &settings.preferences.share_dev,
         share_app: &settings.preferences.share_app,
         site_roots: roots,
-    })
+    })?;
+    let nexhost = crate::nexhost::conf(root, "nginx", &settings.preferences.nexhost, settings.php_fastcgi_port, &params);
+    crate::configure::write_file(&etc.join("nginx").join("sites-enabled").join("zz-nexhost.conf"), &nexhost)
 }
 
 /// Shared projects for Apache: each on its own port with the project as the whole site, so a

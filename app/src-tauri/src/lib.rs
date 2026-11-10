@@ -18,6 +18,7 @@ mod custom;
 mod docker;
 mod mail;
 mod localname;
+mod nexhost;
 mod fixedlink;
 mod dbedit;
 mod editors;
