@@ -147,9 +147,139 @@ pub fn authenticate(sites: &BTreeMap<String, NexSite>, has_nexhost: bool, login:
     Who::Ok { site: site.clone(), user: user.clone() }
 }
 
+// ---------- What a "files" login may run ----------
+
+/// Splits a command line into arguments (spaces, '...' and "..." quotes). Pipes, redirects,
+/// `;`, `&`, backticks and `$(` are refused: one plain command at a time.
+pub fn split_args(line: &str) -> Result<Vec<String>, String> {
+    if line.contains('`') || line.contains("$(") {
+        return Err("Run one plain command at a time, without ` or $(...).".into());
+    }
+    let mut args = Vec::new();
+    let mut cur = String::new();
+    let mut quote: Option<char> = None;
+    let mut started = false;
+    for c in line.chars() {
+        match (quote, c) {
+            (Some(q), c) if c == q => quote = None,
+            (Some(_), c) => cur.push(c),
+            (None, '"' | '\'') => {
+                quote = Some(c);
+                started = true;
+            }
+            (None, '|' | ';' | '&' | '<' | '>') => {
+                return Err("Run one plain command at a time, without | ; & < or >.".into());
+            }
+            (None, c) if c.is_whitespace() => {
+                if started {
+                    args.push(std::mem::take(&mut cur));
+                    started = false;
+                }
+            }
+            (None, c) => {
+                cur.push(c);
+                started = true;
+            }
+        }
+    }
+    if quote.is_some() {
+        return Err("A quote isn't closed.".into());
+    }
+    if started {
+        args.push(cur);
+    }
+    Ok(args)
+}
+
+/// Ok when this command may run for a "files and site commands" login.
+pub fn check_command(args: &[String]) -> Result<(), String> {
+    const ALLOWED: [&str; 13] = ["php", "composer", "git", "npm", "npx", "node", "ls", "cat", "tail", "mkdir", "rm", "pwd", "exit"];
+    let Some(cmd) = args.first().map(|c| c.to_ascii_lowercase()) else {
+        return Err("Type a command.".into());
+    };
+    if !ALLOWED.contains(&cmd.as_str()) {
+        return Err(format!(
+            "{cmd} isn't allowed here. You can run: php artisan, composer, git, npm, npx, node, ls, cat, tail, mkdir, rm, pwd, exit."
+        ));
+    }
+    if cmd == "php" && args.get(1).map(String::as_str) != Some("artisan") {
+        return Err("Only php artisan ... can run here.".into());
+    }
+    for arg in &args[1..] {
+        if leaves_site(arg) {
+            return Err(format!("{arg} points outside this site's folder."));
+        }
+    }
+    Ok(())
+}
+
+/// Whether an argument names a place outside the site: an absolute, drive or network path, or
+/// one with `..` (also after `--option=`). Web addresses (`https://…`) are fine.
+fn leaves_site(arg: &str) -> bool {
+    let drive = |p: &str| {
+        let b = p.as_bytes();
+        b.len() >= 2 && b[0].is_ascii_alphabetic() && b[1] == b':'
+    };
+    arg.split('=').any(|part| {
+        let p = part.trim_matches(|c| c == '"' || c == '\'');
+        if p.contains("://") {
+            return false;
+        }
+        p.starts_with('/') || p.starts_with('\\') || p.starts_with('~') || drive(p) || p.split(['/', '\\']).any(|seg| seg == "..")
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn check(line: &str) -> Result<(), String> {
+        split_args(line).and_then(|a| check_command(&a))
+    }
+
+    #[test]
+    fn allowed_commands_pass() {
+        for ok in [
+            "php artisan migrate",
+            "composer install",
+            "git pull",
+            "npm run build",
+            "ls",
+            "cat .env",
+            "tail -n 50 storage/logs/laravel.log",
+            "mkdir uploads",
+            "rm old.txt",
+            "pwd",
+            "git commit -m \"fix the menu\"",
+        ] {
+            assert!(check(ok).is_ok(), "{ok}");
+        }
+    }
+
+    #[test]
+    fn escapes_are_refused() {
+        for bad in [
+            "php -r 'echo 1;'",
+            "php x.php",
+            "powershell",
+            "cmd /c dir",
+            "git -C C:\\ status",
+            "npm --prefix ..\\x i",
+            "cat ../../secret",
+            "ls C:/",
+            "cat \\\\server\\x",
+            "rm -rf /",
+            "",
+        ] {
+            assert!(check(bad).is_err(), "{bad}");
+        }
+        assert!(split_args("ls | more").is_err());
+        assert!(split_args("git pull; calc").is_err());
+        assert!(split_args("echo `whoami`").is_err());
+        assert!(split_args("cat $(x)").is_err());
+        assert!(split_args("ls > out.txt").is_err());
+    }
+
 
     #[test]
     fn user_names_and_logins() {
