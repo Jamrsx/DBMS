@@ -113,7 +113,7 @@ export function NexHostPage({ active }: { active: boolean }) {
               placeholder="my-shop"
               autoFocus
               spellCheck={false}
-              pattern="[a-z0-9][a-z0-9-]{0,39}"
+              pattern="[a-z0-9][a-z0-9\-]{0,39}"
               title="Small letters, numbers and dashes"
             />
             <span className="field-hint">Small letters, numbers and dashes. It becomes the folder C:\NexDB\nexhost\{newName || "my-shop"}.</span>

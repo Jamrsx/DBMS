@@ -607,9 +607,53 @@ pub async fn unlink() -> Outcome {
     }
 }
 
+/// Why `new_key` can't replace the key on this PC, if it can't.
+fn change_check(old_key: Option<&str>, new_key: &str) -> Result<(), String> {
+    let norm = |k: &str| k.trim().to_uppercase();
+    if norm(new_key).is_empty() {
+        return Err("Type the new license key.".into());
+    }
+    if old_key.is_some_and(|old| norm(old) == norm(new_key)) {
+        return Err("That key is already the license on this PC.".into());
+    }
+    Ok(())
+}
+
+/// Puts another key on this PC (an upgrade, a renewal, a new plan) for the same NexDB account.
+/// When it works, the old key is freed from this PC so it doesn't keep the PC's place.
+pub async fn change(new_key: &str, password: &str, move_here: bool) -> Outcome {
+    let old = read_stored();
+    if let Err(e) = change_check(old.as_ref().map(|o| o.key.as_str()), new_key) {
+        return Outcome { ok: false, message: Some(e), ..Default::default() };
+    }
+    let (name, email) = match status() {
+        Status::Active { name, email, .. } | Status::Grace { name, email, .. } => (name.unwrap_or_default(), email.unwrap_or_default()),
+        _ => (String::new(), String::new()),
+    };
+    if email.is_empty() {
+        return Outcome { ok: false, message: Some("Sign out of this PC first, then activate the new key.".into()), ..Default::default() };
+    }
+    let out = activate(new_key, &name, &email, password, move_here).await;
+    if out.ok {
+        if let Some(old) = old {
+            // Best effort: the new key already works here either way.
+            let _ = post("unlink", serde_json::json!({ "key": old.key, "machine_id": machine_id() })).await;
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn changing_to_the_same_key_is_refused() {
+        assert!(change_check(Some("NEXDB-AAAA-BBBB-CCCC-DDDD"), " nexdb-aaaa-bbbb-cccc-dddd ").unwrap_err().contains("already"));
+        assert!(change_check(Some("NEXDB-AAAA-BBBB-CCCC-DDDD"), "").is_err());
+        assert!(change_check(Some("NEXDB-AAAA-BBBB-CCCC-DDDD"), "NEXDB-EEEE-BBBB-CCCC-DDDD").is_ok());
+        assert!(change_check(None, "NEXDB-EEEE-BBBB-CCCC-DDDD").is_ok());
+    }
     use ed25519_dalek::{Signer, SigningKey};
 
     fn signed(claims: &Claims) -> (String, String) {

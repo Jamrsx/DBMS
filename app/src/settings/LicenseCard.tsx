@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
-import { checkInLicense, dateOf, licenseStatus, timeLeft, unlinkLicense, type LicenseStatus } from "../lib/license";
+import { changeLicense, checkInLicense, dateOf, formatKey, licenseStatus, timeLeft, unlinkLicense, type LicenseStatus } from "../lib/license";
 import { RenewOptions } from "../components/RenewOptions";
 import { isPractice } from "../lib/practice";
 import { nexCelebrate } from "../lib/nex";
@@ -26,6 +26,7 @@ export function LicenseCard() {
           upgrade to a longer plan:
         </p>
         <RenewOptions plan={status.plan} seller={status.seller} />
+        <ChangeLicense onChanged={setStatus} />
       </section>
     );
   if (!status || status.state !== "active") return null;
@@ -123,6 +124,111 @@ export function LicenseCard() {
           {message.text}
         </p>
       )}
+      <ChangeLicense onChanged={setStatus} />
     </section>
+  );
+}
+
+/**
+ * Change license: type another key of the same NexDB account (an upgrade like the 4-year plan,
+ * or a renewal). The new key takes over this PC; the old one is freed.
+ */
+function ChangeLicense({ onChanged }: { onChanged: (s: LicenseStatus) => void }) {
+  const [open, setOpen] = useState(false);
+  const [key, setKey] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [offerMove, setOfferMove] = useState(false);
+
+  async function submit(moveHere: boolean) {
+    setBusy(true);
+    setMessage(null);
+    const out = await changeLicense(key, password, moveHere).finally(() => setBusy(false));
+    if (out.ok) {
+      if (isPractice()) {
+        nexCelebrate("In real life, this PC would now use the new key.");
+        return;
+      }
+      const fresh = out.status ?? (await licenseStatus());
+      onChanged(fresh);
+      setOpen(false);
+      setKey("");
+      setPassword("");
+      setMessage({ ok: true, text: "Done. This PC uses the new key now." });
+      return;
+    }
+    setOfferMove(out.code === "other_device");
+    setMessage({
+      ok: false,
+      text:
+        out.code === "offline"
+          ? "No connection to the NexDB server. Changing the key needs the internet."
+          : out.code === "other_device"
+            ? `That key is in use on ${out.device ?? "another PC"}. Move it here?`
+            : (out.message ?? "The key couldn't be changed."),
+    });
+  }
+
+  if (!open)
+    return (
+      <div className="license-actions">
+        <button className="btn btn-small" data-guide="license-change" onClick={() => setOpen(true)}>
+          <KeyRound size={14} aria-hidden="true" /> Change license
+        </button>
+        {message && (
+          <p className={message.ok ? "set-ok" : "field-error"} role={message.ok ? "status" : "alert"}>
+            {message.text}
+          </p>
+        )}
+      </div>
+    );
+
+  return (
+    <form
+      className="license-change"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void submit(false);
+      }}
+    >
+      <h3>Change license</h3>
+      <p className="field-hint">Bought another plan, like the 4-year plan with NexHost? Type its key. The old key is freed from this PC.</p>
+      <label className="field">
+        <span className="field-label">New license key</span>
+        <input value={key} onChange={(e) => setKey(formatKey(e.target.value))} placeholder="NEXDB-XXXX-XXXX-XXXX-XXXX" spellCheck={false} autoFocus />
+      </label>
+      <label className="field">
+        <span className="field-label">Your NexDB account password</span>
+        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" />
+      </label>
+      {message && (
+        <p className={message.ok ? "set-ok" : "field-error"} role={message.ok ? "status" : "alert"}>
+          {message.text}
+        </p>
+      )}
+      <div className="license-actions">
+        {offerMove ? (
+          <button type="button" className="btn btn-small btn-primary" disabled={busy} onClick={() => void submit(true)}>
+            Move it here
+          </button>
+        ) : (
+          <button className="btn btn-small btn-primary" disabled={busy || key.length < 24 || !password}>
+            {busy ? "Changing…" : "Use this key"}
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn btn-small btn-quiet"
+          onClick={() => {
+            setOpen(false);
+            setMessage(null);
+            setOfferMove(false);
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }

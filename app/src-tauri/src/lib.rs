@@ -224,6 +224,12 @@ async fn license_activate(key: String, name: String, email: String, password: St
     license::activate(&key, &name, &email, &password, move_here.unwrap_or(false)).await
 }
 
+/// Replaces this PC's key with another one of the same account (upgrade, renewal).
+#[tauri::command]
+async fn license_change(key: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    license::change(&key, &password, move_here.unwrap_or(false)).await
+}
+
 /// Signs in with the NexDB account on this PC (email and password) instead of a key.
 #[tauri::command]
 async fn license_sign_in(email: String, password: String, move_here: Option<bool>) -> license::Outcome {
@@ -372,6 +378,7 @@ pub fn run() {
             license_status,
             license_activate,
             license_sign_in,
+            license_change,
             license_check_in,
             license_unlink,
             license_device,

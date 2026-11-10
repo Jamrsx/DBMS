@@ -9836,3 +9836,17 @@ body.grace-ended .palette-backdrop {
 .nh-db dd {
   margin: 0;
 }
+
+/* Settings → License → Change license. */
+.license-change {
+  display: grid;
+  gap: 12px;
+  max-width: 480px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.license-change h3 {
+  margin: 0;
+  font: 600 14px var(--font-display);
+}

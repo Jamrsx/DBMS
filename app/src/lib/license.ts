@@ -82,6 +82,12 @@ export const licenseStatus = (): Promise<LicenseStatus> =>
 export const activateLicense = (key: string, name: string, email: string, password: string, moveHere = false) =>
   invoke<LicenseOutcome>("license_activate", { key, name, email, password, moveHere });
 
+/** Puts another key of the same NexDB account on this PC (upgrade, renewal); the old key is freed. */
+export const changeLicense = (key: string, password: string, moveHere = false): Promise<LicenseOutcome> =>
+  !realDesktopApp || isPractice()
+    ? Promise.resolve({ ok: true, status: null, code: null, message: null, device: null, moves_left: null })
+    : invoke<LicenseOutcome>("license_change", { key, password, moveHere });
+
 /** Sign in with the NexDB account (made on the first activation) on another PC. */
 export const signInLicense = (email: string, password: string, moveHere = false) =>
   invoke<LicenseOutcome>("license_sign_in", { email, password, moveHere });
