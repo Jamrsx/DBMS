@@ -1,11 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window, terminal and diagram windows",
+  "description": "Capability for the main window, terminal, diagram and NexHost panel windows",
   "windows": [
     "main",
     "terminal-*",
-    "diagram-*"
+    "diagram-*",
+    "nexhost-panel"
   ],
   "permissions": [
     "core:default",

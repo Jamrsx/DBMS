@@ -50,7 +50,7 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
   }, [active]);
   const [tabs, setTabs] = useState<Tab[]>(() =>
     standalone && startProject
-      ? [{ key: 1, name: startProject, project: startProject, state: "starting", restart: 0 }]
+      ? [{ key: 1, name: startProject.replace(/^nexhost:/, ""), project: startProject, state: "starting", restart: 0 }]
       : standalone
         ? [{ key: 1, name: "Terminal 1", state: "starting", restart: 0 }]
         : savedTabs(),

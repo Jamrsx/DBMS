@@ -9850,3 +9850,328 @@ body.grace-ended .palette-backdrop {
   margin: 0;
   font: 600 14px var(--font-display);
 }
+
+/* A feature that needs the 4-year plan, on its sidebar item. */
+.nav-plan {
+  flex: none;
+  margin-left: auto;
+  padding: 1px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 15px;
+}
+.rail-collapsed .nav-plan {
+  display: none;
+}
+
+/* NexHost upsell (license without the 4-year plan). */
+.nh-up {
+  display: grid;
+  gap: 18px;
+  max-width: 960px !important;
+}
+.nh-up-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 32px 32px 28px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 55%),
+    var(--surface-2);
+}
+.nh-up-hero h2 {
+  margin: 12px 0 8px;
+  font: 700 30px/1.15 var(--font-display);
+  letter-spacing: -0.02em;
+}
+.nh-up-hero > p {
+  max-width: 620px;
+  margin: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.nh-up-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+}
+.nh-up-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.nh-up-price {
+  margin: 14px 0 0;
+  color: var(--text-3);
+  font-size: 13px;
+}
+.nh-up-price strong {
+  color: var(--text);
+  font-size: 15px;
+}
+.nh-up-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+.nh-up-card {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: border-color 0.15s;
+}
+.nh-up-card:hover {
+  border-color: var(--border-strong);
+}
+.nh-up-card h3 {
+  margin: 12px 0 4px;
+  font: 600 14.5px var(--font-display);
+}
+.nh-up-card p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.nh-up-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.nh-up-steps {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.nh-up-steps h3 {
+  margin: 0 0 12px;
+  font: 600 14.5px var(--font-display);
+}
+.nh-up-steps ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.nh-up-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.nh-up-steps li span {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-on);
+  font-size: 12px;
+  font-weight: 700;
+}
+.nh-up-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 14px 0 0;
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+
+/* NexHost hosting panel window (?view=nexhost) and the site overview. */
+.nh-panel {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+.nh-panel-locked {
+  height: 100vh;
+  overflow: auto;
+  padding: 32px;
+  background: var(--surface);
+}
+.nh-panel-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 18px 14px;
+  border-right: 1px solid var(--border);
+}
+.nh-panel-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 8px;
+  color: var(--accent-text);
+}
+.nh-panel-brand div {
+  display: grid;
+}
+.nh-panel-brand strong {
+  color: var(--text);
+  font: 700 16px var(--font-display);
+}
+.nh-panel-brand span {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.nh-panel-new {
+  justify-content: center;
+}
+.nh-panel-form {
+  display: grid;
+  gap: 8px;
+}
+.nh-panel-sites {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+.nh-panel-site {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-2);
+  text-align: left;
+  cursor: pointer;
+}
+.nh-panel-site:hover {
+  background: var(--nav-hover);
+}
+.nh-panel-site.current {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+.nh-panel-site-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nh-panel-site-kind {
+  color: var(--text-3);
+  font-size: 11.5px;
+}
+.nh-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+.nh-dot.on {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent);
+}
+.nh-panel-foot {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.nh-panel-main {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 8px 8px 8px 0;
+  padding: 26px 32px 32px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-panel);
+}
+.nh-panel-main > * {
+  max-width: 1040px;
+}
+.nh-panel-head h1 {
+  margin: 0;
+  font: 700 24px var(--font-display);
+}
+.nh-panel-head p {
+  margin: 4px 0 12px;
+}
+.nh-overview {
+  display: grid;
+  gap: 16px;
+  padding-top: 16px;
+}
+.nh-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.nh-stat {
+  display: grid;
+  justify-items: start;
+  gap: 4px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--accent-text);
+  text-align: left;
+  cursor: pointer;
+}
+.nh-stat:hover {
+  border-color: var(--border-strong);
+}
+.nh-stat-label {
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.nh-stat strong {
+  color: var(--text);
+  font: 600 17px var(--font-display);
+}
+.nh-stat strong.nh-ok {
+  color: var(--ok);
+}
+.nh-stat-path {
+  font-family: var(--mono) !important;
+  font-size: 14px !important;
+}
+.nh-stat-sub {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.nh-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}

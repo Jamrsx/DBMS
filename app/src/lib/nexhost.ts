@@ -168,3 +168,9 @@ export function size(bytes: number): string {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
+
+/** Opens the hosting panel in a big window of its own (the preview opens it in a tab). */
+export async function openPanel(): Promise<void> {
+  if (inDesktopApp && !isPractice()) return invoke("nexhost_window");
+  window.open(`${location.pathname}?view=nexhost&license=nexhost`, "_blank");
+}

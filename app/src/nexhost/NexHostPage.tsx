@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Globe, Plus, Server } from "lucide-react";
-import { PlanLock, useFeature } from "../components/PlanLock";
-import { createSite, listSites, type Site } from "../lib/nexhost";
+import { ArrowLeft, Globe, PanelsTopLeft, Plus, Server } from "lucide-react";
+import { useFeature } from "../components/PlanLock";
+import { NexHostUpsell } from "./NexHostUpsell";
+import { createSite, listSites, openPanel, type Site } from "../lib/nexhost";
 import { SiteDetail } from "./SiteDetail";
 
 /**
@@ -43,10 +44,7 @@ export function NexHostPage({ active }: { active: boolean }) {
           </div>
         </header>
         <div className="panel-body dash-body">
-        <PlanLock
-          title="NexHost"
-          text="Turn this PC into a small web host: upload a site, give it a database, and show it to a client or test payments on a real https address."
-        />
+          <NexHostUpsell />
         </div>
       </main>
     );
@@ -74,6 +72,9 @@ export function NexHostPage({ active }: { active: boolean }) {
         </div>
         {!site && (
           <div className="dash-actions">
+            <button className="btn" data-guide="nexhost-panel" onClick={() => void openPanel().catch((e) => setError(String(e)))}>
+              <PanelsTopLeft size={14} aria-hidden="true" /> Open hosting panel
+            </button>
             <button className="btn btn-primary" data-guide="nexhost-new" onClick={() => setCreating((v) => !v)} aria-pressed={creating}>
               <Plus size={14} aria-hidden="true" /> New site
             </button>

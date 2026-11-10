@@ -52,10 +52,25 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "Each site at a glance",
+    body: "A site opens on its overview: whether it's live, its database, and quick buttons for opening it, a terminal in its folder, or the folder itself.",
+    page: "nexhost",
+    run: openNexhostSite("shop"),
+    target: here('[data-guide="nexhost-overview"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Its files",
+    body: "Click Files.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-files"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "Drop your files in",
     body: "Drag files, folders or a .zip from Explorer onto the window. A zip can be unpacked right here, like a hosting file manager.",
     page: "nexhost",
-    run: openNexhostSite("shop"),
     target: here('[data-guide="nexhost-files"]'),
   },
   {
@@ -91,7 +106,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "New in 0.5.5",
     title: "That's 0.5.5!",
-    body: "Public links and NexHost are part of the 4-year plan now. Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    body: "Open hosting panel shows all of this in a big window of its own. Public links and NexHost are part of the 4-year plan. Practice is over; your real NexDB is back.",
     mood: "success",
   },
   {

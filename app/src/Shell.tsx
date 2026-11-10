@@ -28,6 +28,7 @@ import { Dashboard, openInbox } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
 import { NexHostPage } from "./nexhost/NexHostPage";
+import { useFeature } from "./components/PlanLock";
 import { TerminalPage } from "./terminal/TerminalPage";
 import { isNewTerminalKey } from "./terminal/TerminalView";
 import { AccountButton } from "./components/AccountButton";
@@ -57,7 +58,6 @@ type Page =
 const NAV: { id: Page; label: string; Icon: typeof Settings }[] = [
   { id: "dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { id: "projects", label: "Projects", Icon: FolderKanban },
-  { id: "nexhost", label: "NexHost", Icon: Server },
   { id: "database", label: "Database", Icon: Database },
   { id: "terminal", label: "Terminal", Icon: SquareTerminal },
   { id: "mail", label: "Mail", Icon: Mail },
@@ -165,6 +165,7 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
   // A database to show on the Database page (from the Ctrl+K palette).
   const [openDatabase, setOpenDatabase] = useState<{ name: string; n: number } | null>(null);
   const [collapsed, setCollapsed] = useState(savedCollapsed);
+  const nexhost = useFeature("nexhost");
   const updates = useUpdates();
   // Practice mode reloads every page (except the terminal, which keeps its sessions) on sample data.
   const practice = usePractice();
@@ -188,11 +189,18 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
       setOpenDatabase((r) => ({ name: (e as CustomEvent<string>).detail, n: (r?.n ?? 0) + 1 }));
       setPage("database");
     };
+    // Any page can send people to another one (the NexHost upsell opens Settings → License).
+    const open = (e: Event) => {
+      const want = (e as CustomEvent<string>).detail as Page;
+      if (PAGES.includes(want)) setPage(want);
+    };
     window.addEventListener("nexdb:open-project", project);
     window.addEventListener("nexdb:open-database", database);
+    window.addEventListener("nexdb:open-page", open);
     return () => {
       window.removeEventListener("nexdb:open-project", project);
       window.removeEventListener("nexdb:open-database", database);
+      window.removeEventListener("nexdb:open-page", open);
     };
   }, []);
   const updateReady = updates.state.kind === "available" && !practice;
@@ -298,6 +306,19 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
               )}
             </button>
           ))}
+          <span className="nav-section">Hosting</span>
+          <button
+            type="button"
+            className={page === "nexhost" ? "nav-item current" : "nav-item"}
+            aria-current={page === "nexhost" ? "page" : undefined}
+            data-page="nexhost"
+            title={collapsed ? "NexHost" : undefined}
+            onClick={() => go("nexhost")}
+          >
+            <Server size={16} strokeWidth={2} aria-hidden="true" />
+            <span className="nav-label">NexHost</span>
+            {nexhost === false && <span className="nav-plan">4-year</span>}
+          </button>
           <span className="nav-section">App</span>
           <button
             type="button"

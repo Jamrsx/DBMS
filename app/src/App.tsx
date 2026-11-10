@@ -1,3 +1,4 @@
+import { NexHostPanel } from "./nexhost/NexHostPanel";
 import { useCallback, useEffect, useState } from "react";
 import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
@@ -17,6 +18,8 @@ type View = "loading" | "setup" | "dashboard";
 /** Opens the app when an install exists, otherwise the setup wizard. */
 /** Set on a terminal window opened from the Terminal page. */
 const terminalWindow = new URLSearchParams(location.search).get("view") === "terminal";
+/** Set on the NexHost hosting panel window. */
+const nexhostWindow = new URLSearchParams(location.search).get("view") === "nexhost";
 /** Set on a relationship diagram window opened from the Database page. */
 const diagramDb =
   new URLSearchParams(location.search).get("view") === "diagram"
@@ -30,6 +33,9 @@ export default function App() {
         <TerminalPage active standalone />
       </div>
     );
+  }
+  if (nexhostWindow) {
+    return <NexHostPanel />;
   }
   if (diagramDb) {
     return (

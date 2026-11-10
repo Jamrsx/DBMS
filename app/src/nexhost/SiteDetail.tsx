@@ -1,11 +1,16 @@
 import { useState } from "react";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
+import { Database, FolderOpen, Globe, MonitorSmartphone, SquareTerminal } from "lucide-react";
 import { deleteSite, setWebRoot, type Site } from "../lib/nexhost";
+import { openTerminalWindow } from "../lib/terminal";
+import { inDesktopApp } from "../lib/scan";
 import { DatabaseCard } from "./DatabaseCard";
 import { FileManager } from "./FileManager";
 import { GoLiveCard } from "./GoLiveCard";
 
-type Tab = "files" | "database" | "live" | "settings";
+type Tab = "overview" | "files" | "database" | "live" | "settings";
 const TABS: { id: Tab; label: string }[] = [
+  { id: "overview", label: "Overview" },
   { id: "files", label: "Files" },
   { id: "database", label: "Database" },
   { id: "live", label: "Go live" },
@@ -14,7 +19,7 @@ const TABS: { id: Tab; label: string }[] = [
 
 /** One NexHost site: its files, database, going live and settings. */
 export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: (s: Site[]) => void; onDeleted: () => void }) {
-  const [tab, setTab] = useState<Tab>("files");
+  const [tab, setTab] = useState<Tab>("overview");
   const [root, setRoot] = useState("");
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -29,6 +34,7 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
         ))}
       </div>
 
+      {tab === "overview" && <Overview site={site} onTab={setTab} />}
       {tab === "files" && <FileManager site={site} />}
       {tab === "database" && <DatabaseCard site={site} onSites={onSites} />}
       {tab === "live" && <GoLiveCard site={site} onSites={onSites} />}
@@ -90,5 +96,57 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
         </section>
       )}
     </>
+  );
+}
+
+/** The site at a glance, like a hosting panel's home: status, address, database, quick actions. */
+function Overview({ site, onTab }: { site: Site; onTab: (t: Tab) => void }) {
+  const [err, setErr] = useState<string | null>(null);
+  const local = `http://127.0.0.1:${site.port}/`;
+  const open = (url: string) => (inDesktopApp ? void openUrl(url) : void window.open(url, "_blank"));
+  return (
+    <section className="nh-overview" data-guide="nexhost-overview">
+      <div className="nh-stats">
+        <button className="nh-stat" onClick={() => onTab("live")}>
+          <Globe size={16} aria-hidden="true" />
+          <span className="nh-stat-label">Status</span>
+          <strong className={site.live ? "nh-ok" : undefined}>{site.live ? "Live" : "Offline"}</strong>
+          <span className="nh-stat-sub">{site.live && site.address ? site.address : "Go live to share it"}</span>
+        </button>
+        <button className="nh-stat" onClick={() => onTab("database")}>
+          <Database size={16} aria-hidden="true" />
+          <span className="nh-stat-label">Database</span>
+          <strong>{site.db ?? "None yet"}</strong>
+          <span className="nh-stat-sub">{site.db ? "MySQL on this PC" : "Make one in one click"}</span>
+        </button>
+        <button className="nh-stat" onClick={() => onTab("settings")}>
+          <FolderOpen size={16} aria-hidden="true" />
+          <span className="nh-stat-label">Visitors see</span>
+          <strong className="nh-stat-path">{site.web_root.split(/[\\/]/).slice(-2).join("\\")}</strong>
+          <span className="nh-stat-sub">{site.kind === "laravel" ? "Laravel app" : site.kind === "php" ? "PHP site" : "Static site"}</span>
+        </button>
+      </div>
+      <div className="nh-quick">
+        <button className="btn" onClick={() => open(local)}>
+          <MonitorSmartphone size={14} aria-hidden="true" /> Open on this PC
+        </button>
+        <button className="btn" onClick={() => openTerminalWindow(`nexhost:${site.name}`).catch((e) => setErr(String(e)))}>
+          <SquareTerminal size={14} aria-hidden="true" /> Terminal here
+        </button>
+        {inDesktopApp && (
+          <button className="btn" onClick={() => void revealItemInDir(site.path)}>
+            <FolderOpen size={14} aria-hidden="true" /> Open folder
+          </button>
+        )}
+      </div>
+      <p className="field-hint">
+        On this PC the site is at <code>{local}</code>. The terminal opens in the site's folder with NexDB's PHP, Composer, Node and Git.
+      </p>
+      {err && (
+        <p className="field-error" role="alert">
+          {err}
+        </p>
+      )}
+    </section>
   );
 }

@@ -497,6 +497,7 @@ pub fn run() {
             project_open,
             terminal_open,
             terminal_window,
+            nexhost_window,
             terminal_write,
             terminal_resize,
             terminal_close,
@@ -2060,11 +2061,42 @@ fn terminal_open(
     project: Option<String>,
 ) -> Result<u32, String> {
     let (root, settings, _) = stack.get()?;
+    // A NexHost site ("nexhost:shop", 4-year plan): the terminal starts in its folder.
+    if let Some(site) = project.as_deref().and_then(|p| p.strip_prefix("nexhost:")) {
+        license::require_feature("nexhost")?;
+        nexhost::valid_name(site)?;
+        let dir = nexhost::dir(&root).join(site);
+        if !settings.preferences.nexhost.contains_key(site) || !dir.is_dir() {
+            return Err(format!("There is no NexHost site named {site}."));
+        }
+        return terminals.open(&app, window.label(), &root, &settings, Some(&dir), None, cols, rows);
+    }
     // Only a project folder inside the projects folder.
     let project = project.filter(|p| projects::project_dir(std::path::Path::new(&settings.www_dir), p).is_some());
     let cwd = project.as_ref().map(|p| std::path::Path::new(&settings.www_dir).join(p));
     let php = project.as_deref().and_then(|p| phpver::for_project(&root, &settings, p));
     terminals.open(&app, window.label(), &root, &settings, cwd.as_deref(), php.as_ref(), cols, rows)
+}
+
+/// Opens the NexHost hosting panel in a big window of its own (one at a time).
+/// Async for the same reason as `terminal_window`.
+#[tauri::command]
+async fn nexhost_window(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    license::require_feature("nexhost")?;
+    if let Some(w) = app.get_webview_window("nexhost-panel") {
+        let _ = w.unminimize();
+        return w.set_focus().map_err(|e| e.to_string());
+    }
+    tauri::WebviewWindowBuilder::new(&app, "nexhost-panel", tauri::WebviewUrl::App("index.html?view=nexhost".into()))
+        .title("NexHost · hosting panel")
+        .inner_size(1280.0, 820.0)
+        .min_inner_size(860.0, 560.0)
+        .resizable(true)
+        .center()
+        .build()
+        .map(|_| ())
+        .map_err(|e| format!("Couldn't open the hosting panel: {e}"))
 }
 
 /// Opens the terminal in a window of its own, which can be moved and resized freely.
@@ -2075,12 +2107,20 @@ async fn terminal_window(app: tauri::AppHandle, project: Option<String>) -> Resu
     static NEXT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     // Plain names only, so it can go in the window's address as it is.
-    let project = project.filter(|p| !p.starts_with('.') && p.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c)));
+    let project = project.filter(|p| {
+        let name = p.strip_prefix("nexhost:").unwrap_or(p);
+        !name.is_empty() && !name.starts_with('.') && name.chars().all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c))
+    });
     let url = match &project {
         Some(p) => format!("index.html?view=terminal&project={p}"),
         None => "index.html?view=terminal".into(),
     };
-    let title = project.map(|p| format!("{p} · NexDB Terminal")).unwrap_or_else(|| "NexDB Terminal".into());
+    let title = project
+        .map(|p| match p.strip_prefix("nexhost:") {
+            Some(site) => format!("{site} · NexHost Terminal"),
+            None => format!("{p} · NexDB Terminal"),
+        })
+        .unwrap_or_else(|| "NexDB Terminal".into());
     tauri::WebviewWindowBuilder::new(&app, format!("terminal-{n}"), tauri::WebviewUrl::App(url.into()))
         .title(title)
         .inner_size(960.0, 600.0)
