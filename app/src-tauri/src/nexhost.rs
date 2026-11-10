@@ -223,6 +223,193 @@ pub fn conf(root: &Path, web: &str, sites: &BTreeMap<String, NexSite>, fcgi_port
     out
 }
 
+// ---------- File manager ----------
+
+/// A file or folder in a site, for the file manager.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct Entry {
+    pub name: String,
+    pub dir: bool,
+    pub size: u64,
+    /// Seconds since 1970.
+    pub modified: i64,
+}
+
+/// `rel` inside the site folder; refuses anything that would leave it.
+pub fn safe_join(site_dir: &Path, rel: &str) -> Result<PathBuf, String> {
+    let rel = rel.replace('\\', "/");
+    let outside = || Err("That place is outside this site's folder.".to_string());
+    if rel.starts_with('/') || rel.contains(':') {
+        return outside();
+    }
+    let mut out = site_dir.to_path_buf();
+    for part in rel.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => return outside(),
+            p => out.push(p),
+        }
+    }
+    Ok(out)
+}
+
+/// A single file or folder name: no slashes or characters Windows refuses.
+fn check_name(name: &str) -> Result<(), String> {
+    let bad = name.trim().is_empty()
+        || name == "."
+        || name == ".."
+        || name.chars().any(|c| matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control());
+    if bad {
+        Err("Use a name without / \\ : * ? \" < > |.".into())
+    } else {
+        Ok(())
+    }
+}
+
+/// `name` in `dir`, or "name (2).ext", "name (3).ext"... when it is taken.
+fn unique(dir: &Path, name: &str) -> PathBuf {
+    let first = dir.join(name);
+    if !first.exists() {
+        return first;
+    }
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    (2..).map(|n| dir.join(format!("{stem} ({n}){ext}"))).find(|p| !p.exists()).unwrap()
+}
+
+fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
+    if from.is_dir() {
+        std::fs::create_dir_all(to)?;
+        for entry in std::fs::read_dir(from)? {
+            let entry = entry?;
+            copy_tree(&entry.path(), &to.join(entry.file_name()))?;
+        }
+        Ok(())
+    } else {
+        std::fs::copy(from, to).map(|_| ())
+    }
+}
+
+/// What is in a folder of the site: folders first, then files, by name.
+pub fn files(site_dir: &Path, rel: &str) -> Result<Vec<Entry>, String> {
+    let folder = safe_join(site_dir, rel)?;
+    let mut out: Vec<Entry> = std::fs::read_dir(&folder)
+        .map_err(|e| format!("Couldn't open that folder: {e}"))?
+        .flatten()
+        .filter_map(|e| {
+            let meta = e.metadata().ok()?;
+            let modified = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map_or(0, |d| d.as_secs() as i64);
+            Some(Entry { name: e.file_name().to_string_lossy().into_owned(), dir: meta.is_dir(), size: meta.len(), modified })
+        })
+        .collect();
+    out.sort_by(|a, b| b.dir.cmp(&a.dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+    Ok(out)
+}
+
+/// Copies files and folders (from Explorer) into a folder of the site. A name already there
+/// gets " (2)", " (3)"... Returns how many top-level items were added.
+pub fn add(site_dir: &Path, rel: &str, sources: &[PathBuf]) -> Result<u32, String> {
+    let folder = safe_join(site_dir, rel)?;
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let mut count = 0;
+    for src in sources {
+        let Some(name) = src.file_name() else { continue };
+        let target = unique(&folder, &name.to_string_lossy());
+        copy_tree(src, &target).map_err(|e| format!("Couldn't copy {}: {e}", name.to_string_lossy()))?;
+        count += 1;
+    }
+    Ok(count)
+}
+
+/// Unpacks a zip into a folder of the site. A zip holding one top folder (a GitHub download)
+/// is unwrapped. A zip with any path leaving the folder is refused before anything is written.
+/// Returns how many files were written.
+pub fn unzip(site_dir: &Path, rel: &str, zip: &Path, progress: impl Fn(u32, u32)) -> Result<u32, String> {
+    let folder = safe_join(site_dir, rel)?;
+    let file = std::fs::File::open(zip).map_err(|e| format!("Couldn't open the zip: {e}"))?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|_| "That file isn't a zip NexDB can open.".to_string())?;
+    let mut total = 0u32;
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        if entry.enclosed_name().is_none() {
+            return Err("This zip has files that would land outside the site, so NexDB didn't unpack it.".into());
+        }
+        if !entry.is_dir() {
+            total += 1;
+        }
+    }
+    let strip = crate::installer::single_top_folder(&mut archive);
+    let mut done = 0u32;
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let Some(name) = entry.enclosed_name() else { continue };
+        let relative = match &strip {
+            Some(prefix) => match name.strip_prefix(prefix) {
+                Ok(rest) if rest.as_os_str().is_empty() => continue,
+                Ok(rest) => rest.to_path_buf(),
+                Err(_) => name,
+            },
+            None => name,
+        };
+        let out = folder.join(&relative);
+        if entry.is_dir() {
+            std::fs::create_dir_all(&out).map_err(|e| e.to_string())?;
+            continue;
+        }
+        if let Some(parent) = out.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        let mut target = std::fs::File::create(&out).map_err(|e| format!("Couldn't write {}: {e}", relative.display()))?;
+        std::io::copy(&mut entry, &mut target).map_err(|e| e.to_string())?;
+        done += 1;
+        progress(done, total);
+    }
+    Ok(done)
+}
+
+pub fn new_folder(site_dir: &Path, rel: &str, name: &str) -> Result<(), String> {
+    check_name(name)?;
+    let target = safe_join(site_dir, rel)?.join(name);
+    if target.exists() {
+        return Err(format!("{name} is already there."));
+    }
+    std::fs::create_dir_all(target).map_err(|e| format!("Couldn't make the folder: {e}"))
+}
+
+/// Renames the file or folder at `rel` (same folder, new name).
+pub fn rename(site_dir: &Path, rel: &str, new_name: &str) -> Result<(), String> {
+    check_name(new_name)?;
+    let from = safe_join(site_dir, rel)?;
+    if from == site_dir {
+        return Err("Pick a file or folder to rename.".into());
+    }
+    let to = from.with_file_name(new_name);
+    if to.exists() {
+        return Err(format!("{new_name} is already there."));
+    }
+    std::fs::rename(&from, &to).map_err(|e| format!("Couldn't rename it: {e}"))
+}
+
+/// Moves `rel` of a site to `<root>/nexhost/.deleted/<time>-<site>-<name>` (restorable by hand).
+pub fn remove(root: &Path, site: &str, rel: &str) -> Result<(), String> {
+    let site_dir = dir(root).join(site);
+    let from = safe_join(&site_dir, rel)?;
+    if from == site_dir {
+        return Err("Pick a file or folder to delete.".into());
+    }
+    let name = from.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let bin = dir(root).join(".deleted");
+    std::fs::create_dir_all(&bin).map_err(|e| e.to_string())?;
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    std::fs::rename(&from, unique(&bin, &format!("{stamp}-{site}-{name}"))).map_err(|e| format!("Couldn't delete it: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -288,6 +475,78 @@ mod tests {
         assert!(apache.contains("Listen 127.0.0.1:8201") && !apache.contains("8202"));
         let nginx = conf(root.path(), "nginx", &prefs, 9000, Path::new("x"));
         assert!(nginx.contains("listen 127.0.0.1:8201;"));
+    }
+
+    #[test]
+    fn paths_cannot_leave_the_site() {
+        let d = Path::new("C:/NexDB/nexhost/shop");
+        for bad in ["../x", "a/../../x", "C:/Windows", "/etc", r"\\server\x", r"a\..\..\x"] {
+            assert!(safe_join(d, bad).is_err(), "{bad}");
+        }
+        assert!(safe_join(d, "public/css").unwrap().ends_with("public/css"));
+        assert_eq!(safe_join(d, "").unwrap(), d);
+    }
+
+    fn make_zip(path: &Path, entries: &[(&str, &str)]) {
+        let mut z = zip::ZipWriter::new(std::fs::File::create(path).unwrap());
+        let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (name, body) in entries {
+            z.start_file(*name, opts).unwrap();
+            std::io::Write::write_all(&mut z, body.as_bytes()).unwrap();
+        }
+        z.finish().unwrap();
+    }
+
+    #[test]
+    fn zip_slip_is_refused() {
+        let t = tempfile::tempdir().unwrap();
+        let site = t.path().join("site");
+        std::fs::create_dir(&site).unwrap();
+        let z = t.path().join("bad.zip");
+        make_zip(&z, &[("ok.txt", "a"), ("../../evil.php", "x")]);
+        assert!(unzip(&site, "", &z, |_, _| {}).is_err());
+        assert!(!site.join("ok.txt").exists(), "nothing written");
+        assert!(!t.path().join("evil.php").exists());
+    }
+
+    #[test]
+    fn zip_with_one_top_folder_is_unwrapped() {
+        let t = tempfile::tempdir().unwrap();
+        let site = t.path().join("site");
+        std::fs::create_dir(&site).unwrap();
+        let z = t.path().join("shop.zip");
+        make_zip(&z, &[("shop-main/index.php", "<?php"), ("shop-main/css/a.css", "b")]);
+        assert_eq!(unzip(&site, "", &z, |_, _| {}).unwrap(), 2);
+        assert!(site.join("index.php").is_file() && site.join("css/a.css").is_file());
+    }
+
+    #[test]
+    fn add_keeps_both_on_name_clash_and_files_lists_folders_first() {
+        let t = tempfile::tempdir().unwrap();
+        let site = t.path().join("site");
+        std::fs::create_dir(&site).unwrap();
+        let a = t.path().join("a.txt");
+        std::fs::write(&a, "1").unwrap();
+        assert_eq!(add(&site, "", &[a.clone()]).unwrap(), 1);
+        assert_eq!(add(&site, "", &[a]).unwrap(), 1);
+        assert!(site.join("a (2).txt").is_file());
+        new_folder(&site, "", "css").unwrap();
+        let names: Vec<String> = files(&site, "").unwrap().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, ["css", "a (2).txt", "a.txt"]);
+        rename(&site, "css", "styles").unwrap();
+        assert!(site.join("styles").is_dir());
+        assert!(rename(&site, "styles", "../x").is_err());
+    }
+
+    #[test]
+    fn remove_moves_to_deleted() {
+        let root = tempfile::tempdir().unwrap();
+        create(root.path(), "shop").unwrap();
+        remove(root.path(), "shop", "index.php").unwrap();
+        assert!(!dir(root.path()).join("shop/index.php").exists());
+        let kept = std::fs::read_dir(dir(root.path()).join(".deleted")).unwrap().count();
+        assert_eq!(kept, 1);
+        assert!(remove(root.path(), "shop", "").is_err(), "not the whole site from here");
     }
 
     #[test]

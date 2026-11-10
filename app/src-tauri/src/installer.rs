@@ -888,7 +888,7 @@ pub fn extract_part(archive: &Path, target: &Path, subdir: Option<&str>) -> io::
 }
 
 /// The one top-level folder holding every directory in the zip, if there is exactly one.
-fn single_top_folder(zip: &mut zip::ZipArchive<File>) -> Option<PathBuf> {
+pub(crate) fn single_top_folder(zip: &mut zip::ZipArchive<File>) -> Option<PathBuf> {
     let mut top_dirs = std::collections::BTreeSet::new();
     for i in 0..zip.len() {
         let entry = zip.by_index(i).ok()?;
