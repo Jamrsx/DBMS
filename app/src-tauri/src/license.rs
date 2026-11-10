@@ -404,10 +404,22 @@ fn client() -> Result<reqwest::Client, String> {
         .map_err(|e| e.to_string())
 }
 
+/// Percent-encodes a query value.
+fn url_encode(value: &str) -> String {
+    value
+        .bytes()
+        .map(|b| match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => (b as char).to_string(),
+            _ => format!("%{b:02X}"),
+        })
+        .collect()
+}
+
 /// The plans people can buy, from the website, for the renew-or-upgrade screen.
-pub async fn plans() -> Result<serde_json::Value, String> {
+pub async fn plans(current: Option<String>) -> Result<serde_json::Value, String> {
     let res = client()?
-        .get(format!("{}/api/v1/plans", api_base()))
+        // The person's own plan is always listed, so it can be renewed.
+        .get(format!("{}/api/v1/plans?current={}", api_base(), url_encode(&current.unwrap_or_default())))
         .header("Accept", "application/json")
         .send()
         .await

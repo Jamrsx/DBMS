@@ -243,8 +243,8 @@ async fn license_unlink() -> license::Outcome {
 
 /// Plans and prices from the website, for renewing or upgrading.
 #[tauri::command]
-async fn license_plans() -> Result<serde_json::Value, String> {
-    license::plans().await
+async fn license_plans(current: Option<String>) -> Result<serde_json::Value, String> {
+    license::plans(current).await
 }
 
 /// This PC's name, for the license screen.

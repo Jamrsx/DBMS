@@ -98,20 +98,26 @@ export interface BuyPlan {
   name: string;
   price: number;
   days: number | null;
+  /** Short test plans count in minutes. */
+  minutes?: number | null;
   lifetime: boolean;
+  /** The plan this license had. */
+  current?: boolean;
+  /** Sold on the website (false: renew through a reseller or NexDB). */
+  buyable?: boolean;
 }
 
 const SAMPLE_PLANS: { plans: BuyPlan[]; buy_url: string } = {
   plans: [
-    { id: 1, name: "6 months", price: 25000, days: 182, lifetime: false },
+    { id: 1, name: "6 months", price: 25000, days: 182, lifetime: false, current: true, buyable: true },
     { id: 2, name: "1 year", price: 45000, days: 365, lifetime: false },
     { id: 3, name: "Lifetime", price: 349900, days: null, lifetime: true },
   ],
   buy_url: BUY_URL,
 };
 
-export const licensePlans = (): Promise<{ plans: BuyPlan[]; buy_url: string }> =>
-  realDesktopApp ? invoke("license_plans") : Promise.resolve(SAMPLE_PLANS);
+export const licensePlans = (current: string | null): Promise<{ plans: BuyPlan[]; buy_url: string }> =>
+  realDesktopApp ? invoke("license_plans", { current }) : Promise.resolve(SAMPLE_PLANS);
 
 /** NexDB works normally: an active license, or one that ended within the last 3 days. */
 export const licenseWorks = (s: LicenseStatus | null) => s?.state === "active" || s?.state === "grace";
