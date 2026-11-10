@@ -71,6 +71,9 @@ pub struct Claims {
     pub issued_at: i64,
     pub expires_at: Option<i64>,
     pub check_by: i64,
+    /// Extra app features the plan includes ("nexhost"). Older licenses have none.
+    #[serde(default)]
+    pub features: Vec<String>,
 }
 
 /// What's saved (encrypted) on this PC.
@@ -101,6 +104,7 @@ pub enum Status {
         expires_at: Option<i64>,
         check_by: i64,
         days_left: Option<i64>,
+        features: Vec<String>,
     },
     /// Valid, but it hasn't checked in with the website for too long.
     NeedsCheckin { key_hint: String, check_by: i64 },
@@ -113,6 +117,7 @@ pub enum Status {
         key_hint: String,
         expires_at: i64,
         grace_until: i64,
+        features: Vec<String>,
     },
     /// Its time ran out and the grace days are over.
     Expired { key_hint: String, expires_at: i64, plan: Option<String>, seller: Option<String> },
@@ -172,6 +177,7 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
                 key_hint: hint,
                 expires_at: end,
                 grace_until: end + GRACE_SECS,
+                features: claims.features.clone(),
             };
         }
     }
@@ -187,6 +193,7 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
         expires_at: claims.expires_at,
         check_by: claims.check_by,
         days_left: claims.expires_at.map(|end| ((end - at) as f64 / 86400.0).ceil() as i64),
+        features: claims.features.clone(),
     }
 }
 
@@ -388,6 +395,39 @@ fn time_left(secs: i64) -> String {
     format!("{n} {unit}{}", if n == 1 { "" } else { "s" })
 }
 
+/// Shown when a feature needs a plan this license doesn't have.
+pub const NEXHOST_LOCKED: &str = "NexHost and public links are part of the 4-year plan.";
+
+/// Why `name` can't be used with this license state, or None when it can.
+fn feature_error(status: &Status, name: &str) -> Option<String> {
+    let features = match status {
+        Status::Active { features, .. } | Status::Grace { features, .. } => features,
+        _ => return Some("NexDB needs an active license for this. Open NexDB to activate it.".into()),
+    };
+    if features.iter().any(|f| f == name) {
+        None
+    } else if name == "nexhost" {
+        Some(NEXHOST_LOCKED.into())
+    } else {
+        Some("Your plan doesn't include this.".into())
+    }
+}
+
+fn current_status() -> Status {
+    let cached = CACHE.lock().ok().and_then(|c| c.clone());
+    cached.unwrap_or_else(status)
+}
+
+/// Whether this license's plan includes an app feature, like "nexhost".
+pub fn has_feature(name: &str) -> bool {
+    feature_error(&current_status(), name).is_none()
+}
+
+/// Ok when the license is active and its plan includes `name`; else a plain message.
+pub fn require_feature(name: &str) -> Result<(), String> {
+    feature_error(&current_status(), name).map_or(Ok(()), Err)
+}
+
 pub fn require() -> Result<(), String> {
     let cached = CACHE.lock().ok().and_then(|c| c.clone());
     let s = cached.unwrap_or_else(status);
@@ -587,7 +627,43 @@ mod tests {
             issued_at: 1_000,
             expires_at,
             check_by: 1_000 + 30 * 86400,
+            features: vec![],
         }
+    }
+
+    fn active_status(features: Vec<String>) -> Status {
+        Status::Active {
+            plan: Some("4 years".into()),
+            name: None,
+            email: None,
+            key_hint: "7KQ2".into(),
+            lifetime: false,
+            expires_at: Some(5_000_000),
+            check_by: 2_000,
+            days_left: Some(10),
+            features,
+        }
+    }
+
+    #[test]
+    fn features_come_from_the_token_and_old_tokens_have_none() {
+        let mut c = claims(Some(5_000_000));
+        c.features = vec!["nexhost".into()];
+        let (token, public) = signed(&c);
+        assert_eq!(verify(&token, &public).unwrap().features, vec!["nexhost".to_string()]);
+
+        // A token signed before features existed has no "features" key.
+        let old = serde_json::json!({"v":1,"lid":4,"key_hint":"7KQ2","plan":"6 months","name":null,"email":null,
+            "machine":"a","issued_at":1000,"expires_at":null,"check_by":2000});
+        let parsed: Claims = serde_json::from_value(old).unwrap();
+        assert!(parsed.features.is_empty());
+    }
+
+    #[test]
+    fn require_feature_says_which_plan() {
+        assert_eq!(feature_error(&active_status(vec![]), "nexhost"), Some("NexHost and public links are part of the 4-year plan.".into()));
+        assert_eq!(feature_error(&active_status(vec!["nexhost".into()]), "nexhost"), None);
+        assert!(feature_error(&Status::None { notice: None }, "nexhost").unwrap().contains("active license"));
     }
 
     #[test]

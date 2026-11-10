@@ -16,6 +16,8 @@ export type LicenseStatus =
       expires_at: number | null;
       check_by: number;
       days_left: number | null;
+      /** Extra app features the plan includes ("nexhost"). */
+      features: string[];
     }
   | { state: "needs_checkin"; key_hint: string; check_by: number }
   | {
@@ -27,6 +29,7 @@ export type LicenseStatus =
       key_hint: string;
       expires_at: number;
       grace_until: number;
+      features: string[];
     }
   | { state: "expired"; key_hint: string; expires_at: number; plan: string | null; seller: string | null }
   | { state: "clock_back"; key_hint: string };
@@ -58,6 +61,7 @@ const SAMPLE: LicenseStatus = {
   lifetime: false,
   expires_at: Math.floor(Date.now() / 1000) + 140 * 86400,
   check_by: Math.floor(Date.now() / 1000) + 25 * 86400,
+  features: [],
   days_left: 140,
 };
 
@@ -131,12 +135,16 @@ export const licensePlans = (current: string | null): Promise<{ plans: BuyPlan[]
 /** NexDB works normally: an active license, or one that ended within the last 3 days. */
 export const licenseWorks = (s: LicenseStatus | null) => s?.state === "active" || s?.state === "grace";
 
+/** Whether the license works and its plan includes `name` (like "nexhost"). */
+export const hasFeature = (s: LicenseStatus | null, name: string): boolean =>
+  (s?.state === "active" || s?.state === "grace") && (s.features ?? []).includes(name);
+
 /** Browser preview only: `?license=grace` or `?license=expired` shows those screens. */
 const previewState = !realDesktopApp ? new URLSearchParams(location.search).get("license") : null;
 const nowSecs = () => Math.floor(Date.now() / 1000);
 export const previewLicense = (): LicenseStatus | null =>
   previewState === "grace"
-    ? { state: "grace", plan: "6 months", seller: null, name: "Sample Student", email: "student@example.com", key_hint: "7KQ2", expires_at: nowSecs() - 3600, grace_until: nowSecs() + 3 * 86400 - 3600 }
+    ? { state: "grace", plan: "6 months", seller: null, name: "Sample Student", email: "student@example.com", key_hint: "7KQ2", expires_at: nowSecs() - 3600, grace_until: nowSecs() + 3 * 86400 - 3600, features: [] }
     : previewState === "expired"
       ? { state: "expired", plan: "6 months", seller: "Alpha Shop", key_hint: "7KQ2", expires_at: nowSecs() - 4 * 86400 }
       : null;
