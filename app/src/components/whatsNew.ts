@@ -50,7 +50,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "New in 0.5.4",
     title: "New PC? Take it with you",
-    body: "Move to another PC frees the key here, so you can activate it on the new one. You can move it up to 3 times a month.",
+    body: "Move to another PC frees the key here, so you can activate it on the new one. You can move it up to 10 times a month.",
     page: "settings",
     run: () => showSettingsSection("license"),
     target: here('[data-guide="license-actions"]'),

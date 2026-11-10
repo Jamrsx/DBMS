@@ -14,7 +14,7 @@ export const CHANGELOG: Release[] = [
       "Activate once with the internet: type the key, your full name and email. After that NexDB works offline.",
       "The license is signed by the NexDB server, so it can't be edited, and kept encrypted by Windows in a hidden file, so it can't be copied to another PC. Turning the PC's clock back doesn't stretch it.",
       "NexDB checks the license quietly whenever you're online, and needs to at least once every 30 days.",
-      "One PC at a time: activating on another PC offers to move the key there, up to 3 times a month. Settings → License shows your plan and end date, and Move to another PC frees it.",
+      "One PC at a time: activating on another PC offers to move the key there, up to 10 times a month. Settings → License shows your plan and end date, and Move to another PC frees it.",
       "Starting services, from the app or the tray, needs an active license.",
       "Setup and Versions now ask the official release sites which versions exist today, so you're offered what can actually be downloaded. Without internet, the list that came with NexDB is used.",
       "If a site takes a version down while you install (Apache did, for 2.4.69), Nex explains what happened and offers the versions it has today, instead of a checksum error. Apache 2.4.70 replaces 2.4.69.",
