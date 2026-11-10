@@ -124,7 +124,7 @@ pub fn signed_in(head: &Head, token: &str) -> bool {
 }
 
 /// Reads up to the blank line after the headers. Returns the head and any body bytes after it.
-fn read_head(conn: &mut TcpStream) -> Option<(Vec<u8>, Vec<u8>)> {
+pub(crate) fn read_head(conn: &mut TcpStream) -> Option<(Vec<u8>, Vec<u8>)> {
     let mut buf = Vec::new();
     let mut chunk = [0u8; 4096];
     loop {
@@ -187,7 +187,7 @@ fn serve(mut conn: TcpStream, upstream: u16, secret: &Secret) -> std::io::Result
 }
 
 /// Copies both ways until either side closes.
-fn pipe(client: TcpStream, upstream: TcpStream) -> std::io::Result<()> {
+pub(crate) fn pipe(client: TcpStream, upstream: TcpStream) -> std::io::Result<()> {
     let (mut c_read, mut u_write) = (client.try_clone()?, upstream.try_clone()?);
     let to_upstream = std::thread::spawn(move || {
         let _ = std::io::copy(&mut c_read, &mut u_write);
@@ -231,7 +231,7 @@ fn sign_in(mut conn: TcpStream, head: &Head, mut body: Vec<u8>, secret: &Secret)
     respond(conn, "200 OK", "text/html; charset=utf-8", &[], &page(&next, true))
 }
 
-fn respond(mut conn: TcpStream, status: &str, kind: &str, extra: &[&str], body: &str) -> std::io::Result<()> {
+pub(crate) fn respond(mut conn: TcpStream, status: &str, kind: &str, extra: &[&str], body: &str) -> std::io::Result<()> {
     let mut out = format!(
         "HTTP/1.1 {status}\r\nContent-Type: {kind}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nConnection: close\r\n",
         body.len()

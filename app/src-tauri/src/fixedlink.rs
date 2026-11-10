@@ -4,7 +4,10 @@
 //! once, in its dashboard). NexDB runs a small forwarder on 8899 to whichever project uses the
 //! fixed link, with the password page in front when asked. One fixed link runs at a time.
 
-use std::io::Read;
+use std::collections::HashMap;
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
@@ -114,7 +117,32 @@ pub fn explain(provider: &str, output: &str) -> String {
 /// Starts the fixed link for one share (`port` on this PC), replacing any other.
 pub fn start(account: &Account, cloudflared: Option<&Path>, key: &str, port: u16, password: Option<&str>) -> Result<String, String> {
     stop();
+    router_stop();
     let gate = crate::gate::start_on(port, password, FIXED_PORT)?;
+    #[cfg(windows)]
+    let (child, job) = spawn_tunnel(account, cloudflared)?;
+    #[cfg(not(windows))]
+    let (child, _) = spawn_tunnel(account, cloudflared)?;
+    let url = format!("https://{}", account.address);
+    *RUNNING.lock().unwrap() = Some(Running {
+        key: key.to_string(),
+        url: url.clone(),
+        password: password.map(str::to_string),
+        child,
+        _gate: gate,
+        #[cfg(windows)]
+        _job: job,
+    });
+    Ok(url)
+}
+
+#[cfg(windows)]
+type TunnelJob = crate::supervisor::job::Job;
+#[cfg(not(windows))]
+type TunnelJob = ();
+
+/// Starts the provider's tunnel and waits a moment: a wrong token or domain exits at once.
+fn spawn_tunnel(account: &Account, cloudflared: Option<&Path>) -> Result<(Child, TunnelJob), String> {
     let mut cmd = command(account, cloudflared)?;
     cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::piped());
     crate::scan::hide_console(&mut cmd);
@@ -147,17 +175,10 @@ pub fn start(account: &Account, cloudflared: Option<&Path>, key: &str, port: u16
             while matches!(e.read(&mut sink), Ok(n) if n > 0) {}
         });
     }
-    let url = format!("https://{}", account.address);
-    *RUNNING.lock().unwrap() = Some(Running {
-        key: key.to_string(),
-        url: url.clone(),
-        password: password.map(str::to_string),
-        child,
-        _gate: gate,
-        #[cfg(windows)]
-        _job: job,
-    });
-    Ok(url)
+    #[cfg(windows)]
+    return Ok((child, job));
+    #[cfg(not(windows))]
+    Ok((child, ()))
 }
 
 pub fn stop() {
@@ -178,9 +199,207 @@ pub fn current() -> Option<(String, String, Option<String>)> {
     guard.as_ref().map(|r| (r.key.clone(), r.url.clone(), r.password.clone()))
 }
 
+// ---------- NexHost router ----------
+
+/// `Shop.MyShop.com:443.` -> `shop.myshop.com`.
+pub fn host_key(raw: &str) -> String {
+    let host = raw.trim();
+    // "[::1]:443" keeps its brackets; "name:443" loses the port.
+    let host = if host.starts_with('[') { host.split(']').next().map(|h| format!("{h}]")).unwrap_or_default() } else { host.split(':').next().unwrap_or("").to_string() };
+    host.trim_end_matches('.').to_ascii_lowercase()
+}
+
+/// The local port for a visitor's Host, if a live site has it.
+pub fn route_for(table: &HashMap<String, u16>, host: &str) -> Option<u16> {
+    let key = host_key(host);
+    if key.is_empty() { None } else { table.get(&key).copied() }
+}
+
+/// What visitors see for an address no live site has.
+pub fn offline_page(host: &str) -> String {
+    let safe: String = host_key(host).chars().filter(|c| c.is_ascii_alphanumeric() || ".-".contains(*c)).collect();
+    format!(
+        "<!doctype html><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>Offline</title>\
+<body style=\"font-family:system-ui,sans-serif;max-width:32rem;margin:15vh auto;padding:0 1rem;color:#16181d\">\
+<h1>This site is offline</h1><p>{safe} is hosted on someone's own computer with NexHost, and it isn't online right now. Try again later.</p></body>"
+    )
+}
+
+/// One live site: visitors for its host go through its gate (password page or plain forward).
+struct Route {
+    gate_port: u16,
+    _gate: crate::gate::Gate,
+}
+
+/// Sends each visitor to the live site their address belongs to. Listens on 127.0.0.1; the
+/// user's Cloudflare or ngrok tunnel brings visitors to it. Each connection carries one request
+/// (the gate closes after one answer), so a reused tunnel connection can't reach another site.
+pub struct Router {
+    pub port: u16,
+    table: Arc<Mutex<HashMap<String, Route>>>,
+    stop: Arc<AtomicBool>,
+    tunnel: Option<Child>,
+    #[cfg(windows)]
+    _job: Option<crate::supervisor::job::Job>,
+}
+
+impl Router {
+    /// Only the router, no tunnel (port 0 picks a free one).
+    pub fn listen(port: u16) -> Result<Router, String> {
+        let listener = std::net::TcpListener::bind(("127.0.0.1", port)).map_err(|_| {
+            format!("Port {port} is in use by another program, so NexHost can't go online. Close that program and try again.")
+        })?;
+        let port = listener.local_addr().map_err(|e| e.to_string())?.port();
+        let table: Arc<Mutex<HashMap<String, Route>>> = Arc::default();
+        let stop = Arc::new(AtomicBool::new(false));
+        let (t, flag) = (table.clone(), stop.clone());
+        std::thread::spawn(move || {
+            for conn in listener.incoming() {
+                if flag.load(Ordering::SeqCst) {
+                    break;
+                }
+                let Ok(conn) = conn else { continue };
+                let t = t.clone();
+                std::thread::spawn(move || {
+                    let _ = serve_routed(conn, &t);
+                });
+            }
+        });
+        Ok(Router { port, table, stop, tunnel: None, #[cfg(windows)] _job: None })
+    }
+
+    /// The router on `FIXED_PORT` plus the user's tunnel. Stops a project's fixed link first.
+    pub fn start(account: &Account, cloudflared: Option<&Path>) -> Result<Router, String> {
+        stop();
+        let mut router = Router::listen(FIXED_PORT)?;
+        let (child, job) = spawn_tunnel(account, cloudflared)?;
+        router.tunnel = Some(child);
+        #[cfg(windows)]
+        {
+            router._job = Some(job);
+        }
+        #[cfg(not(windows))]
+        let _ = job;
+        Ok(router)
+    }
+
+    /// Sends visitors for `host` to the site on `site_port`, behind a password when given.
+    pub fn set(&self, host: &str, site_port: u16, password: Option<&str>) -> Result<(), String> {
+        let gate = crate::gate::start_on(site_port, password, 0)?;
+        let route = Route { gate_port: gate.port, _gate: gate };
+        self.table.lock().unwrap().insert(host_key(host), route);
+        Ok(())
+    }
+
+    pub fn remove(&self, host: &str) {
+        self.table.lock().unwrap().remove(&host_key(host));
+    }
+
+    pub fn hosts(&self) -> Vec<String> {
+        let mut h: Vec<String> = self.table.lock().unwrap().keys().cloned().collect();
+        h.sort();
+        h
+    }
+
+    /// Whether the tunnel process is still running (always true without one).
+    pub fn alive(&mut self) -> bool {
+        self.tunnel.as_mut().is_none_or(|c| matches!(c.try_wait(), Ok(None)))
+    }
+}
+
+impl Drop for Router {
+    fn drop(&mut self) {
+        self.stop.store(true, Ordering::SeqCst);
+        let _ = std::net::TcpStream::connect(("127.0.0.1", self.port));
+        if let Some(mut c) = self.tunnel.take() {
+            let _ = c.kill();
+            let _ = c.wait();
+        }
+    }
+}
+
+fn serve_routed(mut conn: std::net::TcpStream, table: &Mutex<HashMap<String, Route>>) -> std::io::Result<()> {
+    conn.set_read_timeout(Some(Duration::from_secs(30)))?;
+    let Some((raw, rest)) = crate::gate::read_head(&mut conn) else { return Ok(()) };
+    let text = String::from_utf8_lossy(&raw).to_string();
+    let Some(head) = crate::gate::parse_head(&text) else { return Ok(()) };
+    let host = head.header("host").unwrap_or("").to_string();
+    let port = table.lock().unwrap().get(&host_key(&host)).map(|r| r.gate_port);
+    let Some(port) = port else {
+        return crate::gate::respond(conn, "404 Not Found", "text/html; charset=utf-8", &[], &offline_page(&host));
+    };
+    let mut up = match std::net::TcpStream::connect(("127.0.0.1", port)) {
+        Ok(s) => s,
+        Err(_) => return crate::gate::respond(conn, "502 Bad Gateway", "text/html; charset=utf-8", &[], &offline_page(&host)),
+    };
+    up.write_all(&raw)?;
+    up.write_all(&rest)?;
+    conn.set_read_timeout(None)?;
+    crate::gate::pipe(conn, up)
+}
+
+/// The NexHost router while it runs (one tunnel at a time, shared with project fixed links).
+pub static ROUTER: Mutex<Option<Router>> = Mutex::new(None);
+
+pub fn router_stop() {
+    ROUTER.lock().unwrap().take();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hosts_are_matched_loosely() {
+        let t = HashMap::from([("shop.myshop.com".to_string(), 8301u16)]);
+        assert_eq!(route_for(&t, "Shop.MyShop.com:443"), Some(8301));
+        assert_eq!(route_for(&t, "shop.myshop.com."), Some(8301));
+        assert_eq!(route_for(&t, "blog.myshop.com"), None);
+        assert_eq!(route_for(&t, ""), None);
+    }
+
+    #[test]
+    fn offline_page_says_so() {
+        let page = offline_page("x.com<script>");
+        assert!(page.contains("This site is offline"));
+        assert!(!page.contains("<script>"), "the host is escaped");
+    }
+
+    fn answer_with(body: &'static str) -> u16 {
+        let l = std::net::TcpListener::bind(("127.0.0.1", 0)).unwrap();
+        let port = l.local_addr().unwrap().port();
+        std::thread::spawn(move || {
+            for conn in l.incoming().flatten() {
+                let mut conn = conn;
+                let mut buf = [0u8; 2048];
+                let _ = conn.read(&mut buf);
+                let _ = std::io::Write::write_all(&mut conn, format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).as_bytes());
+            }
+        });
+        port
+    }
+
+    fn get(port: u16, host: &str) -> String {
+        let mut c = std::net::TcpStream::connect(("127.0.0.1", port)).unwrap();
+        std::io::Write::write_all(&mut c, format!("GET / HTTP/1.1\r\nHost: {host}\r\n\r\n").as_bytes()).unwrap();
+        let mut out = String::new();
+        let _ = c.read_to_string(&mut out);
+        out
+    }
+
+    #[test]
+    fn router_forwards_by_host() {
+        let (a, b) = (answer_with("site-A"), answer_with("site-B"));
+        let router = Router::listen(0).unwrap();
+        router.set("a.test", a, None).unwrap();
+        router.set("B.test", b, None).unwrap();
+        assert!(get(router.port, "a.test").ends_with("site-A"));
+        assert!(get(router.port, "b.test:443").ends_with("site-B"));
+        assert!(get(router.port, "c.test").contains("This site is offline"));
+        router.remove("a.test");
+        assert!(get(router.port, "a.test").contains("This site is offline"));
+        assert_eq!(router.hosts(), vec!["b.test".to_string()]);
+    }
 
     #[test]
     fn addresses_are_cleaned_up() {
