@@ -115,6 +115,7 @@ const TOPICS: Topic[] = [
     steps: [
       "Ctrl+K: search pages, projects, databases and actions.",
       "Ctrl+1 to Ctrl+9 and Ctrl+0: open the sidebar's pages, top to bottom.",
+      "Ctrl+` (the key left of 1): open a new terminal, from any page. On the Terminal page, Ctrl+Shift+T and Ctrl+Shift+W open and close tabs.",
       "Tab moves between controls; the first Tab press offers Skip to page content.",
       "Esc closes menus, panels and the tutorial.",
     ],

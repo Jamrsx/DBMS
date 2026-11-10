@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { AppWindow, Plus, SquareTerminal, X } from "lucide-react";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
-import { isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
+import { isNewTerminalKey, isTabShortcut, TerminalView, type SessionState } from "./TerminalView";
 import { nexSay } from "../lib/nex";
 
 /** Nex says hi the first time the Terminal page opens in a launch. */
@@ -109,6 +109,22 @@ export function TerminalPage({ active, standalone = false }: { active: boolean; 
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
+  }, [active]);
+
+  // Ctrl+` opens a new terminal: here on the page, or from any other page (Shell sends the event).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!active || !isNewTerminalKey(e)) return;
+      e.preventDefault();
+      keys.current.add();
+    };
+    const onAsk = () => keys.current.add();
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("nexdb:new-terminal", onAsk);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("nexdb:new-terminal", onAsk);
+    };
   }, [active]);
 
   return (

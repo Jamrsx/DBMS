@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Clock } from "lucide-react";
 import { Nex } from "./Nex";
 import { RenewOptions } from "./RenewOptions";
 import { dateOf, type LicenseStatus } from "../lib/license";
@@ -19,13 +20,20 @@ function timeLeft(until: number): string {
 export function GraceNotice({ status, onNewKey }: { status: Grace; onNewKey: () => void }) {
   const [open, setOpen] = useState(true);
 
+  // The strip sits above the app and moves everything down, so it never covers a page title.
+  useEffect(() => {
+    document.body.classList.add("grace-ended");
+    return () => document.body.classList.remove("grace-ended");
+  }, []);
+
   return (
     <>
       <div className="grace-bar" role="status">
-        <span>
+        <Clock size={15} aria-hidden="true" />
+        <span className="grace-text">
           Your license ended {dateOf(status.expires_at)}. NexDB keeps working for another <strong>{timeLeft(status.grace_until)}</strong>.
         </span>
-        <button type="button" className="btn btn-small btn-primary" onClick={() => setOpen(true)}>
+        <button type="button" className="btn btn-small btn-primary grace-cta" onClick={() => setOpen(true)}>
           Renew or upgrade
         </button>
       </div>

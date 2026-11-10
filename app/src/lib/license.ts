@@ -18,7 +18,16 @@ export type LicenseStatus =
       days_left: number | null;
     }
   | { state: "needs_checkin"; key_hint: string; check_by: number }
-  | { state: "grace"; plan: string | null; seller: string | null; key_hint: string; expires_at: number; grace_until: number }
+  | {
+      state: "grace";
+      plan: string | null;
+      seller: string | null;
+      name?: string | null;
+      email?: string | null;
+      key_hint: string;
+      expires_at: number;
+      grace_until: number;
+    }
   | { state: "expired"; key_hint: string; expires_at: number; plan: string | null; seller: string | null }
   | { state: "clock_back"; key_hint: string };
 
@@ -127,7 +136,7 @@ const previewState = !realDesktopApp ? new URLSearchParams(location.search).get(
 const nowSecs = () => Math.floor(Date.now() / 1000);
 export const previewLicense = (): LicenseStatus | null =>
   previewState === "grace"
-    ? { state: "grace", plan: "6 months", seller: null, key_hint: "7KQ2", expires_at: nowSecs() - 3600, grace_until: nowSecs() + 3 * 86400 - 3600 }
+    ? { state: "grace", plan: "6 months", seller: null, name: "Sample Student", email: "student@example.com", key_hint: "7KQ2", expires_at: nowSecs() - 3600, grace_until: nowSecs() + 3 * 86400 - 3600 }
     : previewState === "expired"
       ? { state: "expired", plan: "6 months", seller: "Alpha Shop", key_hint: "7KQ2", expires_at: nowSecs() - 4 * 86400 }
       : null;

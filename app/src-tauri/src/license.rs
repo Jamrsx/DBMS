@@ -105,7 +105,15 @@ pub enum Status {
     /// Valid, but it hasn't checked in with the website for too long.
     NeedsCheckin { key_hint: String, check_by: i64 },
     /// Its time ran out, but NexDB keeps working for a few days so there's time to renew.
-    Grace { plan: Option<String>, seller: Option<String>, key_hint: String, expires_at: i64, grace_until: i64 },
+    Grace {
+        plan: Option<String>,
+        seller: Option<String>,
+        name: Option<String>,
+        email: Option<String>,
+        key_hint: String,
+        expires_at: i64,
+        grace_until: i64,
+    },
     /// Its time ran out and the grace days are over.
     Expired { key_hint: String, expires_at: i64, plan: Option<String>, seller: Option<String> },
     /// The PC clock is behind the newest time NexDB has seen.
@@ -156,7 +164,15 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
             return Status::Expired { key_hint: hint, expires_at: end, plan: claims.plan.clone(), seller: claims.seller.clone() };
         }
         if at >= end {
-            return Status::Grace { plan: claims.plan.clone(), seller: claims.seller.clone(), key_hint: hint, expires_at: end, grace_until: end + GRACE_SECS };
+            return Status::Grace {
+                plan: claims.plan.clone(),
+                seller: claims.seller.clone(),
+                name: claims.name.clone(),
+                email: claims.email.clone(),
+                key_hint: hint,
+                expires_at: end,
+                grace_until: end + GRACE_SECS,
+            };
         }
     }
     if at > claims.check_by {

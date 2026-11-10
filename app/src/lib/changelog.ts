@@ -21,6 +21,9 @@ export const CHANGELOG: Release[] = [
       "Switching between light and dark now fades gently instead of flashing.",
       "Your NexDB account: activating asks for a password too. On another PC, choose Sign in and use your email and password; Settings → License → Sign out of this PC frees it first. Can't reach the old PC? Unbind it on the NexDB website.",
       "When a license ends, NexDB keeps working for 3 more days: a notice (and a Windows notification) offers to renew your plan or upgrade to a longer one. After the 3 days, the license screen asks for the new key.",
+      "Your name sits at the bottom of the sidebar: click it for your license details or to sign out of this PC.",
+      "Ctrl+` opens a new terminal from any page.",
+      "The license-ended notice is now a slim strip at the top that moves the page down, so it never covers a title or button.",
     ],
   },
   {

@@ -27,6 +27,8 @@ import { Dashboard, openInbox } from "./dashboard/Dashboard";
 import { Database as DatabasePage } from "./database/Database";
 import { Projects } from "./projects/Projects";
 import { TerminalPage } from "./terminal/TerminalPage";
+import { isNewTerminalKey } from "./terminal/TerminalView";
+import { AccountButton } from "./components/AccountButton";
 import { SettingsPage } from "./settings/SettingsPage";
 import { VersionsPage } from "./versions/VersionsPage";
 import { HealthPage } from "./health/HealthPage";
@@ -140,6 +142,19 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [go]);
+
+  // Ctrl+` from any other page: open the Terminal with a new tab (the Terminal page handles it itself).
+  useEffect(() => {
+    if (page === "terminal") return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!isNewTerminalKey(e)) return;
+      e.preventDefault();
+      go("terminal");
+      window.dispatchEvent(new Event("nexdb:new-terminal"));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [go, page]);
   // A project to open on the Projects page (from Check my setup); n makes each request new.
   const [openProject, setOpenProject] = useState<{ name: string; n: number } | null>(null);
   // A database to show on the Database page (from the Ctrl+K palette).
@@ -337,6 +352,12 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
         <div className="rail-foot">
           <TasksButton />
           <UpdateNotice />
+          <AccountButton
+            onOpenLicense={() => {
+              go("settings");
+              window.dispatchEvent(new CustomEvent("nexdb:settings-section", { detail: "license" }));
+            }}
+          />
           <ThemeToggle />
         </div>
       </aside>

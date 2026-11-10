@@ -32,6 +32,11 @@ export function isTabShortcut(e: KeyboardEvent) {
   return e.ctrlKey && !e.altKey && (e.key === "Tab" || (e.shiftKey && /^[tw]$/i.test(e.key)));
 }
 
+/** Ctrl+` (the key left of 1): a new terminal, from any page. */
+export function isNewTerminalKey(e: KeyboardEvent) {
+  return e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && (e.code === "Backquote" || e.key === "`");
+}
+
 /** One PowerShell session in its own xterm. `restartToken` going up restarts it. */
 export function TerminalView({
   active,
@@ -103,7 +108,7 @@ export function TerminalView({
     // Links like http://127.0.0.1:8000 from "php artisan serve" open in the browser on click.
     t.loadAddon(new WebLinksAddon((_event, uri) => void openUrl(uri).catch(() => {})));
     t.attachCustomKeyEventHandler((e) => {
-      if (isTabShortcut(e)) return false;
+      if (isTabShortcut(e) || isNewTerminalKey(e)) return false;
       if (e.type !== "keydown" || !e.ctrlKey || e.altKey) return true;
       const key = e.key.toLowerCase();
       // Ctrl+C copies when text is selected; with nothing selected it stops the running command.

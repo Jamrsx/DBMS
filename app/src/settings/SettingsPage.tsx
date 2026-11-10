@@ -787,7 +787,7 @@ function TutorialCard() {
           Start from the beginning
         </button>
         <span className="field-hint">
-          Ctrl+K searches everything. Ctrl+1 to Ctrl+9 and Ctrl+0 open the sidebar's pages.
+          Ctrl+K searches everything. Ctrl+1 to Ctrl+9 and Ctrl+0 open the sidebar's pages. Ctrl+` opens a new terminal.
         </span>
       </div>
       <div className="guide-chapters" role="group" aria-label="What's new">
