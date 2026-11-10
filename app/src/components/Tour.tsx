@@ -14,6 +14,7 @@ const DONE_KEY = "nexdb.guideDone";
 type Page =
   | "dashboard"
   | "projects"
+  | "nexhost"
   | "database"
   | "terminal"
   | "mail"

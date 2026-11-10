@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.5",
+    title: "NexHost: host your test sites from this PC",
+    changes: [
+      "New with the 4-year plan: NexHost turns this PC into a small web host for testing, like a tiny Hostinger.",
+      "Make a site, drag its files or a .zip from Explorer onto NexDB, and give it its own database and user with one click.",
+      "Go live puts the site online at a fixed https address through your own Cloudflare account (with your own domain) or ngrok account (without one). Good for showing a client or testing PayMongo webhooks.",
+      "Only the site's public folder is reachable: .env, .git and hidden files never are, and MySQL stays on this PC.",
+      "A site is online only while this PC is on and NexDB is open. Sites that were live go live again when NexDB starts.",
+      "Public links and fixed links on the Share tab are now part of the 4-year plan. Sharing on your Wi-Fi stays on every plan.",
+    ],
+  },
+  {
     version: "0.5.4",
     title: "Your NexDB license",
     changes: [

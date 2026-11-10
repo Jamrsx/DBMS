@@ -76,7 +76,7 @@ export const licenseStatus = (): Promise<LicenseStatus> =>
     : previewLicense()
       ? Promise.resolve(previewLicense()!)
     : !realDesktopApp || isPractice()
-      ? Promise.resolve(previewNexhost ? { ...SAMPLE, plan: "4 years", features: ["nexhost"] } : SAMPLE)
+      ? Promise.resolve(previewNexhost || isPractice() ? { ...SAMPLE, plan: "4 years", features: ["nexhost"] } : SAMPLE)
       : invoke<LicenseStatus>("license_status");
 
 export const activateLicense = (key: string, name: string, email: string, password: string, moveHere = false) =>

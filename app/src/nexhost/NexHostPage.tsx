@@ -24,6 +24,12 @@ export function NexHostPage({ active }: { active: boolean }) {
   useEffect(() => {
     if (active && nexhost) load();
   }, [active, nexhost, load]);
+  // The Nex tour opens a site by name.
+  useEffect(() => {
+    const onOpen = (e: Event) => setOpen((e as CustomEvent<string>).detail);
+    window.addEventListener("nexdb:open-nexhost-site", onOpen);
+    return () => window.removeEventListener("nexdb:open-nexhost-site", onOpen);
+  }, []);
 
   const site = sites?.find((s) => s.name === open) ?? null;
 

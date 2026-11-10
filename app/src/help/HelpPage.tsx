@@ -63,8 +63,21 @@ const TOPICS: Topic[] = [
     steps: [
       "Open a project and go to its Share tab.",
       "On the same Wi-Fi: turn sharing on and scan the QR code with your phone.",
-      "Anywhere: Public link makes a temporary https address that works until you stop it.",
+      "Anywhere (4-year plan): Public link makes a temporary https address that works until you stop it.",
       "A whole app with a separate front end and Laravel API can share as one link.",
+    ],
+  },
+  {
+    id: "nexhost",
+    title: "Host a test site with NexHost",
+    chapter: "New in 0.5.5",
+    steps: [
+      "NexHost is part of the 4-year plan. Open NexHost in the sidebar and press New site.",
+      "Drag your website's files, folders or a .zip from Explorer onto NexDB. A zip can be unpacked in place.",
+      "Database → Create database gives the site its own database and user. Laravel sites can get them written into .env.",
+      "Settings → Sharing → NexHost connection: with your own domain, use your Cloudflare tunnel token and type the domain; without one, use ngrok's authtoken and free address.",
+      "With Cloudflare, add a public hostname per site (or *.yourdomain.com) pointing at http://localhost:8899 in the Cloudflare dashboard.",
+      "Go live gives the site a fixed https address. It works only while this PC is on and NexDB is open.",
     ],
   },
   {

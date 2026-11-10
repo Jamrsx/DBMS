@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.5", chapter: "New in 0.5.5" },
   { version: "0.5.4", chapter: "New in 0.5.4" },
   { version: "0.5.3", chapter: "New in 0.5.3" },
   { version: "0.5.2", chapter: "New in 0.5.2" },
@@ -25,7 +26,74 @@ const openProject = (name: string) => () =>
 const openDatabase = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-database", { detail: name }));
 
+const openNexhostSite = (name: string) => () =>
+  window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
+
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.5",
+    title: "Meet NexHost",
+    body: "With the 4-year plan, this PC can host your test sites, like a small Hostinger: show a client, or test payments on a real https address. Practice mode: these are sample sites, nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "NexHost in the sidebar",
+    body: "Click NexHost.",
+    target: '.nav-item[data-page="nexhost"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Your sites",
+    body: "Each site is a folder in C:\\NexDB\\nexhost. New site makes one with a starter page. Green means it's online right now.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-list"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Drop your files in",
+    body: "Drag files, folders or a .zip from Explorer onto the window. A zip can be unpacked right here, like a hosting file manager.",
+    page: "nexhost",
+    run: openNexhostSite("shop"),
+    target: here('[data-guide="nexhost-files"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "A database for the site",
+    body: "Click Database.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-database"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Its own user and password",
+    body: "Create database makes one for this site, with a user that can only use it. Copy the details into your site, or let NexDB put them in a Laravel .env.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-db"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Go live",
+    body: "Click Go live.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-live"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Online with your own account",
+    body: "Connect your own Cloudflare (with your domain) or ngrok (no domain) once in Settings. Then Go live gives the site a fixed https address. It's online only while this PC is on.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-live"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "That's 0.5.5!",
+    body: "Public links and NexHost are part of the 4-year plan now. Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.4",
     title: "Your NexDB license",

@@ -57,6 +57,8 @@ Rules every release follows:
 | 0.5.2 | Welcome screen after setup (blue flash, Nex says hello, the tour starts); Start all side by side; Performance page; clearer service details; Docker containers on the Dashboard; team setup file; services of your own; Link two tables dialog fits its window and Nex stays off its text; walkthrough check runs at ~1100 x 780 and after changing choices |
 | 0.5.3 | Editors opened from NexDB use the project's PHP (.vscode/settings.json, kept up to date); Check my setup lets you pick which PHP other terminals use from every PHP on the PC |
 | 0.5.4 | License: key screen after setup and on every start until activated (can't be skipped); activate once online, then offline with a server-signed, Windows-encrypted hidden license; quiet check-ins (at least every 30 days); clock-rollback guard; one PC at a time with moves; Settings → License |
+| 0.5.5 | NexHost (4-year plan): sites in C:NexDB
+exhost on 127.0.0.1:8201-8219, file manager with zip unpack, a database and user per site, Go live through the user's own Cloudflare (own domain) or ngrok (no domain) via a host router on 8899; Public link and Fixed link moved to the 4-year plan |
 
 ## Next
 
