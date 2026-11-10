@@ -9740,9 +9740,26 @@ body.grace-ended .palette-backdrop {
   text-align: center;
 }
 .nh-new {
+  max-width: 520px;
+  margin-bottom: 14px;
+}
+.nh-new,
+.nh-files form,
+.set-card form {
   display: grid;
-  gap: 6px;
-  max-width: 420px;
+  gap: 12px;
+}
+.set-card form {
+  max-width: 520px;
+}
+.nh-files {
+  margin-bottom: 14px;
+}
+.nh-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
 }
 .nh-files.over {
   outline: 2px dashed var(--accent);
@@ -9818,9 +9835,4 @@ body.grace-ended .palette-backdrop {
 }
 .nh-db dd {
   margin: 0;
-}
-.nh-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }

@@ -50,9 +50,14 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
                 .catch((err) => setMsg({ ok: false, text: String(err) }));
             }}
           >
-            <label htmlFor="nh-root">Folder inside the site (empty: let NexDB pick)</label>
-            <input id="nh-root" value={root} onChange={(e) => setRoot(e.target.value)} placeholder="public" />{" "}
-            <button className="btn">Save</button>
+            <label className="field">
+              <span className="field-label">Folder inside the site</span>
+              <input value={root} onChange={(e) => setRoot(e.target.value)} placeholder="public" spellCheck={false} />
+              <span className="field-hint">Leave it empty to let NexDB pick.</span>
+            </label>
+            <div className="nh-buttons">
+              <button className="btn">Save</button>
+            </div>
           </form>
           {msg && <p className={msg.ok ? "set-ok" : "field-error"} role="status">{msg.text}</p>}
 

@@ -42,10 +42,12 @@ export function NexHostPage({ active }: { active: boolean }) {
             <p className="dash-summary">Put your test sites online from this PC.</p>
           </div>
         </header>
+        <div className="panel-body dash-body">
         <PlanLock
           title="NexHost"
           text="Turn this PC into a small web host: upload a site, give it a database, and show it to a client or test payments on a real https address."
         />
+        </div>
       </main>
     );
   }
@@ -78,6 +80,7 @@ export function NexHostPage({ active }: { active: boolean }) {
           </div>
         )}
       </header>
+      <div className="panel-body dash-body">
 
       {error && (
         <p className="field-error" role="alert">
@@ -101,18 +104,21 @@ export function NexHostPage({ active }: { active: boolean }) {
               .catch((err) => setError(String(err)));
           }}
         >
-          <label htmlFor="nh-name">Site name</label>
-          <input
-            id="nh-name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value.toLowerCase())}
-            placeholder="my-shop"
-            autoFocus
-            pattern="[a-z0-9][a-z0-9-]{0,39}"
-            title="Small letters, numbers and dashes"
-          />
-          <p className="set-lede">Small letters, numbers and dashes. It becomes the folder C:\NexDB\nexhost\{newName || "my-shop"}.</p>
-          <div>
+          <h2>New site</h2>
+          <label className="field">
+            <span className="field-label">Site name</span>
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value.toLowerCase())}
+              placeholder="my-shop"
+              autoFocus
+              spellCheck={false}
+              pattern="[a-z0-9][a-z0-9-]{0,39}"
+              title="Small letters, numbers and dashes"
+            />
+            <span className="field-hint">Small letters, numbers and dashes. It becomes the folder C:\NexDB\nexhost\{newName || "my-shop"}.</span>
+          </label>
+          <div className="nh-buttons">
             <button className="btn btn-primary" disabled={!newName.trim()}>
               Make the site
             </button>{" "}
@@ -145,6 +151,7 @@ export function NexHostPage({ active }: { active: boolean }) {
           ))}
         </ul>
       )}
+      </div>
     </main>
   );
 }

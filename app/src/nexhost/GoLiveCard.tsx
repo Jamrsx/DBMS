@@ -75,22 +75,29 @@ export function GoLiveCard({ site, onSites }: { site: Site; onSites: (s: Site[])
         >
           {provider === "cloudflare" ? (
             <>
-              <label htmlFor="nh-address">Address on your domain</label>
-              <input id="nh-address" value={address} onChange={(e) => setAddress(e.target.value)} placeholder={`${site.name}.${domain}`} />
-              <p className="set-lede">
-                In Cloudflare, this address (or *.{domain}) must point at http://localhost:8899 under your tunnel's public hostnames.
-              </p>
+              <label className="field">
+                <span className="field-label">Address on your domain</span>
+                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder={`${site.name}.${domain}`} spellCheck={false} />
+                <span className="field-hint">
+                  In Cloudflare, this address (or *.{domain}) must point at http://localhost:8899 under your tunnel's public hostnames.
+                </span>
+              </label>
             </>
           ) : (
             <p className="set-lede">
               It uses your ngrok address <code>{domain}</code>. ngrok gives one free address, so another live site goes offline.
             </p>
           )}
-          <label className="nh-check">
+          <label className="check-row">
             <input type="checkbox" checked={ask} onChange={(e) => setAsk(e.target.checked)} /> Ask visitors for a password
           </label>
-          {ask && <input aria-label="Password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 4 characters" />}
-          <p>
+          {ask && (
+            <label className="field">
+              <span className="field-label">Password</span>
+              <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 4 characters" spellCheck={false} />
+            </label>
+          )}
+          <p className="nh-buttons">
             <button className="btn btn-primary" disabled={ask && password.trim().length < 4}>
               Go live
             </button>
