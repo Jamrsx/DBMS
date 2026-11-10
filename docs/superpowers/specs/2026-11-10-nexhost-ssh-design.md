@@ -80,6 +80,42 @@ another computer to manage the site's files and run its tools (`php artisan`, `c
   `~/.ssh/config` block to copy.
 - One SSH address serves every site: the login (`shop-maria`) says which site.
 
+### Instructions for connecting from another PC
+
+The SSH tab has a **How to connect from another PC** section, and each user row has **Copy
+instructions**: the same steps as plain text, with that user's login and the site's SSH address
+already filled in, ready to send to the person (the password is never included; it is sent
+separately). The steps, in plain words:
+
+1. **Install Cloudflare's connector once** (it lets your computer reach the PC through
+   Cloudflare):
+   - Windows: `winget install --id Cloudflare.cloudflared`
+   - macOS: `brew install cloudflared`
+   - Linux: the package from Cloudflare's downloads page.
+2. **Check you have SSH.** Windows 10/11, macOS and Linux already include it; type `ssh -V` in
+   a terminal to check.
+3. **Log in** (terminal / PowerShell):
+   `ssh -o ProxyCommand="cloudflared access ssh --hostname %h" shop-maria@ssh.myshop.com`
+   Type the password when asked. The first time, SSH shows the server's fingerprint: it must
+   match the one in the NexHost panel; type `yes`.
+4. **Easier next time (optional):** add this to `~/.ssh/config`
+   (Windows: `C:\Users\<you>\.ssh\config`), then just type `ssh shop`:
+   ```
+   Host shop
+     HostName ssh.myshop.com
+     User shop-maria
+     ProxyCommand cloudflared access ssh --hostname %h
+   ```
+5. **Files with an app (WinSCP, FileZilla, VS Code):** run
+   `cloudflared access tcp --hostname ssh.myshop.com --url localhost:2222` and keep that
+   window open, then connect the app with SFTP to host `localhost`, port `2222`, the login and
+   password.
+6. **If it doesn't connect:** the site owner's PC must be on with NexDB open and SSH turned on;
+   a "locked" message means too many wrong passwords (wait 15 minutes); ask the owner to reset
+   the password if it's lost.
+
+The Help page carries the same steps, and the Nex tour shows where Copy instructions is.
+
 ### Logs
 
 - `<root>\nexhost\.ssh\log.jsonl`: time, login, site, remote address (from Cloudflare), event
