@@ -304,9 +304,24 @@ pub fn recent(root: &std::path::Path, site: &str, limit: usize) -> Vec<LogEntry>
     list
 }
 
+/// The SSH server runs only while some site has SSH on and the license includes NexHost.
+pub fn should_run(sites: &BTreeMap<String, NexSite>, has_nexhost: bool) -> bool {
+    has_nexhost && sites.values().any(|s| s.ssh.on)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn server_runs_only_when_needed() {
+        let mut sites = BTreeMap::from([("shop".to_string(), NexSite { port: 8201, ..Default::default() })]);
+        assert!(!should_run(&sites, true), "no site has SSH on");
+        sites.get_mut("shop").unwrap().ssh.on = true;
+        assert!(should_run(&sites, true));
+        assert!(!should_run(&sites, false), "no 4-year plan");
+        assert!(!should_run(&BTreeMap::new(), true));
+    }
 
     #[cfg(windows)]
     #[test]

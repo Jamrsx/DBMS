@@ -323,7 +323,16 @@ pub fn run() {
             }
             // After the install is loaded (and services asked to start): live NexHost sites return.
             let handle = app.handle().clone();
-            std::thread::spawn(move || restore_nexhost(&handle));
+            std::thread::spawn(move || {
+                restore_nexhost(&handle);
+                // NexHost SSH starts when a site has it on.
+                use tauri::Manager;
+                if let Some(stack) = handle.try_state::<Stack>() {
+                    if let Ok((root, settings, _)) = stack.get() {
+                        tauri::async_runtime::block_on(sync_ssh(&root, &settings));
+                    }
+                }
+            });
             // The Windows startup entry launches hidden in the tray; a normal launch shows the window.
             if !std::env::args().any(|a| a == tray::TRAY_ARG) {
                 tray::show_window(app.handle());
@@ -377,6 +386,13 @@ pub fn run() {
             nexhost_db_write_env,
             nexhost_go_live,
             nexhost_go_offline,
+            nexhost_ssh_info,
+            nexhost_ssh_set,
+            nexhost_ssh_add_user,
+            nexhost_ssh_reset,
+            nexhost_ssh_user_set,
+            nexhost_ssh_delete_user,
+            nexhost_ssh_log,
             license_status,
             license_activate,
             license_sign_in,
@@ -1043,6 +1059,8 @@ fn save_nexhost(stack: &Stack, root: &std::path::Path, sites: &std::collections:
         v["preferences"]["nexhost"] = value;
         Ok(())
     })?;
+    // The SSH server sees every change (a deleted site, a user turned off) at once.
+    *ssh_sites().write().unwrap() = sites.clone();
     let sites = sites.clone();
     stack.update_settings(|s| s.preferences.nexhost = sites);
     Ok(())
@@ -1362,6 +1380,186 @@ fn restore_nexhost(app: &tauri::AppHandle) {
     let _ = ensure_router(&settings);
 }
 
+// ---------- NexHost SSH (4-year plan) ----------
+
+/// The sites as the SSH server sees them, kept equal to the saved settings.
+fn ssh_sites() -> Arc<std::sync::RwLock<std::collections::BTreeMap<String, nexhost::NexSite>>> {
+    static SITES: std::sync::OnceLock<Arc<std::sync::RwLock<std::collections::BTreeMap<String, nexhost::NexSite>>>> = std::sync::OnceLock::new();
+    SITES.get_or_init(Arc::default).clone()
+}
+
+/// Starts the SSH server when some site has SSH on (and the license allows it), stops it otherwise.
+async fn sync_ssh(root: &std::path::Path, settings: &settings::Settings) {
+    *ssh_sites().write().unwrap() = settings.preferences.nexhost.clone();
+    let run = nexhost_ssh::should_run(&settings.preferences.nexhost, license::has_feature("nexhost"));
+    let running = ssh_server::SERVER.lock().unwrap().is_some();
+    if run && !running {
+        let path = terminal::path_with(&terminal::tool_dirs(root, settings), &std::env::var("PATH").unwrap_or_default());
+        match ssh_server::SshServer::start_on(ssh_server::PORT, root.to_path_buf(), ssh_sites(), path, Arc::new(|| license::has_feature("nexhost"))).await {
+            Ok(s) => *ssh_server::SERVER.lock().unwrap() = Some(s),
+            Err(e) => eprintln!("NexHost SSH: {e}"),
+        }
+    } else if !run && running {
+        if let Some(s) = ssh_server::SERVER.lock().unwrap().take() {
+            s.stop();
+        }
+    }
+}
+
+/// What the SSH tab shows. Password hashes never leave Rust.
+#[derive(serde::Serialize)]
+struct SshUserInfo {
+    name: String,
+    login: String,
+    role: String,
+    enabled: bool,
+    created_at: i64,
+}
+
+#[derive(serde::Serialize)]
+struct SshInfo {
+    on: bool,
+    users: Vec<SshUserInfo>,
+    port: u16,
+    fingerprint: String,
+    running: bool,
+}
+
+#[derive(serde::Serialize)]
+struct SshWithPassword {
+    info: SshInfo,
+    /// Shown once; never saved.
+    password: String,
+}
+
+fn ssh_info(root: &std::path::Path, site: &nexhost::NexSite) -> SshInfo {
+    SshInfo {
+        on: site.ssh.on,
+        users: site
+            .ssh
+            .users
+            .iter()
+            .map(|u| SshUserInfo { name: u.name.clone(), login: u.login.clone(), role: u.role.clone(), enabled: u.enabled, created_at: u.created_at })
+            .collect(),
+        port: ssh_server::PORT,
+        fingerprint: nexhost_ssh::host_key(root).map(|k| nexhost_ssh::fingerprint(&k)).unwrap_or_default(),
+        running: ssh_server::SERVER.lock().unwrap().is_some(),
+    }
+}
+
+/// Changes one site's SSH settings, saves them, and starts or stops the server to match.
+async fn ssh_change(
+    stack: &Stack,
+    name: &str,
+    change: impl FnOnce(&mut nexhost_ssh::SiteSsh) -> Result<Option<String>, String>,
+) -> Result<(SshInfo, Option<String>), String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    let mut sites = settings.preferences.nexhost.clone();
+    let site = sites.get_mut(name).ok_or_else(|| format!("There is no NexHost site named {name}."))?;
+    let password = change(&mut site.ssh)?;
+    save_nexhost(stack, &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    sync_ssh(&root, &settings).await;
+    let site = settings.preferences.nexhost.get(name).cloned().unwrap_or_default();
+    let r2 = root.clone();
+    let info = blocking(move || Ok(ssh_info(&r2, &site))).await?;
+    Ok((info, password))
+}
+
+fn ssh_unix_now() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64)
+}
+
+#[tauri::command]
+async fn nexhost_ssh_info(stack: tauri::State<'_, Stack>, name: String) -> Result<SshInfo, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    blocking(move || Ok(ssh_info(&root, &site))).await
+}
+
+#[tauri::command]
+async fn nexhost_ssh_set(stack: tauri::State<'_, Stack>, name: String, on: bool) -> Result<SshInfo, String> {
+    ssh_change(&stack, &name, |ssh| {
+        ssh.on = on;
+        Ok(None)
+    })
+    .await
+    .map(|r| r.0)
+}
+
+#[tauri::command]
+async fn nexhost_ssh_add_user(stack: tauri::State<'_, Stack>, name: String, user: String) -> Result<SshWithPassword, String> {
+    let site = name.clone();
+    // Hashing takes a moment; it runs on a worker thread.
+    let users = nexhost_site(&stack.get()?.1, &name)?.ssh.users;
+    let (made, password) = blocking(move || nexhost_ssh::new_user(&site, user.trim(), &users, ssh_unix_now())).await?;
+    let (info, password) = ssh_change(&stack, &name, move |ssh| {
+        if ssh.users.iter().any(|u| u.name == made.name) {
+            return Err(format!("This site already has a user named {}.", made.name));
+        }
+        ssh.users.push(made);
+        Ok(Some(password))
+    })
+    .await?;
+    Ok(SshWithPassword { info, password: password.unwrap_or_default() })
+}
+
+#[tauri::command]
+async fn nexhost_ssh_reset(stack: tauri::State<'_, Stack>, name: String, user: String) -> Result<SshWithPassword, String> {
+    let password: String = quickstart::random_password()?.chars().take(24).collect();
+    let pw2 = password.clone();
+    let hash = blocking(move || nexhost_ssh::hash_password(&pw2)).await?;
+    let (info, _) = ssh_change(&stack, &name, move |ssh| {
+        let u = ssh.users.iter_mut().find(|u| u.name == user).ok_or("That user doesn't exist any more.")?;
+        u.hash = hash;
+        Ok(None)
+    })
+    .await?;
+    Ok(SshWithPassword { info, password })
+}
+
+/// Turns a user on or off, or changes what they may do ("files" or "shell").
+#[tauri::command]
+async fn nexhost_ssh_user_set(stack: tauri::State<'_, Stack>, name: String, user: String, enabled: Option<bool>, role: Option<String>) -> Result<SshInfo, String> {
+    if let Some(r) = &role {
+        if r != "files" && r != "shell" {
+            return Err("Pick Files and site commands, or Full shell.".into());
+        }
+    }
+    ssh_change(&stack, &name, move |ssh| {
+        let u = ssh.users.iter_mut().find(|u| u.name == user).ok_or("That user doesn't exist any more.")?;
+        if let Some(e) = enabled {
+            u.enabled = e;
+        }
+        if let Some(r) = role {
+            u.role = r;
+        }
+        Ok(None)
+    })
+    .await
+    .map(|r| r.0)
+}
+
+#[tauri::command]
+async fn nexhost_ssh_delete_user(stack: tauri::State<'_, Stack>, name: String, user: String) -> Result<SshInfo, String> {
+    ssh_change(&stack, &name, move |ssh| {
+        ssh.users.retain(|u| u.name != user);
+        Ok(None)
+    })
+    .await
+    .map(|r| r.0)
+}
+
+#[tauri::command]
+async fn nexhost_ssh_log(stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<nexhost_ssh::LogEntry>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    nexhost_site(&settings, &name)?;
+    blocking(move || Ok(nexhost_ssh::recent(&root, &name, 100))).await
+}
+
 /// The license no longer includes NexHost: every public link and fixed link stops.
 pub(crate) fn lose_nexhost(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -1370,6 +1568,9 @@ pub(crate) fn lose_nexhost(app: &tauri::AppHandle) {
     }
     fixedlink::stop();
     fixedlink::router_stop();
+    if let Some(s) = ssh_server::SERVER.lock().unwrap().take() {
+        s.stop();
+    }
     if let Some(stack) = app.try_state::<Stack>() {
         if let Ok((root, settings, _)) = stack.get() {
             let mut sites = settings.preferences.nexhost.clone();

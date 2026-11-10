@@ -28,6 +28,7 @@ pub struct Shared {
 
 /// A running server. Dropping it (or `stop`) ends it and every open session.
 pub struct SshServer {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub port: u16,
     shutdown: russh::server::RunningServerHandle,
     task: tokio::task::JoinHandle<()>,
