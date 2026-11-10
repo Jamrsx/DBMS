@@ -470,7 +470,7 @@ pub(crate) struct ProjectDb {
 }
 
 /// Creates the database and a user that can only use it.
-fn make_database(root_password: Option<&str>, port: u16, name: &str) -> Result<ProjectDb, String> {
+pub(crate) fn make_database(root_password: Option<&str>, port: u16, name: &str) -> Result<ProjectDb, String> {
     let db = crate::db::Db::default();
     db.connect(port, root_password).map_err(|e| {
         if e == "NEEDS_PASSWORD" {

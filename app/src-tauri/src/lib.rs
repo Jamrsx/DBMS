@@ -307,6 +307,8 @@ pub fn run() {
             // Check which versions the official sites offer today (quietly; at most every 12 hours).
             tauri::async_runtime::spawn(async { let _ = livecatalog::refresh(false).await; });
             license::watch_end(app.handle().clone());
+            let handle = app.handle().clone();
+            std::thread::spawn(move || restore_nexhost(&handle));
             // "Start services when NexDB opens", from Settings.
             let handle = app.handle().clone();
             let stack = handle.state::<Stack>();
@@ -351,6 +353,21 @@ pub fn run() {
         .manage(Arc::new(share::Tunnels::default()))
         .manage(Arc::new(laravel::Workers::default()))
         .invoke_handler(tauri::generate_handler![
+            nexhost_list,
+            nexhost_create,
+            nexhost_delete,
+            nexhost_set_root,
+            nexhost_files,
+            nexhost_add,
+            nexhost_unzip,
+            nexhost_new_folder,
+            nexhost_rename,
+            nexhost_remove,
+            nexhost_db_create,
+            nexhost_db_info,
+            nexhost_db_write_env,
+            nexhost_go_live,
+            nexhost_go_offline,
             license_status,
             license_activate,
             license_sign_in,
@@ -1006,6 +1023,323 @@ async fn share_allow_firewall() -> Result<(), String> {
 }
 
 /// The tunnel key for a project's site (`what` empty), its dev server ("dev") or whole app ("app").
+// ---------- NexHost (4-year plan) ----------
+
+/// Saves the NexHost sites to settings, on disk and in memory.
+fn save_nexhost(stack: &Stack, root: &std::path::Path, sites: &std::collections::BTreeMap<String, nexhost::NexSite>) -> Result<(), String> {
+    let value = serde_json::to_value(sites).map_err(|e| e.to_string())?;
+    settings::edit(root, |v| {
+        v["preferences"]["nexhost"] = value;
+        Ok(())
+    })?;
+    let sites = sites.clone();
+    stack.update_settings(|s| s.preferences.nexhost = sites);
+    Ok(())
+}
+
+/// The site's settings, or a plain error when it doesn't exist.
+fn nexhost_site(settings: &settings::Settings, name: &str) -> Result<nexhost::NexSite, String> {
+    settings.preferences.nexhost.get(name).cloned().ok_or_else(|| format!("There is no NexHost site named {name}."))
+}
+
+/// Sites as the page shows them; "live" only while the router really serves them.
+fn nexhost_sites(root: &std::path::Path, settings: &settings::Settings) -> Vec<nexhost::Site> {
+    let hosts = fixedlink::ROUTER.lock().unwrap().as_ref().map(|r| r.hosts()).unwrap_or_default();
+    let mut sites = nexhost::list(root, &settings.preferences.nexhost);
+    for s in sites.iter_mut() {
+        s.live = s.live && s.address.as_deref().is_some_and(|a| hosts.contains(&fixedlink::host_key(a)));
+    }
+    sites
+}
+
+#[tauri::command]
+async fn nexhost_list(stack: tauri::State<'_, Stack>) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    blocking(move || Ok(nexhost_sites(&root, &settings))).await
+}
+
+#[tauri::command]
+async fn nexhost_create(stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    if settings.web().is_none() {
+        return Err("NexHost needs a web server. Install Apache or nginx on the Versions page first.".into());
+    }
+    let mut sites = settings.preferences.nexhost.clone();
+    if sites.contains_key(&name) {
+        return Err(format!("There is already a site named {name}."));
+    }
+    let port = nexhost::free_port(&sites).ok_or("Every NexHost port (8201 to 8219) is in use. Delete a site first.")?;
+    let stack = stack.inner();
+    let r2 = root.clone();
+    let n2 = name.clone();
+    blocking(move || nexhost::create(&r2, &n2)).await?;
+    sites.insert(name, nexhost::NexSite { port, ..Default::default() });
+    save_nexhost(stack, &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(nexhost_sites(&root, &settings))
+    })
+    .await
+}
+
+#[tauri::command]
+async fn nexhost_delete(stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    if let (Some(r), Some(a)) = (fixedlink::ROUTER.lock().unwrap().as_ref(), site.address.as_deref()) {
+        r.remove(a);
+    }
+    let folder = nexhost::dir(&root).join(&name);
+    if folder.exists() {
+        let bin = nexhost::dir(&root).join(".deleted");
+        std::fs::create_dir_all(&bin).map_err(|e| e.to_string())?;
+        let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+        std::fs::rename(&folder, bin.join(format!("{stamp}-{name}"))).map_err(|e| format!("Couldn't delete the site folder (is a file open?): {e}"))?;
+    }
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.remove(&name);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(nexhost_sites(&root, &settings))
+    })
+    .await
+}
+
+/// Which folder of the site is served (None: detect, like Laravel's public/).
+#[tauri::command]
+async fn nexhost_set_root(stack: tauri::State<'_, Stack>, name: String, web_root: Option<String>) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    let mut site = nexhost_site(&settings, &name)?;
+    let web_root = web_root.map(|r| r.trim().trim_matches('/').to_string()).filter(|r| !r.is_empty());
+    if let Some(rel) = &web_root {
+        if !nexhost::safe_join(&nexhost::dir(&root).join(&name), rel)?.is_dir() {
+            return Err(format!("{rel} isn't a folder in this site."));
+        }
+    }
+    site.web_root = web_root;
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(nexhost_sites(&root, &settings))
+    })
+    .await
+}
+
+/// The site's folder, once its name is known.
+fn nexhost_dir(stack: &Stack, name: &str) -> Result<(PathBuf, PathBuf), String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    nexhost_site(&settings, name)?;
+    Ok((nexhost::dir(&root).join(name), root))
+}
+
+#[tauri::command]
+async fn nexhost_files(stack: tauri::State<'_, Stack>, name: String, rel: String) -> Result<Vec<nexhost::Entry>, String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::files(&dir, &rel)).await
+}
+
+#[tauri::command]
+async fn nexhost_add(stack: tauri::State<'_, Stack>, name: String, rel: String, sources: Vec<String>) -> Result<u32, String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    let sources: Vec<PathBuf> = sources.into_iter().map(PathBuf::from).collect();
+    blocking(move || nexhost::add(&dir, &rel, &sources)).await
+}
+
+#[tauri::command]
+async fn nexhost_unzip(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, name: String, rel: String, zip: String) -> Result<u32, String> {
+    use tauri::Emitter;
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || {
+        nexhost::unzip(&dir, &rel, std::path::Path::new(&zip), |done, total| {
+            let _ = app.emit("nexhost-unzip", serde_json::json!({ "done": done, "total": total }));
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+async fn nexhost_new_folder(stack: tauri::State<'_, Stack>, name: String, rel: String, folder: String) -> Result<(), String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::new_folder(&dir, &rel, &folder)).await
+}
+
+#[tauri::command]
+async fn nexhost_rename(stack: tauri::State<'_, Stack>, name: String, rel: String, new_name: String) -> Result<(), String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::rename(&dir, &rel, &new_name)).await
+}
+
+#[tauri::command]
+async fn nexhost_remove(stack: tauri::State<'_, Stack>, name: String, rel: String) -> Result<(), String> {
+    let (_, root) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::remove(&root, &name, &rel)).await
+}
+
+#[tauri::command]
+async fn nexhost_db_create(stack: tauri::State<'_, Stack>, db: tauri::State<'_, db::Db>, name: String) -> Result<nexhost::DbInfo, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    let db_name = nexhost::create_db_plan(&settings.preferences.nexhost, &name)?;
+    let port = settings.mysql.as_ref().map(|m| m.port).ok_or("NexHost databases need MySQL. Install it on the Versions page first.")?;
+    let root_password = db.inner().clone_handle().password();
+    let r2 = root.clone();
+    let n2 = name.clone();
+    let made = blocking(move || {
+        if !supervisor::port_listening(port) {
+            sup.start("mysql").map_err(|e| format!("MySQL isn't running and didn't start: {e}"))?;
+        }
+        let made = quickstart::make_database(root_password.as_deref(), port, &db_name)?;
+        nexhost::save_password(&r2, &n2, &made.password)?;
+        Ok(made)
+    })
+    .await?;
+    let mut sites = settings.preferences.nexhost.clone();
+    if let Some(s) = sites.get_mut(&name) {
+        s.db = Some(made.name.clone());
+    }
+    save_nexhost(stack.inner(), &root, &sites)?;
+    Ok(nexhost::DbInfo { name: made.name, user: made.user, password: made.password, host: "127.0.0.1".into(), port: made.port })
+}
+
+#[tauri::command]
+fn nexhost_db_info(stack: tauri::State<'_, Stack>, name: String) -> Result<Option<nexhost::DbInfo>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    let Some(db_name) = site.db else { return Ok(None) };
+    let port = settings.mysql.as_ref().map_or(3306, |m| m.port);
+    Ok(Some(nexhost::DbInfo {
+        user: db_name.clone(),
+        name: db_name,
+        password: nexhost::load_password(&root, &name).unwrap_or_default(),
+        host: "127.0.0.1".into(),
+        port,
+    }))
+}
+
+/// Writes the site's database into its `.env` (made from `.env.example` when missing).
+#[tauri::command]
+async fn nexhost_db_write_env(stack: tauri::State<'_, Stack>, name: String) -> Result<(), String> {
+    let info = nexhost_db_info(stack.clone(), name.clone())?.ok_or("Make the site's database first.")?;
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || {
+        let env = dir.join(".env");
+        let text = std::fs::read_to_string(&env).or_else(|_| std::fs::read_to_string(dir.join(".env.example"))).unwrap_or_default();
+        std::fs::write(&env, nexhost::env_with_db(&text, &info)).map_err(|e| format!("Couldn't write .env: {e}"))
+    })
+    .await
+}
+
+/// Starts the router and tunnel when they aren't running.
+fn ensure_router(settings: &settings::Settings) -> Result<(), String> {
+    let account = settings.preferences.fixed_link.clone().ok_or("Set up NexHost's connection in Settings first (your Cloudflare or ngrok account).")?;
+    let mut guard = fixedlink::ROUTER.lock().unwrap();
+    if !guard.as_mut().is_some_and(|r| r.alive()) {
+        *guard = None;
+        *guard = Some(fixedlink::Router::start(&account, cloudflared_exe(settings).as_deref())?);
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn nexhost_go_live(stack: tauri::State<'_, Stack>, name: String, address: Option<String>, password: Option<String>) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    let mut site = nexhost_site(&settings, &name)?;
+    let web = settings.web().ok_or("NexHost needs a web server. Install Apache or nginx on the Versions page first.")?.0;
+    if !sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running) {
+        return Err("The web server is stopped. Start it on the Dashboard, then go live.".into());
+    }
+    let account = settings.preferences.fixed_link.clone().ok_or("Set up NexHost's connection in Settings first (your Cloudflare or ngrok account).")?;
+    let (host, take_offline) = nexhost::live_plan(&account.provider, &account.address, &settings.preferences.nexhost, &name, address.as_deref())?;
+    let password = password.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
+    let mut sites = settings.preferences.nexhost.clone();
+    let s2 = settings.clone();
+    let (h2, pw2, port) = (host.clone(), password.clone(), site.port);
+    let offline: Vec<Option<String>> = take_offline.iter().map(|n| sites.get(n).and_then(|s| s.address.clone())).collect();
+    blocking(move || {
+        ensure_router(&s2)?;
+        let guard = fixedlink::ROUTER.lock().unwrap();
+        let router = guard.as_ref().ok_or("NexHost couldn't go online.")?;
+        for a in offline.iter().flatten() {
+            router.remove(a);
+        }
+        router.set(&h2, port, pw2.as_deref())
+    })
+    .await?;
+    for n in &take_offline {
+        if let Some(s) = sites.get_mut(n) {
+            s.live = false;
+        }
+    }
+    site.live = true;
+    site.address = Some(host);
+    site.password = password;
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    Ok(nexhost_sites(&root, &settings))
+}
+
+#[tauri::command]
+async fn nexhost_go_offline(stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    let mut site = nexhost_site(&settings, &name)?;
+    {
+        let mut guard = fixedlink::ROUTER.lock().unwrap();
+        if let (Some(r), Some(a)) = (guard.as_ref(), site.address.as_deref()) {
+            r.remove(a);
+        }
+        if guard.as_ref().is_some_and(|r| r.hosts().is_empty()) {
+            *guard = None;
+        }
+    }
+    site.live = false;
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    Ok(nexhost_sites(&root, &settings))
+}
+
+/// At startup: sites that were live go live again, when the license still includes NexHost.
+/// A site that can't is marked offline (the page shows it), never an error dialog.
+fn restore_nexhost(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if !license::has_feature("nexhost") {
+        return;
+    }
+    let Some(stack) = app.try_state::<Stack>() else { return };
+    let Ok((root, settings, sup)) = stack.get() else { return };
+    let mut sites = settings.preferences.nexhost.clone();
+    if !sites.values().any(|s| s.live) {
+        return;
+    }
+    let web_up = settings.web().is_some_and(|(web, _)| sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running));
+    let ok = web_up && ensure_router(&settings).is_ok();
+    let guard = fixedlink::ROUTER.lock().unwrap();
+    for s in sites.values_mut().filter(|s| s.live) {
+        let set = ok && guard.as_ref().zip(s.address.as_deref()).is_some_and(|(r, a)| r.set(a, s.port, s.password.as_deref()).is_ok());
+        if !set {
+            s.live = false;
+        }
+    }
+    drop(guard);
+    let _ = save_nexhost(&stack, &root, &sites);
+}
+
 /// The license no longer includes NexHost: every public link and fixed link stops.
 pub(crate) fn lose_nexhost(app: &tauri::AppHandle) {
     use tauri::Manager;
@@ -1013,6 +1347,15 @@ pub(crate) fn lose_nexhost(app: &tauri::AppHandle) {
         t.stop_all();
     }
     fixedlink::stop();
+    fixedlink::router_stop();
+    if let Some(stack) = app.try_state::<Stack>() {
+        if let Ok((root, settings, _)) = stack.get() {
+            let mut sites = settings.preferences.nexhost.clone();
+            if !nexhost::offline_all(&mut sites).is_empty() {
+                let _ = save_nexhost(&stack, &root, &sites);
+            }
+        }
+    }
 }
 
 fn tunnel_key(name: &str, what: &str) -> String {

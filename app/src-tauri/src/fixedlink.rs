@@ -210,9 +210,9 @@ pub fn host_key(raw: &str) -> String {
 }
 
 /// The local port for a visitor's Host, if a live site has it.
-pub fn route_for(table: &HashMap<String, u16>, host: &str) -> Option<u16> {
+pub fn route_for<'a, V>(table: &'a HashMap<String, V>, host: &str) -> Option<&'a V> {
     let key = host_key(host);
-    if key.is_empty() { None } else { table.get(&key).copied() }
+    if key.is_empty() { None } else { table.get(&key) }
 }
 
 /// What visitors see for an address no live site has.
@@ -324,7 +324,7 @@ fn serve_routed(mut conn: std::net::TcpStream, table: &Mutex<HashMap<String, Rou
     let text = String::from_utf8_lossy(&raw).to_string();
     let Some(head) = crate::gate::parse_head(&text) else { return Ok(()) };
     let host = head.header("host").unwrap_or("").to_string();
-    let port = table.lock().unwrap().get(&host_key(&host)).map(|r| r.gate_port);
+    let port = route_for(&table.lock().unwrap(), &host).map(|r| r.gate_port);
     let Some(port) = port else {
         return crate::gate::respond(conn, "404 Not Found", "text/html; charset=utf-8", &[], &offline_page(&host));
     };
@@ -352,8 +352,8 @@ mod tests {
     #[test]
     fn hosts_are_matched_loosely() {
         let t = HashMap::from([("shop.myshop.com".to_string(), 8301u16)]);
-        assert_eq!(route_for(&t, "Shop.MyShop.com:443"), Some(8301));
-        assert_eq!(route_for(&t, "shop.myshop.com."), Some(8301));
+        assert_eq!(route_for(&t, "Shop.MyShop.com:443"), Some(&8301));
+        assert_eq!(route_for(&t, "shop.myshop.com."), Some(&8301));
         assert_eq!(route_for(&t, "blog.myshop.com"), None);
         assert_eq!(route_for(&t, ""), None);
     }

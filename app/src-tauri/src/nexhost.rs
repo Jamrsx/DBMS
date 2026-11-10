@@ -472,6 +472,51 @@ pub fn load_password(root: &Path, site: &str) -> Option<String> {
     String::from_utf8(crate::license::dpapi::unprotect(&sealed)?).ok()
 }
 
+// ---------- Going live ----------
+
+/// The public host for `name` and the live sites that must go offline first. With ngrok there
+/// is one address, so one live site; with Cloudflare each site gets a name on the user's domain.
+pub fn live_plan(
+    provider: &str,
+    account_address: &str,
+    prefs: &BTreeMap<String, NexSite>,
+    name: &str,
+    wanted: Option<&str>,
+) -> Result<(String, Vec<String>), String> {
+    let domain = crate::fixedlink::host_key(account_address);
+    if domain.is_empty() {
+        return Err("Set up NexHost's connection in Settings first (your Cloudflare or ngrok account).".into());
+    }
+    let others = prefs.iter().filter(|(n, s)| n.as_str() != name && s.live);
+    if provider == "ngrok" {
+        // One free ngrok address: whatever else is live goes offline.
+        return Ok((domain, others.map(|(n, _)| n.clone()).collect()));
+    }
+    let host = match wanted.map(crate::fixedlink::host_key).filter(|h| !h.is_empty()) {
+        Some(h) => h,
+        None => format!("{name}.{domain}"),
+    };
+    if !host.ends_with(&format!(".{domain}")) {
+        return Err(format!("Use an address on your domain, like {name}.{domain}."));
+    }
+    if let Some((other, _)) = others.clone().find(|(_, s)| s.address.as_deref().map(crate::fixedlink::host_key).as_deref() == Some(host.as_str())) {
+        return Err(format!("{host} is already used by {other}. Pick another address."));
+    }
+    Ok((host, vec![]))
+}
+
+/// Marks every live site offline; returns their names.
+pub fn offline_all(prefs: &mut BTreeMap<String, NexSite>) -> Vec<String> {
+    prefs
+        .iter_mut()
+        .filter(|(_, s)| s.live)
+        .map(|(n, s)| {
+            s.live = false;
+            n.clone()
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -648,6 +693,38 @@ DB_HOST=old
         let raw = std::fs::read(dir(root.path()).join(".secrets").join("shop")).unwrap();
         assert!(!raw.windows(6).any(|w| w == b"s3cret"));
         assert_eq!(load_password(root.path(), "shop").as_deref(), Some("s3cret"));
+    }
+
+    fn live(port: u16, address: &str) -> NexSite {
+        NexSite { port, live: true, address: Some(address.into()), ..Default::default() }
+    }
+
+    #[test]
+    fn ngrok_has_one_live_site() {
+        let prefs = BTreeMap::from([("blog".to_string(), live(8201, "x.ngrok-free.app")), ("shop".to_string(), NexSite { port: 8202, ..Default::default() })]);
+        assert_eq!(live_plan("ngrok", "x.ngrok-free.app", &prefs, "shop", None).unwrap(), ("x.ngrok-free.app".to_string(), vec!["blog".to_string()]));
+    }
+
+    #[test]
+    fn cloudflare_uses_the_domain() {
+        let prefs = BTreeMap::from([("shop".to_string(), NexSite { port: 8202, ..Default::default() })]);
+        assert_eq!(live_plan("cloudflare", "myshop.com", &prefs, "shop", None).unwrap(), ("shop.myshop.com".to_string(), vec![]));
+        assert_eq!(live_plan("cloudflare", "myshop.com", &prefs, "shop", Some("Test.MyShop.com")).unwrap().0, "test.myshop.com");
+        assert!(live_plan("cloudflare", "myshop.com", &prefs, "shop", Some("evil.com")).is_err());
+        assert!(live_plan("cloudflare", "myshop.com", &prefs, "shop", Some("notmyshop.com")).is_err());
+    }
+
+    #[test]
+    fn a_host_is_used_once() {
+        let prefs = BTreeMap::from([("blog".to_string(), live(8201, "shop.myshop.com")), ("shop".to_string(), NexSite { port: 8202, ..Default::default() })]);
+        assert!(live_plan("cloudflare", "myshop.com", &prefs, "shop", None).unwrap_err().contains("blog"));
+    }
+
+    #[test]
+    fn losing_the_feature_takes_every_site_offline() {
+        let mut prefs = BTreeMap::from([("blog".to_string(), live(8201, "a")), ("shop".to_string(), live(8202, "b")), ("off".to_string(), NexSite::default())]);
+        assert_eq!(offline_all(&mut prefs), vec!["blog".to_string(), "shop".to_string()]);
+        assert!(prefs.values().all(|s| !s.live));
     }
 
     #[test]
