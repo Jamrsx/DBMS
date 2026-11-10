@@ -45,6 +45,7 @@ export async function pmaInstall(onProgress: (p: ToolProgress) => void): Promise
   }
 }
 
-export async function pmaOpen(): Promise<void> {
-  if (inDesktopApp) await invoke("phpmyadmin_open");
+/** Opens phpMyAdmin in the browser; with `db`, on that database. */
+export async function pmaOpen(db?: string): Promise<void> {
+  if (inDesktopApp) await invoke("phpmyadmin_open", { db: db ?? null });
 }

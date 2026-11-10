@@ -2539,14 +2539,14 @@ async fn phpmyadmin_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack
 }
 
 #[tauri::command]
-fn phpmyadmin_open(app: tauri::AppHandle, stack: tauri::State<Stack>) -> Result<(), String> {
+fn phpmyadmin_open(app: tauri::AppHandle, stack: tauri::State<Stack>, db: Option<String>) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let (root, settings, _) = stack.get()?;
     let status = phpmyadmin::status(&root, settings.web().map(|w| w.1));
     if !status.installed {
         return Err("phpMyAdmin isn't installed yet.".into());
     }
-    app.opener().open_url(status.url, None::<&str>).map_err(|e| e.to_string())
+    app.opener().open_url(phpmyadmin::url_for_db(&status.url, db.as_deref()), None::<&str>).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

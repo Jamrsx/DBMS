@@ -1,18 +1,44 @@
 import { useEffect, useState } from "react";
+import { ExternalLink } from "lucide-react";
 import { CopyButton } from "../components/CopyButton";
 import { createDatabase, databaseInfo, listSites, writeEnv, type DbInfo, type Site } from "../lib/nexhost";
+import { pmaInstall, pmaOpen, pmaStatus, type PmaStatus } from "../lib/phpmyadmin";
 
 /** The site's own database and user, shown the way a hosting panel shows them. */
 export function DatabaseCard({ site, onSites }: { site: Site; onSites: (s: Site[]) => void }) {
   const [info, setInfo] = useState<DbInfo | null | undefined>(undefined);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [show, setShow] = useState(false);
+  const [pma, setPma] = useState<PmaStatus | null>(null);
+  const [installing, setInstalling] = useState<string | null>(null);
 
   useEffect(() => {
     databaseInfo(site.name)
       .then(setInfo)
       .catch((e) => setMsg({ ok: false, text: String(e) }));
+    pmaStatus()
+      .then(setPma)
+      .catch(() => setPma(null));
   }, [site.name]);
+
+  // phpMyAdmin on this PC, opened on the site's database (installed first when missing).
+  const openPma = async (db: string) => {
+    try {
+      if (!pma?.installed) {
+        setInstalling("Downloading phpMyAdmin…");
+        await pmaInstall((p) =>
+          setInstalling(p.bytes_total ? `Downloading phpMyAdmin… ${Math.round((p.bytes_done / p.bytes_total) * 100)}%` : (p.message ?? "Setting up phpMyAdmin…")),
+        );
+        setPma(await pmaStatus());
+      }
+      await pmaOpen(db);
+      setMsg({ ok: true, text: "phpMyAdmin opened in your browser. Sign in with the user and password above." });
+    } catch (e) {
+      setMsg({ ok: false, text: String(e) });
+    } finally {
+      setInstalling(null);
+    }
+  };
 
   const rows: [string, string][] = info
     ? [
@@ -60,7 +86,10 @@ export function DatabaseCard({ site, onSites }: { site: Site; onSites: (s: Site[
               </div>
             ))}
           </dl>
-          <p>
+          <p className="nh-buttons">
+            <button className="btn btn-small btn-primary" data-guide="nexhost-pma" disabled={!!installing} onClick={() => void openPma(info.name)}>
+              <ExternalLink size={14} aria-hidden="true" /> {pma?.installed === false ? "Install and open phpMyAdmin" : "Open in phpMyAdmin"}
+            </button>
             <button className="btn btn-small btn-quiet" onClick={() => setShow((v) => !v)}>
               {show ? "Hide password" : "Show password"}
             </button>{" "}
@@ -77,7 +106,11 @@ export function DatabaseCard({ site, onSites }: { site: Site; onSites: (s: Site[
               </button>
             )}
           </p>
-          <p className="set-lede">The database only works on this PC; visitors reach it through your site, never directly.</p>
+          {installing && <p role="status">{installing}</p>}
+          <p className="set-lede">
+            phpMyAdmin opens on this PC only, never on your public link. The database only works on this PC; visitors reach it
+            through your site, never directly.
+          </p>
         </>
       )}
       {msg && (

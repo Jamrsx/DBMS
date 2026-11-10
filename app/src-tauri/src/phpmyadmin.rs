@@ -182,9 +182,24 @@ pub async fn install(
     write_config(root, mysql_port)
 }
 
+/// phpMyAdmin's address, opened on one database when `db` is a plain database name.
+pub fn url_for_db(base: &str, db: Option<&str>) -> String {
+    match db.filter(|d| !d.is_empty() && d.len() <= 64 && d.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')) {
+        Some(d) => format!("{}/index.php?db={d}", base.trim_end_matches('/')),
+        None => base.to_string(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn opens_on_one_database() {
+        assert_eq!(url_for_db("http://localhost/phpmyadmin/", Some("nh_shop")), "http://localhost/phpmyadmin/index.php?db=nh_shop");
+        assert_eq!(url_for_db("http://localhost/phpmyadmin/", None), "http://localhost/phpmyadmin/");
+        assert_eq!(url_for_db("http://localhost/phpmyadmin/", Some("a&b=1")), "http://localhost/phpmyadmin/");
+    }
 
     #[test]
     fn config_is_cookie_login_on_the_chosen_port() {
