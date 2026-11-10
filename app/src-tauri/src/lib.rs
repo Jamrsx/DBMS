@@ -19,6 +19,7 @@ mod docker;
 mod mail;
 mod localname;
 mod nexhost;
+mod nexhost_ssh;
 mod fixedlink;
 mod dbedit;
 mod editors;

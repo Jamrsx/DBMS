@@ -30,6 +30,9 @@ pub struct NexSite {
     /// Its database, once made.
     #[serde(default)]
     pub db: Option<String>,
+    /// SSH logins (off until turned on).
+    #[serde(default)]
+    pub ssh: crate::nexhost_ssh::SiteSsh,
 }
 
 /// A site as the NexHost page shows it.
