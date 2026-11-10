@@ -20,6 +20,7 @@ mod mail;
 mod localname;
 mod nexhost;
 mod nexhost_ssh;
+mod ssh_server;
 mod fixedlink;
 mod dbedit;
 mod editors;
