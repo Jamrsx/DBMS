@@ -215,6 +215,14 @@ impl Tunnels {
             let _ = t.child.wait();
         }
     }
+
+    /// Ends every public link (the license no longer includes them).
+    pub fn stop_all(&self) {
+        for (_, mut t) in self.0.lock().unwrap().drain() {
+            let _ = t.child.kill();
+            let _ = t.child.wait();
+        }
+    }
 }
 
 /// The `https://….trycloudflare.com` address in a line of cloudflared's output.
@@ -227,6 +235,22 @@ pub fn tunnel_url(line: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn stop_all_ends_every_public_link() {
+        let tunnels = Tunnels::default();
+        for name in ["shop", "blog"] {
+            let child = Command::new("cmd").args(["/C", "ping -n 30 127.0.0.1 >nul"]).spawn().unwrap();
+            let job = crate::supervisor::job::Job::kill_on_close().unwrap();
+            tunnels.0.lock().unwrap().insert(
+                name.into(),
+                Tunnel { child, url: Arc::new(Mutex::new(None)), _gate: None, password: None, _job: job },
+            );
+        }
+        tunnels.stop_all();
+        assert!(tunnels.0.lock().unwrap().is_empty());
+    }
 
     #[test]
     fn finds_the_quick_tunnel_address() {

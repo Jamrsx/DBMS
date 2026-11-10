@@ -67,6 +67,8 @@ const SAMPLE: LicenseStatus = {
 
 /** Browser preview only: `?license=none` shows the license screen. */
 const previewNone = !realDesktopApp && new URLSearchParams(location.search).get("license") === "none";
+/** Browser preview only: `?license=nexhost` is a 4-year license with NexHost. */
+const previewNexhost = !realDesktopApp && new URLSearchParams(location.search).get("license") === "nexhost";
 
 export const licenseStatus = (): Promise<LicenseStatus> =>
   previewNone
@@ -74,7 +76,7 @@ export const licenseStatus = (): Promise<LicenseStatus> =>
     : previewLicense()
       ? Promise.resolve(previewLicense()!)
     : !realDesktopApp || isPractice()
-      ? Promise.resolve(SAMPLE)
+      ? Promise.resolve(previewNexhost ? { ...SAMPLE, plan: "4 years", features: ["nexhost"] } : SAMPLE)
       : invoke<LicenseStatus>("license_status");
 
 export const activateLicense = (key: string, name: string, email: string, password: string, moveHere = false) =>

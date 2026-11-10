@@ -9660,3 +9660,30 @@ body.grace-ended .palette-backdrop {
 .license-form .field input:not(.license-key) {
   font-family: inherit;
 }
+
+/* A feature that needs the 4-year plan. */
+.plan-lock {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px dashed var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+.plan-lock p {
+  margin: 0;
+}
+.plan-lock-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 600;
+}
+.plan-lock-why {
+  color: var(--text-3);
+  font-size: 13px;
+}

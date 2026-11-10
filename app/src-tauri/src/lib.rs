@@ -1005,6 +1005,15 @@ async fn share_allow_firewall() -> Result<(), String> {
 }
 
 /// The tunnel key for a project's site (`what` empty), its dev server ("dev") or whole app ("app").
+/// The license no longer includes NexHost: every public link and fixed link stops.
+pub(crate) fn lose_nexhost(app: &tauri::AppHandle) {
+    use tauri::Manager;
+    if let Some(t) = app.try_state::<Arc<share::Tunnels>>() {
+        t.stop_all();
+    }
+    fixedlink::stop();
+}
+
 fn tunnel_key(name: &str, what: &str) -> String {
     if what.is_empty() { name.to_string() } else { format!("{name}#{what}") }
 }
@@ -1107,6 +1116,7 @@ async fn share_public_start(
     what: Option<String>,
     password: Option<String>,
 ) -> Result<ShareInfo, String> {
+    license::require_feature("nexhost")?;
     let (_, settings, sup) = stack.get()?;
     let what = what.unwrap_or_default();
     let password = password.map(|p| p.trim().to_string()).filter(|p| !p.is_empty());
@@ -1134,6 +1144,7 @@ async fn share_fixed_start(
     what: Option<String>,
     password: Option<String>,
 ) -> Result<ShareInfo, String> {
+    license::require_feature("nexhost")?;
     let (_, settings, sup) = stack.get()?;
     let what = what.unwrap_or_default();
     let p = &settings.preferences;
@@ -1196,6 +1207,7 @@ fn fixed_link_info(stack: tauri::State<Stack>) -> Result<FixedLinkInfo, String> 
 /// Saves (or, with no provider, removes) the fixed-link account. An empty token keeps the saved one.
 #[tauri::command]
 fn fixed_link_save(stack: tauri::State<Stack>, provider: Option<String>, address: String, token: String) -> Result<(), String> {
+    license::require_feature("nexhost")?;
     let (root, settings, _) = stack.get()?;
     let next = match provider {
         None => None,
@@ -1236,6 +1248,7 @@ fn fixed_link_save(stack: tauri::State<Stack>, provider: Option<String>, address
 /// Lets the user point to ngrok.exe when NexDB can't find it.
 #[tauri::command]
 async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<Option<String>, String> {
+    license::require_feature("nexhost")?;
     use tauri_plugin_dialog::DialogExt;
     let (root, settings, _) = stack.get()?;
     let picked = app.dialog().file().set_title("Where is ngrok.exe?").add_filter("ngrok", &["exe"]).blocking_pick_file();

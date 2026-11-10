@@ -364,7 +364,12 @@ pub fn watch_end(app: tauri::AppHandle) {
             std::thread::sleep(Duration::from_secs(60));
             let now_status = status();
             let changed = std::mem::discriminant(&now_status) != std::mem::discriminant(&last);
-            if changed {
+            // Lost NexHost (ended, signed out, other plan): public links stop right away.
+            let lost_nexhost = feature_error(&last, "nexhost").is_none() && feature_error(&now_status, "nexhost").is_some();
+            if lost_nexhost {
+                crate::lose_nexhost(&app);
+            }
+            if changed || lost_nexhost {
                 match &now_status {
                     Status::Grace { grace_until, .. } => crate::tray::notify(
                         &app,

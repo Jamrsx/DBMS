@@ -1,3 +1,4 @@
+import { PlanLock, useFeature } from "../components/PlanLock";
 import { useCallback, useEffect, useState } from "react";
 import { fixedLinkInfo, pickNgrok, saveFixedLink, type FixedLinkInfo } from "../lib/share";
 
@@ -8,6 +9,7 @@ import { fixedLinkInfo, pickNgrok, saveFixedLink, type FixedLinkInfo } from "../
  */
 export function FixedLinkCard({ active }: { active: boolean }) {
   const [info, setInfo] = useState<FixedLinkInfo | null>(null);
+  const nexhost = useFeature("nexhost");
   const [provider, setProvider] = useState<"ngrok" | "cloudflare">("ngrok");
   const [address, setAddress] = useState("");
   const [token, setToken] = useState("");
@@ -51,6 +53,14 @@ export function FixedLinkCard({ active }: { active: boolean }) {
 
   if (!info) return null;
   const set = info.has_token && !editing;
+  if (nexhost === false) {
+    return (
+      <section className="set-card" data-guide="fixed-link-card">
+        <h2>Public links that stay the same</h2>
+        <PlanLock title="Fixed public link" text="Use your own ngrok or Cloudflare account for a link that never changes." />
+      </section>
+    );
+  }
   return (
     <section className="set-card" data-guide="fixed-link-card">
       <h2>Public links that stay the same</h2>

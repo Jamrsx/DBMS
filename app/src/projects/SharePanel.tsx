@@ -1,3 +1,4 @@
+import { PlanLock, useFeature } from "../components/PlanLock";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -49,6 +50,7 @@ export function SharePanel({
   needsSite?: boolean;
 }) {
   const [info, setInfo] = useState<ShareInfo | null>(null);
+  const nexhost = useFeature("nexhost");
   const [devPort, setDevPort] = useState(String(devApps[0]?.port ?? 5173));
   // The whole-app form: folders, and whether the front end runs on its dev server or is built.
   const [front, setFront] = useState<string | null>(null);
@@ -219,6 +221,13 @@ export function SharePanel({
     ready: boolean,
     password: string | null = null,
   ) => {
+    if (nexhost === false) {
+      return (
+        <div className="share-sub">
+          <PlanLock title="Public link" text="Open this project from anywhere, for example to show a client." />
+        </div>
+      );
+    }
     const what = kind === "dev" ? `${name}'s dev server` : name;
     const ask = askPassword[where] ?? true;
     const pw = passwords[where] ?? "";
