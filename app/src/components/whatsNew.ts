@@ -90,6 +90,28 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "SSH from another PC",
+    body: "Click SSH.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-ssh"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Turn SSH on, add a login",
+    body: "Turn SSH on for the site, then add a login per person. NexDB makes a strong password and shows it once. Only give SSH to people you trust.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-ssh"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "The command for their PC",
+    body: "Pick their computer (Windows, macOS, Linux) and copy the ready command. Copy instructions on a login gives them every step, without the password.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-ssh-connect"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "Go live",
     body: "Click Go live.",
     page: "nexhost",

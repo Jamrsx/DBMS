@@ -7,12 +7,14 @@ import { inDesktopApp } from "../lib/scan";
 import { DatabaseCard } from "./DatabaseCard";
 import { FileManager } from "./FileManager";
 import { GoLiveCard } from "./GoLiveCard";
+import { SshCard } from "./SshCard";
 
-type Tab = "overview" | "files" | "database" | "live" | "settings";
+type Tab = "overview" | "files" | "database" | "ssh" | "live" | "settings";
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "files", label: "Files" },
   { id: "database", label: "Database" },
+  { id: "ssh", label: "SSH" },
   { id: "live", label: "Go live" },
   { id: "settings", label: "Settings" },
 ];
@@ -37,6 +39,7 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
       {tab === "overview" && <Overview site={site} onTab={setTab} />}
       {tab === "files" && <FileManager site={site} />}
       {tab === "database" && <DatabaseCard site={site} onSites={onSites} />}
+      {tab === "ssh" && <SshCard site={site} />}
       {tab === "live" && <GoLiveCard site={site} onSites={onSites} />}
       {tab === "settings" && (
         <section className="set-card">

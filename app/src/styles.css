@@ -10175,3 +10175,108 @@ body.grace-ended .palette-backdrop {
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/* NexHost SSH tab. */
+.nh-ssh {
+  display: grid;
+  gap: 14px;
+  padding-top: 14px;
+}
+.nh-ssh .set-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nh-ssh-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nh-ssh-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-size: 13px;
+}
+.nh-ssh-users select {
+  height: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+}
+.nh-ssh-users .nh-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.nh-ssh-add {
+  max-width: 480px;
+}
+.nh-ssh-pw {
+  padding: 12px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
+}
+.nh-ssh-pw p {
+  margin: 0 0 6px;
+}
+.nh-ssh-cmd {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.nh-ssh-cmd code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+}
+.nh-ssh-h3 {
+  margin: 8px 0 0;
+  font: 600 14px var(--font-display);
+}
+.nh-ssh-steps {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--text-2);
+  font-size: 13.5px;
+}
+.nh-ssh-steps code {
+  overflow-wrap: anywhere;
+}
+.nh-ssh-log {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.nh-ssh-log li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.nh-ssh-log li.bad {
+  color: var(--bad);
+}
+.nh-ssh-when,
+.nh-ssh-from {
+  color: var(--text-3);
+}

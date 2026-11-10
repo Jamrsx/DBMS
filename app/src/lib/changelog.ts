@@ -16,6 +16,7 @@ export const CHANGELOG: Release[] = [
       "Only the site's public folder is reachable: .env, .git and hidden files never are, and MySQL stays on this PC.",
       "A site is online only while this PC is on and NexDB is open. Sites that were live go live again when NexDB starts.",
       "Public links and fixed links on the Share tab are now part of the 4-year plan. Sharing on your Wi-Fi stays on every plan.",
+      "SSH for NexHost sites: turn it on per site, add a login per person (NexDB makes the password), and copy the ready command for their Windows, Mac or Linux PC. It goes through your Cloudflare tunnel; files over SFTP and site commands stay in the site's folder.",
     ],
   },
   {

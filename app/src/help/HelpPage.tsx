@@ -68,6 +68,18 @@ const TOPICS: Topic[] = [
     ],
   },
   {
+    id: "nexhost-ssh",
+    title: "Connect to a site with SSH",
+    chapter: "New in 0.5.5",
+    steps: [
+      "NexHost → your site → SSH: turn SSH on and add a login per person. Copy the password; it's shown once.",
+      "In Cloudflare, add a public hostname of type SSH, like ssh.yourdomain.com, pointing at ssh://localhost:2222.",
+      "On the other PC: install cloudflared (Windows: winget install --id Cloudflare.cloudflared), then run the command NexHost shows and type the password.",
+      "Files with WinSCP or FileZilla: run cloudflared access tcp --hostname ssh.yourdomain.com --url localhost:2222, then connect with SFTP to localhost port 2222.",
+      "Logins can use files and site commands (php artisan, composer, git, npm). Full shell is for people you trust with this whole PC.",
+    ],
+  },
+  {
     id: "nexhost",
     title: "Host a test site with NexHost",
     chapter: "New in 0.5.5",
