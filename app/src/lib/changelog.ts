@@ -15,6 +15,7 @@ export const CHANGELOG: Release[] = [
       "Import project copies a project from NexDB's www folder into a NexHost site in one click (node_modules and .git stay behind), and the site opens it right away.",
       "Deploy tab: Pull updates copies only what changed in the www project; Install packages, Run build, Clear cache and Migrate run in the site, and Update site does them in order. The site keeps its own .env, storage and database.",
       "NexHost code editor: click any text file on the Files tab (.env, routes/web.php…) to edit it in NexDB; Ctrl+S saves. The Deploy tab also has a terminal in the site's folder.",
+      "NexHost Overview: a connection map from visitors to the database, and a Problems card that finds what stops a site (a leftover npm run dev file, missing packages, no .env, no app key, never built) with a Fix button and the manual way.",
       "Go live puts the site online at a fixed https address through your own Cloudflare account (with your own domain) or ngrok account (without one). Good for showing a client or testing PayMongo webhooks.",
       "Only the site's public folder is reachable: .env, .git and hidden files never are, and MySQL stays on this PC.",
       "A site is online only while this PC is on and NexDB is open. Sites that were live go live again when NexDB starts.",

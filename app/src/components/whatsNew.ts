@@ -104,6 +104,21 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "See the whole connection",
+    body: "Click Overview. The map shows the way from visitors through your tunnel to this PC, the site's files and its database. Green stops work; a dashed line shows where the connection stops. Click a stop to open its tab.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-overview"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Problems, with a Fix button",
+    body: "When something stops the site, like a leftover npm run dev file, missing packages, no .env or no build, it shows here with a Fix button. Fix it yourself shows the manual way.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-problems"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "Edit files right here",
     body: "On the Files tab, click any text file, like .env or routes/web.php, to edit it in NexDB. Ctrl+S saves. NexDB won't save over a newer version someone else made, and asks before you leave with unsaved changes.",
     page: "nexhost",

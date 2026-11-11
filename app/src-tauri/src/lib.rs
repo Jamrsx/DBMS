@@ -396,6 +396,8 @@ pub fn run() {
             nexhost_deploy_link,
             nexhost_pull,
             nexhost_deploy_step,
+            nexhost_problems,
+            nexhost_fix,
             nexhost_unzip,
             nexhost_new_folder,
             nexhost_rename,
@@ -1281,10 +1283,10 @@ struct DeployInfo {
 
 #[tauri::command]
 async fn nexhost_deploy_info(stack: tauri::State<'_, Stack>, name: String) -> Result<DeployInfo, String> {
-    let (dir, _) = nexhost_dir(&stack, &name)?;
+    let (_, root) = nexhost_dir(&stack, &name)?;
     let (_, settings, _) = stack.get()?;
     let site = nexhost_site(&settings, &name)?;
-    let f = dir.join(site.source_folder.clone().unwrap_or_default());
+    let f = site_project(&root, &name, &site);
     let (composer, npm) = (f.join("composer.json").is_file(), f.join("package.json").is_file());
     Ok(DeployInfo {
         laravel: f.join("artisan").is_file(),
@@ -1353,6 +1355,51 @@ async fn nexhost_pull(stack: tauri::State<'_, Stack>, name: String) -> Result<ne
     Ok(report)
 }
 
+/// The project folder Deploy and the problem checks work in: the linked/imported folder, else
+/// the project behind the site's web root (`myapp/public` -> `myapp`).
+fn site_project(root: &std::path::Path, name: &str, site: &nexhost::NexSite) -> PathBuf {
+    let dir = nexhost::dir(root).join(name);
+    match site.source_folder.as_deref().map(|f| nexhost::safe_join(&dir, f)) {
+        Some(Ok(p)) => p,
+        _ => nexhost_deploy::project_dir(&nexhost::web_root_of(root, name, site)),
+    }
+}
+
+/// What stops the site from working, for the Overview's Problems card.
+#[tauri::command]
+async fn nexhost_problems(stack: tauri::State<'_, Stack>, name: String) -> Result<Vec<nexhost_deploy::Problem>, String> {
+    let (_, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    let project = site_project(&root, &name, &site);
+    blocking(move || Ok(nexhost_deploy::problems(&project))).await
+}
+
+/// Fixes one problem: files first, then any commands, with output as `nexhost-deploy` events.
+#[tauri::command]
+async fn nexhost_fix(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, name: String, id: String) -> Result<(), String> {
+    use tauri::Emitter;
+    let (dir, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    let project = site_project(&root, &name, &site);
+    if !project.starts_with(&dir) {
+        return Err("This site's project folder is outside the site.".into());
+    }
+    blocking(move || {
+        let commands = nexhost_deploy::fix(&project, &id)?;
+        let say = |line: &str| {
+            let _ = app.emit("nexhost-deploy", serde_json::json!({ "site": name, "line": line }));
+        };
+        for command in commands {
+            say(&format!("> {command}"));
+            nexhost_deploy::run(&root, &settings, &project, command, &say)?;
+        }
+        Ok(())
+    })
+    .await
+}
+
 /// Runs one Deploy step (install, build, clear, migrate) in the site's project folder. Output
 /// arrives as `nexhost-deploy` events: { site, line }.
 #[tauri::command]
@@ -1361,7 +1408,10 @@ async fn nexhost_deploy_step(app: tauri::AppHandle, stack: tauri::State<'_, Stac
     let (dir, root) = nexhost_dir(&stack, &name)?;
     let (_, settings, _) = stack.get()?;
     let site = nexhost_site(&settings, &name)?;
-    let folder = nexhost::safe_join(&dir, site.source_folder.as_deref().unwrap_or(""))?;
+    let folder = site_project(&root, &name, &site);
+    if !folder.starts_with(&dir) {
+        return Err("This site's project folder is outside the site.".into());
+    }
     let first_npm = !folder.join("node_modules").is_dir();
     let commands = nexhost_deploy::commands(&step, &folder, first_npm)?;
     blocking(move || {

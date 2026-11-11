@@ -10459,3 +10459,208 @@ body.grace-ended .palette-backdrop {
 .nh-deploy-term .terminal-view {
   height: 100%;
 }
+
+/* NexHost connection map: visitors -> tunnel -> this PC -> files -> database. */
+.nh-map {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+.nh-map-step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+.nh-map-node {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 2px;
+  width: 100%;
+  margin-left: 22px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+.nh-map-step:first-child .nh-map-node {
+  margin-left: 0;
+}
+button.nh-map-node {
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+button.nh-map-node:hover {
+  border-color: var(--border-strong);
+}
+button.nh-map-node:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nh-map-node.on {
+  border-color: color-mix(in srgb, var(--ok) 45%, var(--border));
+}
+.nh-map-icon {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 6px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-3) 14%, transparent);
+  color: var(--text-3);
+}
+.nh-map-node.on .nh-map-icon {
+  background: color-mix(in srgb, var(--ok) 16%, transparent);
+  color: var(--ok);
+}
+.nh-map-title {
+  font-weight: 650;
+  font-size: 14px;
+}
+.nh-map-detail {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nh-map-state {
+  align-self: end;
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.nh-map-node.on .nh-map-state {
+  color: var(--ok);
+}
+/* The line into a stop: dashed when the connection stops there, solid with a pulse when live. */
+.nh-map-link {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 22px;
+  border-top: 2px dashed var(--border-strong);
+}
+.nh-map-link.on {
+  border-top: 2px solid color-mix(in srgb, var(--ok) 70%, transparent);
+  overflow: visible;
+}
+.nh-map-link.on::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ok);
+  animation: nh-map-pulse 1.8s ease-in-out infinite;
+}
+@keyframes nh-map-pulse {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(16px);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nh-map-link.on::after {
+    animation: none;
+    display: none;
+  }
+}
+/* Narrow windows: the map stacks top to bottom. */
+@media (max-width: 900px) {
+  .nh-map {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .nh-map-node {
+    margin: 14px 0 0;
+  }
+  .nh-map-step:first-child .nh-map-node {
+    margin-top: 0;
+  }
+  .nh-map-link {
+    top: 0;
+    left: 24px;
+    width: 0;
+    height: 14px;
+    border-top: 0;
+    border-left: 2px dashed var(--border-strong);
+  }
+  .nh-map-link.on {
+    border-top: 0;
+    border-left: 2px solid color-mix(in srgb, var(--ok) 70%, transparent);
+  }
+  .nh-map-link.on::after {
+    display: none;
+  }
+}
+
+/* NexHost problems: what stops the site, with a Fix button each. */
+.nh-health {
+  margin-bottom: 16px;
+}
+.nh-health h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--bad);
+}
+.nh-health-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--ok);
+}
+.nh-health-list {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.nh-health-list li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.nh-health-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+}
+.nh-health-text > span {
+  color: var(--text-2);
+}
+.nh-health-text summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 12px;
+}
+.nh-health-text details p {
+  margin: 4px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+}

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
-import { Database, FolderOpen, Globe, MonitorSmartphone, SquareTerminal } from "lucide-react";
+import { FolderOpen, MonitorSmartphone, SquareTerminal } from "lucide-react";
 import { deleteSite, setWebRoot, type Site } from "../lib/nexhost";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
@@ -9,6 +9,7 @@ import { DeployCard } from "./DeployCard";
 import { FileManager } from "./FileManager";
 import { GoLiveCard } from "./GoLiveCard";
 import { SshCard } from "./SshCard";
+import { ConnectionMap, ProblemsCard } from "./SiteHealth";
 
 type Tab = "overview" | "files" | "deploy" | "database" | "ssh" | "live" | "settings";
 const TABS: { id: Tab; label: string }[] = [
@@ -112,26 +113,8 @@ function Overview({ site, onTab }: { site: Site; onTab: (t: Tab) => void }) {
   const open = (url: string) => (inDesktopApp ? void openUrl(url) : void window.open(url, "_blank"));
   return (
     <section className="nh-overview" data-guide="nexhost-overview">
-      <div className="nh-stats">
-        <button className="nh-stat" onClick={() => onTab("live")}>
-          <Globe size={16} aria-hidden="true" />
-          <span className="nh-stat-label">Status</span>
-          <strong className={site.live ? "nh-ok" : undefined}>{site.live ? "Live" : "Offline"}</strong>
-          <span className="nh-stat-sub">{site.live && site.address ? site.address : "Go live to share it"}</span>
-        </button>
-        <button className="nh-stat" onClick={() => onTab("database")}>
-          <Database size={16} aria-hidden="true" />
-          <span className="nh-stat-label">Database</span>
-          <strong>{site.db ?? "None yet"}</strong>
-          <span className="nh-stat-sub">{site.db ? "MySQL on this PC" : "Make one in one click"}</span>
-        </button>
-        <button className="nh-stat" onClick={() => onTab("settings")}>
-          <FolderOpen size={16} aria-hidden="true" />
-          <span className="nh-stat-label">Visitors see</span>
-          <strong className="nh-stat-path">{site.web_root.split(/[\\/]/).slice(-2).join("\\")}</strong>
-          <span className="nh-stat-sub">{site.kind === "laravel" ? "Laravel app" : site.kind === "php" ? "PHP site" : "Static site"}</span>
-        </button>
-      </div>
+      <ConnectionMap site={site} onTab={onTab} />
+      <ProblemsCard site={site} />
       <div className="nh-quick">
         <button className="btn" onClick={() => open(local)}>
           <MonitorSmartphone size={14} aria-hidden="true" /> Open on this PC

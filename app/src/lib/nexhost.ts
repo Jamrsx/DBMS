@@ -428,3 +428,44 @@ export async function writeFile(name: string, rel: string, text: string, opened:
   DEMO_TEXT[`${name}/${rel}`] = text;
   return 1;
 }
+
+/** Something that stops a site from working; NexDB can fix it, or `manual` says how. */
+export interface Problem {
+  id: "hot" | "packages" | "env" | "key" | "build";
+  title: string;
+  why: string;
+  manual: string;
+}
+
+const demoProblems: Record<string, Problem[]> = {
+  shop: [
+    {
+      id: "hot",
+      title: "Pages load from a dev server visitors can't reach",
+      why: "public/hot is left over from npm run dev, so every page asks a Vite dev server (like [::1]:5173) for its CSS and JS, and stays blank.",
+      manual: "Delete public\hot in the site's folder, then reload the page.",
+    },
+  ],
+};
+
+export async function siteProblems(name: string): Promise<Problem[]> {
+  if (!demo()) return invoke("nexhost_problems", { name });
+  return [...(demoProblems[name] ?? [])];
+}
+
+/** Fixes one problem; command output (if any) arrives through `onLine`. */
+export async function fixProblem(name: string, id: Problem["id"], onLine: (line: string) => void): Promise<void> {
+  if (!demo()) {
+    const off = await listen<{ site: string; line: string }>("nexhost-deploy", (e) => {
+      if (e.payload.site === name) onLine(e.payload.line);
+    });
+    try {
+      await invoke("nexhost_fix", { name, id });
+    } finally {
+      off();
+    }
+    return;
+  }
+  await new Promise((r) => setTimeout(r, 400));
+  demoProblems[name] = (demoProblems[name] ?? []).filter((p) => p.id !== id);
+}
