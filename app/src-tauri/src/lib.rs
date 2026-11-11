@@ -390,6 +390,8 @@ pub fn run() {
             nexhost_files,
             nexhost_add,
             nexhost_import_project,
+            nexhost_read_file,
+            nexhost_write_file,
             nexhost_deploy_info,
             nexhost_deploy_link,
             nexhost_pull,
@@ -1204,6 +1206,26 @@ async fn nexhost_add(stack: tauri::State<'_, Stack>, name: String, rel: String, 
     let (dir, _) = nexhost_dir(&stack, &name)?;
     let sources: Vec<PathBuf> = sources.into_iter().map(PathBuf::from).collect();
     blocking(move || nexhost::add(&dir, &rel, &sources)).await
+}
+
+/// A site file opened in the code editor.
+#[derive(serde::Serialize)]
+struct OpenedFile {
+    text: String,
+    stamp: u64,
+}
+
+#[tauri::command]
+async fn nexhost_read_file(stack: tauri::State<'_, Stack>, name: String, rel: String) -> Result<OpenedFile, String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::read_text(&dir, &rel).map(|(text, stamp)| OpenedFile { text, stamp })).await
+}
+
+/// Saves the code editor's text; refused when the file changed on disk after `opened`.
+#[tauri::command]
+async fn nexhost_write_file(stack: tauri::State<'_, Stack>, name: String, rel: String, text: String, opened: Option<u64>) -> Result<u64, String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    blocking(move || nexhost::write_text(&dir, &rel, &text, opened)).await
 }
 
 /// Copies a project from NexDB's www folder into the site (Files → Import project). If the

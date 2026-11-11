@@ -97,6 +97,20 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "A terminal for the site",
+    body: "Below the output is a terminal that opens in the site's folder, with NexDB's PHP, Composer, Node and Git. Type any command, like php artisan route:list.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-deploy-terminal"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Edit files right here",
+    body: "On the Files tab, click any text file, like .env or routes/web.php, to edit it in NexDB. Ctrl+S saves. NexDB won't save over a newer version someone else made, and asks before you leave with unsaved changes.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-files"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "A database for the site",
     body: "Click Database.",
     page: "nexhost",

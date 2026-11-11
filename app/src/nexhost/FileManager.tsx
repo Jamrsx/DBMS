@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { File, Folder, FolderInput, FolderOpen, FolderPlus, Pencil, Trash2, Upload } from "lucide-react";
+import { File, Folder, FolderInput, FolderOpen, FolderPlus, TextCursorInput, Trash2, Upload } from "lucide-react";
+import { CodeEditor } from "./CodeEditor";
 import { inDesktopApp } from "../lib/scan";
 import { addFiles, importProject, listFiles, listSites, newFolder, removeEntry, renameEntry, size, unzipFile, type Entry, type Site } from "../lib/nexhost";
 import { listProjects, type Project } from "../lib/projects";
@@ -21,6 +22,8 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [pick, setPick] = useState("");
   const [copying, setCopying] = useState(false);
+  // The file open in the code editor (relative to the site), if any.
+  const [editing, setEditing] = useState<string | null>(null);
 
   const load = useCallback(() => {
     listFiles(site.name, rel)
@@ -61,6 +64,19 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
   });
 
   const crumbs = rel ? rel.split("/") : [];
+
+  if (editing) {
+    return (
+      <CodeEditor
+        site={site.name}
+        rel={editing}
+        onClose={() => {
+          setEditing(null);
+          load();
+        }}
+      />
+    );
+  }
 
   return (
     <section className={over ? "set-card nh-files over" : "set-card nh-files"} data-guide="nexhost-files">
@@ -239,9 +255,9 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                       <Folder size={14} aria-hidden="true" /> {e.name}
                     </button>
                   ) : (
-                    <span className="nh-file">
+                    <button className="btn btn-small btn-quiet nh-file" title={`Edit ${e.name}`} onClick={() => setEditing(join(e.name))}>
                       <File size={14} aria-hidden="true" /> {e.name}
-                    </span>
+                    </button>
                   )}
                 </td>
                 <td>{e.dir ? "" : size(e.size)}</td>
@@ -256,7 +272,7 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                       if (name?.trim() && name.trim() !== e.name) run(renameEntry(site.name, join(e.name), name.trim()), `Renamed to ${name.trim()}.`);
                     }}
                   >
-                    <Pencil size={14} aria-hidden="true" />
+                    <TextCursorInput size={14} aria-hidden="true" />
                   </button>
                   <button
                     className="btn btn-small btn-icon btn-danger"

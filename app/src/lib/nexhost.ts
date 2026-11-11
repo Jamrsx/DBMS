@@ -394,3 +394,37 @@ export async function deployStep(name: string, step: DeployStep, onLine: (line: 
   }
   if (step === "build" || step === "install") Object.assign(demoDeployInfo(name), { has_packages: true, needs_install: false });
 }
+
+/** A site file opened in the code editor; `stamp` is when it last changed (ms). */
+export interface OpenedFile {
+  text: string;
+  stamp: number;
+}
+
+const DEMO_TEXT: Record<string, string> = {};
+const DEMO_ENV = [
+  "APP_NAME=Shop",
+  "APP_ENV=local",
+  "APP_DEBUG=true",
+  "APP_URL=http://127.0.0.1:8201",
+  "",
+  "DB_CONNECTION=mysql",
+  "DB_DATABASE=nh_shop",
+  "DB_USERNAME=nh_shop",
+  "DB_PASSWORD=Practice7Pass2Word",
+  "",
+].join("\n");
+const DEMO_PHP = ["<?php", "", "// Practice file: nothing here is saved on your PC.", "echo 'Hello from NexHost';", ""].join("\n");
+const demoText = (name: string, rel: string) => (DEMO_TEXT[`${name}/${rel}`] ??= rel.endsWith(".env") ? DEMO_ENV : DEMO_PHP);
+
+export async function readFile(name: string, rel: string): Promise<OpenedFile> {
+  if (!demo()) return invoke("nexhost_read_file", { name, rel });
+  return { text: demoText(name, rel), stamp: 1 };
+}
+
+/** Saves the editor's text; refused when the file changed on disk since `opened`. */
+export async function writeFile(name: string, rel: string, text: string, opened: number | null): Promise<number> {
+  if (!demo()) return invoke("nexhost_write_file", { name, rel, text, opened });
+  DEMO_TEXT[`${name}/${rel}`] = text;
+  return 1;
+}

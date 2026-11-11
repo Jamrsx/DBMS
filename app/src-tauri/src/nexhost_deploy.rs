@@ -210,7 +210,7 @@ pub fn run(root: &Path, settings: &Settings, dir: &Path, command: &str, line: &d
     if status.success() {
         Ok(())
     } else {
-        Err(format!("{command} stopped with an error (code {}). The output above says why.", status.code().unwrap_or(-1)))
+        Err(format!("{command} stopped with an error (code {}). The Output box below shows why.", status.code().unwrap_or(-1)))
     }
 }
 

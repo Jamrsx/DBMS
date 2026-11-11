@@ -339,6 +339,61 @@ fn unique(dir: &Path, name: &str) -> PathBuf {
     (2..).map(|n| dir.join(format!("{stem} ({n}){ext}"))).find(|p| !p.exists()).unwrap()
 }
 
+/// Files the code editor opens: text only, up to this size.
+const EDIT_LIMIT: u64 = 2 * 1024 * 1024;
+
+/// When a file last changed, in milliseconds: the editor's guard against saving over newer work.
+fn stamp(path: &Path) -> u64 {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+/// Opens a site file in the code editor: its text (line endings as `\n`) and when it changed.
+pub fn read_text(site_dir: &Path, rel: &str) -> Result<(String, u64), String> {
+    let path = safe_join(site_dir, rel)?;
+    let meta = std::fs::metadata(&path).map_err(|_| format!("{rel} isn't there any more."))?;
+    if !meta.is_file() {
+        return Err(format!("{rel} is a folder."));
+    }
+    if meta.len() > EDIT_LIMIT {
+        return Err(format!("{rel} is bigger than 2 MB, too big to edit here. Open it in Explorer instead."));
+    }
+    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+    if bytes.iter().take(8000).any(|b| *b == 0) {
+        return Err(format!("{rel} isn't a text file (an image, zip or program), so it can't be edited here."));
+    }
+    let text = String::from_utf8(bytes).map_err(|_| format!("{rel} isn't saved as UTF-8 text, so it can't be edited here safely."))?;
+    Ok((text.replace("\r\n", "\n"), stamp(&path)))
+}
+
+/// Saves the editor's text. A file that used Windows line endings keeps them. When `opened` is
+/// given and the file changed on disk since then, nothing is written.
+pub fn write_text(site_dir: &Path, rel: &str, text: &str, opened: Option<u64>) -> Result<u64, String> {
+    let path = safe_join(site_dir, rel)?;
+    if path.is_dir() {
+        return Err(format!("{rel} is a folder."));
+    }
+    if let Some(was) = opened {
+        if path.exists() && stamp(&path) != was {
+            return Err(format!("{rel} changed on disk after you opened it (a pull, SSH or another program). Reopen it to see the new version, then make your change again."));
+        }
+    }
+    let crlf = std::fs::read(&path).is_ok_and(|b| b.windows(2).any(|w| w == b"\r\n"));
+    let body = if crlf { text.replace("\r\n", "\n").replace('\n', "\r\n") } else { text.to_string() };
+    // Written to a side file first, then swapped in, so a crash never leaves half a file.
+    let tmp = path.with_file_name(format!(".{}.nexdb-save", path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()));
+    std::fs::write(&tmp, body.as_bytes()).map_err(|e| format!("Couldn't save {rel}: {e}"))?;
+    std::fs::rename(&tmp, &path).map_err(|e| {
+        let _ = std::fs::remove_file(&tmp);
+        format!("Couldn't save {rel}: {e}")
+    })?;
+    Ok(stamp(&path))
+}
+
 /// Folders left out when a project is imported from `www`: big, and not needed to serve it.
 const IMPORT_SKIP: [&str; 2] = ["node_modules", ".git"];
 
@@ -930,6 +985,33 @@ DB_HOST=old
         assert!(import_project(&site, "../..", &www, "a").is_err(), "the target stays inside the site");
         std::fs::create_dir_all(www.join("plain")).unwrap();
         assert_eq!(imported_web_root(&site, &import_project(&site, "", &www, "plain").unwrap()), "plain");
+    }
+
+    #[test]
+    fn text_files_open_and_save_safely() {
+        let d = tempfile::tempdir().unwrap();
+        let site = d.path();
+        std::fs::write(site.join(".env"), "APP_NAME=Shop\r\nDB_DATABASE=nh_shop\r\n").unwrap();
+        let (text, stamp) = read_text(site, ".env").unwrap();
+        assert_eq!(text, "APP_NAME=Shop\nDB_DATABASE=nh_shop\n", "the editor sees \\n");
+
+        // The editor sends \n back; the file keeps its Windows line endings.
+        let stamp2 = write_text(site, ".env", "APP_NAME=Shop2\nDB_DATABASE=nh_shop\n", Some(stamp)).unwrap();
+        assert_eq!(std::fs::read_to_string(site.join(".env")).unwrap(), "APP_NAME=Shop2\r\nDB_DATABASE=nh_shop\r\n");
+
+        // Changed on disk since it was opened: refused, nothing overwritten.
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        std::fs::write(site.join(".env"), "CHANGED=1\n").unwrap();
+        assert!(write_text(site, ".env", "MINE=1\n", Some(stamp2)).unwrap_err().contains("changed"));
+        assert_eq!(std::fs::read_to_string(site.join(".env")).unwrap(), "CHANGED=1\n");
+
+        std::fs::write(site.join("logo.png"), [0x89, b'P', b'N', b'G', 0, 0, 1]).unwrap();
+        assert!(read_text(site, "logo.png").unwrap_err().contains("text"));
+        std::fs::write(site.join("big.log"), vec![b'a'; 2 * 1024 * 1024 + 1]).unwrap();
+        assert!(read_text(site, "big.log").unwrap_err().contains("2 MB"));
+        assert!(read_text(site, "../outside.txt").is_err());
+        assert!(write_text(site, "../outside.txt", "x", None).is_err());
+        assert!(read_text(site, "missing.php").is_err());
     }
 
     #[test]

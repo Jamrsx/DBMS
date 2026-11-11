@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Brush, Database, Download, Hammer, Package, Rocket } from "lucide-react";
+import { Brush, Database, Download, Hammer, Package, RotateCcw, Rocket, SquareTerminal } from "lucide-react";
+import { TerminalView } from "../terminal/TerminalView";
+import { inDesktopApp } from "../lib/scan";
 import { deployInfo, deployStep, linkProject, pullUpdates, type DeployInfo, type DeployStep, type Site } from "../lib/nexhost";
 import { listProjects, type Project } from "../lib/projects";
 
@@ -9,6 +11,9 @@ const STEP_TEXT: Record<DeployStep, string> = {
   clear: "Clearing caches",
   migrate: "Updating the database",
 };
+
+/** Each site's Deploy output, kept while NexDB is open, so switching tabs never loses it. */
+const OUTPUT: Record<string, string[]> = {};
 
 const when = (secs: number | null) => (secs ? new Date(secs * 1000).toLocaleString() : "never");
 
@@ -20,7 +25,14 @@ export function DeployCard({ site }: { site: Site }) {
   const [info, setInfo] = useState<DeployInfo | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [lines, setLines] = useState<string[]>([]);
+  const [lines, setLinesRaw] = useState<string[]>(() => OUTPUT[site.name] ?? []);
+  const setLines = (next: (l: string[]) => string[]) =>
+    setLinesRaw((l) => {
+      const v = next(l);
+      OUTPUT[site.name] = v;
+      return v;
+    });
+  const [termKey, setTermKey] = useState(0);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [pick, setPick] = useState("");
   const [confirmMigrate, setConfirmMigrate] = useState(false);
@@ -189,8 +201,8 @@ export function DeployCard({ site }: { site: Site }) {
         <div className="nh-deploy-outhead">
           <h2>Output</h2>
           {lines.length > 0 && !any && (
-            <button className="btn btn-small btn-quiet" onClick={() => setLines([])}>
-              Clear
+            <button className="btn btn-small btn-quiet" onClick={() => setLines(() => [])}>
+              Clear output
             </button>
           )}
         </div>
@@ -198,6 +210,27 @@ export function DeployCard({ site }: { site: Site }) {
           {lines.length ? lines.join("\n") : "Nothing run yet. What each step prints shows here."}
           {busy && "\n…"}
         </pre>
+      </div>
+
+      <div className="set-card" data-guide="nexhost-deploy-terminal">
+        <div className="nh-deploy-outhead">
+          <h2>
+            <SquareTerminal size={16} aria-hidden="true" /> Terminal
+          </h2>
+          <button className="btn btn-small btn-quiet" onClick={() => setTermKey((k) => k + 1)}>
+            <RotateCcw size={14} aria-hidden="true" /> Restart
+          </button>
+        </div>
+        <p className="field-hint">
+          Opens in this site's folder with NexDB's PHP, Composer, Node and Git. Type any command, like <code>php artisan route:list</code>.
+        </p>
+        {inDesktopApp ? (
+          <div className="nh-deploy-term">
+            <TerminalView active restartToken={termKey} project={`nexhost:${site.name}`} onState={() => {}} />
+          </div>
+        ) : (
+          <p className="field-hint">The terminal works in the desktop app.</p>
+        )}
       </div>
     </section>
   );

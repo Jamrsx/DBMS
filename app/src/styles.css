@@ -10376,3 +10376,86 @@ body.grace-ended .palette-backdrop {
   border-color: var(--accent);
   outline: none;
 }
+
+/* NexHost code editor: a site file as text, with line numbers. */
+.nh-editor {
+  display: grid;
+  gap: 10px;
+}
+.nh-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.nh-editor-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+}
+.nh-editor-dirty {
+  color: var(--warn, #d9a441);
+  font-weight: 600;
+}
+.nh-editor-hint {
+  font-size: 12px;
+  color: var(--text-3);
+}
+.nh-editor-body {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  height: min(70vh, 680px);
+  min-height: 320px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+  font: 13px/1.55 var(--mono);
+}
+.nh-editor-gutter {
+  overflow: hidden;
+  padding: 10px 10px 10px 12px;
+  border-right: 1px solid var(--border);
+  color: var(--text-3);
+  text-align: right;
+  user-select: none;
+}
+.nh-editor-text {
+  margin: 0;
+  padding: 10px 12px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 4;
+}
+.nh-editor-text:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.nh-files .nh-file {
+  padding-left: 0;
+}
+.nh-deploy-term {
+  display: grid;
+  height: 360px;
+  margin-top: 8px;
+}
+.nh-deploy-term .terminal-view {
+  height: 100%;
+}
+
+.nh-deploy-term {
+  display: grid;
+  height: 360px;
+  margin-top: 8px;
+}
+.nh-deploy-term .terminal-view {
+  height: 100%;
+}
