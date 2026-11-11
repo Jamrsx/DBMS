@@ -37,7 +37,7 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
       </div>
 
       {tab === "overview" && <Overview site={site} onTab={setTab} />}
-      {tab === "files" && <FileManager site={site} />}
+      {tab === "files" && <FileManager site={site} onSites={onSites} />}
       {tab === "database" && <DatabaseCard site={site} onSites={onSites} />}
       {tab === "ssh" && <SshCard site={site} />}
       {tab === "live" && <GoLiveCard site={site} onSites={onSites} />}

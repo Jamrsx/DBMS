@@ -331,6 +331,61 @@ fn unique(dir: &Path, name: &str) -> PathBuf {
     (2..).map(|n| dir.join(format!("{stem} ({n}){ext}"))).find(|p| !p.exists()).unwrap()
 }
 
+/// Folders left out when a project is imported from `www`: big, and not needed to serve it.
+const IMPORT_SKIP: [&str; 2] = ["node_modules", ".git"];
+
+/// Copies the project `www/<project>` into a folder of the site, as `<project>` (or
+/// `<project> (2)`...). `node_modules` and `.git` stay behind; `www` is never changed.
+/// Returns the new folder, relative to the site folder.
+pub fn import_project(site_dir: &Path, rel: &str, www: &Path, project: &str) -> Result<String, String> {
+    let bad = project.is_empty() || project == "." || project == ".." || project.contains(['/', '\\', ':']);
+    let source = www.join(project);
+    let inside_www = std::fs::canonicalize(&source)
+        .ok()
+        .and_then(|s| s.parent().map(Path::to_path_buf))
+        .zip(std::fs::canonicalize(www).ok())
+        .is_some_and(|(parent, www)| parent == www);
+    if bad || !inside_www || !source.is_dir() || std::fs::symlink_metadata(&source).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(format!("There's no project called {project} in NexDB's www folder."));
+    }
+    let folder = safe_join(site_dir, rel)?;
+    std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let target = unique(&folder, project);
+    copy_tree_skipping(&source, &target, &IMPORT_SKIP).map_err(|e| format!("Couldn't copy {project}: {e}"))?;
+    let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let rel = rel.trim().trim_matches('/');
+    Ok(if rel.is_empty() { name } else { format!("{rel}/{name}") })
+}
+
+/// The web root for a project just imported to `folder`: its `public/` for Laravel, else itself.
+pub fn imported_web_root(site_dir: &Path, folder: &str) -> String {
+    let dir = site_dir.join(folder);
+    if dir.join("artisan").is_file() && dir.join("public").is_dir() {
+        format!("{folder}/public")
+    } else {
+        folder.to_string()
+    }
+}
+
+fn copy_tree_skipping(from: &Path, to: &Path, skip: &[&str]) -> std::io::Result<()> {
+    if std::fs::symlink_metadata(from)?.file_type().is_symlink() {
+        return Ok(());
+    }
+    if from.is_dir() {
+        std::fs::create_dir_all(to)?;
+        for entry in std::fs::read_dir(from)? {
+            let entry = entry?;
+            if entry.file_type()?.is_dir() && skip.iter().any(|s| entry.file_name().eq_ignore_ascii_case(s)) {
+                continue;
+            }
+            copy_tree_skipping(&entry.path(), &to.join(entry.file_name()), skip)?;
+        }
+        Ok(())
+    } else {
+        std::fs::copy(from, to).map(|_| ())
+    }
+}
+
 fn copy_tree(from: &Path, to: &Path) -> std::io::Result<()> {
     // Links and junctions are skipped: they can point anywhere, even back into the site.
     if std::fs::symlink_metadata(from)?.file_type().is_symlink() {
@@ -818,6 +873,51 @@ DB_HOST=old
         assert!(n.contains("location ~* \\.php$"));
         assert!(n.contains("location ~* /\\."));
         assert!(n.contains("sqlite") && n.contains("vendor"));
+    }
+
+    #[test]
+    fn imports_a_www_project_without_node_modules_or_git() {
+        let d = tempfile::tempdir().unwrap();
+        let www = d.path().join("www");
+        let p = www.join("project_1");
+        for sub in ["public", "vendor/x", "node_modules/y", ".git/z", "src/node_modules"] {
+            std::fs::create_dir_all(p.join(sub)).unwrap();
+        }
+        std::fs::write(p.join("artisan"), "").unwrap();
+        std::fs::write(p.join("public/index.php"), "<?php").unwrap();
+        std::fs::write(p.join("vendor/x/autoload.php"), "").unwrap();
+        std::fs::write(p.join("node_modules/y/big.js"), "").unwrap();
+        let site = d.path().join("site");
+        std::fs::create_dir_all(&site).unwrap();
+
+        assert_eq!(import_project(&site, "", &www, "project_1").unwrap(), "project_1");
+        let got = site.join("project_1");
+        assert!(got.join("public/index.php").is_file());
+        assert!(got.join("vendor/x/autoload.php").is_file(), "vendor is copied, so Laravel runs");
+        assert!(!got.join("node_modules").exists() && !got.join(".git").exists() && !got.join("src/node_modules").exists());
+        assert!(p.join("node_modules/y/big.js").is_file(), "www is left as it was");
+        assert_eq!(imported_web_root(&site, "project_1"), "project_1/public");
+
+        assert_eq!(import_project(&site, "", &www, "project_1").unwrap(), "project_1 (2)", "a taken name gets (2)");
+        std::fs::create_dir_all(site.join("apps")).unwrap();
+        assert_eq!(import_project(&site, "apps", &www, "project_1").unwrap(), "apps/project_1");
+    }
+
+    #[test]
+    fn import_only_takes_a_folder_right_inside_www() {
+        let d = tempfile::tempdir().unwrap();
+        let www = d.path().join("www");
+        std::fs::create_dir_all(www.join("a/b")).unwrap();
+        std::fs::write(www.join("notes.txt"), "").unwrap();
+        std::fs::create_dir_all(d.path().join("secret")).unwrap();
+        let site = d.path().join("site");
+        std::fs::create_dir_all(&site).unwrap();
+        for bad in ["", ".", "..", "../secret", "a/b", "a\\b", "C:\\Windows", "notes.txt", "missing"] {
+            assert!(import_project(&site, "", &www, bad).is_err(), "{bad:?} must be refused");
+        }
+        assert!(import_project(&site, "../..", &www, "a").is_err(), "the target stays inside the site");
+        std::fs::create_dir_all(www.join("plain")).unwrap();
+        assert_eq!(imported_web_root(&site, &import_project(&site, "", &www, "plain").unwrap()), "plain");
     }
 
     /// Apache reads `\\` inside a quoted setting as one `\`, so `[/\\]` reached PCRE as `[/\]`

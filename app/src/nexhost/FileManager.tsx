@@ -2,18 +2,25 @@ import { useCallback, useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { File, Folder, FolderOpen, FolderPlus, Pencil, Trash2, Upload } from "lucide-react";
+import { File, Folder, FolderInput, FolderOpen, FolderPlus, Pencil, Trash2, Upload } from "lucide-react";
 import { inDesktopApp } from "../lib/scan";
-import { addFiles, listFiles, newFolder, removeEntry, renameEntry, size, unzipFile, type Entry, type Site } from "../lib/nexhost";
+import { addFiles, importProject, listFiles, listSites, newFolder, removeEntry, renameEntry, size, unzipFile, type Entry, type Site } from "../lib/nexhost";
+import { listProjects, type Project } from "../lib/projects";
 
 /** The site's files, like a hosting file manager: drop files or a zip from Explorer onto it. */
-export function FileManager({ site }: { site: Site }) {
+const KIND: Record<string, string> = { laravel: "Laravel", wordpress: "WordPress", node: "Node", php: "PHP", html: "HTML", empty: "empty" };
+
+export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[]) => void }) {
   const [rel, setRel] = useState("");
   const [entries, setEntries] = useState<Entry[] | null>(null);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [over, setOver] = useState(false);
   const [zips, setZips] = useState<string[]>([]);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  // Import project: the projects in NexDB's www folder, the one picked, and whether it is copying.
+  const [projects, setProjects] = useState<Project[] | null>(null);
+  const [pick, setPick] = useState("");
+  const [copying, setCopying] = useState(false);
 
   const load = useCallback(() => {
     listFiles(site.name, rel)
@@ -81,6 +88,21 @@ export function FileManager({ site }: { site: Site }) {
           >
             <FolderPlus size={14} aria-hidden="true" /> New folder
           </button>{" "}
+          <button
+            className="btn btn-small"
+            data-guide="nexhost-import"
+            onClick={() => {
+              setStatus(null);
+              listProjects()
+                .then((info) => {
+                  setProjects(info.projects);
+                  setPick(info.projects[0]?.name ?? "");
+                })
+                .catch((e) => setStatus({ ok: false, text: String(e) }));
+            }}
+          >
+            <FolderInput size={14} aria-hidden="true" /> Import project
+          </button>{" "}
           {inDesktopApp && (
             <button className="btn btn-small" onClick={() => void revealItemInDir(site.path)}>
               <FolderOpen size={14} aria-hidden="true" /> Open in Explorer
@@ -92,6 +114,56 @@ export function FileManager({ site }: { site: Site }) {
       <p className="nh-drop">
         <Upload size={14} aria-hidden="true" /> Drag files, folders or a .zip from Explorer onto this window to add them here.
       </p>
+
+      {projects && (
+        <div className="nh-zip" role="dialog" aria-label="Import a project">
+          {projects.length === 0 ? (
+            <p>NexDB's www folder has no projects yet. Make one on the Projects page first.</p>
+          ) : (
+            <>
+              <p>
+                Copy a project from NexDB's www folder into {rel ? <code>{rel}</code> : "this site"}. The project in www stays as it is;
+                node_modules and .git are left out.
+              </p>
+              <label className="nh-import-pick">
+                <span className="sr-only">Project</span>
+                <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={copying}>
+                  {projects.map((p) => (
+                    <option key={p.name} value={p.name}>
+                      {p.name} ({KIND[p.kind] ?? p.kind})
+                    </option>
+                  ))}
+                </select>
+              </label>{" "}
+              <button
+                className="btn btn-small btn-primary"
+                disabled={!pick || copying}
+                onClick={() => {
+                  setCopying(true);
+                  setStatus({ ok: true, text: `Copying ${pick}… big projects take a minute.` });
+                  importProject(site.name, rel, pick)
+                    .then(async (folder) => {
+                      setProjects(null);
+                      const sites = await listSites();
+                      onSites?.(sites);
+                      const now = sites.find((s) => s.name === site.name);
+                      const opens = now && now.web_root !== site.web_root ? ` The site now opens ${folder}.` : "";
+                      setStatus({ ok: true, text: `Imported ${pick} as ${folder}.${opens}` });
+                      load();
+                    })
+                    .catch((e) => setStatus({ ok: false, text: String(e) }))
+                    .finally(() => setCopying(false));
+                }}
+              >
+                {copying ? "Copying…" : "Import"}
+              </button>{" "}
+            </>
+          )}
+          <button className="btn btn-small" disabled={copying} onClick={() => setProjects(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
 
       {zips.length > 0 && (
         <div className="nh-zip" role="dialog" aria-label="Unpack zip">

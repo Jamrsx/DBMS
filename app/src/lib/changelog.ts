@@ -12,6 +12,7 @@ export const CHANGELOG: Release[] = [
     changes: [
       "New with the 4-year plan: NexHost turns this PC into a small web host for testing, like a tiny Hostinger.",
       "Make a site, drag its files or a .zip from Explorer onto NexDB, and give it its own database and user with one click.",
+      "Import project copies a project from NexDB's www folder into a NexHost site in one click (node_modules and .git stay behind), and the site opens it right away.",
       "Go live puts the site online at a fixed https address through your own Cloudflare account (with your own domain) or ngrok account (without one). Good for showing a client or testing PayMongo webhooks.",
       "Only the site's public folder is reachable: .env, .git and hidden files never are, and MySQL stays on this PC.",
       "A site is online only while this PC is on and NexDB is open. Sites that were live go live again when NexDB starts.",

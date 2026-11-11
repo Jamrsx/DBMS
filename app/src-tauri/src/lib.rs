@@ -377,6 +377,7 @@ pub fn run() {
             nexhost_set_root,
             nexhost_files,
             nexhost_add,
+            nexhost_import_project,
             nexhost_unzip,
             nexhost_new_folder,
             nexhost_rename,
@@ -1187,6 +1188,32 @@ async fn nexhost_add(stack: tauri::State<'_, Stack>, name: String, rel: String, 
     let (dir, _) = nexhost_dir(&stack, &name)?;
     let sources: Vec<PathBuf> = sources.into_iter().map(PathBuf::from).collect();
     blocking(move || nexhost::add(&dir, &rel, &sources)).await
+}
+
+/// Copies a project from NexDB's www folder into the site (Files → Import project). If the
+/// site still picks its web root by itself, it now serves that project (Laravel: its public/).
+/// Returns the new folder, relative to the site.
+#[tauri::command]
+async fn nexhost_import_project(stack: tauri::State<'_, Stack>, name: String, rel: String, project: String) -> Result<String, String> {
+    let (dir, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, sup) = stack.get()?;
+    let www = PathBuf::from(&settings.www_dir);
+    let folder = {
+        let dir = dir.clone();
+        blocking(move || nexhost::import_project(&dir, &rel, &www, &project)).await?
+    };
+    let mut site = nexhost_site(&settings, &name)?;
+    if site.web_root.is_none() {
+        let web_root = nexhost::imported_web_root(&dir, &folder);
+        nexhost::check_web_root(&dir, &web_root)?;
+        site.web_root = Some(web_root);
+        let mut sites = settings.preferences.nexhost.clone();
+        sites.insert(name, site);
+        save_nexhost(stack.inner(), &root, &sites)?;
+        let (root, settings, _) = stack.get()?;
+        blocking(move || apply_vhosts(&root, &settings, &sup)).await?;
+    }
+    Ok(folder)
 }
 
 #[tauri::command]

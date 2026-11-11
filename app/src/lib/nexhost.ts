@@ -95,6 +95,19 @@ export async function addFiles(name: string, rel: string, sources: string[]): Pr
   return sources.length;
 }
 
+/**
+ * Copies a project from NexDB's www folder into the site (node_modules and .git stay behind).
+ * Returns the new folder; a site that picks its web root by itself now serves that project.
+ */
+export async function importProject(name: string, rel: string, project: string): Promise<string> {
+  if (!demo()) return invoke("nexhost_import_project", { name, rel, project });
+  const list = (DEMO_FILES[`${name}/${rel}`] ??= []);
+  let folder = project;
+  for (let n = 2; list.some((e) => e.name === folder); n++) folder = `${project} (${n})`;
+  list.push({ name: folder, dir: true, size: 0, modified: now() });
+  return rel ? `${rel}/${folder}` : folder;
+}
+
 export async function unzipFile(name: string, rel: string, zip: string): Promise<number> {
   if (!demo()) return invoke("nexhost_unzip", { name, rel, zip });
   const list = (DEMO_FILES[`${name}/${rel}`] ??= []);

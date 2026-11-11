@@ -75,6 +75,13 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "Or bring in a project",
+    body: "Import project copies a project from NexDB's www folder into the site, without node_modules and .git. The site then opens it right away; a Laravel project opens its public folder. The project in www stays as it is.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-import"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "A database for the site",
     body: "Click Database.",
     page: "nexhost",
