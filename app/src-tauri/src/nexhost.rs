@@ -119,7 +119,7 @@ Listen 127.0.0.1:{port}
     <DirectoryMatch "/\.">
         Require all denied
     </DirectoryMatch>
-    <DirectoryMatch "(?i)[/\\]vendor([/\\]|$)">
+    <DirectoryMatch "(?i)/vendor(/|$)">
         Require all denied
     </DirectoryMatch>
 </VirtualHost>
@@ -818,6 +818,17 @@ DB_HOST=old
         assert!(n.contains("location ~* \\.php$"));
         assert!(n.contains("location ~* /\\."));
         assert!(n.contains("sqlite") && n.contains("vendor"));
+    }
+
+    /// Apache reads `\\` inside a quoted setting as one `\`, so `[/\\]` reached PCRE as `[/\]`
+    /// (an unclosed bracket): "Regex could not be compiled" and Apache refused to start at all.
+    #[test]
+    fn apache_match_patterns_survive_apache_unescaping() {
+        let a = apache_listener("reas", Path::new("C:/NexDB/nexhost/reas"), 8203, 9085);
+        for line in a.lines().filter(|l| l.contains("Match \"")) {
+            assert!(!line.contains("\\\\"), "Apache would turn \\\\ into \\ here: {line}");
+        }
+        assert!(a.contains("<DirectoryMatch \"(?i)/vendor(/|$)\">"), "vendor/ blocked with plain slashes");
     }
 
     #[test]
