@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { invoke } from "./invoke";
 import { isPractice } from "./practice";
 import { inDesktopApp } from "./scan";
@@ -314,4 +315,78 @@ export function connectInstructions(login: string, host: string, fingerprint: st
     "6. If it doesn't connect: the site owner's PC must be on with NexDB open and SSH turned on.",
     "   \"Locked\" means too many wrong passwords: wait 15 minutes, or ask the owner to reset it.",
   ].join("\n");
+}
+
+/** Deploy tab: the www project a site pulls updates from. */
+export interface DeployInfo {
+  source: string | null;
+  folder: string | null;
+  last_pull: number | null;
+  laravel: boolean;
+  npm: boolean;
+  has_packages: boolean;
+}
+
+export interface PullReport {
+  copied: number;
+  removed: number;
+  composer_changed: boolean;
+  npm_changed: boolean;
+}
+
+export type DeployStep = "install" | "build" | "clear" | "migrate";
+
+const demoDeploy: Record<string, DeployInfo> = {};
+const demoDeployInfo = (name: string): DeployInfo =>
+  (demoDeploy[name] ??= {
+    source: name === "shop" ? "my-shop" : null,
+    folder: name === "shop" ? "my-shop" : null,
+    last_pull: name === "shop" ? now() - 3600 : null,
+    laravel: name === "shop",
+    npm: name === "shop",
+    has_packages: false,
+  });
+
+export async function deployInfo(name: string): Promise<DeployInfo> {
+  if (!demo()) return invoke("nexhost_deploy_info", { name });
+  return { ...demoDeployInfo(name) };
+}
+
+export async function linkProject(name: string, project: string, folder: string): Promise<void> {
+  if (!demo()) return invoke("nexhost_deploy_link", { name, project, folder });
+  Object.assign(demoDeployInfo(name), { source: project, folder, laravel: true, npm: true });
+}
+
+/** Copies only what changed in the www project into the site. */
+export async function pullUpdates(name: string): Promise<PullReport> {
+  if (!demo()) return invoke("nexhost_pull", { name });
+  demoDeployInfo(name).last_pull = now();
+  return { copied: 3, removed: 1, composer_changed: false, npm_changed: false };
+}
+
+const DEMO_OUTPUT: Record<DeployStep, string[]> = {
+  install: ["> composer install --no-interaction --prefer-dist", "Installing dependencies from lock file", "Nothing to install, update or remove", "> npm ci", "added 212 packages in 9s"],
+  build: ["> npm run build", "vite v7.1.3 building for production...", "✓ 1342 modules transformed.", "public/build/manifest.json  0.8 kB", "✓ built in 6.12s"],
+  clear: ["> php artisan optimize:clear", "INFO  Clearing cached bootstrap files.", "config ........ DONE", "cache ......... DONE", "views ......... DONE"],
+  migrate: ["> php artisan migrate --force", "INFO  Nothing to migrate."],
+};
+
+/** Runs one Deploy step in the site; each output line arrives through `onLine`. */
+export async function deployStep(name: string, step: DeployStep, onLine: (line: string) => void): Promise<void> {
+  if (!demo()) {
+    const off = await listen<{ site: string; line: string }>("nexhost-deploy", (e) => {
+      if (e.payload.site === name) onLine(e.payload.line);
+    });
+    try {
+      await invoke("nexhost_deploy_step", { name, step });
+    } finally {
+      off();
+    }
+    return;
+  }
+  for (const line of DEMO_OUTPUT[step]) {
+    await new Promise((r) => setTimeout(r, 250));
+    onLine(line);
+  }
+  if (step === "build" || step === "install") demoDeployInfo(name).has_packages = true;
 }

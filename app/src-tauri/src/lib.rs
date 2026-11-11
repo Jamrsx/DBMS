@@ -19,6 +19,7 @@ mod docker;
 mod mail;
 mod localname;
 mod nexhost;
+mod nexhost_deploy;
 mod nexhost_ssh;
 mod ssh_server;
 mod fixedlink;
@@ -378,6 +379,10 @@ pub fn run() {
             nexhost_files,
             nexhost_add,
             nexhost_import_project,
+            nexhost_deploy_info,
+            nexhost_deploy_link,
+            nexhost_pull,
+            nexhost_deploy_step,
             nexhost_unzip,
             nexhost_new_folder,
             nexhost_rename,
@@ -1199,21 +1204,124 @@ async fn nexhost_import_project(stack: tauri::State<'_, Stack>, name: String, re
     let (_, settings, sup) = stack.get()?;
     let www = PathBuf::from(&settings.www_dir);
     let folder = {
-        let dir = dir.clone();
+        let (dir, project) = (dir.clone(), project.clone());
         blocking(move || nexhost::import_project(&dir, &rel, &www, &project)).await?
     };
     let mut site = nexhost_site(&settings, &name)?;
-    if site.web_root.is_none() {
+    // Deploy pulls this project's later changes into this folder.
+    site.source = Some(project);
+    site.source_folder = Some(folder.clone());
+    site.last_pull = Some(now_secs());
+    let new_root = site.web_root.is_none();
+    if new_root {
         let web_root = nexhost::imported_web_root(&dir, &folder);
         nexhost::check_web_root(&dir, &web_root)?;
         site.web_root = Some(web_root);
-        let mut sites = settings.preferences.nexhost.clone();
-        sites.insert(name, site);
-        save_nexhost(stack.inner(), &root, &sites)?;
+    }
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    if new_root {
         let (root, settings, _) = stack.get()?;
         blocking(move || apply_vhosts(&root, &settings, &sup)).await?;
     }
     Ok(folder)
+}
+
+fn now_secs() -> i64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
+}
+
+/// Deploy tab: where the site pulls from.
+#[derive(serde::Serialize)]
+struct DeployInfo {
+    source: Option<String>,
+    folder: Option<String>,
+    last_pull: Option<i64>,
+    laravel: bool,
+    npm: bool,
+    has_packages: bool,
+}
+
+#[tauri::command]
+async fn nexhost_deploy_info(stack: tauri::State<'_, Stack>, name: String) -> Result<DeployInfo, String> {
+    let (dir, _) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    let f = dir.join(site.source_folder.clone().unwrap_or_default());
+    Ok(DeployInfo {
+        laravel: f.join("artisan").is_file(),
+        npm: f.join("package.json").is_file(),
+        has_packages: f.join("node_modules").is_dir(),
+        source: site.source,
+        folder: site.source_folder,
+        last_pull: site.last_pull,
+    })
+}
+
+/// Links a site made before Import project to a www project (pulls go into `folder`).
+#[tauri::command]
+async fn nexhost_deploy_link(stack: tauri::State<'_, Stack>, name: String, project: String, folder: String) -> Result<(), String> {
+    let (dir, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let www = PathBuf::from(&settings.www_dir);
+    let bad = project.is_empty() || project.contains(['/', '\\', ':']) || project == "." || project == "..";
+    if bad || !www.join(&project).is_dir() {
+        return Err(format!("There's no project called {project} in NexDB's www folder."));
+    }
+    let folder = folder.trim().trim_matches('/').to_string();
+    nexhost::safe_join(&dir, &folder)?;
+    let mut site = nexhost_site(&settings, &name)?;
+    site.source = Some(project);
+    site.source_folder = Some(folder);
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)
+}
+
+/// Pulls only what changed in the www project into the site. `.env`, storage/, vendor/,
+/// node_modules and public/build stay the site's own.
+#[tauri::command]
+async fn nexhost_pull(stack: tauri::State<'_, Stack>, name: String) -> Result<nexhost_deploy::PullReport, String> {
+    let (dir, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let mut site = nexhost_site(&settings, &name)?;
+    let project = site.source.clone().ok_or("Link this site to a project in www first.")?;
+    let src = PathBuf::from(&settings.www_dir).join(&project);
+    if !src.is_dir() {
+        return Err(format!("{project} is no longer in NexDB's www folder."));
+    }
+    let dst = nexhost::safe_join(&dir, site.source_folder.as_deref().unwrap_or(""))?;
+    let report = blocking(move || nexhost_deploy::mirror(&src, &dst).map_err(|e| format!("Couldn't pull the updates: {e}"))).await?;
+    site.last_pull = Some(now_secs());
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    Ok(report)
+}
+
+/// Runs one Deploy step (install, build, clear, migrate) in the site's project folder. Output
+/// arrives as `nexhost-deploy` events: { site, line }.
+#[tauri::command]
+async fn nexhost_deploy_step(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, name: String, step: String) -> Result<(), String> {
+    use tauri::Emitter;
+    let (dir, root) = nexhost_dir(&stack, &name)?;
+    let (_, settings, _) = stack.get()?;
+    let site = nexhost_site(&settings, &name)?;
+    let folder = nexhost::safe_join(&dir, site.source_folder.as_deref().unwrap_or(""))?;
+    let first_npm = !folder.join("node_modules").is_dir();
+    let commands = nexhost_deploy::commands(&step, &folder, first_npm)?;
+    blocking(move || {
+        let say = |line: &str| {
+            let _ = app.emit("nexhost-deploy", serde_json::json!({ "site": name, "line": line }));
+        };
+        for command in commands {
+            say(&format!("> {command}"));
+            nexhost_deploy::run(&root, &settings, &folder, command, &say)?;
+        }
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]

@@ -10280,3 +10280,53 @@ body.grace-ended .palette-backdrop {
 .nh-ssh-from {
   color: var(--text-3);
 }
+
+/* NexHost Deploy tab: pull from www, then install, build and clear caches. */
+.nh-deploy {
+  display: grid;
+  gap: 16px;
+}
+.nh-deploy h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nh-deploy-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+.nh-deploy-steps,
+.nh-deploy-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.nh-deploy-confirm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.nh-deploy-outhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.nh-deploy-out {
+  margin: 8px 0 0;
+  max-height: 320px;
+  min-height: 120px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--code-bg, rgba(0, 0, 0, 0.25));
+  font: 12px/1.5 var(--font-mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+  word-break: break-word;
+}

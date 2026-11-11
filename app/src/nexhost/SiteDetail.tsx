@@ -5,14 +5,16 @@ import { deleteSite, setWebRoot, type Site } from "../lib/nexhost";
 import { openTerminalWindow } from "../lib/terminal";
 import { inDesktopApp } from "../lib/scan";
 import { DatabaseCard } from "./DatabaseCard";
+import { DeployCard } from "./DeployCard";
 import { FileManager } from "./FileManager";
 import { GoLiveCard } from "./GoLiveCard";
 import { SshCard } from "./SshCard";
 
-type Tab = "overview" | "files" | "database" | "ssh" | "live" | "settings";
+type Tab = "overview" | "files" | "deploy" | "database" | "ssh" | "live" | "settings";
 const TABS: { id: Tab; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "files", label: "Files" },
+  { id: "deploy", label: "Deploy" },
   { id: "database", label: "Database" },
   { id: "ssh", label: "SSH" },
   { id: "live", label: "Go live" },
@@ -38,6 +40,7 @@ export function SiteDetail({ site, onSites, onDeleted }: { site: Site; onSites: 
 
       {tab === "overview" && <Overview site={site} onTab={setTab} />}
       {tab === "files" && <FileManager site={site} onSites={onSites} />}
+      {tab === "deploy" && <DeployCard site={site} />}
       {tab === "database" && <DatabaseCard site={site} onSites={onSites} />}
       {tab === "ssh" && <SshCard site={site} />}
       {tab === "live" && <GoLiveCard site={site} onSites={onSites} />}

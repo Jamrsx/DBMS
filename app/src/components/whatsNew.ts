@@ -82,6 +82,21 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   },
   {
     chapter: "New in 0.5.5",
+    title: "Deploy updates",
+    body: "Click Deploy.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-deploy"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.5",
+    title: "Update the site in one click",
+    body: "Changed the project in www? Update site copies only what changed, installs packages if they changed, runs the build and clears Laravel's caches, like a hosting panel. The site keeps its own .env, uploads and database. The output shows below as it runs.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-deploy"]'),
+  },
+  {
+    chapter: "New in 0.5.5",
     title: "A database for the site",
     body: "Click Database.",
     page: "nexhost",

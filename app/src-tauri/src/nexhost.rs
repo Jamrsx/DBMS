@@ -33,6 +33,14 @@ pub struct NexSite {
     /// SSH logins (off until turned on).
     #[serde(default)]
     pub ssh: crate::nexhost_ssh::SiteSsh,
+    /// Deploy: the www project this site pulls updates from, and the site folder it lands in.
+    #[serde(default)]
+    pub source: Option<String>,
+    #[serde(default)]
+    pub source_folder: Option<String>,
+    /// When updates were last pulled (unix seconds).
+    #[serde(default)]
+    pub last_pull: Option<i64>,
 }
 
 /// A site as the NexHost page shows it.
