@@ -39,6 +39,12 @@ pub fn mirror(src: &Path, dst: &Path) -> std::io::Result<PullReport> {
     if s.starts_with(&d) || d.starts_with(&s) {
         return Err(std::io::Error::other("the project and the site folder are inside each other"));
     }
+    // npm run dev's marker (public/hot) never belongs on a site: it isn't copied (kept()), and a
+    // copy left by an older import is removed, or pages load from a dev server visitors can't reach.
+    if dst.join("public").join("hot").is_file() {
+        std::fs::remove_file(dst.join("public").join("hot"))?;
+        report.removed += 1;
+    }
     copy_changed(src, dst, "", &mut report)?;
     remove_extra(src, dst, "", &mut report)?;
     Ok(report)
@@ -266,6 +272,20 @@ mod tests {
         assert!(!site.join("app/B.php").exists() && !site.join("routes").exists());
         assert_eq!(std::fs::read_to_string(site.join(".env")).unwrap(), "DB_DATABASE=nh_site", ".env kept");
         assert!(site.join("storage/app/photo.jpg").is_file() && site.join("public/build/app.js").is_file());
+    }
+
+    /// public/hot means "npm run dev is running": copied to a site, every page loads from a dev
+    /// server visitors can't reach (a black page). A pull never brings it and removes it.
+    #[test]
+    fn the_dev_server_marker_never_reaches_the_site() {
+        let d = tempfile::tempdir().unwrap();
+        let (www, site) = (d.path().join("www"), d.path().join("site"));
+        write(&www.join("public/hot"), "http://[::1]:5173");
+        write(&www.join("public/index.php"), "<?php");
+        write(&site.join("public/hot"), "http://[::1]:5173");
+        mirror(&www, &site).unwrap();
+        assert!(!site.join("public/hot").exists());
+        assert!(site.join("public/index.php").is_file());
     }
 
     #[test]

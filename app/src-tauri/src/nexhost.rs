@@ -419,6 +419,9 @@ pub fn import_project(site_dir: &Path, rel: &str, www: &Path, project: &str) -> 
     }
     let target = unique(&folder, project);
     copy_tree_skipping(&source, &target, &IMPORT_SKIP).map_err(|e| format!("Couldn't copy {project}: {e}"))?;
+    // public/hot means "npm run dev is running" in www; on the site it would make every page load
+    // from that dev server, which visitors can't reach (a black page).
+    let _ = std::fs::remove_file(target.join("public").join("hot"));
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let rel = rel.trim().trim_matches('/');
     Ok(if rel.is_empty() { name } else { format!("{rel}/{name}") })
@@ -952,6 +955,7 @@ DB_HOST=old
         }
         std::fs::write(p.join("artisan"), "").unwrap();
         std::fs::write(p.join("public/index.php"), "<?php").unwrap();
+        std::fs::write(p.join("public/hot"), "http://[::1]:5173").unwrap();
         std::fs::write(p.join("vendor/x/autoload.php"), "").unwrap();
         std::fs::write(p.join("node_modules/y/big.js"), "").unwrap();
         let site = d.path().join("site");
@@ -964,6 +968,7 @@ DB_HOST=old
         assert!(!got.join("node_modules").exists() && !got.join(".git").exists() && !got.join("src/node_modules").exists());
         assert!(p.join("node_modules/y/big.js").is_file(), "www is left as it was");
         assert_eq!(imported_web_root(&site, "project_1"), "project_1/public");
+        assert!(!got.join("public/hot").exists(), "npm run dev's marker stays in www");
 
         assert_eq!(import_project(&site, "", &www, "project_1").unwrap(), "project_1 (2)", "a taken name gets (2)");
         std::fs::create_dir_all(site.join("apps")).unwrap();
