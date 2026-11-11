@@ -476,8 +476,7 @@ impl russh::server::Handler for Sess {
         let Some(ch) = self.channels.remove(&channel) else { return session.channel_failure(channel) };
         session.channel_success(channel)?;
         let site_dir = self.shared.site_dir(&site);
-        let site_real = std::fs::canonicalize(&site_dir).unwrap_or(site_dir.clone());
-        let sftp = Sftp { shared: self.shared.clone(), site, login: user.login, hash: user.hash, site_dir, site_real, open: HashMap::new(), next: 0, started: false };
+        let sftp = Sftp { shared: self.shared.clone(), site, login: user.login, hash: user.hash, site_dir, open: HashMap::new(), next: 0, started: false };
         tokio::spawn(russh_sftp::server::run(ch.into_stream(), sftp));
         Ok(())
     }
@@ -504,7 +503,6 @@ struct Sftp {
     login: String,
     hash: String,
     site_dir: PathBuf,
-    site_real: PathBuf,
     open: HashMap<String, Open>,
     next: u64,
     started: bool,
