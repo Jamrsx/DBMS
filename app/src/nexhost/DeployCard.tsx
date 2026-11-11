@@ -123,7 +123,7 @@ export function DeployCard({ site }: { site: Site }) {
             onClick={() =>
               go("update", async () => {
                 const r = await pull();
-                if (r.composer_changed || r.npm_changed || !info.has_packages) await step("install");
+                if ((info.composer || info.npm) && (r.composer_changed || r.npm_changed || info.needs_install)) await step("install");
                 if (info.npm) await step("build");
                 if (info.laravel) await step("clear");
                 return "The site is up to date.";
@@ -138,9 +138,11 @@ export function DeployCard({ site }: { site: Site }) {
           <button className="btn btn-small" disabled={any} onClick={() => go("pull", async () => (await pull(), "Pulled the latest files."))}>
             <Download size={14} aria-hidden="true" /> Pull updates
           </button>
-          <button className="btn btn-small" disabled={any} onClick={() => go("install", () => step("install").then(() => "Packages installed."))}>
-            <Package size={14} aria-hidden="true" /> Install packages
-          </button>
+          {(info.composer || info.npm) && (
+            <button className="btn btn-small" disabled={any} onClick={() => go("install", () => step("install").then(() => "Packages installed."))}>
+              <Package size={14} aria-hidden="true" /> Install packages
+            </button>
+          )}
           {info.npm && (
             <button className="btn btn-small" disabled={any} onClick={() => go("build", () => step("build").then(() => "Built."))}>
               <Hammer size={14} aria-hidden="true" /> Run build

@@ -323,8 +323,10 @@ export interface DeployInfo {
   folder: string | null;
   last_pull: number | null;
   laravel: boolean;
+  composer: boolean;
   npm: boolean;
   has_packages: boolean;
+  needs_install: boolean;
 }
 
 export interface PullReport {
@@ -343,8 +345,10 @@ const demoDeployInfo = (name: string): DeployInfo =>
     folder: name === "shop" ? "my-shop" : null,
     last_pull: name === "shop" ? now() - 3600 : null,
     laravel: name === "shop",
+    composer: name === "shop",
     npm: name === "shop",
     has_packages: false,
+    needs_install: name === "shop",
   });
 
 export async function deployInfo(name: string): Promise<DeployInfo> {
@@ -354,7 +358,7 @@ export async function deployInfo(name: string): Promise<DeployInfo> {
 
 export async function linkProject(name: string, project: string, folder: string): Promise<void> {
   if (!demo()) return invoke("nexhost_deploy_link", { name, project, folder });
-  Object.assign(demoDeployInfo(name), { source: project, folder, laravel: true, npm: true });
+  Object.assign(demoDeployInfo(name), { source: project, folder, laravel: true, composer: true, npm: true, needs_install: true });
 }
 
 /** Copies only what changed in the www project into the site. */
@@ -388,5 +392,5 @@ export async function deployStep(name: string, step: DeployStep, onLine: (line: 
     await new Promise((r) => setTimeout(r, 250));
     onLine(line);
   }
-  if (step === "build" || step === "install") demoDeployInfo(name).has_packages = true;
+  if (step === "build" || step === "install") Object.assign(demoDeployInfo(name), { has_packages: true, needs_install: false });
 }

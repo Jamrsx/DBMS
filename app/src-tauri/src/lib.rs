@@ -1250,8 +1250,11 @@ struct DeployInfo {
     folder: Option<String>,
     last_pull: Option<i64>,
     laravel: bool,
+    composer: bool,
     npm: bool,
     has_packages: bool,
+    /// vendor/ or node_modules is missing, so Update site installs packages first.
+    needs_install: bool,
 }
 
 #[tauri::command]
@@ -1260,10 +1263,13 @@ async fn nexhost_deploy_info(stack: tauri::State<'_, Stack>, name: String) -> Re
     let (_, settings, _) = stack.get()?;
     let site = nexhost_site(&settings, &name)?;
     let f = dir.join(site.source_folder.clone().unwrap_or_default());
+    let (composer, npm) = (f.join("composer.json").is_file(), f.join("package.json").is_file());
     Ok(DeployInfo {
         laravel: f.join("artisan").is_file(),
-        npm: f.join("package.json").is_file(),
+        composer,
+        npm,
         has_packages: f.join("node_modules").is_dir(),
+        needs_install: (composer && !f.join("vendor").is_dir()) || (npm && !f.join("node_modules").is_dir()),
         source: site.source,
         folder: site.source_folder,
         last_pull: site.last_pull,
@@ -1305,9 +1311,23 @@ async fn nexhost_pull(stack: tauri::State<'_, Stack>, name: String) -> Result<ne
     let dst = nexhost::safe_join(&dir, site.source_folder.as_deref().unwrap_or(""))?;
     let report = blocking(move || nexhost_deploy::mirror(&src, &dst).map_err(|e| format!("Couldn't pull the updates: {e}"))).await?;
     site.last_pull = Some(now_secs());
+    // A site linked on the Deploy tab (not imported) starts serving the pulled project, as an
+    // imported one does, unless a web root was chosen in Settings.
+    let new_root = site.web_root.is_none();
+    if new_root {
+        let web_root = nexhost::imported_web_root(&dir, site.source_folder.as_deref().unwrap_or(""));
+        if !web_root.is_empty() && nexhost::check_web_root(&dir, &web_root).is_ok() {
+            site.web_root = Some(web_root);
+        }
+    }
+    let new_root = new_root && site.web_root.is_some();
     let mut sites = settings.preferences.nexhost.clone();
     sites.insert(name, site);
     save_nexhost(stack.inner(), &root, &sites)?;
+    if new_root {
+        let (root, settings, sup) = stack.get()?;
+        blocking(move || apply_vhosts(&root, &settings, &sup)).await?;
+    }
     Ok(report)
 }
 

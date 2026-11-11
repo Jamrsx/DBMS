@@ -358,6 +358,10 @@ pub fn import_project(site_dir: &Path, rel: &str, www: &Path, project: &str) -> 
     }
     let folder = safe_join(site_dir, rel)?;
     std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;
+    let inside = std::fs::canonicalize(&folder).ok().zip(std::fs::canonicalize(&source).ok()).is_some_and(|(f, s)| f.starts_with(&s));
+    if inside {
+        return Err(format!("This site is inside {project}, so it can't be copied into it."));
+    }
     let target = unique(&folder, project);
     copy_tree_skipping(&source, &target, &IMPORT_SKIP).map_err(|e| format!("Couldn't copy {project}: {e}"))?;
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -926,6 +930,16 @@ DB_HOST=old
         assert!(import_project(&site, "../..", &www, "a").is_err(), "the target stays inside the site");
         std::fs::create_dir_all(www.join("plain")).unwrap();
         assert_eq!(imported_web_root(&site, &import_project(&site, "", &www, "plain").unwrap()), "plain");
+    }
+
+    #[test]
+    fn import_refuses_a_site_inside_the_project() {
+        // www set to C:\NexDB: the project "nexhost" holds the site itself.
+        let d = tempfile::tempdir().unwrap();
+        let site = d.path().join("nexhost").join("shop");
+        std::fs::create_dir_all(&site).unwrap();
+        let err = import_project(&site, "", d.path(), "nexhost").unwrap_err();
+        assert!(err.contains("inside"), "{err}");
     }
 
     /// Apache reads `\\` inside a quoted setting as one `\`, so `[/\\]` reached PCRE as `[/\]`

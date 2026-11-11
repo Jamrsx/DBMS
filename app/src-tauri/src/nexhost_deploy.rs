@@ -35,6 +35,10 @@ pub fn kept(rel: &str) -> bool {
 pub fn mirror(src: &Path, dst: &Path) -> std::io::Result<PullReport> {
     let mut report = PullReport::default();
     std::fs::create_dir_all(dst)?;
+    let (s, d) = (std::fs::canonicalize(src)?, std::fs::canonicalize(dst)?);
+    if s.starts_with(&d) || d.starts_with(&s) {
+        return Err(std::io::Error::other("the project and the site folder are inside each other"));
+    }
     copy_changed(src, dst, "", &mut report)?;
     remove_extra(src, dst, "", &mut report)?;
     Ok(report)
@@ -262,6 +266,15 @@ mod tests {
         assert!(!site.join("app/B.php").exists() && !site.join("routes").exists());
         assert_eq!(std::fs::read_to_string(site.join(".env")).unwrap(), "DB_DATABASE=nh_site", ".env kept");
         assert!(site.join("storage/app/photo.jpg").is_file() && site.join("public/build/app.js").is_file());
+    }
+
+    #[test]
+    fn never_pulls_into_itself() {
+        let d = tempfile::tempdir().unwrap();
+        let src = d.path().join("www");
+        std::fs::create_dir_all(src.join("inner")).unwrap();
+        assert!(mirror(&src, &src.join("inner")).is_err(), "target inside the source");
+        assert!(mirror(&src.join("inner"), &src).is_err(), "source inside the target");
     }
 
     #[test]
