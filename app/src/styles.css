@@ -3176,7 +3176,21 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  overflow: hidden;
+  /* Visible, not hidden: a row's ⋯ menu opens past the list's edge, and focusing it must not
+     scroll the rows out of sight. The first and last rows round their own corners instead. */
+  overflow: visible;
+}
+
+.project-list > .project:first-child {
+  border-radius: 9px 9px 0 0;
+}
+
+.project-list > .project:last-child {
+  border-radius: 0 0 9px 9px;
+}
+
+.project-list > .project:only-child {
+  border-radius: 9px;
 }
 
 .project {

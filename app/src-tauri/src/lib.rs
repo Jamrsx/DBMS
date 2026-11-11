@@ -319,7 +319,18 @@ pub fn run() {
             // "Start services when NexDB opens", from Settings.
             let handle = app.handle().clone();
             let stack = handle.state::<Stack>();
-            if stack.load(&handle) && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
+            let loaded = stack.load(&handle);
+            // Site settings are rewritten by this version on every launch, so a file an older
+            // NexDB wrote with a mistake (the NexHost vendor/ rule in 0.5.5 tests) is repaired
+            // before Apache or nginx starts.
+            if loaded {
+                if let Ok((root, settings, _)) = stack.get() {
+                    if let Err(e) = projects::write_site_configs(&root, &settings) {
+                        eprintln!("Couldn't rewrite the site settings at launch: {e}");
+                    }
+                }
+            }
+            if loaded && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
                 tray_services(&handle, true);
             }
             // After the install is loaded (and services asked to start): live NexHost sites return.
