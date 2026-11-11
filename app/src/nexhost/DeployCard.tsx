@@ -81,7 +81,7 @@ export function DeployCard({ site }: { site: Site }) {
           <p className="field-hint">NexDB's www folder has no projects yet.</p>
         ) : (
           <div className="nh-deploy-link">
-            <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Project">
+            <select className="input nh-deploy-select" value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Project">
               {projects.map((p) => (
                 <option key={p.name}>{p.name}</option>
               ))}

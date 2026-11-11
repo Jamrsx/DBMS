@@ -125,43 +125,48 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                 Copy a project from NexDB's www folder into {rel ? <code>{rel}</code> : "this site"}. The project in www stays as it is;
                 node_modules and .git are left out.
               </p>
-              <label className="nh-import-pick">
-                <span className="sr-only">Project</span>
-                <select value={pick} onChange={(e) => setPick(e.target.value)} disabled={copying}>
+              <div className="nh-import-row">
+                <label htmlFor="nh-import-project">Project</label>
+                <select id="nh-import-project" className="input" value={pick} onChange={(e) => setPick(e.target.value)} disabled={copying}>
                   {projects.map((p) => (
                     <option key={p.name} value={p.name}>
                       {p.name} ({KIND[p.kind] ?? p.kind})
                     </option>
                   ))}
                 </select>
-              </label>{" "}
-              <button
-                className="btn btn-small btn-primary"
-                disabled={!pick || copying}
-                onClick={() => {
-                  setCopying(true);
-                  setStatus({ ok: true, text: `Copying ${pick}… big projects take a minute.` });
-                  importProject(site.name, rel, pick)
-                    .then(async (folder) => {
-                      setProjects(null);
-                      const sites = await listSites();
-                      onSites?.(sites);
-                      const now = sites.find((s) => s.name === site.name);
-                      const opens = now && now.web_root !== site.web_root ? ` The site now opens ${folder}.` : "";
-                      setStatus({ ok: true, text: `Imported ${pick} as ${folder}.${opens}` });
-                      load();
-                    })
-                    .catch((e) => setStatus({ ok: false, text: String(e) }))
-                    .finally(() => setCopying(false));
-                }}
-              >
-                {copying ? "Copying…" : "Import"}
-              </button>{" "}
+                <button
+                  className="btn btn-small btn-primary"
+                  disabled={!pick || copying}
+                  onClick={() => {
+                    setCopying(true);
+                    setStatus({ ok: true, text: `Copying ${pick}… big projects take a minute.` });
+                    importProject(site.name, rel, pick)
+                      .then(async (folder) => {
+                        setProjects(null);
+                        const sites = await listSites();
+                        onSites?.(sites);
+                        const now = sites.find((s) => s.name === site.name);
+                        const opens = now && now.web_root !== site.web_root ? ` The site now opens ${folder}.` : "";
+                        setStatus({ ok: true, text: `Imported ${pick} as ${folder}.${opens}` });
+                        load();
+                      })
+                      .catch((e) => setStatus({ ok: false, text: String(e) }))
+                      .finally(() => setCopying(false));
+                  }}
+                >
+                  {copying ? "Copying…" : "Import"}
+                </button>
+                <button className="btn btn-small" disabled={copying} onClick={() => setProjects(null)}>
+                  Cancel
+                </button>
+              </div>
             </>
           )}
-          <button className="btn btn-small" disabled={copying} onClick={() => setProjects(null)}>
-            Cancel
-          </button>
+          {projects.length === 0 && (
+            <button className="btn btn-small" onClick={() => setProjects(null)}>
+              Close
+            </button>
+          )}
         </div>
       )}
 
