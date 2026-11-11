@@ -111,6 +111,24 @@ impl Lockout {
             *locked = Some(now + LOCK);
         }
     }
+    /// Counts a try before the password is checked; false when the login is locked.
+    pub fn attempt(&self, login: &str, now: i64) -> bool {
+        let mut map = self.0.lock().unwrap();
+        // Forget logins nobody has tried for a while, so the list stays small.
+        map.retain(|_, (tries, locked)| locked.is_some_and(|u| now < u) || tries.iter().any(|t| now - t < WINDOW));
+        let (tries, locked) = map.entry(login.to_string()).or_default();
+        if locked.is_some_and(|u| now < u) {
+            return false;
+        }
+        *locked = None;
+        tries.retain(|t| now - t < WINDOW);
+        if tries.len() >= TRIES {
+            *locked = Some(now + LOCK);
+            return false;
+        }
+        tries.push(now);
+        true
+    }
     pub fn succeeded(&self, login: &str) {
         self.0.lock().unwrap().remove(login);
     }
@@ -193,20 +211,39 @@ pub fn split_args(line: &str) -> Result<Vec<String>, String> {
 
 /// Ok when this command may run for a "files and site commands" login.
 pub fn check_command(args: &[String]) -> Result<(), String> {
-    const ALLOWED: [&str; 13] = ["php", "composer", "git", "npm", "npx", "node", "ls", "cat", "tail", "mkdir", "rm", "pwd", "exit"];
+    const ALLOWED: [&str; 12] = ["php", "composer", "git", "npm", "node", "ls", "cat", "tail", "mkdir", "rm", "pwd", "exit"];
     let Some(cmd) = args.first().map(|c| c.to_ascii_lowercase()) else {
         return Err("Type a command.".into());
     };
     if !ALLOWED.contains(&cmd.as_str()) {
         return Err(format!(
-            "{cmd} isn't allowed here. You can run: php artisan, composer, git, npm, npx, node, ls, cat, tail, mkdir, rm, pwd, exit."
+            "{cmd} isn't allowed here. You can run: php artisan, composer, git, npm, node, ls, cat, tail, mkdir, rm, pwd, exit."
         ));
     }
     if cmd == "php" && args.get(1).map(String::as_str) != Some("artisan") {
         return Err("Only php artisan ... can run here.".into());
     }
+    let has = |names: &[&str]| args[1..].iter().any(|a| names.iter().any(|n| a == n || a.starts_with(&format!("{n}="))));
+    // Ways to run any code or reach another place, refused even though the command is allowed.
+    if cmd == "php" && args.iter().any(|a| a.eq_ignore_ascii_case("tinker")) {
+        return Err("php artisan tinker can't run over SSH.".into());
+    }
+    if cmd == "node" && (has(&["-e", "--eval", "-p", "--print", "-r", "--require", "-i", "--interactive", "--import", "--loader"]) || args.len() == 1) {
+        return Err("node can only run a file of this site, like node server.js.".into());
+    }
+    if cmd == "git" && (has(&["-c", "--config-env", "--exec-path", "-C", "--git-dir", "--work-tree", "--upload-pack", "--receive-pack"])
+        || args.get(1).is_some_and(|a| a == "config")
+        || (args.get(1).is_some_and(|a| ["clone", "fetch", "ls-remote", "archive"].contains(&a.as_str())) && has(&["-u"])))
+    {
+        return Err("That git option can't be used over SSH.".into());
+    }
+    if args[1..].iter().any(|a| a.to_ascii_lowercase().contains("file:")) {
+        return Err("file: addresses can't be used over SSH.".into());
+    }
     for arg in &args[1..] {
-        if leaves_site(arg) {
+        // Short options can carry a path right after them: -dC:\x, -d../x.
+        let attached = (arg.starts_with('-') && !arg.starts_with("--") && arg.len() > 2).then(|| &arg[2..]);
+        if leaves_site(arg) || attached.is_some_and(leaves_site) {
             return Err(format!("{arg} points outside this site's folder."));
         }
     }
@@ -304,6 +341,15 @@ pub fn recent(root: &std::path::Path, site: &str, limit: usize) -> Vec<LogEntry>
     list
 }
 
+/// composer, npm and npx go through cmd.exe: their arguments must be plain words.
+pub fn cmd_safe(args: &[String]) -> Result<(), String> {
+    let bad = |a: &String| a.chars().any(|c| c.is_whitespace() || "&|<>()%^!\"".contains(c));
+    if args.iter().any(bad) {
+        return Err("For composer, npm and npx, use plain words without spaces or & | < > ( ) % ^ ! \".".into());
+    }
+    Ok(())
+}
+
 /// The SSH server runs only while some site has SSH on and the license includes NexHost.
 pub fn should_run(sites: &BTreeMap<String, NexSite>, has_nexhost: bool) -> bool {
     has_nexhost && sites.values().any(|s| s.ssh.on)
@@ -355,6 +401,59 @@ mod tests {
 
     fn check(line: &str) -> Result<(), String> {
         split_args(line).and_then(|a| check_command(&a))
+    }
+
+    #[test]
+    fn code_running_escapes_are_refused() {
+        for bad in [
+            "node -e \"require('fs')\"",
+            "node --eval x",
+            "node -p 1",
+            "node -r ./x.js app.js",
+            "npx cowsay hi",
+            "git -c alias.x=!powershell x",
+            "git -c core.sshCommand=calc pull",
+            "git --config-env=x=y pull",
+            "git config core.editor calc",
+            "git --exec-path=C:/x pull",
+            "git clone file:///C:/NexDB/nexhost/other",
+            "php artisan tinker",
+            "php artisan tinker --execute=1",
+            "composer -dC:\\other install",
+            "composer -d../other install",
+            "npm install file:C:/Users/x",
+        ] {
+            assert!(check(bad).is_err(), "{bad}");
+        }
+        assert!(check("node server.js").is_ok());
+        assert!(check("git push -u origin main").is_ok());
+        assert!(check("git clone -u calc https://x/y").is_err());
+        assert!(check("git clone https://github.com/x/y").is_ok());
+    }
+
+    #[test]
+    fn cmd_routed_arguments_are_plain() {
+        for bad in ["npm run 'x&calc'", "npm run \"a|b\"", "composer run '(x)'", "npm run 'a b'", "npm run 'x>y'"] {
+            let args = split_args(bad).unwrap();
+            assert!(cmd_safe(&args).is_err(), "{bad}");
+        }
+        assert!(cmd_safe(&split_args("npm run build").unwrap()).is_ok());
+    }
+
+    #[test]
+    fn attempts_count_before_the_password_check() {
+        let l = Lockout::new();
+        // Five tries pass the gate, even before any of them is known to be wrong.
+        for i in 0..5 {
+            assert!(l.attempt("shop-maria", 100 + i));
+        }
+        assert!(!l.attempt("shop-maria", 110), "the sixth is refused");
+        let l = Lockout::new();
+        assert!(l.attempt("shop-maria", 1));
+        l.succeeded("shop-maria");
+        for i in 0..5 {
+            assert!(l.attempt("shop-maria", 2 + i));
+        }
     }
 
     #[test]

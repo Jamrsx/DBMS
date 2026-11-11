@@ -297,6 +297,8 @@ pub fn safe_join(site_dir: &Path, rel: &str) -> Result<PathBuf, String> {
         match part {
             "" | "." => {}
             ".." => return outside(),
+            // Windows drops a trailing dot or space, so "a." and ". " would name another place.
+            p if p.ends_with('.') || p.ends_with(' ') => return outside(),
             p => out.push(p),
         }
     }
@@ -838,6 +840,15 @@ DB_HOST=old
         assert!(check_web_root(d.path(), ".").is_err());
         assert!(check_web_root(d.path(), "nope").is_err());
         assert_eq!(check_web_root(d.path(), "myapp/public").unwrap(), app.join("public"));
+    }
+
+    #[test]
+    fn windows_trailing_dots_and_spaces_are_refused() {
+        let d = Path::new("C:/NexDB/nexhost/shop");
+        for bad in [". ", ".. ", " ", "a.", "a ", "css/. ", "...", "x/.. /y"] {
+            assert!(safe_join(d, bad).is_err(), "{bad:?}");
+        }
+        assert!(safe_join(d, "css/site.css").is_ok());
     }
 
     #[test]

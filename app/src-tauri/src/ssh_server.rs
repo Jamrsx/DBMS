@@ -90,12 +90,18 @@ impl Shared {
 
     /// Whether this login may still act: the site exists with SSH on, the user is still there
     /// and on, and the license still includes NexHost.
-    fn still_allowed(&self, site: &str, login: &str) -> bool {
+    /// A new password ends what the old one opened. Returns the login's role right now.
+    fn current_role(&self, site: &str, login: &str, hash: &str) -> Option<String> {
         if !(self.has_nexhost)() {
-            return false;
+            return None;
         }
         let sites = self.sites.read().unwrap();
-        sites.get(site).is_some_and(|s| s.ssh.on && s.ssh.users.iter().any(|u| u.login == login && u.enabled))
+        let s = sites.get(site).filter(|s| s.ssh.on)?;
+        s.ssh.users.iter().find(|u| u.login == login && u.enabled && u.hash == hash).map(|u| u.role.clone())
+    }
+
+    fn still_allowed(&self, site: &str, login: &str, hash: &str) -> bool {
+        self.current_role(site, login, hash).is_some()
     }
 
     fn site_dir(&self, site: &str) -> PathBuf {
@@ -121,6 +127,18 @@ impl russh::server::Server for Factory {
     }
 }
 
+/// A full shell: its keyboard and a way to end it.
+struct Pty {
+    input: Mutex<Box<dyn Write + Send>>,
+    kill: Mutex<Box<dyn portable_pty::ChildKiller + Send + Sync>>,
+}
+
+impl Drop for Pty {
+    fn drop(&mut self) {
+        let _ = self.kill.get_mut().map(|k| k.kill());
+    }
+}
+
 /// One connected person.
 struct Sess {
     shared: Arc<Shared>,
@@ -130,14 +148,43 @@ struct Sess {
     /// Line being typed in the small shell of a "files" login.
     lines: HashMap<ChannelId, String>,
     /// Keyboard input for a full shell.
-    ptys: HashMap<ChannelId, Mutex<Box<dyn Write + Send>>>,
+    ptys: HashMap<ChannelId, Pty>,
 }
 
-const PROMPT_HELP: &str = "NexHost SSH. You can run: php artisan, composer, git, npm, npx, node, ls, cat, tail, mkdir, rm, pwd, exit.\r\n";
+const PROMPT_HELP: &str = "NexHost SSH. You can run: php artisan, composer, git, npm, node, ls, cat, tail, mkdir, rm, pwd, exit.\r\n";
+
+/// Shown before the password prompt, so a refusal can be understood.
+const BANNER: &str = "NexHost SSH. \"Permission denied\" means a wrong password, a login that is turned off, or a login locked for 15 minutes after 5 wrong tries.\r\n";
+
+/// Password checks are heavy; at most 4 run at once, off the app's async threads.
+static HASHING: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(4);
+
+/// The place `rel` names inside the site, refused when it leaves the site in any way: `..`,
+/// a drive or network path, or a link or junction pointing elsewhere.
+pub(crate) fn jail(site_dir: &Path, rel: &str) -> Result<PathBuf, String> {
+    let outside = || "That place is outside this site's folder.".to_string();
+    let path = crate::nexhost::safe_join(site_dir, rel)?;
+    let site_real = std::fs::canonicalize(site_dir).map_err(|e| e.to_string())?;
+    let mut probe = Some(path.as_path());
+    while let Some(q) = probe {
+        if q.exists() {
+            let real = std::fs::canonicalize(q).map_err(|e| e.to_string())?;
+            if !real.starts_with(&site_real) {
+                return Err(outside());
+            }
+            break;
+        }
+        probe = q.parent();
+    }
+    if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
+        return Err(outside());
+    }
+    Ok(path)
+}
 
 impl Sess {
     fn allowed(&self) -> bool {
-        self.who.as_ref().is_some_and(|(site, user)| self.shared.still_allowed(site, &user.login))
+        self.who.as_ref().is_some_and(|(site, user)| self.shared.still_allowed(site, &user.login, &user.hash))
     }
 
     fn prompt(&self) -> String {
@@ -147,25 +194,29 @@ impl Sess {
     /// Runs one command for this login in the site folder; returns its output and exit code.
     async fn run(&self, line: &str) -> (String, u32) {
         let Some((site, user)) = self.who.clone() else { return ("Not signed in.\n".into(), 1) };
-        if !self.shared.still_allowed(&site, &user.login) {
-            return ("SSH was turned off for this login.\n".into(), 1);
-        }
+        let Some(role) = self.shared.current_role(&site, &user.login, &user.hash) else {
+            return ("SSH was turned off for this login, or its password changed.\n".into(), 1);
+        };
         let dir = self.shared.site_dir(&site);
         self.shared.log(&user.login, &site, self.peer.as_deref(), "command", Some(line.chars().take(300).collect()));
-        if user.role == "shell" {
+        if role == "shell" {
             return external(&dir, &self.shared.tool_path, "powershell", &["-NoProfile".into(), "-Command".into(), line.into()]).await;
         }
         let args = match rules::split_args(line).and_then(|a| rules::check_command(&a).map(|_| a)) {
             Ok(a) => a,
             Err(e) => return (format!("{e}\n"), 1),
         };
-        builtin(&dir, &args).unwrap_or(external_cmd(&dir, &self.shared.tool_path, &args).await)
+        // Only one of them runs: `unwrap_or(... .await)` would start the outside program too.
+        match builtin(&dir, &args) {
+            Some(done) => done,
+            None => external_cmd(&dir, &self.shared.tool_path, &args).await,
+        }
     }
 }
 
 /// ls, cat, tail, mkdir, rm and pwd are done by NexDB itself (Windows has no such programs).
 fn builtin(dir: &Path, args: &[String]) -> Option<(String, u32)> {
-    let path = |p: &str| crate::nexhost::safe_join(dir, p);
+    let path = |p: &str| jail(dir, p);
     let fail = |e: String| (format!("{e}\n"), 1);
     let done = |r: Result<String, String>| Some(r.map_or_else(fail, |o| (o, 0)));
     let rest: Vec<&str> = args[1..].iter().map(String::as_str).filter(|a| !a.starts_with('-')).collect();
@@ -196,7 +247,7 @@ fn builtin(dir: &Path, args: &[String]) -> Option<(String, u32)> {
             let recursive = args.iter().any(|a| a.starts_with('-') && a.contains('r'));
             done(rest.iter().try_for_each(|f| {
                 let p = path(f)?;
-                if p == dir {
+                if std::fs::canonicalize(&p).ok() == std::fs::canonicalize(dir).ok() {
                     return Err("The site folder itself can't be removed.".to_string());
                 }
                 if p.is_dir() {
@@ -217,8 +268,8 @@ fn builtin(dir: &Path, args: &[String]) -> Option<(String, u32)> {
 async fn external_cmd(dir: &Path, path: &str, args: &[String]) -> (String, u32) {
     let cmd = args[0].to_ascii_lowercase();
     if matches!(cmd.as_str(), "composer" | "npm" | "npx") {
-        if args.iter().any(|a| a.contains(['%', '^', '!', '"'])) {
-            return ("Arguments can't contain % ^ ! or \".\n".into(), 1);
+        if let Err(e) = rules::cmd_safe(args) {
+            return (format!("{e}\n"), 1);
         }
         let mut all = vec!["/C".to_string()];
         all.extend(args.iter().cloned());
@@ -255,14 +306,17 @@ impl russh::server::Handler for Sess {
 
     async fn auth_password(&mut self, user: &str, password: &str) -> Result<Auth, Self::Error> {
         let at = now();
-        if !self.shared.lockout.allowed(user, at) {
+        if !self.shared.lockout.attempt(user, at) {
             self.shared.log(user, "", self.peer.as_deref(), "locked", None);
             return Ok(Auth::reject());
         }
-        let who = {
-            let sites = self.shared.sites.read().unwrap();
-            rules::authenticate(&sites, (self.shared.has_nexhost)(), user, password)
-        };
+        let snapshot = self.shared.sites.read().unwrap().clone();
+        let has = (self.shared.has_nexhost)();
+        let (u, pw) = (user.to_string(), password.to_string());
+        let _permit = HASHING.acquire().await;
+        let who = tokio::task::spawn_blocking(move || rules::authenticate(&snapshot, has, &u, &pw))
+            .await
+            .unwrap_or(Who::Refused("NexHost SSH is busy. Try again."));
         match who {
             Who::Ok { site, user: u } => {
                 self.shared.lockout.succeeded(user);
@@ -271,11 +325,14 @@ impl russh::server::Handler for Sess {
                 Ok(Auth::Accept)
             }
             Who::Refused(why) => {
-                self.shared.lockout.failed(user, at);
                 self.shared.log(user, "", self.peer.as_deref(), "login_failed", Some(why.into()));
                 Ok(Auth::reject())
             }
         }
+    }
+
+    async fn authentication_banner(&mut self) -> Result<Option<String>, Self::Error> {
+        Ok(Some(BANNER.to_string()))
     }
 
     async fn channel_open_session(&mut self, channel: Channel<Msg>, reply: ChannelOpenHandle, _: &mut Session) -> Result<(), Self::Error> {
@@ -328,9 +385,10 @@ impl russh::server::Handler for Sess {
         cmd.cwd(self.shared.site_dir(&site));
         cmd.env("PATH", &self.shared.tool_path);
         let mut child = pair.slave.spawn_command(cmd).map_err(|e| russh::Error::IO(std::io::Error::other(e.to_string())))?;
+        let kill = Mutex::new(child.clone_killer());
         let mut reader = pair.master.try_clone_reader().map_err(|e| russh::Error::IO(std::io::Error::other(e.to_string())))?;
         let writer = pair.master.take_writer().map_err(|e| russh::Error::IO(std::io::Error::other(e.to_string())))?;
-        self.ptys.insert(channel, Mutex::new(writer));
+        self.ptys.insert(channel, Pty { input: Mutex::new(writer), kill });
         let handle = session.handle();
         let rt = tokio::runtime::Handle::current();
         let master = pair.master;
@@ -353,12 +411,14 @@ impl russh::server::Handler for Sess {
     }
 
     async fn data(&mut self, channel: ChannelId, data: &[u8], session: &mut Session) -> Result<(), Self::Error> {
-        if let Some(w) = self.ptys.get_mut(&channel) {
-            if !self.who.as_ref().is_some_and(|(s, u)| self.shared.still_allowed(s, &u.login)) {
-                self.ptys.remove(&channel);
+        if self.ptys.contains_key(&channel) {
+            if !self.allowed() {
+                self.ptys.remove(&channel); // ends PowerShell
                 return session.close(channel);
             }
-            let _ = w.get_mut().map(|w| w.write_all(data));
+            if let Some(p) = self.ptys.get_mut(&channel) {
+                let _ = p.input.get_mut().map(|w| w.write_all(data));
+            }
             return Ok(());
         }
         if !self.lines.contains_key(&channel) {
@@ -417,7 +477,7 @@ impl russh::server::Handler for Sess {
         session.channel_success(channel)?;
         let site_dir = self.shared.site_dir(&site);
         let site_real = std::fs::canonicalize(&site_dir).unwrap_or(site_dir.clone());
-        let sftp = Sftp { shared: self.shared.clone(), site, login: user.login, site_dir, site_real, open: HashMap::new(), next: 0, started: false };
+        let sftp = Sftp { shared: self.shared.clone(), site, login: user.login, hash: user.hash, site_dir, site_real, open: HashMap::new(), next: 0, started: false };
         tokio::spawn(russh_sftp::server::run(ch.into_stream(), sftp));
         Ok(())
     }
@@ -442,6 +502,7 @@ struct Sftp {
     shared: Arc<Shared>,
     site: String,
     login: String,
+    hash: String,
     site_dir: PathBuf,
     site_real: PathBuf,
     open: HashMap<String, Open>,
@@ -480,27 +541,16 @@ impl Sftp {
     /// The real path for an SFTP path. `..` is refused, and so is anything that ends up outside
     /// the site through a link or junction.
     fn resolve(&self, p: &str) -> Result<PathBuf, StatusCode> {
-        let rel = p.trim_start_matches(['/', '\\']);
-        let path = crate::nexhost::safe_join(&self.site_dir, rel).map_err(|_| StatusCode::PermissionDenied)?;
-        let mut probe = Some(path.as_path());
-        while let Some(q) = probe {
-            if q.exists() {
-                let real = std::fs::canonicalize(q).map_err(io_code)?;
-                if !real.starts_with(&self.site_real) {
-                    return Err(StatusCode::PermissionDenied);
-                }
-                break;
-            }
-            probe = q.parent();
-        }
-        if std::fs::symlink_metadata(&path).is_ok_and(|m| m.file_type().is_symlink()) {
-            return Err(StatusCode::PermissionDenied);
-        }
-        Ok(path)
+        self.may()?;
+        jail(&self.site_dir, p.trim_start_matches(['/', '\\'])).map_err(|_| StatusCode::PermissionDenied)
+    }
+
+    fn may(&self) -> Result<(), StatusCode> {
+        if self.shared.still_allowed(&self.site, &self.login, &self.hash) { Ok(()) } else { Err(StatusCode::PermissionDenied) }
     }
 
     fn may_write(&self) -> Result<(), StatusCode> {
-        if self.shared.still_allowed(&self.site, &self.login) { Ok(()) } else { Err(StatusCode::PermissionDenied) }
+        self.may()
     }
 
     fn note(&self, event: &str, what: &str) {
@@ -562,6 +612,7 @@ impl russh_sftp::server::Handler for Sftp {
     }
 
     async fn read(&mut self, id: u32, handle: String, offset: u64, len: u32) -> Result<Data, Self::Error> {
+        self.may()?;
         let Some(Open::File(f)) = self.open.get_mut(&handle) else { return Err(StatusCode::Failure) };
         f.seek(SeekFrom::Start(offset)).map_err(io_code)?;
         let mut buf = vec![0u8; len.min(256 * 1024) as usize];
@@ -590,6 +641,7 @@ impl russh_sftp::server::Handler for Sftp {
     }
 
     async fn readdir(&mut self, id: u32, handle: String) -> Result<Name, Self::Error> {
+        self.may()?;
         let Some(Open::Dir(dir, done)) = self.open.get_mut(&handle) else { return Err(StatusCode::Failure) };
         if std::mem::replace(done, true) {
             return Err(StatusCode::Eof);
@@ -616,6 +668,7 @@ impl russh_sftp::server::Handler for Sftp {
     }
 
     async fn fstat(&mut self, id: u32, handle: String) -> Result<Attrs, Self::Error> {
+        self.may()?;
         let meta = match self.open.get(&handle) {
             Some(Open::File(f)) => f.metadata().map_err(io_code)?,
             Some(Open::Dir(d, _)) => std::fs::metadata(d).map_err(io_code)?,
@@ -773,6 +826,65 @@ mod tests {
         let h = login(s.server.port, "shop-maria", &s.password).await.unwrap();
         assert!(h.channel_open_direct_tcpip("127.0.0.1", 80, "127.0.0.1", 5000).await.is_err());
         assert!(login(s.server.port, "shop-maria", &s.password).await.is_some(), "server still works");
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn links_out_of_the_site_are_refused() {
+        let s = setup().await;
+        let other = s.site_dir.parent().unwrap().join("other");
+        let link = s.site_dir.join("node_modules");
+        let made = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(&other)
+            .output()
+            .unwrap();
+        assert!(made.status.success());
+        let h = login(s.server.port, "shop-maria", &s.password).await.unwrap();
+        let (out, code) = run(&h, "cat node_modules/secret.txt").await;
+        assert_ne!(code, Some(0), "{out}");
+        let (_, code) = run(&h, "rm -r node_modules/secret.txt").await;
+        assert_ne!(code, Some(0));
+        assert!(other.join("secret.txt").exists(), "nothing outside was deleted");
+    }
+
+    #[tokio::test]
+    async fn role_change_and_reset_apply_to_open_sessions() {
+        let s = setup().await;
+        s.sites.write().unwrap().get_mut("shop").unwrap().ssh.users[0].role = "shell".into();
+        let h = login(s.server.port, "shop-maria", &s.password).await.unwrap();
+        s.sites.write().unwrap().get_mut("shop").unwrap().ssh.users[0].role = "files".into();
+        let (out, code) = run(&h, "Get-Location").await;
+        assert_ne!(code, Some(0), "back to files: PowerShell is refused: {out}");
+        // A new password ends what the old one opened.
+        s.sites.write().unwrap().get_mut("shop").unwrap().ssh.users[0].hash = rules::hash_password("new").unwrap();
+        let refused = match h.channel_open_session().await {
+            Err(_) => true,
+            Ok(mut ch) => {
+                ch.exec(true, "pwd").await.unwrap();
+                let mut code = None;
+                while let Some(m) = ch.wait().await {
+                    if let ChannelMsg::ExitStatus { exit_status } = m {
+                        code = Some(exit_status);
+                    }
+                }
+                code != Some(0)
+            }
+        };
+        assert!(refused);
+    }
+
+    #[tokio::test]
+    async fn sftp_reads_stop_when_the_user_is_turned_off() {
+        let s = setup().await;
+        let h = login(s.server.port, "shop-maria", &s.password).await.unwrap();
+        let ch = h.channel_open_session().await.unwrap();
+        ch.request_subsystem(true, "sftp").await.unwrap();
+        let sftp = russh_sftp::client::SftpSession::new(ch.into_stream()).await.unwrap();
+        assert!(sftp.read("index.php").await.is_ok());
+        s.sites.write().unwrap().get_mut("shop").unwrap().ssh.users[0].enabled = false;
+        assert!(sftp.read("index.php").await.is_err());
     }
 
     #[tokio::test]
