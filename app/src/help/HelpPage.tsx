@@ -84,7 +84,7 @@ const TOPICS: Topic[] = [
     title: "Host a test site with NexHost",
     chapter: "New in 0.5.5",
     steps: [
-      "NexHost is part of the 4-year plan. Open NexHost in the sidebar and press New site.",
+      "NexHost comes with plans that include it, like the 4-year plan. Open NexHost in the sidebar and press New site.",
       "Drag your website's files, folders or a .zip from Explorer onto NexDB. A zip can be unpacked in place.",
       "Database → Create database gives the site its own database and user. Laravel sites can get them written into .env.",
       "Settings → Sharing → NexHost connection: with your own domain, use your Cloudflare tunnel token and type the domain; without one, use ngrok's authtoken and free address.",

@@ -144,7 +144,7 @@ pub enum Who {
 /// Whether `login` with `password` may use SSH right now.
 pub fn authenticate(sites: &BTreeMap<String, NexSite>, has_nexhost: bool, login: &str, password: &str) -> Who {
     if !has_nexhost {
-        return Who::Refused("SSH is part of the 4-year plan.");
+        return Who::Refused("SSH comes with plans that include NexHost, like the 4-year plan.");
     }
     // The login's prefix isn't trusted: look it up in every site.
     let found = sites.iter().find_map(|(name, s)| s.ssh.users.iter().find(|u| u.login == login).map(|u| (name, s, u)));

@@ -86,7 +86,7 @@ export const activateLicense = (key: string, name: string, email: string, passwo
 export const changeLicense = (key: string, password: string, moveHere = false): Promise<LicenseOutcome> =>
   !realDesktopApp || isPractice()
     ? Promise.resolve({ ok: true, status: null, code: null, message: null, device: null, moves_left: null })
-    : invoke<LicenseOutcome>("license_change", { key, password, moveHere });
+    : invoke<LicenseOutcome>("license_change", { key, password, moveHere }).then(announce);
 
 /** Sign in with the NexDB account (made on the first activation) on another PC. */
 export const signInLicense = (email: string, password: string, moveHere = false) =>
@@ -103,10 +103,18 @@ export function timeLeft(until: number): string {
   return `${n} ${unit}${n === 1 ? "" : "s"}`;
 }
 
+/** Fired on the window when the license on this PC may have changed (new plan features, renewal). */
+export const LICENSE_UPDATED = "nexdb-license-updated";
+const announce = (out: LicenseOutcome): LicenseOutcome => {
+  if (out.ok) window.dispatchEvent(new Event(LICENSE_UPDATED));
+  return out;
+};
+
 export const checkInLicense = (): Promise<LicenseOutcome> =>
-  !realDesktopApp || isPractice()
-    ? Promise.resolve({ ok: true, status: SAMPLE, code: null, message: null, device: null, moves_left: 3 })
-    : invoke<LicenseOutcome>("license_check_in");
+  (!realDesktopApp || isPractice()
+    ? Promise.resolve<LicenseOutcome>({ ok: true, status: SAMPLE, code: null, message: null, device: null, moves_left: 3 })
+    : invoke<LicenseOutcome>("license_check_in")
+  ).then(announce);
 
 export const unlinkLicense = (): Promise<LicenseOutcome> =>
   isPractice()

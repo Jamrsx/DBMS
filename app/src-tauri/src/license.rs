@@ -401,7 +401,7 @@ fn time_left(secs: i64) -> String {
 }
 
 /// Shown when a feature needs a plan this license doesn't have.
-pub const NEXHOST_LOCKED: &str = "NexHost and public links are part of the 4-year plan.";
+pub const NEXHOST_LOCKED: &str = "NexHost and public links come with plans that include NexHost, like the 4-year plan.";
 
 /// Why `name` can't be used with this license state, or None when it can.
 fn feature_error(status: &Status, name: &str) -> Option<String> {
@@ -710,7 +710,7 @@ mod tests {
 
     #[test]
     fn require_feature_says_which_plan() {
-        assert_eq!(feature_error(&active_status(vec![]), "nexhost"), Some("NexHost and public links are part of the 4-year plan.".into()));
+        assert_eq!(feature_error(&active_status(vec![]), "nexhost"), Some("NexHost and public links come with plans that include NexHost, like the 4-year plan.".into()));
         assert_eq!(feature_error(&active_status(vec!["nexhost".into()]), "nexhost"), None);
         assert!(feature_error(&Status::None { notice: None }, "nexhost").unwrap().contains("active license"));
     }

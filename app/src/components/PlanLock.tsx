@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
 import { Lock } from "lucide-react";
-import { hasFeature, licenseStatus, type LicenseStatus } from "../lib/license";
+import { hasFeature, LICENSE_UPDATED, licenseStatus, type LicenseStatus } from "../lib/license";
 import { RenewOptions } from "./RenewOptions";
 
 /** Shown where a feature needs the 4-year plan (NexHost, public links). */
-export const NEXHOST_LOCKED = "NexHost and public links are part of the 4-year plan.";
+export const NEXHOST_LOCKED = "NexHost and public links come with plans that include NexHost, like the 4-year plan.";
 
 /** Whether this license includes `name`; null while it is still being read. */
 export function useFeature(name: string): boolean | null {
   const [status, setStatus] = useState<LicenseStatus | null>(null);
   useEffect(() => {
     let alive = true;
-    licenseStatus()
-      .then((s) => alive && setStatus(s))
-      .catch(() => {});
+    const read = () =>
+      void licenseStatus()
+        .then((s) => alive && setStatus(s))
+        .catch(() => {});
+    read();
+    // A check-in with the website can bring new plan features (the owner ticked "Includes NexHost").
+    window.addEventListener(LICENSE_UPDATED, read);
     return () => {
       alive = false;
+      window.removeEventListener(LICENSE_UPDATED, read);
     };
   }, []);
   return status ? hasFeature(status, name) : null;
