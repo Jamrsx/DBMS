@@ -10190,6 +10190,116 @@ body.grace-ended .palette-backdrop {
   flex-wrap: wrap;
   gap: 8px;
 }
+.nh-quick-card h2 {
+  margin-bottom: 10px;
+}
+.nh-quick-card .field-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+}
+
+/* Overview: the Go live switch. */
+.nh-live-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.nh-live-bar.on {
+  border-color: color-mix(in srgb, var(--ok) 40%, var(--border));
+  background: color-mix(in srgb, var(--ok-soft) 55%, var(--surface));
+}
+.nh-live-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+.nh-live-bar.on .nh-live-icon {
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.nh-live-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+.nh-live-text strong {
+  font-size: 15px;
+}
+.nh-live-text .field-hint {
+  margin: 0;
+}
+.nh-live-url {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.nh-live-url code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.nh-live-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.nh-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.nh-switch.on {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+.nh-switch:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.nh-switch:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.nh-switch-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.18s ease;
+}
+.nh-switch.on .nh-switch-knob {
+  transform: translateX(20px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .nh-switch,
+  .nh-switch-knob {
+    transition: none;
+  }
+}
 
 /* NexHost SSH tab. */
 .nh-ssh {
@@ -10322,11 +10432,35 @@ body.grace-ended .palette-backdrop {
   margin-top: 12px;
 }
 .nh-deploy-confirm {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--bad) 35%, var(--border));
+  background: color-mix(in srgb, var(--bad) 7%, var(--surface));
   font-size: 13px;
+}
+.nh-deploy-confirm-buttons {
+  display: flex;
+  gap: 6px;
+}
+.nh-deploy-group {
+  margin: 20px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.nh-deploy-group + .nh-deploy-steps,
+.nh-deploy-group + .field-hint {
+  margin-top: 8px;
 }
 .nh-deploy-outhead {
   display: flex;
@@ -10614,7 +10748,7 @@ button.nh-map-node:focus-visible {
 
 /* NexHost problems: what stops the site, with a Fix button each. */
 .nh-health {
-  margin-bottom: 16px;
+  margin-bottom: 0;
 }
 .nh-health h2 {
   display: flex;

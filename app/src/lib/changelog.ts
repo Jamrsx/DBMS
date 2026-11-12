@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.6",
+    title: "NexHost: go live with one switch, seed the database",
+    changes: [
+      "A site's Overview now starts with a Go live switch: turn it on to put the site online, off to take it offline. When it's live, the link is right there with Copy and Open.",
+      "If going live needs a choice first (no ngrok or Cloudflare connected yet, or no address on your domain), the switch opens the Go live tab, which keeps every option.",
+      "Deploy tab: the steps are grouped into Run one step and Database, and each button says what it's doing while it runs.",
+      "New Seed button for Laravel projects with seeders: it runs the seeders on the site's own database. Like Migrate, it asks first.",
+      "Quick actions on the Overview are in their own card, with a Copy button for the site's address on this PC.",
+      "NexDB now activates licenses with the live NexDB website.",
+    ],
+  },
+  {
     version: "0.5.5",
     title: "NexHost: host your test sites from this PC",
     changes: [

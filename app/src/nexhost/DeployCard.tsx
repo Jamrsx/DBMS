@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Brush, Database, Download, Hammer, Package, RotateCcw, Rocket, SquareTerminal } from "lucide-react";
+import { Brush, Database, Download, Hammer, Package, RotateCcw, Rocket, Sprout, SquareTerminal } from "lucide-react";
 import { TerminalView } from "../terminal/TerminalView";
 import { inDesktopApp } from "../lib/scan";
 import { deployInfo, deployStep, linkProject, pullUpdates, type DeployInfo, type DeployStep, type Site } from "../lib/nexhost";
@@ -10,6 +10,7 @@ const STEP_TEXT: Record<DeployStep, string> = {
   build: "Building",
   clear: "Clearing caches",
   migrate: "Updating the database",
+  seed: "Adding the seed data",
 };
 
 /** Each site's Deploy output, kept while NexDB is open, so switching tabs never loses it. */
@@ -35,7 +36,7 @@ export function DeployCard({ site }: { site: Site }) {
   const [termKey, setTermKey] = useState(0);
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [pick, setPick] = useState("");
-  const [confirmMigrate, setConfirmMigrate] = useState(false);
+  const [confirm, setConfirm] = useState<"migrate" | "seed" | null>(null);
   const out = useRef<HTMLPreElement>(null);
 
   const load = useCallback(() => {
@@ -146,49 +147,69 @@ export function DeployCard({ site }: { site: Site }) {
           </button>
           <span className="field-hint">Pull, install packages if they changed, build, clear caches. Doesn't touch the database.</span>
         </div>
+        <h3 className="nh-deploy-group">Run one step</h3>
         <div className="nh-deploy-steps">
           <button className="btn btn-small" disabled={any} onClick={() => go("pull", async () => (await pull(), "Pulled the latest files."))}>
-            <Download size={14} aria-hidden="true" /> Pull updates
+            <Download size={14} aria-hidden="true" /> {busy === "pull" ? "Pulling…" : "Pull updates"}
           </button>
           {(info.composer || info.npm) && (
             <button className="btn btn-small" disabled={any} onClick={() => go("install", () => step("install").then(() => "Packages installed."))}>
-              <Package size={14} aria-hidden="true" /> Install packages
+              <Package size={14} aria-hidden="true" /> {busy === "install" ? "Installing…" : "Install packages"}
             </button>
           )}
           {info.npm && (
             <button className="btn btn-small" disabled={any} onClick={() => go("build", () => step("build").then(() => "Built."))}>
-              <Hammer size={14} aria-hidden="true" /> Run build
+              <Hammer size={14} aria-hidden="true" /> {busy === "build" ? "Building…" : "Run build"}
             </button>
           )}
           {info.laravel && (
             <button className="btn btn-small" disabled={any} onClick={() => go("clear", () => step("clear").then(() => "Caches cleared."))}>
-              <Brush size={14} aria-hidden="true" /> Clear cache
+              <Brush size={14} aria-hidden="true" /> {busy === "clear" ? "Clearing…" : "Clear cache"}
             </button>
           )}
-          {info.laravel &&
-            (confirmMigrate ? (
-              <span className="nh-deploy-confirm">
-                Run migrations on this site's database?{" "}
-                <button
-                  className="btn btn-small btn-danger"
-                  disabled={any}
-                  onClick={() => {
-                    setConfirmMigrate(false);
-                    go("migrate", () => step("migrate").then(() => "Database updated."));
-                  }}
-                >
-                  Yes, migrate
-                </button>{" "}
-                <button className="btn btn-small" onClick={() => setConfirmMigrate(false)}>
-                  Cancel
-                </button>
-              </span>
-            ) : (
-              <button className="btn btn-small" disabled={any} onClick={() => setConfirmMigrate(true)}>
-                <Database size={14} aria-hidden="true" /> Migrate
-              </button>
-            ))}
         </div>
+        {info.laravel && (
+          <div data-guide="nexhost-deploy-database">
+            <h3 className="nh-deploy-group">Database</h3>
+            <p className="field-hint">These change the site's own database, so each one asks first.</p>
+            {confirm ? (
+              <div className="nh-deploy-confirm" role="alertdialog" aria-label="Confirm">
+                <span>
+                  {confirm === "migrate"
+                    ? "Run migrations on this site's database? New tables and columns are added; nothing is rolled back."
+                    : "Run the seeders on this site's database? They add the rows written in database/seeders, and running them twice can add them twice."}
+                </span>
+                <span className="nh-deploy-confirm-buttons">
+                  <button
+                    className="btn btn-small btn-danger"
+                    disabled={any}
+                    onClick={() => {
+                      const which = confirm;
+                      setConfirm(null);
+                      go(which, () => step(which).then(() => (which === "migrate" ? "Database updated." : "Seed data added.")));
+                    }}
+                  >
+                    {confirm === "migrate" ? "Yes, migrate" : "Yes, seed"}
+                  </button>
+                  <button className="btn btn-small" onClick={() => setConfirm(null)}>
+                    Cancel
+                  </button>
+                </span>
+              </div>
+            ) : (
+              <div className="nh-deploy-steps">
+                <button className="btn btn-small" disabled={any} onClick={() => setConfirm("migrate")}>
+                  <Database size={14} aria-hidden="true" /> {busy === "migrate" ? "Migrating…" : "Migrate"}
+                </button>
+                {info.has_seeders && (
+                  <button className="btn btn-small" disabled={any} onClick={() => setConfirm("seed")}>
+                    <Sprout size={14} aria-hidden="true" /> {busy === "seed" ? "Seeding…" : "Seed"}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {!info.has_packages && info.npm && <p className="field-hint">The first build installs this site's own node_modules (a few hundred MB, a minute or two).</p>}
         {msg && (
           <p className={msg.ok ? "set-ok" : "field-error"} role="status">

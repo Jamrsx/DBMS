@@ -248,8 +248,9 @@ pub fn commands(step: &str, folder: &Path, first_npm: bool) -> Result<Vec<&'stat
         }
         "clear" if laravel => out.push("php artisan optimize:clear"),
         "migrate" if laravel => out.push("php artisan migrate --force"),
+        "seed" if laravel => out.push("php artisan db:seed --force"),
         "npm-install" | "build" => return Err("This project has no package.json, so there is nothing to build.".into()),
-        "clear" | "migrate" => return Err("This isn't a Laravel project (no artisan file).".into()),
+        "clear" | "migrate" | "seed" => return Err("This isn't a Laravel project (no artisan file).".into()),
         _ => return Err(format!("Unknown step {step}.")),
     }
     if out.is_empty() {
@@ -438,6 +439,7 @@ mod tests {
         assert_eq!(commands("install", p, false).unwrap(), ["composer install --no-interaction --prefer-dist", "npm ci"]);
         assert_eq!(commands("clear", p, false).unwrap(), ["php artisan optimize:clear"]);
         assert_eq!(commands("migrate", p, false).unwrap(), ["php artisan migrate --force"]);
+        assert_eq!(commands("seed", p, false).unwrap(), ["php artisan db:seed --force"]);
         assert!(commands("rm -rf", p, false).is_err());
     }
 }

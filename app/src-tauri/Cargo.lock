@@ -1241,7 +1241,7 @@ dependencies = [
 
 [[package]]
 name = "devmanager"
-version = "0.5.5"
+version = "0.5.6"
 dependencies = [
  "argon2 0.5.3",
  "base64 0.22.1",

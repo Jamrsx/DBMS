@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.6", chapter: "New in 0.5.6" },
   { version: "0.5.5", chapter: "New in 0.5.5" },
   { version: "0.5.4", chapter: "New in 0.5.4" },
   { version: "0.5.3", chapter: "New in 0.5.3" },
@@ -30,6 +31,42 @@ const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.6",
+    title: "Two handy things in NexHost",
+    body: "Going live is now one switch, and Laravel sites can fill their database with seed data. Practice mode: these are sample sites, nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.6",
+    title: "NexHost in the sidebar",
+    body: "Click NexHost.",
+    target: '.nav-item[data-page="nexhost"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.6",
+    title: "Go live with one switch",
+    body: "Turn it on and the site gets a link anyone can open; turn it off and only this PC can. When it's live, Copy and Open are right here. If NexDB needs a choice first, like your ngrok or Cloudflare account, the switch opens the Go live tab. Options opens it too.",
+    page: "nexhost",
+    run: openNexhostSite("shop"),
+    target: here('[data-guide="nexhost-live-switch"]'),
+  },
+  {
+    chapter: "New in 0.5.6",
+    title: "Seed the database",
+    body: "Click Deploy.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-tab-deploy"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.6",
+    title: "Migrate and Seed",
+    body: "These change the site's own database, so each one asks first. Migrate adds new tables and columns. Seed runs the seeders in database/seeders and adds their rows; it only shows when the project has seeders.",
+    page: "nexhost",
+    target: here('[data-guide="nexhost-deploy-database"]'),
+  },
   {
     chapter: "New in 0.5.5",
     title: "Meet NexHost",

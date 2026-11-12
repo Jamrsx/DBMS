@@ -1279,6 +1279,8 @@ struct DeployInfo {
     has_packages: bool,
     /// vendor/ or node_modules is missing, so Update site installs packages first.
     needs_install: bool,
+    /// Laravel with seeder classes in database/seeders, so the Deploy tab offers Seed.
+    has_seeders: bool,
 }
 
 #[tauri::command]
@@ -1294,6 +1296,10 @@ async fn nexhost_deploy_info(stack: tauri::State<'_, Stack>, name: String) -> Re
         npm,
         has_packages: f.join("node_modules").is_dir(),
         needs_install: (composer && !f.join("vendor").is_dir()) || (npm && !f.join("node_modules").is_dir()),
+        has_seeders: f.join("artisan").is_file()
+            && std::fs::read_dir(f.join("database").join("seeders"))
+                .map(|d| d.flatten().any(|e| e.path().extension().is_some_and(|x| x == "php")))
+                .unwrap_or(false),
         source: site.source,
         folder: site.source_folder,
         last_pull: site.last_pull,

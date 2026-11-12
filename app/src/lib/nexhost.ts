@@ -327,6 +327,8 @@ export interface DeployInfo {
   npm: boolean;
   has_packages: boolean;
   needs_install: boolean;
+  /** Laravel with seeder classes in database/seeders. */
+  has_seeders: boolean;
 }
 
 export interface PullReport {
@@ -336,7 +338,7 @@ export interface PullReport {
   npm_changed: boolean;
 }
 
-export type DeployStep = "install" | "build" | "clear" | "migrate";
+export type DeployStep = "install" | "build" | "clear" | "migrate" | "seed";
 
 const demoDeploy: Record<string, DeployInfo> = {};
 const demoDeployInfo = (name: string): DeployInfo =>
@@ -349,6 +351,7 @@ const demoDeployInfo = (name: string): DeployInfo =>
     npm: name === "shop",
     has_packages: false,
     needs_install: name === "shop",
+    has_seeders: name === "shop",
   });
 
 export async function deployInfo(name: string): Promise<DeployInfo> {
@@ -358,7 +361,7 @@ export async function deployInfo(name: string): Promise<DeployInfo> {
 
 export async function linkProject(name: string, project: string, folder: string): Promise<void> {
   if (!demo()) return invoke("nexhost_deploy_link", { name, project, folder });
-  Object.assign(demoDeployInfo(name), { source: project, folder, laravel: true, composer: true, npm: true, needs_install: true });
+  Object.assign(demoDeployInfo(name), { source: project, folder, laravel: true, composer: true, npm: true, needs_install: true, has_seeders: true });
 }
 
 /** Copies only what changed in the www project into the site. */
@@ -373,6 +376,7 @@ const DEMO_OUTPUT: Record<DeployStep, string[]> = {
   build: ["> npm run build", "vite v7.1.3 building for production...", "✓ 1342 modules transformed.", "public/build/manifest.json  0.8 kB", "✓ built in 6.12s"],
   clear: ["> php artisan optimize:clear", "INFO  Clearing cached bootstrap files.", "config ........ DONE", "cache ......... DONE", "views ......... DONE"],
   migrate: ["> php artisan migrate --force", "INFO  Nothing to migrate."],
+  seed: ["> php artisan db:seed --force", "INFO  Seeding database.", "Database\\Seeders\\UserSeeder ........ DONE", "Database\\Seeders\\ProductSeeder ..... DONE"],
 };
 
 /** Runs one Deploy step in the site; each output line arrives through `onLine`. */
