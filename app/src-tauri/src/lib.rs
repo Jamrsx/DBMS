@@ -440,6 +440,11 @@ pub fn run() {
             share_start,
             share_stop,
             share_allow_firewall,
+            share_allow_tailscale,
+            nexhost_tailscale_info,
+            nexhost_tailscale_set,
+            nexhost_allow_tailscale,
+            nexhost_project_folders,
             share_public_start,
             share_fixed_start,
             share_fixed_stop,
@@ -534,6 +539,7 @@ pub fn run() {
             project_open_in,
             projects_sync_hosts,
             project_open,
+            www_open,
             terminal_open,
             terminal_window,
             nexhost_window,
@@ -749,6 +755,8 @@ struct ShareInfo {
     app: Option<AppShareInfo>,
     /// The front end and backend folders found in the project, for sharing them together.
     app_parts: Option<projects::AppParts>,
+    /// Tailscale on this PC: shared links also open on devices in the user's Tailscale network.
+    tailscale: share::TailscaleInfo,
 }
 
 #[derive(serde::Serialize)]
@@ -810,6 +818,7 @@ fn share_info_for(settings: &settings::Settings, sup: &supervisor::Supervisor, t
             .map(|a| format!("https://{}", a.address)),
         fixed: fixedlink::current().map(|(key, url, password)| FixedInUse { key, url, password }),
         lan_ip,
+        tailscale: share::tailscale(),
         firewall_ready: share::firewall_ready(),
         network_private: share::network_private(),
         web_server: web.is_some(),
@@ -1070,6 +1079,12 @@ async fn share_allow_firewall() -> Result<(), String> {
     blocking(share::allow_firewall).await
 }
 
+/// Lets devices in the user's Tailscale network reach the share ports (one Windows approval).
+#[tauri::command]
+async fn share_allow_tailscale() -> Result<(), String> {
+    blocking(share::allow_tailscale_firewall).await
+}
+
 /// The tunnel key for a project's site (`what` empty), its dev server ("dev") or whole app ("app").
 // ---------- NexHost (4-year plan) ----------
 
@@ -1187,6 +1202,51 @@ async fn nexhost_set_root(stack: tauri::State<'_, Stack>, name: String, web_root
         Ok(nexhost_sites(&root, &settings))
     })
     .await
+}
+
+/// Tailscale on this PC, for the NexHost page: whether it's connected and its firewall rule.
+#[tauri::command]
+async fn nexhost_tailscale_info() -> Result<share::TailscaleInfo, String> {
+    license::require_feature("nexhost")?;
+    blocking(|| Ok(share::tailscale_nexhost())).await
+}
+
+/// Opens a site to devices in the user's Tailscale network too, or closes it again.
+#[tauri::command]
+async fn nexhost_tailscale_set(stack: tauri::State<'_, Stack>, name: String, on: bool) -> Result<Vec<nexhost::Site>, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, sup) = stack.get()?;
+    let mut site = nexhost_site(&settings, &name)?;
+    if on && blocking(|| Ok(share::tailscale_ip())).await?.is_none() {
+        return Err("Tailscale isn't connected on this PC. Open Tailscale from the taskbar, sign in and turn it on, then try again.".into());
+    }
+    site.tailscale = on;
+    let mut sites = settings.preferences.nexhost.clone();
+    sites.insert(name, site);
+    save_nexhost(stack.inner(), &root, &sites)?;
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        apply_vhosts(&root, &settings, &sup)?;
+        Ok(nexhost_sites(&root, &settings))
+    })
+    .await
+}
+
+/// The folders inside a www project that can be imported on their own (a Laravel backend next
+/// to a phone app, say). Empty when the project is one app.
+#[tauri::command]
+async fn nexhost_project_folders(stack: tauri::State<'_, Stack>, project: String) -> Result<Vec<nexhost::ProjectFolder>, String> {
+    license::require_feature("nexhost")?;
+    let (_, settings, _) = stack.get()?;
+    let www = PathBuf::from(&settings.www_dir);
+    blocking(move || nexhost::project_folders(&www, &project)).await
+}
+
+/// Lets Tailscale devices, and only those, reach NexHost sites (one Windows approval).
+#[tauri::command]
+async fn nexhost_allow_tailscale() -> Result<(), String> {
+    license::require_feature("nexhost")?;
+    blocking(share::allow_tailscale_nexhost).await
 }
 
 /// The site's folder, once its name is known.
@@ -1312,10 +1372,7 @@ async fn nexhost_deploy_link(stack: tauri::State<'_, Stack>, name: String, proje
     let (dir, root) = nexhost_dir(&stack, &name)?;
     let (_, settings, _) = stack.get()?;
     let www = PathBuf::from(&settings.www_dir);
-    let bad = project.is_empty() || project.contains(['/', '\\', ':']) || project == "." || project == "..";
-    if bad || !www.join(&project).is_dir() {
-        return Err(format!("There's no project called {project} in NexDB's www folder."));
-    }
+    nexhost::project_source(&www, &project)?;
     let folder = folder.trim().trim_matches('/').to_string();
     nexhost::safe_join(&dir, &folder)?;
     let mut site = nexhost_site(&settings, &name)?;
@@ -2477,6 +2534,18 @@ async fn projects_sync_hosts(stack: tauri::State<'_, Stack>) -> Result<(), Strin
 #[tauri::command]
 fn project_open(app: tauri::AppHandle, name: String, what: String) -> Result<(), String> {
     open_project(&app, &name, &what)
+}
+
+/// Opens the projects folder (the www folder from Settings) in Explorer.
+#[tauri::command]
+fn www_open(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let (_, settings, _) = app.state::<Stack>().get()?;
+    let dir = std::path::PathBuf::from(&settings.www_dir);
+    if !dir.is_dir() {
+        return Err(format!("The projects folder {} doesn't exist. Check Settings → Folders.", settings.www_dir));
+    }
+    app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
 }
 
 /// Opens a project's site ("url" or "local") or its folder ("folder"); also used by the tray.

@@ -7,15 +7,25 @@ import {
   LoaderCircle,
   Lock,
   MonitorSmartphone,
+  Network,
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { realDesktopApp } from "../lib/scan";
+import { isPractice } from "../lib/practice";
 import type { DevApp } from "../lib/projects";
 import { CopyButton } from "../components/CopyButton";
+import { TutorialVideo } from "../components/TutorialVideo";
 import { nexCelebrate } from "../lib/nex";
 import { installVersion } from "../lib/versions";
 import {
   allowFirewall,
+  allowTailscale,
+  TAILSCALE_DOWNLOAD,
+  TAILSCALE_MACHINES,
+  TAILSCALE_USERS,
+  tailscaleLinks,
   previewTunnelInstalled,
   shareInfo,
   startAppShare,
@@ -36,7 +46,7 @@ import {
 /** Which block an action belongs to, so its progress and errors show right beside it. */
 type Block = "app" | "site" | "dev";
 /** The row an action's button is in ("site:start", "app:public"…); its progress shows there. */
-type Where = "notes" | `${Block}:${"start" | "stop" | "public"}`;
+type Where = "notes" | "tailscale" | `${Block}:${"start" | "stop" | "public"}`;
 
 /** Share a project with phones on the same Wi-Fi, and optionally with a public link. */
 export function SharePanel({
@@ -131,7 +141,9 @@ export function SharePanel({
   const anyShared = shared || !!info.dev || !!app;
 
   // What keeps phones out, said once at the top while something is shared.
-  const problems = anyShared && (!info.web_running || info.network_private === false || !info.firewall_ready) && (
+  const ts = info.tailscale;
+  const tsBlocked = ts.state === "running" && !ts.firewall_ready;
+  const problems = anyShared && (!info.web_running || info.network_private === false || !info.firewall_ready || tsBlocked) && (
     <div className="share-problems">
       {!info.web_running && (
         <p className="share-note" role="status">
@@ -161,6 +173,25 @@ export function SharePanel({
               Allow phones on my network
             </button>
             {status("notes")}
+          </div>
+        </div>
+      )}
+      {tsBlocked && (
+        <div className="share-firewall" data-guide="share-tailscale-firewall">
+          <p>
+            <ShieldCheck size={14} aria-hidden="true" /> Windows Firewall blocks your Tailscale devices until you allow
+            them once. NexDB adds one rule for ports 8181 to 8199 that lets in only Tailscale addresses (100.64.0.0/10),
+            nobody else; Windows asks for your permission.
+          </p>
+          <div className="share-row">
+            <button
+              className="btn btn-small"
+              disabled={!!busy}
+              onClick={() => void act("tailscale", "Waiting for Windows…", () => allowTailscale())}
+            >
+              Allow my Tailscale devices
+            </button>
+            {status("tailscale")}
           </div>
         </div>
       )}
@@ -205,6 +236,19 @@ export function SharePanel({
             <span className="field-hint">
               Works on iPhones, Macs, other PCs and most Android phones. If one can't open it, use the number address.
             </span>
+          </div>
+        )}
+        {tailscaleLinks(url, info).length > 0 && (
+          <div className="share-named" data-guide="share-tailscale-link">
+            <span className="field-hint">
+              <Network size={13} aria-hidden="true" /> From anywhere, on devices in your Tailscale network:
+            </span>
+            {tailscaleLinks(url, info).map((t) => (
+              <div className="share-url" key={t}>
+                <code>{t}</code>
+                <CopyButton text={t} label={`${label} on Tailscale`} />
+              </div>
+            ))}
           </div>
         )}
         {after}
@@ -682,6 +726,88 @@ export function SharePanel({
     ),
   );
 
+  // Opens Tailscale's page in the browser; practice only says where it would go.
+  const openTs = (url: string) => {
+    if (isPractice() || !realDesktopApp) {
+      setError({ where: "tailscale", text: `Practice: this opens ${url} in your browser.` });
+      return;
+    }
+    void openUrl(url);
+  };
+
+  // Tailscale: shared links open from anywhere on devices in the user's own Tailscale network.
+  const tailscale = (
+    <section className={`share-option${ts.state === "running" && anyShared ? " share-on" : ""}`} aria-label="Tailscale" data-guide="share-tailscale">
+      <header className="share-option-head">
+        <Network size={15} aria-hidden="true" />
+        <h4>Tailscale: from anywhere, privately</h4>
+        {ts.state === "running" && (
+          <span className="status-pill status-ok">
+            <span className="status-dot" aria-hidden="true" /> Connected
+          </span>
+        )}
+      </header>
+      {ts.state === "missing" && (
+        <>
+          <p className="field-hint">
+            With Tailscale, your shared links also open on your other devices and your testers' devices from anywhere,
+            not only on this Wi-Fi. Only devices in your Tailscale network can open them. Install Tailscale on this PC
+            and sign in, then come back here.
+          </p>
+          <div className="share-row">
+            <TutorialVideo video="tailscale" />
+            <button className="btn btn-small" onClick={() => openTs(TAILSCALE_DOWNLOAD)}>
+              Get Tailscale
+            </button>
+            <button className="btn btn-small" onClick={load}>
+              I've installed it, check again
+            </button>
+          </div>
+        </>
+      )}
+      {ts.state === "stopped" && (
+        <>
+          <p className="field-hint">
+            Tailscale is installed but not connected. Open Tailscale from the taskbar, sign in and turn it on, then
+            check again.
+          </p>
+          <div className="share-row">
+            <button className="btn btn-small" onClick={load}>
+              Check again
+            </button>
+          </div>
+        </>
+      )}
+      {ts.state === "running" && (
+        <>
+          <p className="field-hint">
+            This PC is <code>{ts.dns_name ?? ts.ip}</code>
+            {ts.user ? ` in ${ts.user}'s Tailscale network` : " in your Tailscale network"}.{" "}
+            {anyShared
+              ? "Every shared link above also has a Tailscale address."
+              : "Share the project above, and its link gets a Tailscale address too."}
+          </p>
+          <p className="field-hint">
+            To let someone in: they install Tailscale and sign in with their own account. Then either share just this
+            PC with them (they reach only this PC), or invite them to your network. Your devices just sign in with
+            your account.
+          </p>
+          <div className="share-row">
+            <button className="btn btn-small" onClick={() => openTs(TAILSCALE_MACHINES)}>
+              Share this PC
+            </button>
+            <button className="btn btn-small" onClick={() => openTs(TAILSCALE_USERS)}>
+              Invite people
+            </button>
+            <TutorialVideo video="tailscale" label="Watch how" />
+          </div>
+          <p className="field-hint">Tailscale is free for personal projects. For client or company work, Tailscale asks for a paid plan.</p>
+        </>
+      )}
+      {status("tailscale")}
+    </section>
+  );
+
   // With a whole app found, the other two are extras: folded away unless one is in use.
   const othersOpen = shared || !!info.dev;
   return (
@@ -705,6 +831,7 @@ export function SharePanel({
           {dev}
         </>
       )}
+      {tailscale}
     </div>
   );
 }

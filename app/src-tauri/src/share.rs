@@ -75,19 +75,188 @@ pub fn allow_firewall() -> Result<(), String> {
     let rule = format!(
         "New-NetFirewallRule -DisplayName '{FIREWALL_RULE}' -Description 'Lets phones on your home or office network open projects you share in NexDB.' -Direction Inbound -Action Allow -Protocol TCP -LocalPort {first}-{last} -Profile Private | Out-Null"
     );
+    run_elevated(&rule)?;
+    if !firewall_ready() {
+        return Err("Windows didn't allow it. Choose Yes on the permission prompt to let phones in.".into());
+    }
+    Ok(())
+}
+
+/// Runs `rule` (a PowerShell script) elevated, through one Windows approval, and waits for it.
+#[cfg(windows)]
+fn run_elevated(rule: &str) -> Result<(), String> {
     // The elevated PowerShell gets the rule as -EncodedCommand (UTF-16LE, base64): no quoting.
     let launcher = format!(
         "$p = Start-Process -FilePath powershell.exe -Verb RunAs -Wait -PassThru -WindowStyle Hidden -ArgumentList '-NoProfile','-EncodedCommand','{}'; exit $p.ExitCode",
-        encode_command(&rule)
+        encode_command(rule)
     );
     let mut cmd = Command::new("powershell.exe");
     cmd.args(["-NoProfile", "-NonInteractive", "-Command", &launcher]);
     crate::scan::hide_console(&mut cmd);
     let out = cmd.output().map_err(|e| format!("Couldn't ask Windows for permission: {e}"))?;
-    if !out.status.success() || !firewall_ready() {
-        return Err("Windows didn't allow it. Choose Yes on the permission prompt to let phones in.".into());
+    if !out.status.success() {
+        return Err("Windows didn't allow it. Choose Yes on the permission prompt.".into());
     }
     Ok(())
+}
+
+// ---------- Tailscale ----------
+//
+// Devices in the user's own Tailscale network can open shared projects from anywhere. NexDB
+// never installs or signs in to Tailscale: it reads `tailscale status` and, once allowed, adds
+// one firewall rule that lets in only Tailscale addresses (100.64.0.0/10) on the share ports.
+
+const TAILSCALE_RULE: &str = "NexDB shared sites (Tailscale)";
+/// Tailscale's address range; nothing else reaches the share ports through this rule.
+pub const TAILSCALE_RANGE: &str = "100.64.0.0/10";
+
+/// What the Share panel shows about Tailscale.
+#[derive(Debug, Clone, serde::Serialize, PartialEq, Default)]
+pub struct TailscaleInfo {
+    /// "missing" (not installed), "stopped" (installed, not connected or signed out), "running".
+    pub state: String,
+    /// This PC's Tailscale address (100.x.y.z) while running.
+    pub ip: Option<String>,
+    /// Its name in the network (my-pc.tail1234.ts.net), when MagicDNS is on.
+    pub dns_name: Option<String>,
+    /// The account it's signed in with.
+    pub user: Option<String>,
+    pub firewall_ready: bool,
+}
+
+/// tailscale.exe: where its installer puts it, or on PATH.
+fn tailscale_exe() -> Option<std::path::PathBuf> {
+    let installed = ["ProgramFiles", "ProgramFiles(x86)"]
+        .into_iter()
+        .filter_map(|var| std::env::var(var).ok())
+        .map(|dir| Path::new(&dir).join("Tailscale").join("tailscale.exe"))
+        .find(|p| p.is_file());
+    installed.or_else(|| {
+        std::env::var_os("PATH")
+            .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join("tailscale.exe")).find(|p| p.is_file()))
+    })
+}
+
+/// Reads `tailscale status --json` into what the Share panel needs.
+pub fn parse_tailscale_status(json: &str) -> TailscaleInfo {
+    let v: serde_json::Value = serde_json::from_str(json).unwrap_or_default();
+    let running = v["BackendState"].as_str() == Some("Running");
+    let me = &v["Self"];
+    let ip = me["TailscaleIPs"]
+        .as_array()
+        .and_then(|ips| ips.iter().filter_map(|i| i.as_str()).find(|i| i.starts_with("100.")))
+        .map(str::to_string);
+    let dns_name = me["DNSName"].as_str().map(|n| n.trim_end_matches('.').to_string()).filter(|n| !n.is_empty());
+    let user = me["UserID"]
+        .as_i64()
+        .and_then(|id| v["User"][id.to_string()]["LoginName"].as_str().map(str::to_string));
+    let up = running && ip.is_some();
+    TailscaleInfo {
+        state: if up { "running" } else { "stopped" }.into(),
+        ip: ip.filter(|_| up),
+        dns_name: dns_name.filter(|_| up),
+        user,
+        firewall_ready: false,
+    }
+}
+
+/// Tailscale's state on this PC, without the firewall check.
+fn tailscale_state() -> TailscaleInfo {
+    let Some(exe) = tailscale_exe() else {
+        return TailscaleInfo { state: "missing".into(), ..Default::default() };
+    };
+    let mut cmd = Command::new(exe);
+    cmd.args(["status", "--json"]).stdin(Stdio::null());
+    crate::scan::hide_console(&mut cmd);
+    // `tailscale status` exits 1 while signed out but still prints JSON.
+    let json = cmd.output().map(|o| String::from_utf8_lossy(&o.stdout).to_string()).unwrap_or_default();
+    parse_tailscale_status(&json)
+}
+
+/// This PC's Tailscale address while Tailscale is connected.
+pub fn tailscale_ip() -> Option<String> {
+    tailscale_state().ip
+}
+
+/// Whether Tailscale is installed and connected on this PC, and this PC's address in it; the
+/// firewall answer is for shared projects.
+pub fn tailscale() -> TailscaleInfo {
+    TailscaleInfo { firewall_ready: tailscale_firewall_ready(), ..tailscale_state() }
+}
+
+/// The same for NexHost sites: the firewall answer is for their ports.
+pub fn tailscale_nexhost() -> TailscaleInfo {
+    TailscaleInfo { firewall_ready: rule_exists(NEXHOST_TAILSCALE_RULE), ..tailscale_state() }
+}
+
+const NEXHOST_TAILSCALE_RULE: &str = "NexDB NexHost sites (Tailscale)";
+
+fn rule_exists(rule: &str) -> bool {
+    powershell(&format!("@(Get-NetFirewallRule -DisplayName '{rule}' -ErrorAction SilentlyContinue).Count"))
+        .is_some_and(|n| n != "0" && !n.is_empty())
+}
+
+/// Whether NexDB's Tailscale firewall rule for shared projects exists (no administrator needed).
+pub fn tailscale_firewall_ready() -> bool {
+    rule_exists(TAILSCALE_RULE)
+}
+
+/// Adds `rule`: Tailscale addresses, and only those, may reach `ports` (one Windows approval).
+#[cfg(windows)]
+fn allow_tailscale_rule(rule: &str, what: &str, ports: &std::ops::RangeInclusive<u16>) -> Result<(), String> {
+    let (first, last) = (ports.start(), ports.end());
+    run_elevated(&format!(
+        "New-NetFirewallRule -DisplayName '{rule}' -Description 'Lets devices in your Tailscale network open {what} in NexDB.' -Direction Inbound -Action Allow -Protocol TCP -LocalPort {first}-{last} -RemoteAddress {TAILSCALE_RANGE} -Profile Any | Out-Null"
+    ))?;
+    if !rule_exists(rule) {
+        return Err("Windows didn't allow it. Choose Yes on the permission prompt to let Tailscale devices in.".into());
+    }
+    Ok(())
+}
+
+/// Lets Tailscale devices, and only those, reach the share ports.
+#[cfg(windows)]
+pub fn allow_tailscale_firewall() -> Result<(), String> {
+    allow_tailscale_rule(TAILSCALE_RULE, "projects you share", &PORTS)
+}
+
+/// Lets Tailscale devices, and only those, reach the NexHost site ports.
+#[cfg(windows)]
+pub fn allow_tailscale_nexhost() -> Result<(), String> {
+    allow_tailscale_rule(NEXHOST_TAILSCALE_RULE, "sites you host with NexHost", &crate::nexhost::PORTS)
+}
+
+#[cfg(not(windows))]
+pub fn allow_tailscale_firewall() -> Result<(), String> {
+    Err("Sharing is only available on Windows.".into())
+}
+
+#[cfg(not(windows))]
+pub fn allow_tailscale_nexhost() -> Result<(), String> {
+    Err("Sharing is only available on Windows.".into())
+}
+
+#[cfg(test)]
+mod tailscale_tests {
+    use super::*;
+
+    #[test]
+    fn reads_a_running_tailscale() {
+        let json = r#"{"BackendState":"Running","Self":{"UserID":42,"DNSName":"my-pc.tail1234.ts.net.","TailscaleIPs":["100.101.5.7","fd7a:115c:a1e0::1"]},"User":{"42":{"LoginName":"user@example.com"}}}"#;
+        let t = parse_tailscale_status(json);
+        assert_eq!(t.state, "running");
+        assert_eq!(t.ip.as_deref(), Some("100.101.5.7"));
+        assert_eq!(t.dns_name.as_deref(), Some("my-pc.tail1234.ts.net"));
+        assert_eq!(t.user.as_deref(), Some("user@example.com"));
+    }
+
+    #[test]
+    fn signed_out_or_garbage_is_stopped() {
+        let t = parse_tailscale_status(r#"{"BackendState":"NeedsLogin","Self":{"TailscaleIPs":[]}}"#);
+        assert_eq!(t.state, "stopped");
+        assert!(t.ip.is_none());
+        assert_eq!(parse_tailscale_status("not json").state, "stopped");
+    }
 }
 
 /// A script in the form `powershell -EncodedCommand` takes: UTF-16LE bytes in base64.

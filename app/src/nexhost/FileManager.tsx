@@ -5,11 +5,13 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { File, Folder, FolderInput, FolderOpen, FolderPlus, TextCursorInput, Trash2, Upload } from "lucide-react";
 import { CodeEditor } from "./CodeEditor";
 import { inDesktopApp } from "../lib/scan";
-import { addFiles, importProject, listFiles, listSites, newFolder, removeEntry, renameEntry, size, unzipFile, type Entry, type Site } from "../lib/nexhost";
+import { addFiles, importProject, listFiles, projectFolders, type ProjectFolder, listSites, newFolder, removeEntry, renameEntry, size, unzipFile, type Entry, type Site } from "../lib/nexhost";
 import { listProjects, type Project } from "../lib/projects";
 
 /** The site's files, like a hosting file manager: drop files or a zip from Explorer onto it. */
-const KIND: Record<string, string> = { laravel: "Laravel", wordpress: "WordPress", node: "Node", php: "PHP", html: "HTML", empty: "empty" };
+const KIND: Record<string, string> = { laravel: "Laravel", wordpress: "WordPress", node: "Node", php: "PHP", html: "HTML", empty: "empty", mobile: "phone app" };
+/** Kinds a website can be; a phone app can't be hosted. */
+const HOSTABLE = new Set(["laravel", "wordpress", "php", "html", "node"]);
 
 export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[]) => void }) {
   const [rel, setRel] = useState("");
@@ -21,7 +23,29 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
   // Import project: the projects in NexDB's www folder, the one picked, and whether it is copying.
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [pick, setPick] = useState("");
+  // The folders inside the picked project (a backend next to a phone app), and the one chosen ("" = all of it).
+  const [folders, setFolders] = useState<ProjectFolder[]>([]);
+  const [sub, setSub] = useState("");
   const [copying, setCopying] = useState(false);
+
+  // Picking a project looks inside it; one that holds several apps preselects its website.
+  useEffect(() => {
+    setFolders([]);
+    setSub("");
+    if (!pick) return;
+    let stale = false;
+    projectFolders(pick)
+      .then((list) => {
+        if (stale) return;
+        setFolders(list);
+        setSub(list.find((f) => HOSTABLE.has(f.kind) && f.kind !== "node")?.path ?? list.find((f) => HOSTABLE.has(f.kind))?.path ?? "");
+      })
+      .catch(() => !stale && setFolders([]));
+    return () => {
+      stale = true;
+    };
+  }, [pick]);
+  const source = sub ? `${pick}/${sub}` : pick;
   // The file open in the code editor (relative to the site), if any.
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -141,6 +165,12 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                 Copy a project from NexDB's www folder into {rel ? <code>{rel}</code> : "this site"}. The project in www stays as it is;
                 node_modules and .git are left out.
               </p>
+              {folders.length > 0 && (
+                <p className="field-hint">
+                  {pick} holds more than one app. Pick the folder with the website; a phone app (React Native, Expo,
+                  Flutter) can't be hosted, so it's left out.
+                </p>
+              )}
               <div className="nh-import-row">
                 <label htmlFor="nh-import-project">Project</label>
                 <select id="nh-import-project" className="input" value={pick} onChange={(e) => setPick(e.target.value)} disabled={copying}>
@@ -150,20 +180,33 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                     </option>
                   ))}
                 </select>
+                {folders.length > 0 && (
+                  <>
+                    <label htmlFor="nh-import-folder">Folder</label>
+                    <select id="nh-import-folder" className="input" value={sub} onChange={(e) => setSub(e.target.value)} disabled={copying} data-guide="nexhost-import-folder">
+                      <option value="">All of {pick}</option>
+                      {folders.map((f) => (
+                        <option key={f.path} value={f.path} disabled={f.kind === "mobile"}>
+                          {f.path} ({KIND[f.kind] ?? f.kind}){f.kind === "mobile" ? ": can't be hosted" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </>
+                )}
                 <button
                   className="btn btn-small btn-primary"
                   disabled={!pick || copying}
                   onClick={() => {
                     setCopying(true);
-                    setStatus({ ok: true, text: `Copying ${pick}… big projects take a minute.` });
-                    importProject(site.name, rel, pick)
+                    setStatus({ ok: true, text: `Copying ${source}… big projects take a minute.` });
+                    importProject(site.name, rel, source)
                       .then(async (folder) => {
                         setProjects(null);
                         const sites = await listSites();
                         onSites?.(sites);
                         const now = sites.find((s) => s.name === site.name);
                         const opens = now && now.web_root !== site.web_root ? ` The site now opens ${folder}.` : "";
-                        setStatus({ ok: true, text: `Imported ${pick} as ${folder}.${opens}` });
+                        setStatus({ ok: true, text: `Imported ${source} as ${folder}.${opens}` });
                         load();
                       })
                       .catch((e) => setStatus({ ok: false, text: String(e) }))

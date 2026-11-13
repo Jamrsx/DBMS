@@ -3,8 +3,9 @@ import { KeyRound, ShieldAlert, Terminal, TriangleAlert } from "lucide-react";
 import { CopyButton } from "../components/CopyButton";
 import { fixedLinkInfo } from "../lib/share";
 import {
-  connectCommand,
   connectInstructions,
+  installCommand,
+  sshCommand,
   sshAddUser,
   sshDeleteUser,
   sshInfo,
@@ -213,62 +214,117 @@ export function SshCard({ site }: { site: Site }) {
       </div>
 
       <div className="set-card" data-guide="nexhost-ssh-connect">
-        <h2>Run this on the other PC</h2>
-        <label className="field">
-          <span className="field-label">SSH address</span>
-          <input value={host} onChange={(e) => saveHost(e.target.value.trim())} placeholder="ssh.yourdomain.com" spellCheck={false} />
-          <span className="field-hint">
-            In Cloudflare, add a public hostname of type <strong>SSH</strong>: <code>{addressFor}</code> → <code>ssh://localhost:2222</code>.
-          </span>
-        </label>
-        <div className="log-tabs" role="tablist" aria-label="Their computer">
-          {(
-            [
-              ["windows", "Windows"],
-              ["mac", "macOS"],
-              ["linux", "Linux"],
-            ] as const
-          ).map(([id, label]) => (
-            <button key={id} role="tab" className="log-tab" aria-selected={os === id} onClick={() => setOs(id)}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {(info.users.length ? info.users : [{ login: `${site.name}-maria`, name: "example" }]).map((u) => {
-          const cmd = connectCommand(os, u.login, addressFor);
-          return (
-            <div key={u.login} className="nh-ssh-cmd">
-              <code>{cmd}</code>
-              <CopyButton text={cmd} label="Copy command" />
-            </div>
-          );
-        })}
-        {os === "linux" && <p className="field-hint">First install cloudflared from Cloudflare's downloads page.</p>}
-        <p className="field-hint">
-          Then type the password you were given. The first time, check the fingerprint matches: <code>{info.fingerprint || "shown once SSH starts"}</code>
-        </p>
+        <h2>Connect from another PC</h2>
+        <p className="set-lede">Follow these on the computer that connects. Steps 1 to 3 are needed only once.</p>
 
-        <h3 className="nh-ssh-h3">How to connect from another PC</h3>
-        <ol className="nh-ssh-steps">
-          <li>
-            Install Cloudflare's connector once: Windows <code>winget install --id Cloudflare.cloudflared</code>, macOS <code>brew install cloudflared</code>, Linux: the
-            package from Cloudflare's downloads page.
-          </li>
-          <li>
-            Check SSH is there: <code>ssh -V</code> (Windows 10/11, macOS and Linux include it).
-          </li>
-          <li>Run the command above and type the password. Say yes to the fingerprint if it matches.</li>
-          <li>
-            Easier next time: copy the <code>~/.ssh/config</code> lines from <strong>Copy instructions</strong>, then just type <code>ssh {site.name}</code>.
-          </li>
-          <li>
-            Files with WinSCP, FileZilla or VS Code: run <code>cloudflared access tcp --hostname {addressFor} --url localhost:2222</code>, keep it open, and
-            connect with SFTP to <code>localhost</code>, port <code>2222</code>.
-          </li>
-          <li>
-            Not connecting? This PC must be on with NexDB open and SSH on. "Locked" means too many wrong passwords: wait 15 minutes or reset the password.
-          </li>
-        </ol>
+        <div className="nh-steps">
+          <section className="nh-step">
+            <span className="nh-step-num" aria-hidden="true">1</span>
+            <div className="nh-step-body">
+              <h3>Give this PC an SSH address</h3>
+              <p className="field-hint">
+                On this PC, in Cloudflare: add a public hostname of type <strong>SSH</strong> that points{" "}
+                <code>{addressFor}</code> to <code>ssh://localhost:2222</code>. Then type the address here.
+              </p>
+              <label className="field">
+                <span className="field-label">SSH address</span>
+                <input value={host} onChange={(e) => saveHost(e.target.value.trim())} placeholder="ssh.yourdomain.com" spellCheck={false} />
+              </label>
+            </div>
+          </section>
+
+          <section className="nh-step">
+            <span className="nh-step-num" aria-hidden="true">2</span>
+            <div className="nh-step-body">
+              <h3>Install Cloudflare's connector on their computer</h3>
+              <div className="log-tabs" role="tablist" aria-label="Their computer">
+                {(
+                  [
+                    ["windows", "Windows"],
+                    ["mac", "macOS"],
+                    ["linux", "Linux"],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button key={id} role="tab" className="log-tab" aria-selected={os === id} onClick={() => setOs(id)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {installCommand(os) ? (
+                <>
+                  <p className="field-hint">Open {os === "windows" ? "PowerShell" : "Terminal"} and run:</p>
+                  <div className="nh-ssh-cmd">
+                    <code>{installCommand(os)}</code>
+                    <CopyButton text={installCommand(os)!} label="Copy command" />
+                  </div>
+                </>
+              ) : (
+                <p className="field-hint">Download cloudflared for your Linux from Cloudflare's downloads page and install it.</p>
+              )}
+            </div>
+          </section>
+
+          <section className="nh-step">
+            <span className="nh-step-num" aria-hidden="true">3</span>
+            <div className="nh-step-body">
+              <h3>Check SSH is there</h3>
+              <p className="field-hint">Windows 10/11, macOS and Linux include it. This should print a version:</p>
+              <div className="nh-ssh-cmd">
+                <code>ssh -V</code>
+                <CopyButton text="ssh -V" label="Copy command" />
+              </div>
+            </div>
+          </section>
+
+          <section className="nh-step">
+            <span className="nh-step-num" aria-hidden="true">4</span>
+            <div className="nh-step-body">
+              <h3>Sign in</h3>
+              <p className="field-hint">Run the line for your login, then type the password you were given.</p>
+              {(info.users.length ? info.users : [{ login: `${site.name}-maria`, name: "example" }]).map((u) => {
+                const cmd = sshCommand(u.login, addressFor);
+                return (
+                  <div key={u.login} className="nh-ssh-cmd">
+                    <code>{cmd}</code>
+                    <CopyButton text={cmd} label="Copy command" />
+                  </div>
+                );
+              })}
+              <p className="field-hint">
+                The first time, SSH shows a fingerprint. Answer <strong>yes</strong> only if it matches:{" "}
+                <code>{info.fingerprint || "shown once SSH starts"}</code>
+              </p>
+            </div>
+          </section>
+        </div>
+
+        <div className="nh-more">
+          <details>
+            <summary>Easier next time: just type ssh {site.name}</summary>
+            <p className="field-hint">
+              Copy the <code>~/.ssh/config</code> lines from <strong>Copy instructions</strong> into that file on their computer.
+            </p>
+          </details>
+          <details>
+            <summary>Edit files with WinSCP, FileZilla or VS Code</summary>
+            <p className="field-hint">Run this and keep the window open:</p>
+            <div className="nh-ssh-cmd">
+              <code>{`cloudflared access tcp --hostname ${addressFor} --url localhost:2222`}</code>
+              <CopyButton text={`cloudflared access tcp --hostname ${addressFor} --url localhost:2222`} label="Copy command" />
+            </div>
+            <p className="field-hint">
+              Then connect with SFTP to <code>localhost</code>, port <code>2222</code>, with the same login and password.
+            </p>
+          </details>
+          <details>
+            <summary>Not connecting?</summary>
+            <ul className="field-hint nh-ssh-steps">
+              <li>This PC must be on, with NexDB open and SSH turned on above.</li>
+              <li>"Locked" means too many wrong passwords: wait 15 minutes, or reset the password above.</li>
+              <li>Check the SSH address matches the hostname you added in Cloudflare.</li>
+            </ul>
+          </details>
+        </div>
       </div>
 
       <div className="set-card">

@@ -10201,6 +10201,93 @@ body.grace-ended .palette-backdrop {
   margin: 12px 0 0;
 }
 
+/* Site page: tabs with the Split view button; two sections side by side. */
+.nh-tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.nh-split {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.nh-split-pane {
+  min-width: 0;
+}
+/* Narrow panes: the section tabs scroll sideways instead of wrapping under Close. */
+.nh-split .nh-tabs-row {
+  flex-wrap: nowrap;
+}
+.nh-split .details-tabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-width: 0;
+}
+.nh-split .details-tabs .log-tab {
+  flex: none;
+}
+.nh-split-pane + .nh-split-pane {
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+@media (max-width: 1100px) {
+  .nh-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nh-split-pane + .nh-split-pane {
+    padding-left: 0;
+    border-left: 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* Overview: "Who can open it", one row per way in (this PC, public link, Tailscale). */
+.nh-access {
+  display: grid;
+  gap: 0;
+}
+.nh-access h2 {
+  margin-bottom: 4px;
+}
+.nh-access-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.nh-access h2 + .nh-access-row {
+  border-top: 0;
+}
+.nh-access-row.on .nh-live-icon {
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.nh-access-warn {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.btn-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Overview: the Go live switch. */
 .nh-live-bar {
   display: flex;
@@ -10368,6 +10455,63 @@ body.grace-ended .palette-backdrop {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: 12.5px;
+}
+/* Numbered steps: one card per step, a big number on the left. */
+.nh-steps {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.nh-step {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.nh-step-num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-soft, var(--surface-2));
+  color: var(--accent-text);
+  font-weight: 700;
+  font-size: 13px;
+}
+.nh-step-body {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+.nh-step-body h3 {
+  margin: 2px 0 0;
+  font: 600 14px var(--font-display);
+}
+.nh-step-body .field-hint,
+.nh-step-body .field {
+  margin: 0;
+}
+.nh-more {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+.nh-more details {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.nh-more summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.nh-more details[open] {
+  display: grid;
+  gap: 8px;
 }
 .nh-ssh-h3 {
   margin: 8px 0 0;
@@ -10797,4 +10941,34 @@ button.nh-map-node:focus-visible {
   margin: 4px 0 0;
   font-family: var(--mono);
   font-size: 12px;
+}
+
+/* Tutorial videos: played in a window over the app. */
+.tutorial-dialog {
+  width: min(960px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+}
+.tutorial-dialog::backdrop {
+  background: rgb(0 0 0 / 0.6);
+}
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+}
+.tutorial-head h2 {
+  margin: 0;
+  font: 600 15px var(--font-display);
+}
+.tutorial-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
 }

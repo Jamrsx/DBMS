@@ -137,6 +137,11 @@ export async function openProject(name: string, what: "folder" | "url" | "local"
   if (inDesktopApp) return invoke("project_open", { name, what });
 }
 
+/** Opens the projects folder (www) in File Explorer. */
+export async function openWwwFolder(): Promise<void> {
+  if (inDesktopApp) return invoke("www_open");
+}
+
 /** Mirrors the backend's rule for folder names. */
 export function nameProblem(name: string, existing: string[]): string | null {
   if (!name) return null;
@@ -165,7 +170,7 @@ const preview = (() => {
       php: name === "my-shop" ? "8.4.27" : null,
     };
   }
-  const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node")];
+  const projects: Project[] = [mk("blog", "wordpress"), mk("my-shop", "laravel"), mk("notes-api", "node"), mk("school-app", "empty")];
   let synced = false;
   const listeners = new Set<(e: QuickstartEvent) => void>();
   let bin: DeletedProject[] = [

@@ -56,6 +56,33 @@ export interface ShareInfo {
   } | null;
   /** The front end and backend folders found in the project. */
   app_parts: AppParts | null;
+  /** Tailscale on this PC: shared links also open on devices in the user's Tailscale network. */
+  tailscale: TailscaleInfo;
+}
+
+export interface TailscaleInfo {
+  /** "missing": not installed; "stopped": installed but not connected or signed out. */
+  state: "missing" | "stopped" | "running";
+  /** This PC's Tailscale address (100.x.y.z) while running. */
+  ip: string | null;
+  /** Its name in the network (my-pc.tail1234.ts.net), when MagicDNS is on. */
+  dns_name: string | null;
+  user: string | null;
+  /** NexDB's firewall rule that lets in only Tailscale devices. */
+  firewall_ready: boolean;
+}
+
+/** Tailscale's pages NexDB links to; NexDB never installs Tailscale or signs in for you. */
+export const TAILSCALE_DOWNLOAD = "https://tailscale.com/download";
+export const TAILSCALE_USERS = "https://login.tailscale.com/admin/users";
+export const TAILSCALE_MACHINES = "https://login.tailscale.com/admin/machines";
+
+/** The same link on this PC's Tailscale address or name, for a link on its Wi-Fi address. */
+export function tailscaleLinks(url: string, info: ShareInfo): string[] {
+  const t = info.tailscale;
+  if (t.state !== "running" || !t.ip || !info.lan_ip || !url.includes(`//${info.lan_ip}:`)) return [];
+  const byIp = url.replace(`//${info.lan_ip}:`, `//${t.ip}:`);
+  return t.dns_name ? [url.replace(`//${info.lan_ip}:`, `//${t.dns_name}:`), byIp] : [byIp];
 }
 
 export interface AppParts {
@@ -86,8 +113,17 @@ onPractice((on) => {
       lan_qr: qr,
       firewall_ready: true,
       tunnel_installed: true,
+      tailscale: { ...sampleTailscale, firewall_ready: true },
     };
 });
+// Practice and the preview: a pretend Tailscale, signed in, so its links show.
+const sampleTailscale: TailscaleInfo = {
+  state: "running",
+  ip: "100.101.5.7",
+  dns_name: "my-pc.tail1234.ts.net",
+  user: "you@example.com",
+  firewall_ready: false,
+};
 const base = (name: string): ShareInfo => ({
   port: null,
   lan_ip: "192.168.1.20",
@@ -104,6 +140,7 @@ const base = (name: string): ShareInfo => ({
   public_qr: null,
   dev: null,
   app: null,
+  tailscale: { ...sampleTailscale },
   // The preview's blog is split like parish: a Vite app in web, its API in Backend.
   app_parts:
     name === "blog"
@@ -141,6 +178,13 @@ export async function allowFirewall(): Promise<void> {
   if (inDesktopApp) return invoke("share_allow_firewall");
   await pause(800);
   for (const s of Object.values(preview)) s.firewall_ready = true;
+}
+
+/** Asks Windows (one approval) to let devices in the user's Tailscale network, and only those, reach shared projects. */
+export async function allowTailscale(): Promise<void> {
+  if (inDesktopApp) return invoke("share_allow_tailscale");
+  await pause(800);
+  for (const s of Object.values(preview)) s.tailscale.firewall_ready = true;
 }
 
 /** A public link to the shared site, its shared dev server ("dev") or its whole app ("app"). */

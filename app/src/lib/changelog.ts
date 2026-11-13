@@ -7,6 +7,21 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.7",
+    title: "Share and host privately with Tailscale; open your projects folder",
+    changes: [
+      "Share now works with Tailscale: if it's on this PC, every shared link also gets a Tailscale address, so your devices and testers in your Tailscale network can open it from anywhere. Nobody else can.",
+      "NexHost sites get a Tailscale switch under Go live: devices in your Tailscale network open the site from anywhere, on its own or next to its ngrok or Cloudflare link.",
+      "A tidier NexHost site page: problems come first (only when there are any), then one Who can open it card with this PC, the public link and Tailscale side by side. The Go live tab is now Sharing, with the public link and Tailscale's setup together.",
+      "NexHost Split view: show two sections of a site side by side, like Files next to Database, so editing .env doesn't mean going back and forth.",
+      "SSH's Connect from another PC is now four numbered steps with a Copy button each; the extras are folded below.",
+      "NexHost's Import project can copy one folder out of a project that holds several apps, like the Laravel backend next to a React Native app. Phone apps are shown but can't be picked, since they can't be hosted.",
+      "New to Tailscale? Watch how to set it up: a 2½-minute video with Nex, right in the Tailscale cards. It comes with NexDB, so it plays without internet.",
+      "One Windows Firewall rule, added only when you allow it, lets in Tailscale addresses alone. NexDB never installs Tailscale or signs in for you; Share this PC and Invite people open Tailscale's page for that.",
+      "Projects has a new Open folder button next to Import, Clone and New project. It opens your projects folder (the www folder from Settings → Folders) in File Explorer; hover it to see the path.",
+    ],
+  },
+  {
     version: "0.5.6",
     title: "NexHost: go live with one switch, seed the database",
     changes: [

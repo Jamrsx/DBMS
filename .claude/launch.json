@@ -4,8 +4,27 @@
     {
       "name": "devmanager-ui",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "app", "run", "dev"],
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "dev"
+      ],
       "port": 1420
+    },
+    {
+      "name": "devmanager-ui-alt",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "1430"
+      ],
+      "port": 1430
     }
   ]
 }

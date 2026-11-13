@@ -27,7 +27,7 @@ export function GoLiveCard({ site, onSites }: { site: Site; onSites: (s: Site[])
   return (
     <section className="set-card" data-guide="nexhost-live">
       <h2>
-        <Globe size={16} aria-hidden="true" /> Go live
+        <Globe size={16} aria-hidden="true" /> Public link: anyone with it
       </h2>
       <p className={site.live ? "nh-state on" : "nh-state"} role="status">
         {site.live ? "Live: anyone with the link can open it." : "Offline: only this PC can open it."}

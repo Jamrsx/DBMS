@@ -402,7 +402,8 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
     if web == "apache" {
         write_vhosts(&etc, www, port, https.as_ref(), &php_ports, roots)?;
         write_apache_shares(&etc, www, port, &settings.preferences, roots)?;
-        let nexhost = crate::nexhost::conf(root, "apache", &settings.preferences.nexhost, settings.php_fastcgi_port, Path::new(""));
+        let ts = nexhost_tailscale_ip(settings);
+        let nexhost = crate::nexhost::conf(root, "apache", &settings.preferences.nexhost, settings.php_fastcgi_port, Path::new(""), ts.as_deref());
         return crate::configure::write_file(&etc.join("apache").join("sites-enabled").join("zz-nexhost.conf"), &nexhost);
     }
     let nginx_dir = settings
@@ -426,8 +427,14 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         share_app: &settings.preferences.share_app,
         site_roots: roots,
     })?;
-    let nexhost = crate::nexhost::conf(root, "nginx", &settings.preferences.nexhost, settings.php_fastcgi_port, &params);
+    let ts = nexhost_tailscale_ip(settings);
+    let nexhost = crate::nexhost::conf(root, "nginx", &settings.preferences.nexhost, settings.php_fastcgi_port, &params, ts.as_deref());
     crate::configure::write_file(&etc.join("nginx").join("sites-enabled").join("zz-nexhost.conf"), &nexhost)
+}
+
+/// This PC's Tailscale address, asked only when a NexHost site is shared on Tailscale.
+fn nexhost_tailscale_ip(settings: &crate::settings::Settings) -> Option<String> {
+    settings.preferences.nexhost.values().any(|s| s.tailscale).then(crate::share::tailscale_ip).flatten()
 }
 
 /// Shared projects for Apache: each on its own port with the project as the whole site, so a

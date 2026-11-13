@@ -22,6 +22,7 @@ import {
   listProjects,
   openInEditor,
   openProject,
+  openWwwFolder,
   restoreProject,
   syncHosts,
   type DeletedProject,
@@ -31,6 +32,7 @@ import {
 } from "../lib/projects";
 import { openTerminalWindow } from "../lib/terminal";
 import { realDesktopApp } from "../lib/scan";
+import { isPractice } from "../lib/practice";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexSay } from "../lib/nex";
 import { formatWhen } from "../lib/backups";
@@ -130,6 +132,19 @@ export function Projects({
     await refresh();
   }
 
+  async function openRoot() {
+    setError(null);
+    if (isPractice() || !realDesktopApp) {
+      setNotice(`Practice: this opens ${info?.www_dir ?? "your projects folder"} in File Explorer. Nothing was opened.`);
+      return;
+    }
+    try {
+      await openWwwFolder();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   const act = (p: Promise<unknown>) => p.catch((e) => setError(String(e)));
   const missing = new Set(info?.missing_hosts ?? []);
   const projects = info?.projects ?? [];
@@ -146,6 +161,15 @@ export function Projects({
           </p>
         </div>
         <div className="dash-actions">
+          <button
+            className="btn"
+            data-guide="project-folder"
+            title={info ? `Open ${info.www_dir} in File Explorer` : "Open the projects folder in File Explorer"}
+            disabled={!info}
+            onClick={() => void openRoot()}
+          >
+            <FolderOpen size={14} aria-hidden="true" /> Open folder
+          </button>
           <button
             className="btn"
             aria-pressed={importing}

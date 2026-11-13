@@ -104,7 +104,7 @@ const STEPS: Step[] = [
   {
     chapter: "Projects",
     title: "Make a project",
-    body: "New project makes a ready-to-run Laravel, WordPress or React app. Next to it, Clone brings one from GitHub and Import copies them from Laragon or XAMPP.",
+    body: "New project makes a ready-to-run Laravel, WordPress or React app. Next to it, Clone brings one from GitHub, Import copies them from Laragon or XAMPP, and Open folder shows them all in File Explorer.",
     target: '[data-guide="project-new"]',
     page: "projects",
   },

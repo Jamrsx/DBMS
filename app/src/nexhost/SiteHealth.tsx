@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CircleAlert, CircleCheck, Database, FolderOpen, Globe, Monitor, Users, Wrench } from "lucide-react";
+import { CircleAlert, CircleCheck, Database, FolderOpen, Globe, Monitor, Network, Users, Wrench } from "lucide-react";
 import { fixProblem, siteProblems, type Problem, type Site } from "../lib/nexhost";
 
 type Tab = "files" | "database" | "live";
@@ -10,11 +10,22 @@ type Tab = "files" | "database" | "live";
  */
 export function ConnectionMap({ site, onTab }: { site: Site; onTab: (t: Tab) => void }) {
   const live = site.live;
+  const ts = site.tailscale;
   const tunnel = site.address?.includes("ngrok") ? "ngrok" : site.address ? "Cloudflare" : "Tunnel";
+  // The way in: the public tunnel, Tailscale, or both side by side.
+  const wayIn = live && ts ? `${tunnel} + Tailscale` : ts ? "Tailscale" : tunnel;
+  const wayDetail = live && site.address ? (ts ? `${site.address} and your Tailscale network` : site.address) : ts ? "Your Tailscale network" : "Off: turn on a way in";
   const files = site.web_root.split(/[\\/]/).slice(-2).join("\\");
   const nodes: { key: string; icon: typeof Globe; title: string; detail: string; on: boolean; tab?: Tab }[] = [
-    { key: "visitors", icon: Users, title: "Visitors", detail: live ? "Anyone with the link" : "Nobody outside this PC", on: live, tab: "live" },
-    { key: "tunnel", icon: Globe, title: tunnel, detail: live && site.address ? site.address : "Off: press Go live", on: live, tab: "live" },
+    {
+      key: "visitors",
+      icon: Users,
+      title: "Visitors",
+      detail: live ? "Anyone with the link" : ts ? "Your Tailscale devices" : "Nobody outside this PC",
+      on: live || ts,
+      tab: "live",
+    },
+    { key: "tunnel", icon: ts && !live ? Network : Globe, title: wayIn, detail: wayDetail, on: live || ts, tab: "live" },
     { key: "pc", icon: Monitor, title: "This PC", detail: `127.0.0.1:${site.port}`, on: true },
     { key: "files", icon: FolderOpen, title: "Site files", detail: files, on: true, tab: "files" },
     { key: "db", icon: Database, title: "Database", detail: site.db ?? "None yet", on: !!site.db, tab: "database" },
@@ -54,7 +65,8 @@ export function ConnectionMap({ site, onTab }: { site: Site; onTab: (t: Tab) => 
 }
 
 /** What stops the site from working, each with a Fix button and the manual way. */
-export function ProblemsCard({ site }: { site: Site }) {
+/** `quietWhenOk`: show nothing while there are no problems (the Overview only speaks up when needed). */
+export function ProblemsCard({ site, quietWhenOk = false }: { site: Site; quietWhenOk?: boolean }) {
   const [list, setList] = useState<Problem[] | null>(null);
   const [fixing, setFixing] = useState<string | null>(null);
   const [lines, setLines] = useState<string[]>([]);
@@ -81,6 +93,7 @@ export function ProblemsCard({ site }: { site: Site }) {
   };
 
   if (list === null) return msg ? <p className="field-error">{msg.text}</p> : null;
+  if (quietWhenOk && list.length === 0 && !msg) return null;
 
   return (
     <section className="set-card nh-health" data-guide="nexhost-problems" aria-label="Problems">

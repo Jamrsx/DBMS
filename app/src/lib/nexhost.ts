@@ -1,5 +1,6 @@
 import { listen } from "@tauri-apps/api/event";
-import { invoke } from "./invoke";
+import { invoke, pause } from "./invoke";
+import type { TailscaleInfo } from "./share";
 import { isPractice } from "./practice";
 import { inDesktopApp } from "./scan";
 
@@ -16,6 +17,8 @@ export interface Site {
   address: string | null;
   /** Its database name, once made. */
   db: string | null;
+  /** Open to devices in the user's Tailscale network too. */
+  tailscale: boolean;
 }
 
 export interface Entry {
@@ -49,8 +52,8 @@ const DEMO_FILES: Record<string, Entry[]> = {
   "portfolio/": [{ name: "index.html", dir: false, size: 2400, modified: now() - 86400 }],
 };
 const demoSites: Site[] = [
-  { name: "shop", path: "C:\\NexDB\\nexhost\\shop", web_root: "C:\\NexDB\\nexhost\\shop", port: 8201, kind: "php", live: true, address: "shop.example.com", db: "nh_shop" },
-  { name: "portfolio", path: "C:\\NexDB\\nexhost\\portfolio", web_root: "C:\\NexDB\\nexhost\\portfolio", port: 8202, kind: "static", live: false, address: null, db: null },
+  { name: "shop", path: "C:\\NexDB\\nexhost\\shop", web_root: "C:\\NexDB\\nexhost\\shop", port: 8201, kind: "php", live: true, address: "shop.example.com", db: "nh_shop", tailscale: false },
+  { name: "portfolio", path: "C:\\NexDB\\nexhost\\portfolio", web_root: "C:\\NexDB\\nexhost\\portfolio", port: 8202, kind: "static", live: false, address: null, db: null, tailscale: false },
 ];
 const demoDb: Record<string, DbInfo> = {
   shop: { name: "nh_shop", user: "nh_shop", password: "Practice7Pass2Word", host: "127.0.0.1", port: 3306 },
@@ -67,7 +70,7 @@ export async function createSite(name: string): Promise<Site[]> {
   if (!/^[a-z0-9][a-z0-9-]{0,39}$/.test(name)) throw "Use up to 40 small letters, numbers and dashes for the site name, like my-shop.";
   if (demoSites.some((s) => s.name === name)) throw `There is already a site named ${name}.`;
   const path = `C:\\NexDB\\nexhost\\${name}`;
-  demoSites.push({ name, path, web_root: path, port: 8201 + demoSites.length, kind: "php", live: false, address: null, db: null });
+  demoSites.push({ name, path, web_root: path, port: 8201 + demoSites.length, kind: "php", live: false, address: null, db: null, tailscale: false });
   DEMO_FILES[`${name}/`] = [{ name: "index.php", dir: false, size: 320, modified: now() }];
   return copy();
 }
@@ -103,10 +106,31 @@ export async function addFiles(name: string, rel: string, sources: string[]): Pr
 export async function importProject(name: string, rel: string, project: string): Promise<string> {
   if (!demo()) return invoke("nexhost_import_project", { name, rel, project });
   const list = (DEMO_FILES[`${name}/${rel}`] ??= []);
-  let folder = project;
-  for (let n = 2; list.some((e) => e.name === folder); n++) folder = `${project} (${n})`;
+  const base = project.split("/").pop() ?? project;
+  let folder = base;
+  for (let n = 2; list.some((e) => e.name === folder); n++) folder = `${base} (${n})`;
   list.push({ name: folder, dir: true, size: 0, modified: now() });
   return rel ? `${rel}/${folder}` : folder;
+}
+
+/** A folder inside a www project that can be imported on its own. */
+export interface ProjectFolder {
+  /** Inside the project, with "/" ("backend", "apps/api"). */
+  path: string;
+  /** Like a project's kind, or "mobile" for a phone app (React Native, Expo, Flutter). */
+  kind: "laravel" | "wordpress" | "node" | "php" | "html" | "empty" | "mobile";
+}
+
+/** The folders inside a project that hold their own app; none when the project is one app. */
+export async function projectFolders(project: string): Promise<ProjectFolder[]> {
+  if (!demo()) return invoke("nexhost_project_folders", { project });
+  // Practice: a project that holds a Laravel backend and a React Native app.
+  return project === "school-app" || project === "occ_admission"
+    ? [
+        { path: "backend", kind: "laravel" },
+        { path: "mobile", kind: "mobile" },
+      ]
+    : [];
 }
 
 export async function unzipFile(name: string, rel: string, zip: string): Promise<number> {
@@ -161,6 +185,37 @@ export async function goLive(name: string, address: string | null, password: str
     s.address = address || `${name}.example.com`;
   }
   return copy();
+}
+
+// Practice and the preview: a pretend Tailscale, signed in, firewall not yet allowed.
+const demoTailscale: TailscaleInfo = {
+  state: "running",
+  ip: "100.101.5.7",
+  dns_name: "my-pc.tail1234.ts.net",
+  user: "you@example.com",
+  firewall_ready: false,
+};
+
+/** Tailscale on this PC, with the firewall answer for NexHost's ports. */
+export async function nexhostTailscale(): Promise<TailscaleInfo> {
+  if (!demo()) return invoke("nexhost_tailscale_info");
+  return { ...demoTailscale };
+}
+
+/** Opens a site to devices in the user's Tailscale network too, or closes it; the web server restarts. */
+export async function setSiteTailscale(name: string, on: boolean): Promise<Site[]> {
+  if (!demo()) return invoke("nexhost_tailscale_set", { name, on });
+  await pause(600);
+  const s = demoSites.find((x) => x.name === name);
+  if (s) s.tailscale = on;
+  return copy();
+}
+
+/** Asks Windows (one approval) to let Tailscale devices, and only those, reach NexHost sites. */
+export async function allowNexhostTailscale(): Promise<void> {
+  if (!demo()) return invoke("nexhost_allow_tailscale");
+  await pause(800);
+  demoTailscale.firewall_ready = true;
 }
 
 export async function goOffline(name: string): Promise<Site[]> {
@@ -283,6 +338,18 @@ export async function sshLog(name: string): Promise<SshLog[]> {
 export type ConnectOs = "windows" | "mac" | "linux";
 
 /** The one command to run on the other computer, with the login and address filled in. */
+/** Installs Cloudflare's connector on their computer (once); null on Linux (a download instead). */
+export function installCommand(os: ConnectOs): string | null {
+  if (os === "windows") return "winget install --id Cloudflare.cloudflared -e";
+  if (os === "mac") return "brew install cloudflared";
+  return null;
+}
+
+/** Signs in to the site over SSH through Cloudflare. */
+export function sshCommand(login: string, host: string): string {
+  return `ssh -o ProxyCommand="cloudflared access ssh --hostname %h" ${login}@${host}`;
+}
+
 export function connectCommand(os: ConnectOs, login: string, host: string): string {
   const ssh = `ssh -o ProxyCommand="cloudflared access ssh --hostname %h" ${login}@${host}`;
   if (os === "windows") return `winget install --id Cloudflare.cloudflared -e; ${ssh}`;
