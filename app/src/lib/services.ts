@@ -141,6 +141,10 @@ const preview = (() => {
     { id: "redis", name: "Redis", version: "8.10.3", port: 6379, managed: true },
   ];
   const PORT_80 = "Port 80 is already in use by httpd.exe (PID 9112). Stop that program, then press Start.";
+  // `?demo=allgreen` (product videos and screenshots): every service starts cleanly and MySQL is
+  // NexDB's own, so Start all shows a healthy stack. Browser preview only.
+  const allGreen = new URLSearchParams(location.search).get("demo") === "allgreen";
+  if (allGreen) base.forEach((s) => (s.managed = true));
 
   return {
     // The browser preview remembers its pretend setup for the tab, so a reload skips the wizard.
@@ -176,10 +180,10 @@ const preview = (() => {
     },
     async start(id?: string) {
       await sleep(700);
-      const ids = id ? [id] : ["php", "php-8.4.27", "apache", "postgres", "mailpit", "redis"];
+      const ids = id ? [id] : ["php", "php-8.4.27", ...(allGreen ? ["mysql"] : []), "apache", "postgres", "mailpit", "redis"];
       const failures: string[] = [];
       for (const s of ids) {
-        if (s === "apache") {
+        if (s === "apache" && !allGreen) {
           errors.apache = PORT_80;
           logs.apache.push(
             `[${stamp()}] [core:error] [pid 9112:tid 1] (OS 10048) Only one usage of each socket address is normally permitted.  : AH00072: make_sock: could not bind to address 0.0.0.0:80`,

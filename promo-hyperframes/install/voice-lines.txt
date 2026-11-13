@@ -1,0 +1,15 @@
+Optional voice-over for the "How to install NexDB" video (the current render has no voice).
+One file per line, named 1.mp3 ... 12.mp3. The video will be re-timed to your recordings.
+
+1. Installing NexDB? You might see a warning. Here's why.
+2. NexDB isn't code-signed yet. Those certificates cost money every year, and we're a small team.
+3. So Windows and macOS just don't know us yet. NexDB itself is safe to install.
+4. On Windows, open the installer. You'll see this blue screen.
+5. Click "More info". Then click "Run anyway".
+6. Done. It installs like any other app.
+7. On Mac, drag NexDB to Applications. The first time you open it, macOS blocks it.
+8. Click "Done". Not "Move to Trash".
+9. Open System Settings, then Privacy and Security. Scroll down and click "Open Anyway".
+10. Enter your Mac password, then click "Open Anyway" once more.
+11. Done! You only do this once.
+12. Only download NexDB from db dot nexiodev dot site.

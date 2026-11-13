@@ -1,0 +1,889 @@
+{
+  "ok": false,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 4,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "duplicate_media_discovery_risk",
+        "severity": "warning",
+        "message": "Detected 2 matching img entries with the same source/start/duration.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\glass-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Avoid duplicated media nodes that can be discovered twice during compilation."
+      },
+      {
+        "code": "gsap_repeated_fromto_without_baseline",
+        "severity": "warning",
+        "message": "2 tl.fromTo() calls target \"#win\" with no stable baseline. The last-authored fromTo \"from\" values become the element's resting state for any seek before the first tween actually runs, because GSAP applies fromTo from-values at authoring time (immediateRender), not at tween position.",
+        "selector": "#win",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\glass-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add `immediateRender: false` to every fromTo except the earliest-positioned one (at 0s), so pre-first-tween seeks keep its \"from\" values. A hiding `tl.set(..., 0)` baseline trips gsap_timeline_set_initial_hide, and a `gsap.set` authored before the fromTo calls is overwritten by them."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"stage\"> is a timeline element that contains nested <div id=\"win\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#stage",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\glass-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"stage\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"captions\"> is a timeline element that contains nested <div id=\"cap0\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#captions",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\glass-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"captions\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 11,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx0\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx1\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx4\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx5\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx6\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx7\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx8\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx10\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx11\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx12\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx14\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "24.194",
+          "data-width": "1920",
+          "data-height": "1080"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1920,
+          "height": 1080
+        },
+        "time": 0
+      }
+    ]
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 4,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "escaped_container",
+        "severity": "warning",
+        "time": 1.344,
+        "selector": "#sheen",
+        "message": "Positioned element renders far outside its offset parent — its coordinates were likely computed in a different frame (canvas/viewport pixels).",
+        "rect": {
+          "left": -2816.8,
+          "top": 40,
+          "right": -1424.8,
+          "bottom": 880,
+          "width": 1392,
+          "height": 840
+        },
+        "containerSelector": "#win",
+        "text": "",
+        "fixHint": "Compute left/top in the offset parent's frame (subtract its rect), or mark intentional placement with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 640,
+          "top": 110,
+          "right": 1800,
+          "bottom": 810,
+          "width": 1160,
+          "height": 700
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": -2816.8,
+          "y": 40,
+          "width": 1392,
+          "height": 840
+        },
+        "firstSeen": 1.344,
+        "lastSeen": 4.032,
+        "occurrences": 2,
+        "heldMs": 0,
+        "times": [
+          1.344,
+          4.032
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "warning",
+        "time": 6.721,
+        "selector": "#sheen",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": 524,
+          "top": 40,
+          "right": 1916,
+          "bottom": 880,
+          "width": 1392,
+          "height": 840
+        },
+        "containerSelector": "#win",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 640,
+          "top": 110,
+          "right": 1800,
+          "bottom": 810,
+          "width": 1160,
+          "height": 700
+        },
+        "overflow": {
+          "left": 116,
+          "right": 116,
+          "top": 70,
+          "bottom": 70
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 524,
+          "y": 40,
+          "width": 1392,
+          "height": 840
+        },
+        "firstSeen": 1.344,
+        "lastSeen": 17.473,
+        "occurrences": 7,
+        "heldMs": 0,
+        "times": [
+          1.344,
+          4.032,
+          6.721,
+          9.409,
+          12.097,
+          14.785,
+          17.473
+        ]
+      },
+      {
+        "code": "rotation_pivot_drift",
+        "severity": "warning",
+        "time": 22.85,
+        "selector": "#dv-armR",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 362.74,
+          "y": 641.81,
+          "width": 130.56,
+          "height": 130.36
+        },
+        "rect": {
+          "left": 362.74,
+          "top": 641.81,
+          "right": 493.29999999999995,
+          "bottom": 772.1700000000001,
+          "width": 130.56,
+          "height": 130.36
+        },
+        "message": "Rotating element's bounding-box center drifts 118px across rotation — it is not spinning about its own center (check transformOrigin/svgOrigin).",
+        "fixHint": "The bounding-box center should stay fixed while the element spins; check its transformOrigin/svgOrigin so rotation pivots about the element's own center rather than a point in a coordinate space it was resized out of.",
+        "firstSeen": 22.85,
+        "lastSeen": 22.85,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.85
+        ]
+      },
+      {
+        "code": "off_pivot_rotation",
+        "severity": "warning",
+        "time": 22.85,
+        "selector": "#dv-armR",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 372.51,
+          "y": 651.62,
+          "width": 111.01999999999998,
+          "height": 110.74000000000001
+        },
+        "rect": {
+          "left": 372.51,
+          "top": 651.62,
+          "right": 483.53,
+          "bottom": 762.36,
+          "width": 111.01999999999998,
+          "height": 110.74000000000001
+        },
+        "message": "Gauge/dial pointer rotates about a point 146px from the dial hub — its center-of-rotation is off the hub, so it points wrong or overshoots the track (check the rotating group's pivot: translate to the hub before rotate, or set svgOrigin/transform-origin to the hub).",
+        "fixHint": "The pointer's center-of-rotation must coincide with the dial hub. Rotate the group about the hub (e.g. transform-origin/svgOrigin set to the hub center, or translate the group so its rotation pivot lands on the hub) rather than about the element's own bbox center.",
+        "firstSeen": 22.85,
+        "lastSeen": 22.85,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.85
+        ]
+      }
+    ],
+    "duration": 24.194,
+    "samples": [
+      1.344,
+      4.032,
+      6.721,
+      9.409,
+      12.097,
+      14.785,
+      17.473,
+      20.162,
+      22.85
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 4,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": false,
+    "errorCount": 1,
+    "warningCount": 7,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 2.9:1; WCAG AA requires 3:1.",
+        "text": "Versions",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(6,115,158)",
+        "ratio": 2.9,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(187,195,212)",
+        "large": true,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(5)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 658,
+          "y": 446,
+          "width": 213,
+          "height": 53
+        },
+        "time": 6.721,
+        "times": [
+          6.721
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "error",
+        "message": "Contrast is 4.21:1; WCAG AA requires 4.5:1.",
+        "text": "Database",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(37,78,167)",
+        "ratio": 4.21,
+        "requiredRatio": 4.5,
+        "suggestedColor": "rgb(191,199,214)",
+        "large": false,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(5) > div > span",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 945,
+          "y": 592,
+          "width": 148.046875,
+          "height": 25
+        },
+        "time": 6.721,
+        "times": [
+          6.721,
+          17.473
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 1.77:1; WCAG AA requires 3:1.",
+        "text": "—",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(135,144,153)",
+        "ratio": 1.77,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(65,68,74)",
+        "large": true,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(3) > b:nth-of-type(1)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1663.703125,
+          "y": 125.5,
+          "width": 18.75,
+          "height": 32
+        },
+        "time": 12.097,
+        "times": [
+          12.097
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 2.13:1; WCAG AA requires 3:1.",
+        "text": "□",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(117,132,132)",
+        "ratio": 2.13,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(54,56,61)",
+        "large": true,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(5) > span:nth-of-type(3) > b:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1708.453125,
+          "y": 125.5,
+          "width": 21.9375,
+          "height": 32
+        },
+        "time": 12.097,
+        "times": [
+          12.097
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 2.35:1; WCAG AA requires 3:1.",
+        "text": "24",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(142,119,71)",
+        "ratio": 2.35,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(47,49,53)",
+        "large": true,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(6) > div > em",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1048.5,
+          "y": 651,
+          "width": 33.609375,
+          "height": 37
+        },
+        "time": 12.097,
+        "times": [
+          12.097
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 2.78:1; WCAG AA requires 3:1.",
+        "text": "Projects",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(90,111,147)",
+        "ratio": 2.78,
+        "requiredRatio": 3,
+        "suggestedColor": "rgb(192,200,215)",
+        "large": true,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(1) > div:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 658,
+          "y": 263,
+          "width": 213,
+          "height": 53
+        },
+        "time": 17.473,
+        "times": [
+          17.473
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 4.42:1; WCAG AA requires 4.5:1.",
+        "text": "Web server",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(57,81,115)",
+        "ratio": 4.42,
+        "requiredRatio": 4.5,
+        "suggestedColor": "rgb(185,194,210)",
+        "large": false,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(3) > div > span",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 945,
+          "y": 400,
+          "width": 151.953125,
+          "height": 25
+        },
+        "time": 17.473,
+        "times": [
+          17.473
+        ]
+      },
+      {
+        "code": "contrast_aa_failure",
+        "severity": "warning",
+        "message": "Contrast is 4.27:1; WCAG AA requires 4.5:1.",
+        "text": "Runs your PHP",
+        "fg": "rgb(183,192,209)",
+        "bg": "rgb(82,59,185)",
+        "ratio": 4.27,
+        "requiredRatio": 4.5,
+        "suggestedColor": "rgb(189,197,213)",
+        "large": false,
+        "selector": "div > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(6) > div:nth-of-type(2) > div:nth-of-type(4) > div > span",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 945,
+          "y": 496,
+          "width": 139.3125,
+          "height": 25
+        },
+        "time": 17.473,
+        "times": [
+          17.473
+        ]
+      }
+    ],
+    "enabled": true,
+    "samples": [
+      1.344,
+      6.721,
+      12.097,
+      17.473,
+      22.85
+    ],
+    "checked": 99,
+    "passed": 90
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 1,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and 14 text elements stay under it for 0.5 s or more, the smallest \"Web server\" at 20 px: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "Web server",
+        "selector": "div.main > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 952.95,
+          "y": 440.31,
+          "width": 101.01,
+          "height": 24.28
+        },
+        "time": 0.125,
+        "times": [
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          0.125,
+          16.587
+        ],
+        "fontPx": 20.32,
+        "floorPx": 28,
+        "seconds": 19.58,
+        "elements": [
+          {
+            "selector": "div.main > div:nth-of-type(3) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "Web server",
+            "fontPx": 20.32,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.main > div:nth-of-type(4) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "Runs your PHP",
+            "fontPx": 20.32,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.main > div:nth-of-type(5) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "Database",
+            "fontPx": 20.32,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.main > div:nth-of-type(6) > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "JavaScript",
+            "fontPx": 20.32,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.si.on",
+            "text": "Dashboard",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.side > div:nth-of-type(2)",
+            "text": "Projects",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.side > div:nth-of-type(3)",
+            "text": "Database",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.side > div:nth-of-type(4)",
+            "text": "NexHost",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.side > div:nth-of-type(5)",
+            "text": "Versions",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "div.side > div:nth-of-type(6)",
+            "text": "Settings",
+            "fontPx": 23.22,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "#b-pma",
+            "text": "phpMyAdmin",
+            "fontPx": 24.15,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "#t-stop",
+            "text": "Stop all",
+            "fontPx": 24.32,
+            "time": 16.587,
+            "seconds": 3.118
+          },
+          {
+            "selector": "span.wtitle",
+            "text": "NexDB",
+            "fontPx": 25.16,
+            "time": 0.125,
+            "seconds": 19.58
+          },
+          {
+            "selector": "#t-start",
+            "text": "Start all",
+            "fontPx": 25.25,
+            "time": 0.125,
+            "seconds": 16.462
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 194
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

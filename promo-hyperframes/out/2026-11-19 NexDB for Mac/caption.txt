@@ -1,0 +1,10 @@
+NexDB is now on Mac.
+
+Apache, PHP, MySQL and Node in one app. Click Start all and your stack is up. If something breaks, Nex tells you what is wrong in plain words and fixes it. Host test sites from your own Mac with NexHost.
+
+Runs on Apple Silicon (M1 and newer) and on Intel Macs, even a 2018 MacBook Air. Needs macOS 13 or newer.
+
+Try it free for 14 days. Plans from 299 pesos.
+db.nexiodev.site
+
+#NexDB #PHP #macOS #WebDevelopment #Laravel

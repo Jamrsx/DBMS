@@ -1,0 +1,1502 @@
+{
+  "ok": false,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": false,
+    "errorCount": 1,
+    "warningCount": 12,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "duplicate_media_discovery_risk",
+        "severity": "warning",
+        "message": "Detected 4 matching img entries with the same source/start/duration.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Avoid duplicated media nodes that can be discovered twice during compilation."
+      },
+      {
+        "code": "font_family_without_font_face",
+        "severity": "error",
+        "message": "Font family used without @font-face declaration: cascadia mono. These are not in the auto-resolved font list, so the renderer cannot supply them automatically. Text will fall back to a generic font, producing incorrect typography in the video.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Add @font-face { font-family: '...'; src: url('capture/assets/fonts/...woff2'); } for each font family, pointing to the captured .woff2 files, or switch to a Google Fonts family. An OS font such as PingFang SC or Hiragino Sans renders locally from the installed copy, but a cloud render has no copy and refuses it."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-term\"> is a timeline element that contains nested <div id=\"later\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-term",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-term\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-find\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-find",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-find\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-reveal\"> is a timeline element that contains nested <img id=\"rlogo\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-reveal",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-reveal\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-dash\"> is a timeline element that contains nested <div id=\"wDash\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-dash",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-dash\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-fix\"> is a timeline element that contains nested <div id=\"wFix\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-fix",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-fix\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-host\"> is a timeline element that contains nested <div id=\"wHost\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-host",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-host\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-chips\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-chips",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-chips\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-os\"> is a timeline element that contains nested <div id=\"osbig\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-os",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-os\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-cta\"> is a timeline element that contains nested <img id=\"clogo\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-cta",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-cta\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s-end\"> is a timeline element that contains nested <img id=\"elogo\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s-end",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s-end\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"captions\"> is a timeline element that contains nested <div id=\"cap0\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#captions",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\mac\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"captions\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 62.964,
+    "samples": [
+      3.498,
+      10.494,
+      17.49,
+      24.486,
+      31.482,
+      38.478,
+      45.474,
+      52.47,
+      59.466
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      3.498,
+      17.49,
+      31.482,
+      45.474,
+      59.466
+    ],
+    "checked": 36,
+    "passed": 36
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 13,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and 20 text elements stay under it for 0.5 s or more, the smallest \"Terminal — zsh\" at 21 px: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "Terminal — zsh",
+        "selector": "#wTerm > div:nth-of-type(1) > span:nth-of-type(1)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 464.69,
+          "y": 327.49,
+          "width": 158.38,
+          "height": 25.22
+        },
+        "time": 0,
+        "times": [
+          0,
+          0.625,
+          0.625,
+          2.124,
+          3.623,
+          5.247,
+          5.247,
+          6.746,
+          8.245,
+          8.245,
+          9.869,
+          11.369,
+          11.369,
+          12.868,
+          14.367,
+          14.367,
+          15.991,
+          23.112,
+          30.608,
+          36.104
+        ],
+        "fontPx": 21.34,
+        "floorPx": 28,
+        "seconds": 18.24,
+        "elements": [
+          {
+            "selector": "#wTerm > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "Terminal — zsh",
+            "fontPx": 21.34,
+            "time": 0,
+            "seconds": 18.24
+          },
+          {
+            "selector": "#wDash > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "NexDB",
+            "fontPx": 22,
+            "time": 23.112,
+            "seconds": 7.371
+          },
+          {
+            "selector": "#wFix > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "NexDB — Check my setup",
+            "fontPx": 22,
+            "time": 30.608,
+            "seconds": 5.372
+          },
+          {
+            "selector": "#wHost > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "NexDB — NexHost",
+            "fontPx": 22,
+            "time": 36.104,
+            "seconds": 3.498
+          },
+          {
+            "selector": "#tl0",
+            "text": "brew install php",
+            "fontPx": 26.48,
+            "time": 0.625,
+            "seconds": 17.615
+          },
+          {
+            "selector": "#tl0 > b:nth-of-type(1)",
+            "text": "%",
+            "fontPx": 26.48,
+            "time": 0.625,
+            "seconds": 17.615
+          },
+          {
+            "selector": "#tl1",
+            "text": "==> Downloading php-8.4 ...",
+            "fontPx": 26.93,
+            "time": 2.124,
+            "seconds": 16.116
+          },
+          {
+            "selector": "#tl2",
+            "text": "Error: php: Failed to download resource",
+            "fontPx": 27,
+            "time": 3.623,
+            "seconds": 14.617
+          },
+          {
+            "selector": "#tl3",
+            "text": "brew services start httpd",
+            "fontPx": 27,
+            "time": 5.247,
+            "seconds": 12.993
+          },
+          {
+            "selector": "#tl3 > b:nth-of-type(1)",
+            "text": "%",
+            "fontPx": 27,
+            "time": 5.247,
+            "seconds": 12.993
+          },
+          {
+            "selector": "#tl4",
+            "text": "Error: Permission denied @ rb_sysopen",
+            "fontPx": 27,
+            "time": 6.746,
+            "seconds": 11.494
+          },
+          {
+            "selector": "#tl5",
+            "text": "sudo apachectl start",
+            "fontPx": 27,
+            "time": 8.245,
+            "seconds": 9.995
+          },
+          {
+            "selector": "#tl5 > b:nth-of-type(1)",
+            "text": "%",
+            "fontPx": 27,
+            "time": 8.245,
+            "seconds": 9.995
+          },
+          {
+            "selector": "#tl6",
+            "text": "(48)Address already in use: could not bind to [::]:80",
+            "fontPx": 27,
+            "time": 9.869,
+            "seconds": 8.371
+          },
+          {
+            "selector": "#tl7",
+            "text": "mysql -u root",
+            "fontPx": 27,
+            "time": 11.369,
+            "seconds": 6.871
+          },
+          {
+            "selector": "#tl7 > b:nth-of-type(1)",
+            "text": "%",
+            "fontPx": 27,
+            "time": 11.369,
+            "seconds": 6.871
+          },
+          {
+            "selector": "#tl8",
+            "text": "ERROR 2002: Can't connect to local MySQL server",
+            "fontPx": 27,
+            "time": 12.868,
+            "seconds": 5.372
+          },
+          {
+            "selector": "#tl9",
+            "text": "sudo apachectl start",
+            "fontPx": 27,
+            "time": 14.367,
+            "seconds": 3.873
+          },
+          {
+            "selector": "#tl9 > b:nth-of-type(1)",
+            "text": "%",
+            "fontPx": 27,
+            "time": 14.367,
+            "seconds": 3.873
+          },
+          {
+            "selector": "#tl10",
+            "text": "(48)Address already in use: could not bind to [::]:80",
+            "fontPx": 27,
+            "time": 15.991,
+            "seconds": 2.249
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"(48)Address already in use: could not bind to [::]:80\" (10 words) is on screen 2.23 s (±0.01 s), under its 2.63 s floor: hold it about 0.5 s + 0.3 s a word (3.50 s here) before it leaves or changes; see references/motion.md.",
+        "text": "(48)Address already in use: could not bind to [::]:80",
+        "selector": "#tl10",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 81,
+          "y": 799.44,
+          "width": 858.61,
+          "height": 36
+        },
+        "time": 15.905,
+        "words": 10,
+        "seconds": 2.233,
+        "floorSeconds": 2.625,
+        "measured": [
+          {
+            "time": 15.616,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.741,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.866,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.991,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 16.116,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 16.241,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 16.366,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 17.74,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 17.865,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 17.99,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 18.115,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 18.24,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 18.365,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 18.489,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Then you find\" (3 words) is on screen 0.94 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Then you find",
+        "selector": "#cap10",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 232.33,
+          "y": 1432,
+          "width": 615.33,
+          "height": 111
+        },
+        "time": 18.271,
+        "words": 3,
+        "seconds": 0.937,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 17.99,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 18.115,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 18.24,
+            "opacity": 0.32,
+            "heightPx": 103
+          },
+          {
+            "time": 18.365,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 18.489,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 18.614,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 18.739,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 18.864,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 18.989,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 19.114,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 19.239,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 19.364,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 19.489,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"NexDB Your whole PHP stack, one app\" (7 words) is on screen 0.84 s (±0.01 s), under its 1.95 s floor: hold it about 0.5 s + 0.3 s a word (2.60 s here) before it leaves or changes; see references/motion.md.",
+        "text": "NexDB Your whole PHP stack, one app",
+        "selector": "#result > div:nth-of-type(1)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 265,
+          "y": 763.85,
+          "width": 444.61,
+          "height": 36
+        },
+        "time": 19.372,
+        "words": 7,
+        "seconds": 0.835,
+        "floorSeconds": 1.95,
+        "measured": [
+          {
+            "time": 19.114,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 19.239,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 19.364,
+            "opacity": 0.49,
+            "heightPx": 36
+          },
+          {
+            "time": 19.489,
+            "opacity": 0.95,
+            "heightPx": 36
+          },
+          {
+            "time": 19.614,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 19.739,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 19.864,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 19.989,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 20.114,
+            "opacity": 1,
+            "heightPx": 36
+          },
+          {
+            "time": 20.238,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 20.363,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 20.488,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Nex tells you\" (3 words) is on screen 0.70 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Nex tells you",
+        "selector": "#cap21",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 260.92,
+          "y": 1433.36,
+          "width": 558.1399999999999,
+          "height": 108.31999999999994
+        },
+        "time": 31.834,
+        "words": 3,
+        "seconds": 0.702,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 31.482,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 31.607,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 31.732,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 31.857,
+            "opacity": 0.76,
+            "heightPx": 108
+          },
+          {
+            "time": 31.982,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 32.107,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 32.232,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 32.357,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 32.481,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 32.606,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 32.731,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 32.856,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Host your test\" (3 words) is on screen 0.73 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Host your test",
+        "selector": "#cap25",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 232.62,
+          "y": 1433.17,
+          "width": 614.74,
+          "height": 108.70000000000005
+        },
+        "time": 36.104,
+        "words": 3,
+        "seconds": 0.734,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 35.73,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 35.855,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 35.979,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 36.104,
+            "opacity": 0.79,
+            "heightPx": 109
+          },
+          {
+            "time": 36.229,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 36.354,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 36.479,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 36.604,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 36.729,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 36.854,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 36.979,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 37.104,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"site straight from\" (3 words) is on screen 1.00 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "site straight from",
+        "selector": "#cap26",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 157.34,
+          "y": 1432,
+          "width": 765.3,
+          "height": 111
+        },
+        "time": 36.87,
+        "words": 3,
+        "seconds": 0.999,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 36.604,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 36.729,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 36.854,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 36.979,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.104,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.229,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.354,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.479,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.604,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.728,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.853,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 37.978,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 38.103,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 38.228,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"your Mac with\" (3 words) is on screen 0.70 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "your Mac with",
+        "selector": "#cap27",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 223.67,
+          "y": 1432,
+          "width": 632.64,
+          "height": 111
+        },
+        "time": 37.869,
+        "words": 3,
+        "seconds": 0.703,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 37.604,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 37.728,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 37.853,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 37.978,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 38.103,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 38.228,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 38.353,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 38.478,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 38.603,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 38.728,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 38.853,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"It runs on\" (3 words) is on screen 0.70 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "It runs on",
+        "selector": "#cap29",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 334.9,
+          "y": 1432.98,
+          "width": 410.19999999999993,
+          "height": 109.06999999999994
+        },
+        "time": 39.704,
+        "words": 3,
+        "seconds": 0.703,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 39.353,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 39.477,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 39.602,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 39.727,
+            "opacity": 0.83,
+            "heightPx": 109
+          },
+          {
+            "time": 39.852,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 39.977,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 40.102,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 40.227,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 40.352,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 40.477,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 40.602,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 40.727,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Even a 2018\" (3 words) is on screen 0.80 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Even a 2018",
+        "selector": "#cap32",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 274.66,
+          "y": 1432.26,
+          "width": 530.6599999999999,
+          "height": 110.49000000000001
+        },
+        "time": 43.17,
+        "words": 3,
+        "seconds": 0.797,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 42.851,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 42.975,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 43.1,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 43.225,
+            "opacity": 0.95,
+            "heightPx": 110
+          },
+          {
+            "time": 43.35,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 43.475,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 43.6,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 43.725,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 43.85,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 43.975,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 44.1,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 44.225,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"All you need\" (3 words) is on screen 0.93 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "All you need",
+        "selector": "#cap34",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 264.78,
+          "y": 1432,
+          "width": 550.42,
+          "height": 111
+        },
+        "time": 45.607,
+        "words": 3,
+        "seconds": 0.929,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 45.349,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 45.474,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 45.599,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 45.724,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 45.849,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 45.974,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.099,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.224,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.349,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.473,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.598,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 46.723,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 46.848,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"is macOS 13\" (3 words) is on screen 0.84 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "is macOS 13",
+        "selector": "#cap35",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 275.94,
+          "y": 1432.83,
+          "width": 528.1199999999999,
+          "height": 109.36999999999989
+        },
+        "time": 46.567,
+        "words": 3,
+        "seconds": 0.836,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 46.224,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 46.349,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 46.473,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 46.598,
+            "opacity": 0.85,
+            "heightPx": 109
+          },
+          {
+            "time": 46.723,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.848,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 46.973,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 47.098,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 47.223,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 47.348,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 47.473,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 47.598,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 47.723,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Try it free\" (3 words) is on screen 0.97 s (±0.01 s), under its 1.05 s floor: hold it about 0.5 s + 0.3 s a word (1.40 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Try it free",
+        "selector": "#cap37",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 325.2,
+          "y": 1432,
+          "width": 429.59999999999997,
+          "height": 111
+        },
+        "time": 48.902,
+        "words": 3,
+        "seconds": 0.969,
+        "floorSeconds": 1.05,
+        "measured": [
+          {
+            "time": 48.597,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 48.722,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 48.847,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 48.972,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.097,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.222,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.347,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.472,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.597,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.722,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.847,
+            "opacity": 1,
+            "heightPx": 111
+          },
+          {
+            "time": 49.971,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 50.096,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 50.221,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 504
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

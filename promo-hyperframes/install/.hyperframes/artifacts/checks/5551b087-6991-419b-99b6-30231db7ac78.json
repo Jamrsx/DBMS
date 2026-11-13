@@ -1,0 +1,1958 @@
+{
+  "ok": false,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 3,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "duplicate_media_discovery_risk",
+        "severity": "warning",
+        "message": "Detected 9 matching img entries with the same source/start/duration.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\install\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Avoid duplicated media nodes that can be discovered twice during compilation."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"stage\"> is a timeline element that contains nested <div id=\"box\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#stage",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\install\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"stage\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<div id=\"captions\"> is a timeline element that contains nested <div id=\"cap0\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#captions",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\install\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <div id=\"captions\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 26,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx0\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx1\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx2\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx5\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx6\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx7\" is 0.50s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.50s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx8\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx9\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx10\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx11\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx13\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx14\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx15\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx16\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx17\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx18\" is 0.50s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.50s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx19\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx20\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx21\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx22\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx23\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx25\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx26\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx27\" is 0.10s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.10s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx29\" is 0.78s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.78s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      },
+      {
+        "code": "clip_media_fit",
+        "severity": "warning",
+        "message": "Audio \"fx30\" is 0.25s but its slot (data-duration) is 1.40s — the slot is shortened to the media length when rendered. Set data-duration to ~0.25s if that isn't intended.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {
+          "data-composition-id": "main",
+          "data-start": "0",
+          "data-duration": "58.5",
+          "data-width": "1080",
+          "data-height": "1920"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "time": 0
+      }
+    ]
+  },
+  "layout": {
+    "ok": false,
+    "errorCount": 9,
+    "warningCount": 1,
+    "infoCount": 12,
+    "findings": [
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 22.75,
+        "selector": "#exp > div:nth-of-type(1) > span:nth-of-type(2) > b:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 845.83,
+          "top": 419.57,
+          "right": 865.7,
+          "bottom": 450.31,
+          "width": 19.87,
+          "height": 30.74
+        },
+        "containerSelector": "div.ss-x",
+        "text": "—",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 845.83,
+          "y": 419.57,
+          "width": 19.87,
+          "height": 30.74
+        },
+        "firstSeen": 19.936,
+        "lastSeen": 27.126,
+        "occurrences": 24,
+        "heldMs": 7190.000000000001,
+        "times": [
+          19.936,
+          20.263,
+          20.589,
+          20.916,
+          21.243,
+          21.57,
+          21.897,
+          22.223,
+          22.55,
+          22.75,
+          22.877,
+          23.204,
+          23.531,
+          23.858,
+          24.184,
+          24.511,
+          24.838,
+          25.165,
+          25.492,
+          25.818,
+          26.145,
+          26.472,
+          26.799,
+          27.126
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 22.75,
+        "selector": "#exp-file > div:nth-of-type(1) > b:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 267.38,
+          "top": 539.88,
+          "right": 697.06,
+          "bottom": 580.16,
+          "width": 429.68,
+          "height": 40.28
+        },
+        "containerSelector": "div.ss-p",
+        "text": "NexDB_0.5.9_x64-setup.exe",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 267.38,
+          "y": 539.88,
+          "width": 429.68,
+          "height": 40.28
+        },
+        "firstSeen": 19.609,
+        "lastSeen": 27.126,
+        "occurrences": 25,
+        "heldMs": 7516.999999999999,
+        "times": [
+          19.609,
+          19.936,
+          20.263,
+          20.589,
+          20.916,
+          21.243,
+          21.57,
+          21.897,
+          22.223,
+          22.55,
+          22.75,
+          22.877,
+          23.204,
+          23.531,
+          23.858,
+          24.184,
+          24.511,
+          24.838,
+          25.165,
+          25.492,
+          25.818,
+          26.145,
+          26.472,
+          26.799,
+          27.126
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 22.75,
+        "selector": "#exp-file > div:nth-of-type(1) > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 267.38,
+          "top": 580.16,
+          "right": 405.79,
+          "bottom": 614.08,
+          "width": 138.41,
+          "height": 33.92
+        },
+        "containerSelector": "div.ss-p",
+        "text": "Application",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 267.38,
+          "y": 580.16,
+          "width": 138.41,
+          "height": 33.92
+        },
+        "firstSeen": 19.609,
+        "lastSeen": 27.126,
+        "occurrences": 25,
+        "heldMs": 7516.999999999999,
+        "times": [
+          19.609,
+          19.936,
+          20.263,
+          20.589,
+          20.916,
+          21.243,
+          21.57,
+          21.897,
+          22.223,
+          22.55,
+          22.75,
+          22.877,
+          23.204,
+          23.531,
+          23.858,
+          24.184,
+          24.511,
+          24.838,
+          25.165,
+          25.492,
+          25.818,
+          26.145,
+          26.472,
+          26.799,
+          27.126
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 45.427,
+        "selector": "#set-scroll > div:nth-of-type(4) > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 408.36,
+          "top": 508.08,
+          "right": 595.18,
+          "bottom": 538.82,
+          "width": 186.82,
+          "height": 30.74
+        },
+        "containerSelector": "div.lock",
+        "text": "Full Disk Access",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 508.08,
+          "width": 186.82,
+          "height": 30.74
+        },
+        "firstSeen": 45.427,
+        "lastSeen": 47.388,
+        "occurrences": 7,
+        "heldMs": 1960.9999999999986,
+        "times": [
+          45.427,
+          45.754,
+          46.081,
+          46.408,
+          46.735,
+          47.061,
+          47.388
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 48.75,
+        "selector": "div.s-h",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 385.04,
+          "top": 393.6,
+          "right": 682.87,
+          "bottom": 437.06,
+          "width": 297.83,
+          "height": 43.46
+        },
+        "containerSelector": "#set-scroll > div:nth-of-type(3) > span:nth-of-type(1)",
+        "text": "Privacy & Security",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 385.04,
+          "y": 393.6,
+          "width": 297.83,
+          "height": 43.46
+        },
+        "firstSeen": 42.486,
+        "lastSeen": 50.003,
+        "occurrences": 24,
+        "heldMs": 7517.000000000003,
+        "times": [
+          42.486,
+          43.14,
+          43.466,
+          43.793,
+          44.12,
+          44.447,
+          44.774,
+          45.101,
+          45.427,
+          45.754,
+          46.081,
+          46.408,
+          46.735,
+          47.061,
+          47.388,
+          47.715,
+          48.042,
+          48.369,
+          48.696,
+          48.75,
+          49.022,
+          49.349,
+          49.676,
+          50.003
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 48.75,
+        "selector": "div.s-sec",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 385.04,
+          "top": 596.06,
+          "right": 488.14,
+          "bottom": 629.98,
+          "width": 103.1,
+          "height": 33.92
+        },
+        "containerSelector": "#oc > div:nth-of-type(1)",
+        "text": "Security",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 385.04,
+          "y": 596.06,
+          "width": 103.1,
+          "height": 33.92
+        },
+        "firstSeen": 45.427,
+        "lastSeen": 50.003,
+        "occurrences": 16,
+        "heldMs": 4576.000000000001,
+        "times": [
+          45.427,
+          45.754,
+          46.081,
+          46.408,
+          46.735,
+          47.061,
+          47.388,
+          47.715,
+          48.042,
+          48.369,
+          48.696,
+          48.75,
+          49.022,
+          49.349,
+          49.676,
+          50.003
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(6) > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 408.36,
+          "top": 661.78,
+          "right": 617.35,
+          "bottom": 723.26,
+          "width": 208.99,
+          "height": 61.48
+        },
+        "containerSelector": "#oc > div:nth-of-type(2)",
+        "text": "Allow applications from",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 661.78,
+          "width": 208.99,
+          "height": 61.48
+        },
+        "firstSeen": 45.427,
+        "lastSeen": 50.003,
+        "occurrences": 16,
+        "heldMs": 4576.000000000001,
+        "times": [
+          45.427,
+          45.754,
+          46.081,
+          46.408,
+          46.735,
+          47.061,
+          47.388,
+          47.715,
+          48.042,
+          48.369,
+          48.696,
+          48.75,
+          49.022,
+          49.349,
+          49.676,
+          50.003
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(6) > em:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 651.17,
+          "top": 661.78,
+          "right": 869.63,
+          "bottom": 723.26,
+          "width": 218.46,
+          "height": 61.48
+        },
+        "containerSelector": "#oc > div:nth-of-type(2)",
+        "text": "App Store & Known Developers",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 651.17,
+          "y": 661.78,
+          "width": 218.46,
+          "height": 61.48
+        },
+        "firstSeen": 47.715,
+        "lastSeen": 50.003,
+        "occurrences": 9,
+        "heldMs": 2287.999999999997,
+        "times": [
+          47.715,
+          48.042,
+          48.369,
+          48.696,
+          48.75,
+          49.022,
+          49.349,
+          49.676,
+          50.003
+        ]
+      },
+      {
+        "code": "content_overlap",
+        "severity": "error",
+        "time": 48.75,
+        "selector": "#set-blk > span:nth-of-type(1)",
+        "message": "Two text blocks overlap and may render unreadable.",
+        "rect": {
+          "left": 408.36,
+          "top": 778.38,
+          "right": 682.59,
+          "bottom": 839.86,
+          "width": 274.23,
+          "height": 61.48
+        },
+        "containerSelector": "#oc-open",
+        "text": "“NexDB” was blocked to protect your Mac.",
+        "fixHint": "Give each block its own zone, or put data-layout-allow-overlap on the text or on a container inside the scene. A marker on the scene root does not apply. Decoration nobody needs to read can take data-layout-ignore.",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 778.38,
+          "width": 274.23,
+          "height": 61.48
+        },
+        "firstSeen": 47.715,
+        "lastSeen": 50.003,
+        "occurrences": 9,
+        "heldMs": 2287.999999999997,
+        "times": [
+          47.715,
+          48.042,
+          48.369,
+          48.696,
+          48.75,
+          49.022,
+          49.349,
+          49.676,
+          50.003
+        ]
+      },
+      {
+        "code": "canvas_content_at_edge",
+        "severity": "warning",
+        "time": 3.25,
+        "selector": "#bg3d",
+        "message": "Canvas content touches the frame edge (left).",
+        "rect": {
+          "left": 0,
+          "top": 0,
+          "right": 1080,
+          "bottom": 1920,
+          "width": 1080,
+          "height": 1920
+        },
+        "containerSelector": "#root",
+        "fixHint": "Keep drawn text inside the visible part of the canvas, or mark intentional full-bleed art with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 0,
+          "top": 0,
+          "right": 1080,
+          "bottom": 1920,
+          "width": 1080,
+          "height": 1920
+        },
+        "dataAttributes": {
+          "data-engine": "three.js r184"
+        },
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 1080,
+          "height": 1920
+        },
+        "firstSeen": 3.25,
+        "lastSeen": 35.75,
+        "occurrences": 3,
+        "heldMs": 0,
+        "times": [
+          3.25,
+          9.75,
+          35.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 22.75,
+        "selector": "#exp > div:nth-of-type(1) > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 118.98,
+          "top": 419.57,
+          "right": 255.42,
+          "bottom": 453.49,
+          "width": 136.44,
+          "height": 33.92
+        },
+        "containerSelector": "#ss",
+        "text": "Downloads",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 0.56,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 118.98,
+          "y": 419.57,
+          "width": 136.44,
+          "height": 33.92
+        },
+        "firstSeen": 22.75,
+        "lastSeen": 22.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 22.75,
+        "selector": "#exp > div:nth-of-type(1) > span:nth-of-type(2) > b:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 845.83,
+          "top": 419.57,
+          "right": 865.7,
+          "bottom": 450.31,
+          "width": 19.88,
+          "height": 30.74
+        },
+        "containerSelector": "#ss",
+        "text": "—",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 845.83,
+          "y": 419.57,
+          "width": 19.88,
+          "height": 30.74
+        },
+        "firstSeen": 22.75,
+        "lastSeen": 22.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 22.75,
+        "selector": "#exp > div:nth-of-type(1) > span:nth-of-type(2) > b:nth-of-type(2)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 891.14,
+          "top": 419.57,
+          "right": 914.39,
+          "bottom": 450.31,
+          "width": 23.25,
+          "height": 30.74
+        },
+        "containerSelector": "#ss",
+        "text": "□",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 0.78,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 891.14,
+          "y": 419.57,
+          "width": 23.25,
+          "height": 30.74
+        },
+        "firstSeen": 22.75,
+        "lastSeen": 22.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 22.75,
+        "selector": "#exp-file > div:nth-of-type(1) > b:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 267.38,
+          "top": 539.88,
+          "right": 697.06,
+          "bottom": 580.16,
+          "width": 429.68,
+          "height": 40.28
+        },
+        "containerSelector": "#ss",
+        "text": "NexDB_0.5.9_x64-setup.exe",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 267.38,
+          "y": 539.88,
+          "width": 429.68,
+          "height": 40.28
+        },
+        "firstSeen": 22.75,
+        "lastSeen": 22.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 22.75,
+        "selector": "#exp-file > div:nth-of-type(1) > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 267.38,
+          "top": 580.16,
+          "right": 405.79,
+          "bottom": 614.08,
+          "width": 138.41,
+          "height": 33.92
+        },
+        "containerSelector": "#ss",
+        "text": "Application",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 267.38,
+          "y": 580.16,
+          "width": 138.41,
+          "height": 33.92
+        },
+        "firstSeen": 22.75,
+        "lastSeen": 22.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          22.75
+        ]
+      },
+      {
+        "code": "container_overflow",
+        "severity": "info",
+        "time": 42.25,
+        "selector": "#set-scroll",
+        "message": "Element extends outside a clipping layout container.",
+        "rect": {
+          "left": 385.04,
+          "top": 453.38,
+          "right": 991.36,
+          "bottom": 1072.42,
+          "width": 606.32,
+          "height": 619.04
+        },
+        "containerSelector": "div.s-main",
+        "fixHint": "Resize/reposition the child or container, or mark intentional overflow with data-layout-allow-overflow.",
+        "containerRect": {
+          "left": 349,
+          "top": 361.8,
+          "right": 1027.4,
+          "bottom": 1061.4,
+          "width": 678.4,
+          "height": 699.6
+        },
+        "overflow": {
+          "bottom": 11.02
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 385.04,
+          "y": 453.38,
+          "width": 606.32,
+          "height": 619.04
+        },
+        "firstSeen": 42.25,
+        "lastSeen": 48.75,
+        "occurrences": 2,
+        "heldMs": 0,
+        "times": [
+          42.25,
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(3) > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 408.36,
+          "top": 426.46,
+          "right": 523.39,
+          "bottom": 457.2,
+          "width": 115.03,
+          "height": 30.74
+        },
+        "containerSelector": "div.s-h",
+        "text": "Calendars",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 426.46,
+          "width": 115.03,
+          "height": 30.74
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(4) > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 408.36,
+          "top": 508.08,
+          "right": 595.18,
+          "bottom": 538.82,
+          "width": 186.83,
+          "height": 30.74
+        },
+        "containerSelector": "#oc",
+        "text": "Full Disk Access",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 508.08,
+          "width": 186.83,
+          "height": 30.74
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "div.s-sec",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 385.04,
+          "top": 596.06,
+          "right": 488.14,
+          "bottom": 629.98,
+          "width": 103.1,
+          "height": 33.92
+        },
+        "containerSelector": "#oc",
+        "text": "Security",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 385.04,
+          "y": 596.06,
+          "width": 103.1,
+          "height": 33.92
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(6) > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 408.36,
+          "top": 661.78,
+          "right": 617.35,
+          "bottom": 723.26,
+          "width": 208.99,
+          "height": 61.48
+        },
+        "containerSelector": "#oc",
+        "text": "Allow applications from",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 661.78,
+          "width": 208.99,
+          "height": 61.48
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "#set-scroll > div:nth-of-type(6) > em:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 651.17,
+          "top": 661.78,
+          "right": 869.63,
+          "bottom": 723.26,
+          "width": 218.46,
+          "height": 61.48
+        },
+        "containerSelector": "#oc",
+        "text": "App Store & Known Developers",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 0.78,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 651.17,
+          "y": 661.78,
+          "width": 218.46,
+          "height": 61.48
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      },
+      {
+        "code": "text_occluded",
+        "severity": "info",
+        "time": 48.75,
+        "selector": "#set-blk > span:nth-of-type(1)",
+        "message": "Text is hidden beneath an opaque element.",
+        "rect": {
+          "left": 408.36,
+          "top": 778.38,
+          "right": 682.59,
+          "bottom": 839.86,
+          "width": 274.23,
+          "height": 61.48
+        },
+        "containerSelector": "#oc-open",
+        "text": "“NexDB” was blocked to protect your Mac.",
+        "fixHint": "Give the text its own zone, raise its stacking order above the covering element, or mark intentional layering with data-layout-allow-occlusion.",
+        "coveredFraction": 1,
+        "lifetime": {
+          "start": 0,
+          "end": 58.5
+        },
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 408.36,
+          "y": 778.38,
+          "width": 274.23,
+          "height": 61.48
+        },
+        "firstSeen": 48.75,
+        "lastSeen": 48.75,
+        "occurrences": 1,
+        "heldMs": 0,
+        "times": [
+          48.75
+        ]
+      }
+    ],
+    "duration": 58.5,
+    "samples": [
+      3.25,
+      9.75,
+      16.25,
+      22.75,
+      29.25,
+      35.75,
+      42.25,
+      48.75,
+      55.25
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 22,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      3.25,
+      16.25,
+      29.25,
+      42.25,
+      55.25
+    ],
+    "checked": 38,
+    "passed": 38
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 2,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and 25 text elements stay under it for 0.5 s or more, the smallest \"Privacy & Security\" at 24 px: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "Privacy & Security",
+        "selector": "#set-ps",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 95.06,
+          "y": 754.23,
+          "width": 202.92,
+          "height": 30.13
+        },
+        "time": 40,
+        "times": [
+          19.5,
+          24.375,
+          24.375,
+          24.375,
+          24.375,
+          34.625,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          40,
+          45.5,
+          47.75
+        ],
+        "fontPx": 23.99,
+        "floorPx": 28,
+        "seconds": 10.125,
+        "elements": [
+          {
+            "selector": "#set-ps",
+            "text": "Privacy & Security",
+            "fontPx": 23.99,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-open",
+            "text": "Open Anyway",
+            "fontPx": 23.99,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(1)",
+            "text": "Wi-Fi",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(2)",
+            "text": "Bluetooth",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(3)",
+            "text": "Network",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(4)",
+            "text": "General",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(5)",
+            "text": "Appearance",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(7)",
+            "text": "Desktop & Dock",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "div.s-side > div:nth-of-type(8)",
+            "text": "Displays",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "Location Services",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 2.75
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(1) > em:nth-of-type(1)",
+            "text": "On",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 2.75
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(2) > span:nth-of-type(1)",
+            "text": "Contacts",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(3) > span:nth-of-type(1)",
+            "text": "Calendars",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(4) > span:nth-of-type(1)",
+            "text": "Full Disk Access",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(6) > span:nth-of-type(1)",
+            "text": "Allow applications from",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-scroll > div:nth-of-type(6) > em:nth-of-type(1)",
+            "text": "App Store & Known Developers",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#set-blk > span:nth-of-type(1)",
+            "text": "“NexDB” was blocked to protect your Mac.",
+            "fontPx": 24.94,
+            "time": 40,
+            "seconds": 10.125
+          },
+          {
+            "selector": "#gk > div:nth-of-type(2)",
+            "text": "Apple could not verify “NexDB” is free of malware that may harm your Mac or compromise your privacy.",
+            "fontPx": 25.11,
+            "time": 34.625,
+            "seconds": 5.125
+          },
+          {
+            "selector": "#oc > div:nth-of-type(2)",
+            "text": "Apple could not verify “NexDB”. Open it only if you trust where it came from.",
+            "fontPx": 25.17,
+            "time": 47.75,
+            "seconds": 2.375
+          },
+          {
+            "selector": "#pw > div:nth-of-type(3)",
+            "text": "Enter your password to allow this.",
+            "fontPx": 25.36,
+            "time": 45.5,
+            "seconds": 2.125
+          },
+          {
+            "selector": "div.ss-p",
+            "text": "Microsoft Defender SmartScreen prevented an unrecognized app from starting. Running this app might put your PC at risk.",
+            "fontPx": 25.98,
+            "time": 19.5,
+            "seconds": 7.875
+          },
+          {
+            "selector": "#ss-det > div:nth-of-type(1)",
+            "text": "NexDB_0.5.9_x64-setup.exe",
+            "fontPx": 25.98,
+            "time": 24.375,
+            "seconds": 3
+          },
+          {
+            "selector": "#ss-det > div:nth-of-type(1) > span:nth-of-type(1)",
+            "text": "App:",
+            "fontPx": 25.98,
+            "time": 24.375,
+            "seconds": 3
+          },
+          {
+            "selector": "#ss-det > div:nth-of-type(2)",
+            "text": "Unknown publisher",
+            "fontPx": 25.98,
+            "time": 24.375,
+            "seconds": 3
+          },
+          {
+            "selector": "#ss-det > div:nth-of-type(2) > span:nth-of-type(1)",
+            "text": "Publisher:",
+            "fontPx": 25.98,
+            "time": 24.375,
+            "seconds": 3
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Apple could not verify “NexDB”. Open it only if you trust...\" (15 words) is on screen 2.40 s (±0.01 s), under its 3.75 s floor: hold it about 0.5 s + 0.3 s a word (5.00 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Apple could not verify “NexDB”. Open it only if you trust where it came from.",
+        "selector": "#oc > div:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 362.06,
+          "y": 654.49,
+          "width": 355.47999999999996,
+          "height": 99.37
+        },
+        "time": 47.672,
+        "words": 15,
+        "seconds": 2.398,
+        "floorSeconds": 3.75,
+        "measured": [
+          {
+            "time": 47.375,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 47.5,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 47.625,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 47.75,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 47.875,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 48,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 48.125,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 49.625,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 49.75,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 49.875,
+            "opacity": 1,
+            "heightPx": 99
+          },
+          {
+            "time": 50,
+            "opacity": 0.78,
+            "heightPx": 98
+          },
+          {
+            "time": 50.125,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 50.25,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 50.375,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 467
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

@@ -1,0 +1,16 @@
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, defaultViewport: { width: 1600, height: 960 } });
+const page = await browser.newPage();
+await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }, { name: "prefers-reduced-motion", value: "reduce" }]);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const click = (t, sel = "button,a,[role=tab],[role=switch],li,[role=row],[role=option]") => page.evaluate((t, sel) => { const el = [...document.querySelectorAll(sel)].find((x) => (x.innerText || x.getAttribute("aria-label") || "").trim().startsWith(t)); el?.click(); return !!el; }, t, sel);
+const btns = () => page.evaluate(() => [...document.querySelectorAll("main button,main a,main [role=tab],main [role=switch]")].map((x) => (x.innerText || x.getAttribute("aria-label") || "").trim().slice(0, 40)).filter(Boolean).join(" | "));
+await page.goto("http://localhost:1420/?view=dashboard&license=nexhost", { waitUntil: "networkidle0" });
+await wait(1500);
+await click("Stop tutorial");
+console.log("projects", await click("Projects"));
+await wait(800);
+await click("my-shop","*"); await wait(800); console.log("share", await click("Share")); await wait(1200);
+console.log(await page.evaluate(()=>document.querySelector("main")?.innerText.slice(0,3000)));
+await page.screenshot({ path: "tutorial/capture/e2.png" });
+await browser.close();

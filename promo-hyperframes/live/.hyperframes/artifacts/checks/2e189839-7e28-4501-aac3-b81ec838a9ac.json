@@ -1,0 +1,329 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 3,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s1\"> is a timeline element that contains nested <img id=\"logo1\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s1",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\live\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s1\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s2\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s2",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\live\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s2\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"s3\"> is a timeline element that contains nested <div id=\"ct\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#s3",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\live\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"s3\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 9.677,
+    "samples": [
+      0.538,
+      1.613,
+      2.688,
+      3.763,
+      4.839,
+      5.914,
+      6.989,
+      8.064,
+      9.139
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      0.538,
+      2.688,
+      4.839,
+      6.989,
+      9.139
+    ],
+    "checked": 18,
+    "passed": 18
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 2,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Big news from Nexio Devs\" (5 words) is on screen 1.40 s (±0.01 s), under its 1.50 s floor: hold it about 0.5 s + 0.3 s a word (2.00 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Big news from Nexio Devs",
+        "selector": "#tease",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 148.83,
+          "y": 1063.47,
+          "width": 782.33,
+          "height": 77
+        },
+        "time": 0.574,
+        "words": 5,
+        "seconds": 1.396,
+        "floorSeconds": 1.5,
+        "measured": [
+          {
+            "time": 0.248,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 0.372,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 0.496,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 0.62,
+            "opacity": 0.8,
+            "heightPx": 77
+          },
+          {
+            "time": 0.744,
+            "opacity": 0.99,
+            "heightPx": 77
+          },
+          {
+            "time": 0.868,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 0.993,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 1.489,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 1.613,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 1.737,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 1.861,
+            "opacity": 1,
+            "heightPx": 77
+          },
+          {
+            "time": 1.985,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 2.109,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 2.233,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"OUT NOW NexDB is now live. Apache, PHP, MySQL and Node. O...\" (15 words) is on screen 3.33 s (±0.01 s), under its 3.75 s floor: hold it about 0.5 s + 0.3 s a word (5.00 s here) before it leaves or changes; see references/motion.md.",
+        "text": "OUT NOW NexDB is now live. Apache, PHP, MySQL and Node. One app for Windows.",
+        "selector": "div.copy",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 456.47,
+          "y": 246.19,
+          "width": 201.05999999999995,
+          "height": 43
+        },
+        "time": 2.504,
+        "words": 15,
+        "seconds": 3.335,
+        "floorSeconds": 3.75,
+        "measured": [
+          {
+            "time": 2.233,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 2.357,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 2.481,
+            "opacity": 0.44,
+            "heightPx": 43
+          },
+          {
+            "time": 2.605,
+            "opacity": 0.95,
+            "heightPx": 43
+          },
+          {
+            "time": 2.729,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 2.853,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 2.978,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 5.459,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 5.583,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 5.707,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 5.831,
+            "opacity": 1,
+            "heightPx": 43
+          },
+          {
+            "time": 5.955,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 6.079,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 6.203,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.12400000000000011,
+    "samples": 78
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

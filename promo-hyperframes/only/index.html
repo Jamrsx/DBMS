@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* "Only in NexDB": 5 features the other local PHP stacks don't have. One file for both shapes:
+         #root.tall (1080x1920) or #root.wide (1920x1080). Timing grid = music beats, 124 BPM. */
+      :root {
+        --ground: #0a0e16;
+        --panel: #121826;
+        --line: #243049;
+        --ink: #ffffff;
+        --muted: #9aa6bd;
+        --accent: #2f6ae0;
+        --ok: #5ccb8b;
+        --font-display: "Segoe UI", "Inter", Arial, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ground); }
+      #root {
+        position: relative; width: 100%; height: 100%; overflow: hidden;
+        font-family: var(--font-display); color: var(--ink);
+        background: radial-gradient(1000px 900px at 50% 45%, rgba(47, 106, 224, 0.22), transparent 70%), var(--ground);
+      }
+      .clip { position: absolute; inset: 0; }
+      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+      /* Intro */
+      #intro { padding: 0 80px; }
+      .q1 { font-size: 64px; font-weight: 700; color: var(--muted); }
+      .q2 { font-size: 136px; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin-top: 18px; }
+      .q2 .hl { color: var(--accent); }
+      .names { display: flex; gap: 18px; margin-top: 46px; flex-wrap: wrap; justify-content: center; }
+      .name { font-size: 40px; font-weight: 700; padding: 12px 30px; border-radius: 999px; border: 2px solid var(--line); color: var(--muted); }
+
+      /* Feature scenes */
+      .copy { position: absolute; }
+      .num {
+        display: inline-flex; align-items: center; gap: 18px; font-size: 32px; font-weight: 800; letter-spacing: 0.14em;
+        color: var(--ok);
+      }
+      .num b {
+        width: 64px; height: 64px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 36px;
+        display: inline-flex; align-items: center; justify-content: center; letter-spacing: 0;
+      }
+      .ft { font-size: 96px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.04; margin-top: 26px; }
+      .fs { font-size: 48px; font-weight: 500; color: var(--muted); margin-top: 20px; line-height: 1.25; }
+      .card {
+        position: absolute; overflow: hidden; border-radius: 28px; border: 2px solid var(--line); background: var(--panel);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(47, 106, 224, 0.25);
+      }
+      .card img { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+
+      /* Feature 5: practice tour, drawn (no screenshot) */
+      .tour { display: flex; align-items: center; justify-content: center; gap: 40px; padding: 40px; }
+      .tour img.nex { width: 300px; height: 300px; flex: none; }
+      .bubble {
+        background: #1a2234; border: 2px solid var(--accent); border-radius: 28px; padding: 34px 40px; max-width: 520px;
+      }
+      .bubble .tag { font-size: 28px; font-weight: 800; letter-spacing: 0.14em; color: var(--ok); }
+      .bubble .say { font-size: 40px; font-weight: 600; line-height: 1.3; margin-top: 14px; }
+      .bubble .btns { display: flex; gap: 14px; margin-top: 26px; }
+      .bubble .btn { font-size: 30px; font-weight: 700; padding: 12px 26px; border-radius: 14px; background: var(--accent); }
+      .bubble .btn.ghost { background: transparent; border: 2px solid var(--line); color: var(--muted); }
+
+      /* End */
+      #logoE { width: 180px; height: 180px; border-radius: 40px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); }
+      .e1 { font-size: 104px; font-weight: 800; letter-spacing: -0.03em; margin-top: 34px; }
+      .e1 .hl { color: var(--ok); }
+      .e2 { font-size: 46px; color: var(--muted); font-weight: 500; margin-top: 16px; }
+      .url { margin-top: 56px; font-size: 72px; font-weight: 800; padding: 26px 60px; border-radius: 999px; background: var(--accent); color: #fff; }
+      .credit { position: absolute; left: 0; right: 0; text-align: center; font-size: 32px; letter-spacing: 0.4em; font-weight: 700; color: var(--muted); }
+
+      /* Tall */
+      .tall .copy { left: 70px; right: 70px; top: 230px; }
+      .tall .card { left: 60px; width: 960px; height: 780px; top: 680px; }
+      .tall .credit { bottom: 120px; }
+
+      /* Wide */
+      .wide .copy { left: 110px; width: 760px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+      .wide .ft { font-size: 92px; }
+      .wide .card { left: 930px; width: 890px; height: 760px; top: 160px; }
+      .wide .q2 { font-size: 150px; }
+      .wide .credit { bottom: 60px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" class="tall" data-composition-id="main" data-start="0" data-duration="23.710" data-width="1080" data-height="1920">
+      <!-- Music from track beat 310, so the drop (beat 316) hits feature 1 at 2.903 s -->
+      <audio id="music" src="assets/bgm-tech-house.mp3" data-start="0" data-duration="23.710" data-media-start="159.458" data-volume="0.85" data-fade-in="0.3" data-fade-out="1.4" data-track-index="10"></audio>
+      <audio id="sfx1" src="assets/impact-deep-whoosh.mp3" data-start="2.86" data-duration="2" data-volume="0.5" data-track-index="11"></audio>
+      <audio id="sfx2" src="assets/swoosh-quick.mp3" data-start="19.80" data-duration="0.78" data-volume="0.35" data-track-index="12"></audio>
+
+      <!-- Intro: beats 0-6 -->
+      <section id="intro" class="clip center" data-start="0" data-duration="2.903" data-track-index="0">
+        <div class="q1" id="q1">5 things only</div>
+        <div class="q2" id="q2"><span class="hl">NexDB</span> does</div>
+        <div class="names" id="names">
+          <span class="name">Not XAMPP</span><span class="name">Not Laragon</span><span class="name">Not Herd</span>
+        </div>
+      </section>
+
+      <!-- Features: 7 beats each, beats 6-41 -->
+      <section id="f1" class="clip feat" data-start="2.903" data-duration="3.387" data-track-index="1">
+        <div class="copy"><span class="num"><b>1</b>ONLY IN NEXDB</span><div class="ft">Nex fixes your setup</div><div class="fs">One click fixes it.</div></div>
+        <div class="card" data-crop="400,20,1980"><img data-layout-allow-overflow src="assets/health.png" alt="" /></div>
+      </section>
+      <section id="f2" class="clip feat" data-start="6.290" data-duration="3.387" data-track-index="1">
+        <div class="copy"><span class="num"><b>2</b>ONLY IN NEXDB</span><div class="ft">Problems, in plain words</div><div class="fs">Each with a Fix button.</div></div>
+        <div class="card" data-crop="500,640,1600"><img data-layout-allow-overflow src="assets/nh-overview.png" alt="" /></div>
+      </section>
+      <section id="f3" class="clip feat" data-start="9.677" data-duration="3.387" data-track-index="1">
+        <div class="copy"><span class="num"><b>3</b>ONLY IN NEXDB</span><div class="ft">See every connection</div><div class="fs">Visitor to database, live.</div></div>
+        <div class="card" data-crop="500,280,2240"><img data-layout-allow-overflow src="assets/nh-overview.png" alt="" /></div>
+      </section>
+      <section id="f4" class="clip feat" data-start="13.065" data-duration="3.387" data-track-index="1">
+        <div class="copy"><span class="num"><b>4</b>ONLY IN NEXDB</span><div class="ft">Deploy from your own PC</div><div class="fs">Update site, Migrate, Seed.</div></div>
+        <div class="card" data-crop="460,20,1800"><img data-layout-allow-overflow src="assets/nh-deploy.png" alt="" /></div>
+      </section>
+      <section id="f5" class="clip feat" data-start="16.452" data-duration="3.387" data-track-index="1">
+        <div class="copy"><span class="num"><b>5</b>ONLY IN NEXDB</span><div class="ft">Practice mode tours</div><div class="fs">Nothing on your PC changes.</div></div>
+        <div class="card tour">
+          <img class="nex" src="assets/nex.svg" alt="" />
+          <div class="bubble">
+            <div class="tag">PRACTICE MODE</div>
+            <div class="say">Flip the switch to try it.</div>
+            <div class="btns"><span class="btn">Next</span><span class="btn ghost">Skip</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- End: beats 41-49 -->
+      <section id="end" class="clip center" data-start="19.839" data-duration="3.871" data-track-index="2">
+        <img id="logoE" src="assets/nexdb-logo.png" alt="" />
+        <div class="e1" id="e1">Try it <span class="hl">free</span></div>
+        <div class="e2" id="e2">14-day trial. Plans from ₱299.</div>
+        <div class="url" id="url">db.nexiodev.site</div>
+        <div class="credit" id="credit">NEXIO DEVS</div>
+      </section>
+    </div>
+    <script>
+      const B = 0.48387;
+      const at = (n) => n * B;
+
+      // Crop each 3840x2160 screenshot into its card: data-crop = "x,y,w" in source pixels.
+      document.querySelectorAll(".card[data-crop]").forEach((card) => {
+        const [x, y, w] = card.dataset.crop.split(",").map(Number);
+        const img = card.querySelector("img");
+        const s = card.offsetWidth / w;
+        img.style.width = 3840 * s + "px";
+        img.style.height = 2160 * s + "px";
+        img.style.left = -x * s + "px";
+        img.style.top = -y * s + "px";
+      });
+
+      const tl = gsap.timeline({ paused: true });
+      const pop = { opacity: 0, y: 40 };
+      const on = { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" };
+
+      // Intro: first line on screen from frame 0
+      tl.fromTo("#q1", { scale: 1.06 }, { scale: 1, duration: 0.4, ease: "power3.out" }, 0);
+      tl.fromTo("#q2", { opacity: 0, scale: 1.3 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power4.out" }, at(1));
+      tl.fromTo("#names .name", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.25, stagger: B, ease: "power2.out" }, at(2.5));
+
+      // Features
+      ["f1", "f2", "f3", "f4", "f5"].forEach((id, i) => {
+        const t = at(6 + 7 * i);
+        tl.fromTo(`#${id} .num`, { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.3, ease: "power3.out" }, t);
+        tl.fromTo(`#${id} .ft`, { opacity: 0, scale: 1.12 }, { opacity: 1, scale: 1, duration: 0.3, ease: "power4.out" }, t + 0.05);
+        tl.fromTo(`#${id} .fs`, pop, on, t + at(1));
+        tl.fromTo(`#${id} .card`, { opacity: 0, y: 120 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, t + 0.1);
+        tl.fromTo(`#${id} .card img`, { scale: 1 }, { scale: 1.04, duration: at(7), ease: "none" }, t);
+      });
+      tl.fromTo("#f5 .bubble", { opacity: 0, scale: 0.8 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, at(35));
+
+      // End
+      const tE = at(41);
+      tl.fromTo("#logoE", { opacity: 0, scale: 0.5 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)" }, tE);
+      tl.fromTo("#e1", pop, on, tE + 0.15);
+      tl.fromTo("#e2", pop, on, tE + at(1));
+      tl.fromTo("#url", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)" }, tE + at(2));
+      tl.fromTo("#credit", { opacity: 0 }, { opacity: 1, duration: 0.5 }, tE + at(3));
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+import puppeteer from "puppeteer-core";
+const b = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, defaultViewport: { width: 1920, height: 1080 } });
+const p = await b.newPage();
+await p.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }]);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const click = (t) => p.evaluate((t) => [...document.querySelectorAll("button,a,[role=tab]")].find((x) => x.offsetParent && x.innerText.trim().startsWith(t))?.click(), t);
+const sel = (s) => p.evaluate((s) => [...document.querySelectorAll(s)].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.x), Math.round(r.y), Math.round(r.width), Math.round(r.height)]; }), s);
+await p.goto("http://localhost:1420/?view=nexhost&license=nexhost&demo=allgreen", { waitUntil: "networkidle0" });
+await wait(1500); await click("shop"); await wait(900);
+console.log("map nodes", JSON.stringify(await sel(".nh-map-node")));
+await click("Files"); await wait(700); await click("Import project"); await wait(900);
+await click("Import"); await p.evaluate(() => [...document.querySelectorAll("button.btn-primary")].find((b) => b.innerText.trim() === "Import")?.click()); await wait(1200);
+console.log("rows", JSON.stringify(await p.evaluate(() => [...document.querySelectorAll(".nh-table tbody tr")].map((r) => { const b = r.getBoundingClientRect(); return [r.innerText.split("\t")[0].trim(), Math.round(b.y), Math.round(b.height)]; }))));
+console.log("status", JSON.stringify(await sel(".set-ok")));
+await p.evaluate(() => [...document.querySelectorAll("button")].find((b) => b.innerText.trim().startsWith("index.php"))?.click()); await wait(900);
+console.log("editor", JSON.stringify(await sel(".nh-editor-body")), JSON.stringify(await sel(".nh-editor-head")));
+await b.close();

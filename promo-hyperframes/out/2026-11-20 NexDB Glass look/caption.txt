@@ -1,0 +1,9 @@
+NexDB has a new look: Glass.
+
+Tick Glass look under Light / Dark / System and your desktop shows softly blurred through NexDB, in light or dark. On Windows it uses Acrylic. On a Mac it uses the classic blur, or Apple's Liquid Glass on macOS 26.
+
+Also new in 0.5.9: one Start all button for your whole stack, and phpMyAdmin one click away on the Dashboard.
+
+Update from the app, or try it free for 14 days at db.nexiodev.site
+
+#NexDB #PHP #WebDevelopment #macOS #Windows

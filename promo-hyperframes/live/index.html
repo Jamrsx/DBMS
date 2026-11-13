@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en" data-resolution="portrait">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1920" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      /* "NexDB is now live" short. One file for both shapes: #root.tall (1080x1920) or #root.wide (1920x1080).
+         Timing grid = music beats, 124 BPM. */
+      :root {
+        --ground: #0a0e16;
+        --panel: #121826;
+        --line: #243049;
+        --ink: #ffffff;
+        --muted: #9aa6bd;
+        --accent: #2f6ae0;
+        --ok: #5ccb8b;
+        --font-display: "Segoe UI", "Inter", Arial, sans-serif;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--ground); }
+      #root {
+        position: relative; width: 100%; height: 100%; overflow: hidden;
+        font-family: var(--font-display); color: var(--ink);
+        background: radial-gradient(1000px 900px at 50% 45%, rgba(47, 106, 224, 0.22), transparent 70%), var(--ground);
+      }
+      .clip { position: absolute; inset: 0; }
+      .center { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+      /* S1 tease */
+      #logo1 { width: 220px; height: 220px; border-radius: 48px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); }
+      #tease { font-size: 64px; font-weight: 700; color: var(--muted); margin-top: 48px; letter-spacing: 0.02em; }
+
+      /* S2 the announcement */
+      .live-pill {
+        display: inline-flex; align-items: center; gap: 16px; font-size: 36px; font-weight: 800; letter-spacing: 0.16em;
+        padding: 12px 30px; border-radius: 999px; background: rgba(92, 203, 139, 0.14); color: var(--ok);
+        border: 2px solid rgba(92, 203, 139, 0.5);
+      }
+      .live-pill i { width: 18px; height: 18px; border-radius: 50%; background: var(--ok); display: block; }
+      .headline { font-size: 150px; font-weight: 800; letter-spacing: -0.04em; line-height: 0.98; margin-top: 30px; }
+      .headline .hl { color: var(--accent); }
+      .lede { font-size: 48px; font-weight: 500; color: var(--muted); margin-top: 28px; line-height: 1.25; }
+      .card {
+        position: absolute; overflow: hidden; border-radius: 28px; border: 2px solid var(--line); background: var(--panel);
+        box-shadow: 0 40px 120px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(47, 106, 224, 0.25);
+      }
+      .card img { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+
+      /* S3 call to action */
+      #logo3 { width: 150px; height: 150px; border-radius: 34px; margin-bottom: 40px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); }
+      .cta-title { font-size: 104px; font-weight: 800; letter-spacing: -0.03em; }
+      .cta-title .hl { color: var(--ok); }
+      .cta-sub { font-size: 46px; color: var(--muted); font-weight: 500; margin-top: 18px; }
+      .url {
+        margin-top: 60px; font-size: 72px; font-weight: 800; padding: 26px 60px; border-radius: 999px;
+        background: var(--accent); color: #fff;
+      }
+      .ver { font-size: 36px; color: var(--muted); margin-top: 40px; font-weight: 600; }
+      .credit { position: absolute; left: 0; right: 0; text-align: center; font-size: 32px; letter-spacing: 0.4em; font-weight: 700; color: var(--muted); }
+
+      /* Tall layout */
+      .tall #s2 .copy { position: absolute; left: 60px; right: 60px; top: 230px; text-align: center; }
+      .tall #s2 .card { left: 60px; width: 960px; height: 760px; top: 960px; }
+      .tall .credit { bottom: 120px; }
+
+      /* Wide layout */
+      .wide #s2 .copy { position: absolute; left: 110px; width: 780px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-start; }
+      .wide #s2 .headline { font-size: 140px; }
+      .wide #s2 .card { left: 940px; width: 880px; height: 800px; top: 140px; }
+      .wide .credit { bottom: 60px; }
+    </style>
+  </head>
+  <body>
+    <div id="root" class="tall" data-composition-id="main" data-start="0" data-duration="9.677" data-width="1080" data-height="1920">
+      <!-- Music from track beat 312, so the drop (beat 316) hits the "now live" reveal at 1.935 s -->
+      <audio id="music" src="assets/bgm-tech-house.mp3" data-start="0" data-duration="9.677" data-media-start="160.426" data-volume="0.85" data-fade-in="0.3" data-fade-out="1.2" data-track-index="10"></audio>
+      <audio id="sfx1" src="assets/impact-deep-whoosh.mp3" data-start="1.90" data-duration="2" data-volume="0.5" data-track-index="11"></audio>
+      <audio id="sfx2" src="assets/swoosh-quick.mp3" data-start="5.75" data-duration="0.78" data-volume="0.35" data-track-index="12"></audio>
+
+      <!-- S1: beats 0-4 -->
+      <section id="s1" class="clip center" data-start="0" data-duration="1.935" data-track-index="0">
+        <img id="logo1" src="assets/nexdb-logo.png" alt="" />
+        <div id="tease">Big news.</div>
+      </section>
+
+      <!-- S2: beats 4-12 -->
+      <section id="s2" class="clip" data-start="1.935" data-duration="3.871" data-track-index="1">
+        <div class="copy">
+          <span class="live-pill" id="pill"><i></i>OUT NOW</span>
+          <div class="headline" id="hd">NexDB is<br /><span class="hl">now live.</span></div>
+          <div class="lede" id="lede">Your whole PHP stack, one app.</div>
+        </div>
+        <div class="card" id="card"><img id="shot" data-layout-allow-overflow src="assets/dash-running.png" alt="" /></div>
+      </section>
+
+      <!-- S3: beats 12-20 -->
+      <section id="s3" class="clip center" data-start="5.806" data-duration="3.871" data-track-index="2">
+        <img id="logo3" src="assets/nexdb-logo.png" alt="" />
+        <div class="cta-title" id="ct">Try it <span class="hl">free</span></div>
+        <div class="cta-sub" id="cs">14-day trial. Plans from ₱299.</div>
+        <div class="url" id="url">db.nexiodev.site</div>
+        <div class="ver" id="ver">NexDB 0.5.6</div>
+        <div class="credit" id="credit">NEXIO DEVS</div>
+      </section>
+    </div>
+    <script>
+      const B = 0.48387;
+      const at = (n) => n * B;
+
+      // Show the services list of the 3840x2160 dashboard shot: crop [x, y, w] in source pixels.
+      const card = document.getElementById("card");
+      const img = document.getElementById("shot");
+      const [cx, cy, cw] = [360, 0, 2260];
+      const s = card.offsetWidth / cw;
+      img.style.width = 3840 * s + "px";
+      img.style.height = 2160 * s + "px";
+      img.style.left = -cx * s + "px";
+      img.style.top = -cy * s + "px";
+
+      const tl = gsap.timeline({ paused: true });
+      const pop = { opacity: 0, y: 40 };
+      const on = { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" };
+
+      // S1: logo on screen from frame 0, tease line on beat 1
+      tl.fromTo("#logo1", { scale: 0.9 }, { scale: 1, duration: at(4), ease: "power1.out" }, 0);
+      tl.fromTo("#tease", pop, on, at(1));
+
+      // S2: the drop
+      const t2 = at(4);
+      tl.fromTo("#hd", { opacity: 0, scale: 1.25 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power4.out" }, t2);
+      tl.fromTo("#pill", pop, on, t2 + at(1));
+      tl.fromTo("#lede", pop, on, t2 + at(2));
+      tl.fromTo("#card", { opacity: 0, y: 160 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, t2 + at(1));
+      tl.fromTo("#shot", { scale: 1 }, { scale: 1.08, duration: at(8), ease: "none" }, t2);
+
+      // S3
+      const t3 = at(12);
+      tl.fromTo("#logo3", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.35, ease: "back.out(2)" }, t3);
+      tl.fromTo("#ct", { opacity: 0, scale: 1.2 }, { opacity: 1, scale: 1, duration: 0.35, ease: "power4.out" }, t3);
+      tl.fromTo("#cs", pop, on, t3 + at(1));
+      tl.fromTo("#url", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(2)" }, t3 + at(2));
+      tl.fromTo("#ver, #credit", { opacity: 0 }, { opacity: 1, duration: 0.5 }, t3 + at(3));
+
+      window.__timelines = window.__timelines || {};
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

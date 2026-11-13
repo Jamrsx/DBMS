@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "historyId": "9539514c-38e8-4a1a-8537-53adc6d93acd",
+  "currentRevision": null,
+  "pendingChanges": false,
+  "files": {
+    "hyperframes.json": {
+      "hash": "53dbce1e19aa713cbb12ee0bc4d206143b45ab15e6ffbfcaa8f69572d4d24d50",
+      "content": "C:\\Users\\PC\\.cache\\hyperframes\\history\\9539514c-38e8-4a1a-8537-53adc6d93acd\\blobs\\53\\53dbce1e19aa713cbb12ee0bc4d206143b45ab15e6ffbfcaa8f69572d4d24d50"
+    },
+    "index.html": {
+      "hash": "df6f003b7027e846977ba1ae938e692429c686935e13d0f0a60d3c44b1bdfa2f",
+      "content": "C:\\Users\\PC\\.cache\\hyperframes\\history\\9539514c-38e8-4a1a-8537-53adc6d93acd\\blobs\\df\\df6f003b7027e846977ba1ae938e692429c686935e13d0f0a60d3c44b1bdfa2f"
+    },
+    "meta.json": {
+      "hash": "723bdc0fef845e09911716afa0cdce86cb7619993f8188f0fc8c7dd0ae6b2652",
+      "content": "C:\\Users\\PC\\.cache\\hyperframes\\history\\9539514c-38e8-4a1a-8537-53adc6d93acd\\blobs\\72\\723bdc0fef845e09911716afa0cdce86cb7619993f8188f0fc8c7dd0ae6b2652"
+    },
+    "package.json": {
+      "hash": "ab9d306d8ca91e0d4daa63bef24226eb2febce700c8cf8e4fe70a69d5071f603",
+      "content": "C:\\Users\\PC\\.cache\\hyperframes\\history\\9539514c-38e8-4a1a-8537-53adc6d93acd\\blobs\\ab\\ab9d306d8ca91e0d4daa63bef24226eb2febce700c8cf8e4fe70a69d5071f603"
+    }
+  },
+  "revisions": {},
+  "checks": {
+    "latest": null,
+    "revisions": {},
+    "unversioned": []
+  },
+  "snapshots": {
+    "latest": {
+      "revision": null,
+      "id": "9e9d54d1-83da-4589-acf6-98e8e2e23ef4-1"
+    },
+    "revisions": {},
+    "unversioned": [
+      {
+        "scope": "full",
+        "id": "a2487be0-f5b0-488e-9548-dc789e194df1-0",
+        "image": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\char-preview\\.hyperframes\\artifacts\\snapshots\\7d829e69-0161-4f06-b1d5-31d54fec1a35\\frame-00-at-0.5s.png",
+        "time": 0.5,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1794967829233,
+        "contentHash": "cc371a56d1b8c911d38b725b2dd19d34fd4d3d789567f7960332aaaea44d9bbc",
+        "revision": null,
+        "inputFingerprint": "75c35f13f4c5e2c17ba31f21907d2787a415eb5259c29d1eab402587d869c613",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "a2487be0-f5b0-488e-9548-dc789e194df1-1",
+        "image": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\char-preview\\.hyperframes\\artifacts\\snapshots\\7d829e69-0161-4f06-b1d5-31d54fec1a35\\frame-01-at-0.95s.png",
+        "time": 0.95,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1794967829233,
+        "contentHash": "cc371a56d1b8c911d38b725b2dd19d34fd4d3d789567f7960332aaaea44d9bbc",
+        "revision": null,
+        "inputFingerprint": "75c35f13f4c5e2c17ba31f21907d2787a415eb5259c29d1eab402587d869c613",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "9e9d54d1-83da-4589-acf6-98e8e2e23ef4-0",
+        "image": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\char-preview\\.hyperframes\\artifacts\\snapshots\\7832f1c5-c01a-42e6-b62c-4a965f5e7c77\\frame-00-at-0.5s.png",
+        "time": 0.5,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1794967837540,
+        "contentHash": "cc371a56d1b8c911d38b725b2dd19d34fd4d3d789567f7960332aaaea44d9bbc",
+        "revision": null,
+        "inputFingerprint": "75c35f13f4c5e2c17ba31f21907d2787a415eb5259c29d1eab402587d869c613",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      },
+      {
+        "scope": "full",
+        "id": "9e9d54d1-83da-4589-acf6-98e8e2e23ef4-1",
+        "image": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\char-preview\\.hyperframes\\artifacts\\snapshots\\7832f1c5-c01a-42e6-b62c-4a965f5e7c77\\frame-01-at-0.95s.png",
+        "time": 0.95,
+        "metadata": {
+          "width": 1920,
+          "height": 1080,
+          "zoomScale": 1,
+          "browserGpuMode": "auto",
+          "warnings": [],
+          "partial": false
+        },
+        "createdAt": 1794967837541,
+        "contentHash": "cc371a56d1b8c911d38b725b2dd19d34fd4d3d789567f7960332aaaea44d9bbc",
+        "revision": null,
+        "inputFingerprint": "75c35f13f4c5e2c17ba31f21907d2787a415eb5259c29d1eab402587d869c613",
+        "inputScope": "local-project-files",
+        "attribution": "unversioned"
+      }
+    ]
+  }
+}

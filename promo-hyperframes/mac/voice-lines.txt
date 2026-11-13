@@ -1,0 +1,16 @@
+NexDB for Mac - voice lines (POV story style, about 35 s)
+Export each line as its own MP3: line01.mp3 ... line12.mp3, into promo-hyperframes/mac/assets/vo/
+Say "NexDB" as "Nex D B".
+
+01  POV: you just switched to a Mac... and your PHP setup is gone.
+02  Homebrew errors. Config files everywhere.
+03  Three hours later, Apache still won't start.
+04  Then you find this.
+05  NexDB. Now on Mac.
+06  Apache, PHP, MySQL and Node. One app. One click: Start all.
+07  Something breaks? Nex tells you what's wrong, in plain words, and fixes it.
+08  Host your test site straight from your Mac with NexHost.
+09  It runs on Apple Silicon and on Intel Macs. Even a 2018 MacBook Air.
+10  All you need is macOS 13 or newer.
+11  Try it free for 14 days. Plans start at two hundred ninety-nine pesos.
+12  db dot nexiodev dot site. Link in bio.

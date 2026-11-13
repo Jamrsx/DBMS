@@ -1,0 +1,94 @@
+{
+ "dash-stopped": {
+  "startAll": {
+   "x": 1794,
+   "y": 47,
+   "w": 85,
+   "h": 32
+  }
+ },
+ "dash-running": {},
+ "projects": {},
+ "database": {},
+ "database-table": {},
+ "versions": {},
+ "mail": {},
+ "health": {},
+ "settings": {},
+ "nh-overview": {},
+ "nh-files": {},
+ "nh-import": {},
+ "nh-imported": {},
+ "nh-editor": {},
+ "nh-deploy": {},
+ "nh-deploy-done": {},
+ "nh-golive": {},
+ "nh-ssh": {},
+ "nh-overview-offline": {},
+ "dash": {
+  "rows": [
+   {
+    "name": "Apache",
+    "x": 266,
+    "y": 294,
+    "w": 998,
+    "h": 87
+   },
+   {
+    "name": "PHP 8.5.12",
+    "x": 266,
+    "y": 427,
+    "w": 998,
+    "h": 88
+   },
+   {
+    "name": "PHP 8.4.27",
+    "x": 266,
+    "y": 516,
+    "w": 998,
+    "h": 88
+   },
+   {
+    "name": "MySQL",
+    "x": 266,
+    "y": 650,
+    "w": 998,
+    "h": 87
+   },
+   {
+    "name": "PostgreSQL",
+    "x": 266,
+    "y": 737,
+    "w": 998,
+    "h": 108
+   },
+   {
+    "name": "Mail catcher",
+    "x": 266,
+    "y": 892,
+    "w": 998,
+    "h": 107
+   },
+   {
+    "name": "Redis",
+    "x": 266,
+    "y": 999,
+    "w": 998,
+    "h": 108
+   },
+   {
+    "name": "old-postgres",
+    "x": 266,
+    "y": 1241,
+    "w": 998,
+    "h": 64
+   }
+  ],
+  "startAll": {
+   "x": 1794,
+   "y": 47,
+   "w": 85,
+   "h": 32
+  }
+ }
+}

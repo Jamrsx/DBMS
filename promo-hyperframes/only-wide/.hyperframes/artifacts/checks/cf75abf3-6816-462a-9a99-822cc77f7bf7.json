@@ -1,0 +1,638 @@
+{
+  "ok": true,
+  "strict": false,
+  "browserSkipped": false,
+  "lint": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 9,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "duplicate_media_discovery_risk",
+        "severity": "warning",
+        "message": "Detected 2 matching img entries with the same source/start/duration.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Avoid duplicated media nodes that can be discovered twice during compilation."
+      },
+      {
+        "code": "timeline_track_too_dense",
+        "severity": "warning",
+        "message": "Track 1 has 5 timed elements in this HTML file. Smaller sub-compositions keep timelines easier to read, iterate on, and diff.",
+        "selector": "[data-composition-id]",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move coherent scene groups into separate .html files under compositions/ and mount them from the parent with data-composition-src so the timeline stays easier to inspect, revise, and validate."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"intro\"> is a timeline element that contains nested <div id=\"q1\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#intro",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"intro\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"f1\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#f1",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"f1\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"f2\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#f2",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"f2\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"f3\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#f3",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"f3\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"f4\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#f4",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"f4\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"f5\"> is a timeline element that contains nested <div>. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#f5",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"f5\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      },
+      {
+        "code": "nested_structure_needs_subcomposition",
+        "severity": "warning",
+        "message": "<section id=\"end\"> is a timeline element that contains nested <img id=\"logoE\">. The timeline shows one row per top-level element, and the root composition is built only from sub-compositions.",
+        "selector": "#end",
+        "dataAttributes": {},
+        "sourceFile": "C:\\Users\\PC\\Documents\\Reverse Eng\\promo-hyperframes\\only-wide\\index.html",
+        "bbox": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0
+        },
+        "time": 0,
+        "fixHint": "Move <section id=\"end\"> and its contents into a sub-composition file and mount it with data-composition-src."
+      }
+    ],
+    "filesScanned": 1
+  },
+  "runtime": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "layout": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "duration": 18.871,
+    "samples": [
+      1.048,
+      3.145,
+      5.242,
+      7.339,
+      9.436,
+      11.532,
+      13.629,
+      15.726,
+      17.823
+    ],
+    "transitionSamples": [],
+    "transitionSamplesDropped": 0,
+    "tolerance": 2,
+    "totalIssueCount": 0,
+    "truncated": false
+  },
+  "motion": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": false,
+    "samples": 0
+  },
+  "contrast": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": [],
+    "enabled": true,
+    "samples": [
+      1.048,
+      5.242,
+      9.436,
+      13.629,
+      17.823
+    ],
+    "checked": 24,
+    "passed": 24
+  },
+  "craft": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 5,
+    "infoCount": 0,
+    "findings": [
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Finds what's broken. One click fixes it.\" (7 words) is on screen 1.87 s (±0.01 s), under its 1.95 s floor: hold it about 0.5 s + 0.3 s a word (2.60 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Finds what's broken. One click fixes it.",
+        "selector": "#f1 > div:nth-of-type(1) > div:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 110,
+          "y": 645.93,
+          "width": 759.88,
+          "height": 118
+        },
+        "time": 3.468,
+        "words": 7,
+        "seconds": 1.867,
+        "floorSeconds": 1.95,
+        "measured": [
+          {
+            "time": 3.124,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 3.249,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 3.374,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 3.499,
+            "opacity": 0.64,
+            "heightPx": 118
+          },
+          {
+            "time": 3.624,
+            "opacity": 0.98,
+            "heightPx": 118
+          },
+          {
+            "time": 3.749,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 3.874,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 4.874,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 4.999,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 5.124,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 5.249,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 5.374,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 5.499,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 5.624,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Each one comes with a Fix button.\" (7 words) is on screen 1.90 s (±0.01 s), under its 1.95 s floor: hold it about 0.5 s + 0.3 s a word (2.60 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Each one comes with a Fix button.",
+        "selector": "#f2 > div:nth-of-type(1) > div:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 110,
+          "y": 680.47,
+          "width": 732.06,
+          "height": 58
+        },
+        "time": 5.874,
+        "words": 7,
+        "seconds": 1.897,
+        "floorSeconds": 1.95,
+        "measured": [
+          {
+            "time": 5.499,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 5.624,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 5.749,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 5.874,
+            "opacity": 0.53,
+            "heightPx": 58
+          },
+          {
+            "time": 5.999,
+            "opacity": 0.91,
+            "heightPx": 58
+          },
+          {
+            "time": 6.124,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 6.249,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 7.373,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 7.498,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 7.623,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 7.748,
+            "opacity": 1,
+            "heightPx": 58
+          },
+          {
+            "time": 7.873,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 7.998,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 8.123,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"Try new features. Nothing on your PC changes.\" (8 words) is on screen 1.87 s (±0.01 s), under its 2.17 s floor: hold it about 0.5 s + 0.3 s a word (2.90 s here) before it leaves or changes; see references/motion.md.",
+        "text": "Try new features. Nothing on your PC changes.",
+        "selector": "#f5 > div:nth-of-type(1) > div:nth-of-type(2)",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 110,
+          "y": 634.54,
+          "width": 725.23,
+          "height": 118
+        },
+        "time": 13.138,
+        "words": 8,
+        "seconds": 1.867,
+        "floorSeconds": 2.175,
+        "measured": [
+          {
+            "time": 12.872,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 12.997,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 13.122,
+            "opacity": 0.35,
+            "heightPx": 118
+          },
+          {
+            "time": 13.247,
+            "opacity": 0.93,
+            "heightPx": 118
+          },
+          {
+            "time": 13.372,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 13.497,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 13.622,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 14.622,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 14.747,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 14.872,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 14.997,
+            "opacity": 1,
+            "heightPx": 118
+          },
+          {
+            "time": 15.122,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.247,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.372,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "line_unread",
+        "severity": "warning",
+        "message": "\"This is Go live. Flip the switch to try it.\" (10 words) is on screen 1.87 s (±0.01 s), under its 2.63 s floor: hold it about 0.5 s + 0.3 s a word (3.50 s here) before it leaves or changes; see references/motion.md.",
+        "text": "This is Go live. Flip the switch to try it.",
+        "selector": "div.say",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1151.77,
+          "y": 465.76,
+          "width": 414.1600000000001,
+          "height": 102.39999999999998
+        },
+        "time": 13.138,
+        "words": 10,
+        "seconds": 1.867,
+        "floorSeconds": 2.625,
+        "measured": [
+          {
+            "time": 12.872,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 12.997,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 13.122,
+            "opacity": 0.44,
+            "heightPx": 89
+          },
+          {
+            "time": 13.247,
+            "opacity": 1,
+            "heightPx": 102
+          },
+          {
+            "time": 13.372,
+            "opacity": 1,
+            "heightPx": 101
+          },
+          {
+            "time": 13.497,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 13.622,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 14.622,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 14.747,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 14.872,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 14.997,
+            "opacity": 1,
+            "heightPx": 100
+          },
+          {
+            "time": 15.122,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.247,
+            "opacity": null,
+            "heightPx": null
+          },
+          {
+            "time": 15.372,
+            "opacity": null,
+            "heightPx": null
+          }
+        ]
+      },
+      {
+        "code": "text_below_floor",
+        "severity": "warning",
+        "message": "Type floor is 28 px (2.6% of the 1080 px short side, what a phone can read) and \"PRACTICE MODE\" renders at 26 px for 1.88 s: set reading text to at least 28 px, or put data-layout-ignore on text that is texture rather than reading; see references/look.md.",
+        "text": "PRACTICE MODE",
+        "selector": "div.tag",
+        "dataAttributes": {},
+        "sourceFile": "index.html",
+        "bbox": {
+          "x": 1151.77,
+          "y": 416.61,
+          "width": 255.21,
+          "height": 32.77
+        },
+        "time": 13.247,
+        "times": [
+          13.247
+        ],
+        "fontPx": 26,
+        "floorPx": 28,
+        "seconds": 1.875,
+        "elements": [
+          {
+            "selector": "div.tag",
+            "text": "PRACTICE MODE",
+            "fontPx": 26,
+            "time": 13.247,
+            "seconds": 1.875
+          }
+        ]
+      }
+    ],
+    "enabled": true,
+    "step": 0.125,
+    "samples": 151
+  },
+  "audio": {
+    "ok": true,
+    "errorCount": 0,
+    "warningCount": 0,
+    "infoCount": 0,
+    "findings": []
+  },
+  "hdr": {
+    "autoPromotion": null,
+    "inspection": "available"
+  },
+  "snapshots": {
+    "enabled": false,
+    "files": [],
+    "times": [],
+    "findingFiles": []
+  }
+}

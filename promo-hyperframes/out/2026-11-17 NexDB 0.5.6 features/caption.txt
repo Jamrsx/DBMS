@@ -1,0 +1,4 @@
+Post: Monday 2026-11-17
+Video: 16:9 for the Facebook feed, 9:16 for Reels and TikTok
+
+New in NexDB 0.5.6: NexHost. Host test sites from your own PC. Go live with one switch on your own https address, update your site with Update, Migrate and Seed, and edit code with the built-in editor and terminal. Plans from ₱299 for 6 months, or ₱4,900 for 4 years with NexHost included. Try it free for 14 days: https://db.nexiodev.site

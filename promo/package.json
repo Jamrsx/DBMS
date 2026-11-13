@@ -1,0 +1,27 @@
+{
+  "name": "nexdb-promo",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "remotion studio src/index.ts",
+    "render": "remotion render src/index.ts NexdbPromo out/nexdb-promo.mp4",
+    "still": "remotion still src/index.ts NexdbPromo"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "puppeteer-core": "^24.43.1",
+    "typescript": "^6.0.3"
+  },
+  "private": true,
+  "dependencies": {
+    "@remotion/cli": "^4.0.484",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "remotion": "^4.0.484"
+  }
+}

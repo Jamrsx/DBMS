@@ -1,0 +1,4 @@
+Post: Thursday 2026-11-13
+Video: 16:9 for the Facebook feed, 9:16 for Reels and TikTok
+
+NexDB is now live. Apache, PHP, MySQL and Node in one app for Windows. One click starts everything, and Nex finds and fixes problems for you. Try it free for 14 days: https://db.nexiodev.site

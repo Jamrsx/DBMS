@@ -1,0 +1,11 @@
+import puppeteer from "puppeteer-core";
+const browser = await puppeteer.launch({ executablePath: "C:/Program Files/Google/Chrome/Application/chrome.exe", headless: true, defaultViewport: { width: 1600, height: 960 } });
+const page = await browser.newPage();
+await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "dark" }, { name: "prefers-reduced-motion", value: "reduce" }]);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+await page.goto("http://localhost:1420/?view=dashboard&license=nexhost", { waitUntil: "networkidle0" });
+await wait(1500);
+const btns = () => page.evaluate(() => [...document.querySelectorAll("button,a,[role=tab],[role=switch]")].map((x) => (x.innerText || x.getAttribute("aria-label") || "").trim().slice(0, 40)).filter(Boolean).join(" | "));
+console.log(await btns());
+await page.screenshot({ path: "tutorial/capture/e1.png" });
+await browser.close();

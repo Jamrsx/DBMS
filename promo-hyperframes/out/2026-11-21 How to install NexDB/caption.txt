@@ -1,0 +1,10 @@
+Seeing a warning when you install NexDB? Here's why.
+
+NexDB isn't code-signed yet. Signing certificates cost money every year, and we're a small team. So Windows and macOS don't recognize us yet. The app itself is safe.
+
+Windows: click "More info", then "Run anyway".
+Mac: drag NexDB to Applications and open it. Click "Done". Then go to System Settings > Privacy & Security, scroll down, click "Open Anyway" and enter your password. You only do this once.
+
+Only download NexDB from db.nexiodev.site. 14-day free trial.
+
+#NexDB #NEXIODEVS #webdev #php #mysql #macos #windows

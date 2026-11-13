@@ -1,0 +1,77 @@
+{
+ "air-woosh-deep.mp3": {
+  "peakF": 14.98,
+  "lenS": 2.98,
+  "maxDb": -0.3
+ },
+ "bass-hit-short.mp3": {
+  "peakF": 2.96,
+  "lenS": 1.1,
+  "maxDb": -0.3
+ },
+ "impact-cine-big.mp3": {
+  "peakF": 65.31,
+  "lenS": 7.93,
+  "maxDb": -0.5
+ },
+ "impact-deep-whoosh.mp3": {
+  "peakF": 16.72,
+  "lenS": 4.06,
+  "maxDb": -0.9
+ },
+ "pop.mp3": {
+  "peakF": 1.22,
+  "lenS": 0.48,
+  "maxDb": -2.1
+ },
+ "power-up-static.mp3": {
+  "peakF": 21.25,
+  "lenS": 2.81,
+  "maxDb": -2.7
+ },
+ "riser-cine.mp3": {
+  "peakF": 35.18,
+  "lenS": 4.81,
+  "maxDb": -0.1
+ },
+ "shimmer-sparkle-sweep.mp3": {
+  "peakF": 27.69,
+  "lenS": 3.0,
+  "maxDb": -1.7
+ },
+ "sparkle-poof-hit.mp3": {
+  "peakF": 2.79,
+  "lenS": 3.19,
+  "maxDb": -2.3
+ },
+ "sparkle-wand.mp3": {
+  "peakF": 5.05,
+  "lenS": 2.5,
+  "maxDb": -5.8
+ },
+ "sweep-digital.mp3": {
+  "peakF": 11.32,
+  "lenS": 1.13,
+  "maxDb": -2.1
+ },
+ "switch-click-quick.mp3": {
+  "peakF": 0.35,
+  "lenS": 1.04,
+  "maxDb": 0.1
+ },
+ "switch-tap.mp3": {
+  "peakF": 0.35,
+  "lenS": 1.11,
+  "maxDb": -0.8
+ },
+ "swoosh-quick.mp3": {
+  "peakF": 8.53,
+  "lenS": 0.78,
+  "maxDb": -3.9
+ },
+ "transition-tech-slide.mp3": {
+  "peakF": 3.83,
+  "lenS": 1.65,
+  "maxDb": -10.8
+ }
+}
