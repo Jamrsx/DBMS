@@ -14,7 +14,7 @@
 //   phpMyAdmin files.phpmyadmin.net .sha256                (SHA-256)
 
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 const MAX_LINES = 4;
 
@@ -299,6 +299,26 @@ const catalog = {
 };
 
 const out = new URL("./catalog.json", import.meta.url);
+
+// Mac builds (added by scripts/macos-servers/catalog.py) are kept for every version that is
+// still offered; a new version needs a new Mac build first.
+try {
+  const old = JSON.parse(await readFile(out, "utf8"));
+  for (const c of catalog.components) {
+    const before = old.components?.find((o) => o.id === c.id);
+    for (const l of c.lines) {
+      const same = before?.lines?.find((o) => o.latest === l.latest && o.macos);
+      if (same) l.macos = same.macos;
+    }
+  }
+  for (const [id, tool] of Object.entries(catalog.tools)) {
+    const before = old.tools?.[id];
+    if (tool && before?.macos && before.version === tool.version) tool.macos = before.macos;
+  }
+} catch {
+  // No catalog yet: nothing to keep.
+}
+
 await writeFile(out, JSON.stringify(catalog, null, 2) + "\n");
 console.log(`Wrote ${out.pathname}`);
 const mb = (n) => (n ? `${(n / 2 ** 20).toFixed(0)} MB` : "? MB");

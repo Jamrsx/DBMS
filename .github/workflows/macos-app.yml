@@ -22,6 +22,11 @@ on:
 permissions:
   contents: read
 
+# A newer push replaces a build still running for an older one.
+concurrency:
+  group: macos-app-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   MACOSX_DEPLOYMENT_TARGET: "12.0"
 

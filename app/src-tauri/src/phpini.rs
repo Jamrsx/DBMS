@@ -332,6 +332,7 @@ mod tests {
         assert!(enabled(&php, &c).contains(&"pgsql".to_string()));
     }
 
+    #[cfg(windows)] // checks extension= lines, which macOS doesn't write.
     #[test]
     fn your_values_and_lines_reach_php_ini() {
         let dir = tempfile::tempdir().unwrap();

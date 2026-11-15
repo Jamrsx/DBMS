@@ -29,6 +29,8 @@ pub fn render_php_ini(template: &str, ext_dir: &Path, extensions: &[&str]) -> St
 
 /// Like `render_php_ini`, with the settings to write (your PHP settings over NexDB's).
 pub fn render_php_ini_with(template: &str, ext_dir: &Path, extensions: &[&str], php_settings: &[(&str, &str)]) -> String {
+    // macOS PHP (static-php-cli build) has every extension built in, so there is nothing to load.
+    let extensions: &[&str] = if cfg!(windows) { extensions } else { &[] };
     let mut out: Vec<String> = Vec::new();
     let mut enabled: Vec<&str> = Vec::new();
     let mut ext_dir_set = false;
@@ -443,6 +445,7 @@ pub fn root_above_bin(exe: &Path) -> Option<PathBuf> {
 mod tests {
     use super::*;
 
+    #[cfg(windows)] // macOS PHP has its extensions built in, so none are listed.
     #[test]
     fn php_ini_enables_extensions_and_sets_ext_dir() {
         let template = "\
@@ -469,6 +472,7 @@ memory_limit = 128M
         assert!(ini.contains("upload_max_filesize = 64M"));
     }
 
+    #[cfg(windows)]
     #[test]
     fn php_ini_without_template_is_still_complete() {
         let ini = render_php_ini("", Path::new(r"C:\php\ext"), &["curl"]);

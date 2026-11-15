@@ -188,6 +188,26 @@ Not done yet:
 - Many UI texts still say "PC" or show `C:\` examples in the browser preview data.
 - Never compiled on a Mac: run `macos-check.yml` first.
 
+## Phase 2 status (2026-11-15)
+
+Written, not run yet:
+
+- `scripts/macos-servers/build.sh <id> <version>` builds one program for the machine's chip:
+  Redis, PostgreSQL, Apache (with APR and static OpenSSL/PCRE2), nginx, PHP (static-php-cli, every
+  extension built in, `php`, `php-fpm`, `php-cgi`), MySQL (CMake + Ninja), Node (official build if it
+  runs on macOS 12, else from source) and Mailpit. Libraries are made to load from the program's own
+  folder (`@rpath`) and the files are re-signed ad hoc. Each archive is checked: no file may need a
+  macOS newer than 12.0 or load a library from Homebrew or the build machine.
+- `.github/workflows/macos-servers.yml`: by hand only; every catalog version of each chosen program,
+  on an Intel and an Apple Silicon runner. GitHub shows "Run workflow" only once the file is on the
+  default branch (or the workflow lives in a public build repository).
+- `scripts/macos-servers/catalog.py add <files> <url>` writes the `macos.x64` / `macos.arm64`
+  entries; `catalog/build-catalog.mjs` now keeps them when it refreshes the Windows data.
+- On macOS NexDB writes no `extension=` lines into php.ini (they are built in).
+
+Still to check on the first run: the exact static-php-cli download name, whether MySQL 8.4/9.x/26.x
+compile for macOS 12 (see "MySQL on macOS 12"), and Node 24/26 (likely built from source).
+
 ## Order of work
 
 1. Phase 1 `platform.rs` and the table above (Windows must still pass its tests).
