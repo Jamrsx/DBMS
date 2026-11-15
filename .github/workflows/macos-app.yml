@@ -1,8 +1,9 @@
 # Builds the NexDB Mac app as one universal .dmg (Intel + Apple Silicon), macOS 12 or newer.
 # Plan and background: docs/macos-port.md
 #
-# Starts only by hand (Actions -> "NexDB macOS app" -> Run workflow), so it never spends
-# macOS minutes on its own.
+# Starts by hand (Actions -> "NexDB macOS app" -> Run workflow), or on each push to the
+# macos-port branch while the Mac version is being tested (GitHub only offers "Run workflow"
+# once this file is on the default branch). Docs-only pushes don't start it.
 #
 # Signing and notarization are switched off until an Apple Developer ID exists.
 # To switch them on: add the repository variable MACOS_SIGNING = true and the secrets
@@ -14,6 +15,9 @@ name: NexDB macOS app
 
 on:
   workflow_dispatch:
+  push:
+    branches: [macos-port]
+    paths-ignore: ["docs/**", ".github/workflows/macos-check.yml"]
 
 permissions:
   contents: read
