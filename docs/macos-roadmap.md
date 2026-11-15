@@ -9,7 +9,8 @@ Jamrsx/nexdb-servers. Each stage ends with a check before the next starts.
 1. Collect the passing builds from the nexdb-servers releases (runs #5 and #6).
 2. `python scripts/macos-servers/catalog.py add` for each release: Mac download links into
    `catalog/catalog.json`.
-3. Add official Mac downloads for **cloudflared** and **Git** to the catalog (no build needed).
+3. Add official Mac downloads for **cloudflared** to the catalog (no build needed). Git has no
+   official standalone Mac build; Macs use their own (`xcode-select --install`), see Stage 4.
 4. Push `macos-port`. The "NexDB macOS app" workflow builds the universal `.dmg`.
 5. Check the run is green and the `.dmg` is there.
 
@@ -41,6 +42,7 @@ what failed. Repeat until the Stage 2 list passes.
 | Gap | Plan |
 |---|---|
 | MariaDB, MongoDB, Memcached, Python | MongoDB and Python have official Mac builds (catalog entries); MariaDB and Memcached get build scripts in nexdb-servers |
+| Git | Use the Mac's own Git; if missing, NexDB offers `xcode-select --install` |
 | "Which PHP other terminals use" | Mac version: a NexDB block in `~/.zprofile` |
 | Restore deleted projects | Keep NexDB's own record of what it moved to the Trash |
 | License file not encrypted on Mac | Store it in the macOS Keychain |
