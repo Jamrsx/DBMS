@@ -19,6 +19,10 @@ TOOLS = {"redis", "postgres", "mailpit", "mariadb", "mongodb", "memcached", "pyt
 NAME = re.compile(r"^(?P<id>[a-z]+)-(?P<version>[0-9][0-9.]*)-macos-(?P<chip>x64|arm64)\.tar\.xz$")
 
 
+def version_key(v):
+    return tuple(int(p) for p in v.split(".") if p.isdigit())
+
+
 def load():
     return json.loads(CATALOG.read_text(encoding="utf-8"))
 
@@ -52,8 +56,14 @@ def add(cat, out_dir, base_url):
         if not slots:
             print(f"skipped {archive.name}: the catalog has no {cid} {version}")
             continue
+        minos_file = archive.with_name(archive.name + ".minos")
+        floor = minos_file.read_text().strip() if minos_file.exists() else None
         for slot in slots:
-            slot.setdefault("macos", {})[chip] = download
+            mac = slot.setdefault("macos", {})
+            mac[chip] = download
+            # The oldest macOS this program runs on, when newer than NexDB's own floor (12.0).
+            if floor and version_key(floor) > version_key(mac.get("min_macos", "0")):
+                mac["min_macos"] = floor
             added += 1
     CATALOG.write_text(json.dumps(cat, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"added {added} Mac downloads to {CATALOG}")

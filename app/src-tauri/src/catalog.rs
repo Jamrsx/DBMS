@@ -85,13 +85,44 @@ pub struct MacDownloads {
     pub x64: Option<Download>,
     #[serde(default)]
     pub arm64: Option<Download>,
+    /// The oldest macOS this program runs on, when newer than NexDB's own (12.0). Node 24+ and
+    /// Mailpit's official builds need macOS 13 or later; older Macs don't see them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_macos: Option<String>,
 }
 
 impl MacDownloads {
-    /// The download for this Mac's chip.
+    /// The download for this Mac's chip, or none when this Mac's macOS is too old for it.
     pub fn for_this_chip(&self) -> Option<Download> {
+        if let Some(min) = &self.min_macos {
+            if !macos_at_least(&this_macos(), min) {
+                return None;
+            }
+        }
         if cfg!(target_arch = "aarch64") { self.arm64.clone() } else { self.x64.clone() }
     }
+}
+
+/// Whether macOS version `have` (like "14.6.1") is at least `want` (like "13.5").
+pub fn macos_at_least(have: &str, want: &str) -> bool {
+    let parts = |v: &str| v.split('.').map(|p| p.parse::<u32>().unwrap_or(0)).collect::<Vec<_>>();
+    let (mut h, mut w) = (parts(have), parts(want));
+    let n = h.len().max(w.len());
+    h.resize(n, 0);
+    w.resize(n, 0);
+    h >= w
+}
+
+/// This Mac's macOS version, from `sw_vers` ("0" when it can't be read, so nothing extra shows).
+fn this_macos() -> String {
+    #[cfg(target_os = "macos")]
+    if let Ok(out) = std::process::Command::new("/usr/bin/sw_vers").arg("-productVersion").output() {
+        let v = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if !v.is_empty() {
+            return v;
+        }
+    }
+    "0".into()
 }
 
 /// An official Windows x64 download and the checksum it must match.
@@ -383,6 +414,15 @@ mod tests {
 
     fn day(date: &str) -> i64 {
         parse_date(date).unwrap()
+    }
+
+    #[test]
+    fn compares_macos_versions() {
+        assert!(macos_at_least("14.6.1", "13.5"));
+        assert!(macos_at_least("13.5", "13.5"));
+        assert!(!macos_at_least("13.4.1", "13.5"));
+        assert!(!macos_at_least("12.7", "13"));
+        assert!(!macos_at_least("0", "13"));
     }
 
     #[test]
