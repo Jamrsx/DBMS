@@ -307,6 +307,10 @@ mod tests {
         assert_eq!(catalog::parse_date(&today_text()), Some(catalog::today()));
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn live_components_replace_bundled_ones_only_when_downloadable() {
         let mut cat = catalog::bundled();

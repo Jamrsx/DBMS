@@ -249,6 +249,10 @@ impl Terminals {
 mod tests {
     use super::*;
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn path_puts_nexdb_tools_first() {
         let dir = tempfile::tempdir().unwrap();

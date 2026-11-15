@@ -74,8 +74,18 @@ pub fn check(
         return Err("Give it a short name, like Search engine.".into());
     }
     let path = Path::new(exe.trim());
+    #[cfg(windows)]
     if !path.is_file() || !path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) {
         return Err("Pick the program's .exe file.".into());
+    }
+    // macOS programs have no extension; they must be a file marked as runnable.
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let runnable = std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0);
+        if !runnable {
+            return Err("Pick the program file (inside the app folder, not the .app itself).".into());
+        }
     }
     if port < 1024 {
         return Err("Use a port from 1024 to 65535.".into());

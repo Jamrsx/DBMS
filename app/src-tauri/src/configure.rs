@@ -502,6 +502,10 @@ memory_limit = 128M
         assert_eq!(sql_string(r"x\'; DROP"), r"x\\''; DROP");
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn finds_root_above_bin() {
         assert_eq!(root_above_bin(Path::new(r"C:\A\Apache24\bin\httpd.exe")), Some(PathBuf::from(r"C:\A\Apache24")));

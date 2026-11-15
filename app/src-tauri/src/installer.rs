@@ -1061,6 +1061,10 @@ mod tests {
         assert!(!target.with_extension("staging").exists());
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn keeps_layout_when_there_are_several_top_folders() {
         let dir = tempfile::tempdir().unwrap();
@@ -1099,6 +1103,10 @@ mod tests {
         let wrong = Checksum { algo: "sha256".into(), value: "00".into() };
         assert!(!file_matches(&file, &wrong).unwrap());
     }
+
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
 
     #[test]
     fn composer_gets_a_bat_shim() {
@@ -1140,6 +1148,10 @@ mod tests {
             config_dir: None,
         }
     }
+
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
 
     #[test]
     fn composer_shim_uses_the_chosen_php() {

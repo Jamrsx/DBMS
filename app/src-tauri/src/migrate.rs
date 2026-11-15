@@ -234,6 +234,10 @@ mod tests {
         assert!(swap_paths("nothing here", r"C:\Old", r"D:\New").is_none());
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn moved_folder_is_found_and_its_paths_follow_it() {
         let dir = tempfile::tempdir().unwrap();

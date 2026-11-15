@@ -632,6 +632,10 @@ mod tests {
         assert_eq!(service_exe(r"\SystemRoot\System32\drivers\x.sys"), None);
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn reads_version_from_folder_names() {
         assert_eq!(

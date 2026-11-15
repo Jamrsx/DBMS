@@ -479,6 +479,10 @@ mod tests {
         assert!(!c.versions[0].downloadable);
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn finds_downloads_by_exact_version() {
         let catalog = bundled();
@@ -488,6 +492,10 @@ mod tests {
         assert!(catalog.download_for("composer", &catalog.tools.composer.version).is_some());
         assert!(catalog.download_for("nope", "1.0").is_none());
     }
+
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
 
     #[test]
     fn bundled_catalog_has_a_recommendation_for_every_component() {

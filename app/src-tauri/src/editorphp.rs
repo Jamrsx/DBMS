@@ -167,6 +167,10 @@ mod tests {
         }
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn puts_the_projects_php_first_in_new_terminals() {
         let v = merged(None, &php("8.5.12")).unwrap();

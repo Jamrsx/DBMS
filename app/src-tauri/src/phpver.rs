@@ -106,6 +106,10 @@ pub fn project_ports(root: &Path, settings: &Settings) -> BTreeMap<String, u16> 
 mod tests {
     use super::*;
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn extra_versions_get_their_own_ports() {
         let installed: BTreeMap<String, PathBuf> = [("8.3.20", "a"), ("8.4.14", "b"), ("8.5.12", "c")]

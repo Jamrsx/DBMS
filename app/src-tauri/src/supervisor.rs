@@ -767,6 +767,10 @@ mod tests {
         serde_json::from_str(json).unwrap()
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn builds_specs_for_new_and_existing_components() {
         let s = settings(r#"{"install_root":"C:\\D","www_dir":"C:\\D\\www","php_fastcgi_port":9085,

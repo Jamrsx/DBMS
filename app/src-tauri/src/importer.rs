@@ -773,6 +773,10 @@ mod tests {
         assert_eq!(port_in("max_port=4"), None);
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn finds_laragon_style_installs() {
         let dir = tempfile::tempdir().unwrap();

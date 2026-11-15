@@ -288,6 +288,10 @@ mod tests {
         assert_eq!(with_dir(path, shims, false), r"C:\laragon\bin\php\php-8.3.20;C:\Windows\system32");
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn the_php_script_runs_the_chosen_php_with_nexdbs_ini_for_its_own() {
         let nexdb = PhpInstall {

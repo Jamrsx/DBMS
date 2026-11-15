@@ -137,6 +137,10 @@ mod tests {
         assert!(set(dir.path(), "latest please").is_err());
     }
 
+    // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.
+
+    #[cfg(windows)]
+
     #[test]
     fn project_of_finds_the_top_folder() {
         let www = Path::new(r"C:\NexDB\www");
