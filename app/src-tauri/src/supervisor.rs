@@ -833,6 +833,7 @@ mod tests {
     /// Real Apache + php-cgi from Laragon in a temp folder on spare ports: start both, fetch a PHP
     /// page through Apache, then stop Apache with its shutdown event.
     /// `cargo test real_apache_php -- --ignored --nocapture`
+    #[cfg(windows)]
     #[test]
     #[ignore]
     fn real_apache_php_serve_and_stop_gracefully() {
