@@ -61,13 +61,20 @@ pub fn find_ngrok(saved: Option<&str>) -> Option<PathBuf> {
     }
     let path = std::env::var_os("PATH").unwrap_or_default();
     for dir in std::env::split_paths(&path) {
-        let p = dir.join("ngrok.exe");
+        let p = dir.join(crate::platform::exe("ngrok.exe"));
         if p.is_file() {
             return Some(p);
         }
     }
+    // macOS: Homebrew's folders (apps start with a short PATH that lacks them).
+    #[cfg(not(windows))]
+    for p in ["/opt/homebrew/bin/ngrok", "/usr/local/bin/ngrok"] {
+        if Path::new(p).is_file() {
+            return Some(PathBuf::from(p));
+        }
+    }
     let local = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
-    [local.as_ref().map(|l| l.join("ngrok").join("ngrok.exe")), local.map(|l| l.join("Microsoft").join("WindowsApps").join("ngrok.exe"))]
+    [local.as_ref().map(|l| l.join("ngrok").join(crate::platform::exe("ngrok.exe"))), local.map(|l| l.join("Microsoft").join("WindowsApps").join(crate::platform::exe("ngrok.exe")))]
         .into_iter()
         .flatten()
         .find(|p| p.is_file())

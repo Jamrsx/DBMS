@@ -19,6 +19,7 @@ pub const VC_REDIST_URL: &str = "https://aka.ms/vc14/vc_redist.x64.exe";
 pub const VC_MIN_VERSION: (u32, u32) = (14, 50);
 
 const POWERSHELL: &str = r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
+#[cfg_attr(not(windows), allow(dead_code))]
 const CERTUTIL: &str = r"C:\Windows\System32\certutil.exe";
 
 /// Whether an installed runtime version such as `14.51.36247.00` is new enough.
@@ -104,6 +105,12 @@ pub fn vc_result(code: Option<i32>) -> Result<String, String> {
 }
 
 /// Where the local certificate authority lives: per-user, so other accounts can't read its key.
+#[cfg(not(windows))]
+pub fn ca_dir() -> PathBuf {
+    crate::platform::unix::home().join("Library/Application Support/DevManager/ca")
+}
+
+#[cfg(windows)]
 pub fn ca_dir() -> PathBuf {
     let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
     base.join("DevManager").join("ca")
@@ -163,8 +170,8 @@ fn generate_ca() -> Result<(String, String), rcgen::Error> {
 }
 
 fn whoami() -> String {
-    let user = std::env::var("USERNAME").unwrap_or_else(|_| "user".into());
-    let host = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "pc".into());
+    let user = std::env::var("USERNAME").or_else(|_| std::env::var("USER")).unwrap_or_else(|_| "user".into());
+    let host = std::env::var("COMPUTERNAME").ok().or_else(|| crate::platform::host_name()).unwrap_or_else(|| "pc".into());
     format!("{user}@{host}")
 }
 
@@ -259,7 +266,38 @@ pub fn site_certificate(ca_dir: &Path, out: &Path, names: &[String]) -> Result<S
     Ok(SiteCert { cert_path, key_path })
 }
 
+/// macOS: whether the login keychain already has this certificate.
+#[cfg(not(windows))]
+pub fn is_trusted(thumbprint: &str) -> bool {
+    std::process::Command::new("/usr/bin/security")
+        .args(["find-certificate", "-a", "-Z"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_uppercase().contains(&format!("SHA-1 HASH: {thumbprint}")))
+        .unwrap_or(false)
+}
+
+/// macOS: trusts the CA in the login keychain. macOS asks for the user's password itself.
+#[cfg(not(windows))]
+pub fn trust_ca(ca: &LocalCa) -> Result<String, String> {
+    if is_trusted(&ca.thumbprint) {
+        return Ok("Already trusted".into());
+    }
+    let keychain = crate::platform::unix::home().join("Library/Keychains/login.keychain-db");
+    let out = std::process::Command::new("/usr/bin/security")
+        .args(["add-trusted-cert", "-r", "trustRoot", "-k"])
+        .arg(&keychain)
+        .arg(&ca.cert_path)
+        .output()
+        .map_err(|err| format!("Couldn't run security: {err}"))?;
+    if out.status.success() && is_trusted(&ca.thumbprint) {
+        Ok("Trusted for .test and localhost sites".into())
+    } else {
+        Ok("Not trusted (declined) · HTTPS sites will show a warning until you trust it".into())
+    }
+}
+
 /// Whether the current user's Windows trust store already has this certificate.
+#[cfg(windows)]
 pub fn is_trusted(thumbprint: &str) -> bool {
     run_quiet(Path::new(CERTUTIL), &["-user", "-store", "Root", thumbprint], Duration::from_secs(30))
         .map(|o| o.success)
@@ -268,6 +306,7 @@ pub fn is_trusted(thumbprint: &str) -> bool {
 
 /// Adds the CA to the current user's trusted roots. Windows shows its own confirmation
 /// dialog; declining isn't fatal, sites just show a certificate warning until trusted.
+#[cfg(windows)]
 pub fn trust_ca(ca: &LocalCa) -> Result<String, String> {
     if is_trusted(&ca.thumbprint) {
         return Ok("Already trusted".into());
@@ -399,7 +438,7 @@ mod tests {
     #[ignore]
     fn real_vc_signature_is_microsoft() {
         let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("vc_redist.x64.exe");
+        let file = dir.path().join(crate::platform::exe("vc_redist.x64.exe"));
         let out = run_quiet(
             Path::new(r"C:\Windows\System32\curl.exe"),
             &["-sSfL", "-o", &file.display().to_string(), VC_REDIST_URL],
@@ -413,7 +452,7 @@ mod tests {
         let mut bytes = fs::read(&file).unwrap();
         let mid = bytes.len() / 2;
         bytes[mid] ^= 0xff;
-        let tampered = dir.path().join("tampered.exe");
+        let tampered = dir.path().join(crate::platform::exe("tampered.exe"));
         fs::write(&tampered, bytes).unwrap();
         let err = verify_microsoft_signature(&tampered).unwrap_err();
         println!("tampered copy: {err}");

@@ -290,7 +290,7 @@ mod tests {
         let mut specs = specs_for(root, &settings);
         specs.retain(|s| s.id != "mysql");
         specs.push(ServiceSpec {
-            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join("mysqld.exe"),
+            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join(crate::platform::exe("mysqld.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: mysql_dir.clone(), port: 3396, managed: true, stop: StopMethod::MysqlEvent, log: logs.join("mysql_error.log"),
         });
@@ -303,7 +303,7 @@ mod tests {
         // until that file exists, so the theme can be looked at in a browser.
         if let Some(stop) = std::env::var_os("NEXDB_DEMO") {
             let sql = "CREATE DATABASE shop; CREATE TABLE shop.customers (id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(60) NOT NULL, email VARCHAR(120), joined DATE); INSERT INTO shop.customers (name, email, joined) VALUES ('Ada Lovelace','ada@example.com','2026-01-04'),('Linus Torvalds','linus@example.com','2026-02-11'),('Grace Hopper','grace@example.com','2026-03-02');";
-            let client = mysql_dir.join("bin").join("mysql.exe");
+            let client = mysql_dir.join("bin").join(crate::platform::exe("mysql.exe"));
             configure::run_with_stdin(&client, &["--protocol=TCP", "-h", "127.0.0.1", "-P", "3396", "-u", "root", "-ppma-pass"], sql, std::time::Duration::from_secs(30)).unwrap();
             println!("DEMO READY");
             while !Path::new(&stop).exists() {

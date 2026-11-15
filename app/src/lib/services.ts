@@ -25,6 +25,8 @@ export interface SetupInfo {
   repair_root?: string | null;
   /** NexDB folders from before (another drive, a reinstall) that setup can pick up. */
   found?: FoundInstall[];
+  /** Suggested install folder: C:\NexDB on Windows, ~/NexDB on macOS. */
+  default_root?: string;
 }
 
 export interface FoundInstall {

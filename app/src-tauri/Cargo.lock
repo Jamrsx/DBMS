@@ -1248,6 +1248,7 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "futures-util",
  "getrandom 0.4.3",
+ "libc",
  "md-5",
  "mdns-sd",
  "mysql",

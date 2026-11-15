@@ -24,6 +24,7 @@ const KNOWN: &[(&str, &str, &[&str])] = &[
     ("notepadpp", "Notepad++", &[r"Notepad++\notepad++.exe"]),
 ];
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn bases() -> Vec<PathBuf> {
     ["LOCALAPPDATA", "ProgramFiles", "ProgramFiles(x86)"]
         .iter()
@@ -32,6 +33,7 @@ fn bases() -> Vec<PathBuf> {
 }
 
 /// JetBrains' own installers put each version in `Program Files\JetBrains\PhpStorm 2026.2\bin`.
+#[cfg_attr(not(windows), allow(dead_code))]
 fn jetbrains(product: &str, exe: &str) -> Option<PathBuf> {
     let dir = PathBuf::from(std::env::var_os("ProgramFiles")?).join("JetBrains");
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
@@ -47,10 +49,37 @@ fn jetbrains(product: &str, exe: &str) -> Option<PathBuf> {
 }
 
 /// Every known editor found on this PC, in the order above.
+#[cfg(windows)]
 pub fn installed() -> Vec<Editor> {
     find(&bases())
 }
 
+/// macOS: (id, name, app bundle names in /Applications or ~/Applications).
+#[cfg(not(windows))]
+const KNOWN_MAC: &[(&str, &str, &[&str])] = &[
+    ("vscode", "VS Code", &["Visual Studio Code.app"]),
+    ("cursor", "Cursor", &["Cursor.app"]),
+    ("windsurf", "Windsurf", &["Windsurf.app"]),
+    ("zed", "Zed", &["Zed.app"]),
+    ("phpstorm", "PhpStorm", &["PhpStorm.app"]),
+    ("webstorm", "WebStorm", &["WebStorm.app"]),
+    ("sublime", "Sublime Text", &["Sublime Text.app"]),
+];
+
+/// Every known editor found on this Mac; `exe` is the `.app` bundle.
+#[cfg(not(windows))]
+pub fn installed() -> Vec<Editor> {
+    let bases = [PathBuf::from("/Applications"), crate::platform::unix::home().join("Applications")];
+    KNOWN_MAC
+        .iter()
+        .filter_map(|(id, name, apps)| {
+            let exe = bases.iter().flat_map(|b| apps.iter().map(move |a| b.join(a))).find(|p| p.is_dir())?;
+            Some(Editor { id, name, exe })
+        })
+        .collect()
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
 fn find(bases: &[PathBuf]) -> Vec<Editor> {
     KNOWN
         .iter()
@@ -72,8 +101,14 @@ fn find(bases: &[PathBuf]) -> Vec<Editor> {
 /// Opens `folder` in the editor with this id.
 pub fn open(id: &str, folder: &Path) -> Result<(), String> {
     let editor = installed().into_iter().find(|e| e.id == id).ok_or("That editor isn't installed any more.")?;
+    #[cfg(windows)]
     let mut cmd = std::process::Command::new(&editor.exe);
+    #[cfg(windows)]
     cmd.arg(folder);
+    #[cfg(not(windows))]
+    let mut cmd = std::process::Command::new("/usr/bin/open");
+    #[cfg(not(windows))]
+    cmd.arg("-a").arg(&editor.exe).arg(folder);
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;

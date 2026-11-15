@@ -200,7 +200,10 @@ impl Sess {
         let dir = self.shared.site_dir(&site);
         self.shared.log(&user.login, &site, self.peer.as_deref(), "command", Some(line.chars().take(300).collect()));
         if role == "shell" {
+            #[cfg(windows)]
             return external(&dir, &self.shared.tool_path, "powershell", &["-NoProfile".into(), "-Command".into(), line.into()]).await;
+            #[cfg(not(windows))]
+            return external(&dir, &self.shared.tool_path, "/bin/zsh", &["-c".into(), line.into()]).await;
         }
         let args = match rules::split_args(line).and_then(|a| rules::check_command(&a).map(|_| a)) {
             Ok(a) => a,
@@ -271,9 +274,13 @@ async fn external_cmd(dir: &Path, path: &str, args: &[String]) -> (String, u32) 
         if let Err(e) = rules::cmd_safe(args) {
             return (format!("{e}\n"), 1);
         }
-        let mut all = vec!["/C".to_string()];
-        all.extend(args.iter().cloned());
-        return external(dir, path, "cmd", &all).await;
+        // composer/npm/npx are .bat/.cmd files on Windows, so they need cmd; on macOS they run directly.
+        #[cfg(windows)]
+        {
+            let mut all = vec!["/C".to_string()];
+            all.extend(args.iter().cloned());
+            return external(dir, path, "cmd", &all).await;
+        }
     }
     external(dir, path, &cmd, &args[1..]).await
 }
@@ -380,8 +387,14 @@ impl russh::server::Handler for Sess {
         let pair = native_pty_system()
             .openpty(PtySize { rows: 30, cols: 120, pixel_width: 0, pixel_height: 0 })
             .map_err(|e| russh::Error::IO(std::io::Error::other(e.to_string())))?;
+        #[cfg(windows)]
         let mut cmd = CommandBuilder::new("powershell");
+        #[cfg(windows)]
         cmd.arg("-NoLogo");
+        #[cfg(not(windows))]
+        let mut cmd = CommandBuilder::new("/bin/zsh");
+        #[cfg(not(windows))]
+        cmd.arg("-l");
         cmd.cwd(self.shared.site_dir(&site));
         cmd.env("PATH", &self.shared.tool_path);
         let mut child = pair.slave.spawn_command(cmd).map_err(|e| russh::Error::IO(std::io::Error::other(e.to_string())))?;

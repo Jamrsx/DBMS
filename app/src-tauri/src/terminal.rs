@@ -83,7 +83,7 @@ pub fn tool_dirs(root: &Path, settings: &Settings) -> Vec<PathBuf> {
 pub fn path_with(dirs: &[PathBuf], existing: &str) -> String {
     let mut parts: Vec<String> = dirs.iter().map(|d| d.display().to_string()).collect();
     parts.push(existing.to_string());
-    parts.join(";")
+    parts.join(crate::platform::PATH_SEP)
 }
 
 /// Splits off any incomplete UTF-8 sequence at the end so it can be joined with the next read.
@@ -104,16 +104,34 @@ fn shell_command(
     cwd: Option<&Path>,
     php: Option<&crate::phpver::Extra>,
 ) -> CommandBuilder {
+    #[cfg(windows)]
     let mut cmd = CommandBuilder::new("powershell.exe");
-    cmd.args(["-NoLogo", "-NoExit"]);
-    cmd.args(extra);
+    #[cfg(windows)]
+    {
+        cmd.args(["-NoLogo", "-NoExit"]);
+        cmd.args(extra);
+    }
+    // macOS: the user's own shell (zsh by default) as a login shell, so their setup loads.
+    // `extra` holds PowerShell arguments; on macOS only `-Command <script>` is understood.
+    #[cfg(not(windows))]
+    let mut cmd = CommandBuilder::new(crate::platform::unix::user_shell());
+    #[cfg(not(windows))]
+    {
+        cmd.arg("-l");
+        if let [flag, script] = extra {
+            if flag.eq_ignore_ascii_case("-Command") {
+                cmd.args(["-c", script]);
+            }
+        }
+        cmd.env("TERM", "xterm-256color");
+    }
     let existing = std::env::var("PATH").unwrap_or_default();
     let mut dirs = tool_dirs(root, settings);
     let php_ini = match php {
         Some(p) => {
             // This project's PHP comes first, and Composer follows it (see the composer shim).
             dirs.insert(0, p.dir.clone());
-            cmd.env("NEXDB_PHP_EXE", p.dir.join("php.exe"));
+            cmd.env("NEXDB_PHP_EXE", p.dir.join(crate::platform::exe("php.exe")));
             cmd.env("NEXDB_PHP_INI", p.ini_dir.join("php-cli.ini"));
             p.ini_dir.clone()
         }

@@ -31,12 +31,23 @@ pub struct Container {
 }
 
 fn docker_exe() -> Option<PathBuf> {
-    let installed = PathBuf::from(r"C:\Program Files\Docker\Docker\resources\bin\docker.exe");
+    let installed = if cfg!(windows) {
+        PathBuf::from(r"C:\Program Files\Docker\Docker\resources\bin\docker.exe")
+    } else {
+        PathBuf::from("/Applications/Docker.app/Contents/Resources/bin/docker")
+    };
     if installed.is_file() {
         return Some(installed);
     }
+    // macOS apps start with a short PATH, without Homebrew's or Docker's folders.
+    #[cfg(not(windows))]
+    for p in ["/usr/local/bin/docker", "/opt/homebrew/bin/docker"] {
+        if std::path::Path::new(p).is_file() {
+            return Some(PathBuf::from(p));
+        }
+    }
     std::env::var_os("PATH").and_then(|path| {
-        std::env::split_paths(&path).map(|d| d.join("docker.exe")).find(|p| p.is_file())
+        std::env::split_paths(&path).map(|d| d.join(crate::platform::exe("docker.exe"))).find(|p| p.is_file())
     })
 }
 

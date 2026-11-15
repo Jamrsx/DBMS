@@ -6,7 +6,7 @@
 use serde::Serialize;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use crate::settings::Settings;
 
@@ -370,13 +370,13 @@ impl Run<'_> {
             dirs.insert(0, node);
         }
         let path = crate::terminal::path_with(&dirs, &existing);
-        let mut cmd = Command::new("cmd");
-        cmd.arg("/C").arg(command).current_dir(cwd).env("PATH", path).env("COMPOSER_NO_INTERACTION", "1");
+        let mut cmd = crate::platform::shell(command);
+        cmd.current_dir(cwd).env("PATH", path).env("COMPOSER_NO_INTERACTION", "1");
         cmd.env("NO_COLOR", "1").env("npm_config_color", "false");
         cmd.env("npm_config_yes", "true").env("npm_config_fund", "false").env("npm_config_update_notifier", "false");
         // composer.bat runs NEXDB_PHP_EXE when set (as the project terminal does), else the default.
         if let Some(extra) = &own_php {
-            cmd.env("NEXDB_PHP_EXE", extra.dir.join("php.exe"));
+            cmd.env("NEXDB_PHP_EXE", extra.dir.join(crate::platform::exe("php.exe")));
             cmd.env("NEXDB_PHP_INI", extra.ini_dir.join("php-cli.ini"));
         }
         let php_dir = own_php.map(|e| e.ini_dir).unwrap_or_else(|| self.root.join("etc").join("php"));
@@ -910,6 +910,7 @@ fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::process::Command;
 
     #[test]
     fn reads_repository_addresses() {
@@ -1009,7 +1010,7 @@ mod tests {
         crate::configure::write_file(&ini, &crate::configure::mysql_ini(&crate::configure::MysqlConf { base_dir: &mysql_dir, data_dir: &data, port, logs_dir: &logs })).unwrap();
         crate::configure::setup_mysql(&mysql_dir, &ini, &data, port, Some("rootpw")).unwrap();
         let sup = Supervisor::new(vec![ServiceSpec {
-            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join("mysqld.exe"),
+            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join(crate::platform::exe("mysqld.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: mysql_dir.clone(), port, managed: true, stop: StopMethod::MysqlEvent, log: logs.join("mysql_error.log"),
         }]);

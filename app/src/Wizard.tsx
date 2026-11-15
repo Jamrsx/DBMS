@@ -23,6 +23,7 @@ import { ThemeToggle } from "./components/ThemeToggle";
 import { loadChoices, type Choices } from "./lib/catalog";
 import { suggestPort } from "./lib/ports";
 import { buildPlan, type InstallPlan } from "./lib/plan";
+import { EXAMPLE_ROOT, joinPath } from "./lib/os";
 import { BrandMark } from "./components/BrandMark";
 
 export interface Settings {
@@ -46,16 +47,19 @@ const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "inst
 export function Wizard({
   onFinish,
   repairRoot = null,
+  defaultRoot = EXAMPLE_ROOT,
   found = [],
 }: {
   onFinish: () => void;
   repairRoot?: string | null;
+  /** Where NexDB goes unless the user picks another folder (from the app). */
+  defaultRoot?: string;
   found?: FoundInstall[];
 }) {
   const [step, setStep] = useState(0);
   const [settings, setSettings] = useState<Settings>({
-    installRoot: repairRoot ?? "C:\\NexDB",
-    wwwDir: repairRoot ? `${repairRoot}\\www` : "C:\\NexDB\\www",
+    installRoot: repairRoot ?? defaultRoot,
+    wwwDir: joinPath(repairRoot ?? defaultRoot, "www"),
   });
   const [choices, setChoices] = useState<Choices | null>(null);
   const [choicesError, setChoicesError] = useState<string | null>(null);

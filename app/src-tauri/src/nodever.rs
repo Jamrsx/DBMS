@@ -80,7 +80,7 @@ pub fn dir_for(root: &Path, settings: &Settings, project: &Path) -> Option<PathB
         return None;
     }
     let dir = root.join("bin").join("nodejs").join(format!("node-{using}"));
-    dir.join("node.exe").is_file().then_some(dir)
+    dir.join(crate::platform::exe("node.exe")).is_file().then_some(dir)
 }
 
 /// The project folder `dir` is in (the `www` child it sits under), for terminals opened in a subfolder.

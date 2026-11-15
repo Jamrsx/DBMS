@@ -1,0 +1,116 @@
+# Builds the NexDB Mac app as one universal .dmg (Intel + Apple Silicon), macOS 12 or newer.
+# Plan and background: docs/macos-port.md
+#
+# Starts only by hand (Actions -> "NexDB macOS app" -> Run workflow), so it never spends
+# macOS minutes on its own.
+#
+# Signing and notarization are switched off until an Apple Developer ID exists.
+# To switch them on: add the repository variable MACOS_SIGNING = true and the secrets
+# APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY,
+# APPLE_ID, APPLE_PASSWORD (app-specific password), APPLE_TEAM_ID.
+# Without them the app is ad-hoc signed: it runs, but Gatekeeper warns on first open.
+
+name: NexDB macOS app
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  MACOSX_DEPLOYMENT_TARGET: "12.0"
+
+jobs:
+  dmg:
+    runs-on: macos-15
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Rust for both Mac chips
+        working-directory: .
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri -> target
+
+      - name: Install npm packages
+        run: npm ci
+
+      # Switched off until MACOS_SIGNING is true. Tauri imports the certificate into a
+      # temporary keychain, signs, and notarizes by itself when these are set.
+      - name: Signing settings (Developer ID)
+        if: vars.MACOS_SIGNING == 'true'
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          for v in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            if [ -z "${!v}" ]; then echo "::error::MACOS_SIGNING is on but secret $v is missing"; exit 1; fi
+          done
+          {
+            echo "APPLE_CERTIFICATE=$APPLE_CERTIFICATE"
+            echo "APPLE_CERTIFICATE_PASSWORD=$APPLE_CERTIFICATE_PASSWORD"
+            echo "APPLE_SIGNING_IDENTITY=$APPLE_SIGNING_IDENTITY"
+            echo "APPLE_ID=$APPLE_ID"
+            echo "APPLE_PASSWORD=$APPLE_PASSWORD"
+            echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"
+          } >> "$GITHUB_ENV"
+
+      - name: Ad-hoc signing (no Developer ID yet)
+        if: vars.MACOS_SIGNING != 'true'
+        run: echo "APPLE_SIGNING_IDENTITY=-" >> "$GITHUB_ENV"
+
+      - name: Build universal app and dmg
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          extra=()
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            # No updater key in this repo's secrets: build without update files instead of failing.
+            echo "::warning::TAURI_SIGNING_PRIVATE_KEY not set; building without in-app update files"
+            extra=(--config '{"bundle":{"createUpdaterArtifacts":false}}')
+          fi
+          npm run tauri build -- --target universal-apple-darwin --bundles app,dmg "${extra[@]}"
+
+      - name: Check the app is universal and allows macOS 12
+        run: |
+          bin="src-tauri/target/universal-apple-darwin/release/bundle/macos/NexDB.app/Contents/MacOS/NexDB"
+          archs=$(lipo -archs "$bin"); echo "archs: $archs"
+          case "$archs" in *x86_64*arm64*|*arm64*x86_64*) ;; *) echo "::error::not universal: $archs"; exit 1;; esac
+          for arch in x86_64 arm64; do
+            minos=$(vtool -arch "$arch" -show-build "$bin" | awk '/minos/ {print $2}')
+            echo "$arch minos $minos"
+            [ "$minos" = "12.0" ] || { echo "::error::$arch slice needs macOS $minos, expected 12.0"; exit 1; }
+          done
+          /usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" \
+            "src-tauri/target/universal-apple-darwin/release/bundle/macos/NexDB.app/Contents/Info.plist"
+          codesign --verify --deep --strict --verbose=2 \
+            "src-tauri/target/universal-apple-darwin/release/bundle/macos/NexDB.app"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nexdb-macos-universal
+          if-no-files-found: error
+          path: |
+            app/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+            app/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+            app/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig

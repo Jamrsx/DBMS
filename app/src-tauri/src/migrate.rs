@@ -26,6 +26,20 @@ pub fn find(config_dir: Option<&Path>) -> Vec<Found> {
             roots.push(r);
         }
     }
+    // macOS: the home folder and each external disk under /Volumes.
+    #[cfg(not(windows))]
+    {
+        let mut bases = vec![crate::platform::unix::home()];
+        if let Ok(volumes) = std::fs::read_dir("/Volumes") {
+            bases.extend(volumes.flatten().map(|e| e.path()));
+        }
+        for base in bases {
+            for name in NAMES {
+                roots.push(base.join(name));
+            }
+        }
+    }
+    #[cfg(windows)]
     for letter in b'C'..=b'Z' {
         let drive = PathBuf::from(format!("{}:\\", letter as char));
         if !drive.exists() {

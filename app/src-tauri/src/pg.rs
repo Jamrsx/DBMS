@@ -361,11 +361,11 @@ pub fn all_rows(port: u16, db: &str, table: &str) -> Result<(Vec<String>, Vec<Ve
 pub fn bin(settings: &crate::settings::Settings) -> Result<std::path::PathBuf, String> {
     let c = settings.components.iter().find(|c| c.id == "postgres").ok_or("PostgreSQL isn't installed.")?;
     let bin = std::path::PathBuf::from(&c.path).join("bin");
-    if bin.join("pg_dump.exe").is_file() { Ok(bin) } else { Err("PostgreSQL's tools are missing. Reinstall it on the Versions page.".into()) }
+    if bin.join(crate::platform::exe("pg_dump.exe")).is_file() { Ok(bin) } else { Err("PostgreSQL's tools are missing. Reinstall it on the Versions page.".into()) }
 }
 
 fn tool(bin: &std::path::Path, exe: &str, port: u16) -> std::process::Command {
-    let mut cmd = std::process::Command::new(bin.join(exe));
+    let mut cmd = std::process::Command::new(bin.join(crate::platform::exe(exe)));
     cmd.args(["-h", "127.0.0.1", "-p", &port.to_string(), "-U", "postgres"]).stdin(std::process::Stdio::null());
     crate::scan::hide_console(&mut cmd);
     cmd
@@ -434,13 +434,13 @@ mod tests {
             .expect("install PostgreSQL on the Versions page")
             .flatten()
             .map(|e| e.path().join("bin"))
-            .find(|b| b.join("postgres.exe").is_file())
+            .find(|b| b.join(crate::platform::exe("postgres.exe")).is_file())
             .unwrap();
         let tmp = tempfile::tempdir().unwrap();
         let data = tmp.path().join("data");
         crate::postgres::init(&bin, &data).unwrap();
         let port = crate::scan::suggest_port(5444).unwrap();
-        let mut server = std::process::Command::new(bin.join("postgres.exe"))
+        let mut server = std::process::Command::new(bin.join(crate::platform::exe("postgres.exe")))
             .args(["-D", &data.display().to_string(), "-p", &port.to_string(), "-c", "listen_addresses=127.0.0.1"])
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
@@ -486,7 +486,7 @@ mod tests {
         assert!(!databases(port).unwrap().iter().any(|d| d.name == db));
         let stop = ["stop", "-D", &data.display().to_string(), "-m", "fast"].map(String::from);
         let stop: Vec<&str> = stop.iter().map(String::as_str).collect();
-        let _ = crate::configure::run_quiet(&bin.join("pg_ctl.exe"), &stop, Duration::from_secs(30));
+        let _ = crate::configure::run_quiet(&bin.join(crate::platform::exe("pg_ctl.exe")), &stop, Duration::from_secs(30));
         let _ = server.wait();
     }
 }

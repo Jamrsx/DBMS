@@ -144,21 +144,21 @@ fn about(id: &str) -> &'static str {
 /// The program that must exist for a component to work, inside its install folder.
 pub fn exe_for(id: &str, dir: &Path) -> PathBuf {
     match id {
-        "php" => dir.join("php.exe"),
-        "apache" => dir.join("bin").join("httpd.exe"),
-        "mysql" => dir.join("bin").join("mysqld.exe"),
-        "node" => dir.join("node.exe"),
-        "nginx" => dir.join("nginx.exe"),
+        "php" => dir.join(crate::platform::exe("php.exe")),
+        "apache" => dir.join("bin").join(crate::platform::exe("httpd.exe")),
+        "mysql" => dir.join("bin").join(crate::platform::exe("mysqld.exe")),
+        "node" => dir.join(crate::platform::exe("node.exe")),
+        "nginx" => dir.join(crate::platform::exe("nginx.exe")),
         "composer" => dir.join("composer.phar"),
-        "git" => dir.join("cmd").join("git.exe"),
-        "mailpit" => dir.join("mailpit.exe"),
-        "redis" => dir.join("redis-server.exe"),
-        "postgres" => dir.join("bin").join("postgres.exe"),
-        "mariadb" => dir.join("bin").join("mariadbd.exe"),
-        "mongodb" => dir.join("bin").join("mongod.exe"),
-        "memcached" => dir.join("bin").join("memcached.exe"),
-        "python" => dir.join("python.exe"),
-        "cloudflared" => dir.join("cloudflared.exe"),
+        "git" => dir.join("cmd").join(crate::platform::exe("git.exe")),
+        "mailpit" => dir.join(crate::platform::exe("mailpit.exe")),
+        "redis" => dir.join(crate::platform::exe("redis-server.exe")),
+        "postgres" => dir.join("bin").join(crate::platform::exe("postgres.exe")),
+        "mariadb" => dir.join("bin").join(crate::platform::exe("mariadbd.exe")),
+        "mongodb" => dir.join("bin").join(crate::platform::exe("mongod.exe")),
+        "memcached" => dir.join("bin").join(crate::platform::exe("memcached.exe")),
+        "python" => dir.join(crate::platform::exe("python.exe")),
+        "cloudflared" => dir.join(crate::platform::exe("cloudflared.exe")),
         _ => dir.to_path_buf(),
     }
 }
@@ -457,7 +457,7 @@ mod tests {
         assert_eq!(missing_now.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), ["php", "mysql"]);
         let php_missing = overview(root, &settings, &choices).into_iter().find(|c| c.id == "php").unwrap();
         assert!(php_missing.missing && php_missing.hint.is_none());
-        fs::write(php_dir.join("php.exe"), "x").unwrap();
+        fs::write(php_dir.join(crate::platform::exe("php.exe")), "x").unwrap();
         assert_eq!(missing(&settings).len(), 1, "only MySQL is still missing");
 
         let view = overview(root, &settings, &choices);

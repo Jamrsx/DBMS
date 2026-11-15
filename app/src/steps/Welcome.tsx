@@ -2,6 +2,7 @@ import type { Settings } from "../Wizard";
 import { useState } from "react";
 import { Nex } from "../components/Nex";
 import { adoptInstall, type FoundInstall } from "../lib/services";
+import { EXAMPLE_ROOT, isFullPath, joinPath } from "../lib/os";
 
 interface Props {
   /** An earlier NexDB folder whose settings file is missing. */
@@ -64,14 +65,14 @@ export function Welcome({ settings, onChange, repairRoot, found, onAdopted }: Pr
 /** Returns a message for the first invalid field, or null when both paths look usable. */
 export function validateWelcome(settings: Settings): string | null {
   return (
-    pathProblem("Install folder", settings.installRoot, "C:\\NexDB") ??
-    pathProblem("Projects folder", settings.wwwDir, "C:\\NexDB\\www")
+    pathProblem("Install folder", settings.installRoot, EXAMPLE_ROOT) ??
+    pathProblem("Projects folder", settings.wwwDir, joinPath(EXAMPLE_ROOT, "www"))
   );
 }
 
 export function pathProblem(label: string, value: string, example: string): string | null {
   const path = value.trim();
-  if (!/^[a-zA-Z]:\\[^\\]/.test(path)) {
+  if (!isFullPath(path)) {
     return `${label} must be a full path to a folder, like ${example}.`;
   }
   if (/[<>"|?*]/.test(path.slice(2))) {

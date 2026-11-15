@@ -43,7 +43,7 @@ pub fn shim_dir(root: &Path) -> PathBuf {
 
 /// "PHP 8.3.20" from php.exe itself; a stuck php.exe doesn't hold things up.
 fn version_of(dir: &Path) -> Option<String> {
-    let exe = dir.join("php.exe");
+    let exe = dir.join(crate::platform::exe("php.exe"));
     let mut cmd = Command::new(&exe);
     cmd.args(["-n", "-r", "echo PHP_VERSION;"]).stdin(std::process::Stdio::null());
     crate::scan::hide_console(&mut cmd);
@@ -111,7 +111,7 @@ pub fn installs(root: &Path, settings: &Settings, path_dirs: &[PathBuf]) -> Vec<
     let mut seen: BTreeSet<String> = out.iter().map(|i| i.dir.to_lowercase()).collect();
     for dir in path_dirs.iter().cloned().chain(usual_places()) {
         let key = dir.display().to_string().trim_end_matches('\\').to_lowercase();
-        if dir == shims || seen.contains(&key) || !dir.join("php.exe").is_file() {
+        if dir == shims || seen.contains(&key) || !dir.join(crate::platform::exe("php.exe")).is_file() {
             continue;
         }
         seen.insert(key);
@@ -133,7 +133,7 @@ fn cmp_version(a: &str, b: &str) -> std::cmp::Ordering {
 /// The two small scripts in NexDB's folder: `php` runs the chosen PHP (with NexDB's php.ini for
 /// NexDB's own), and `composer` runs NexDB's Composer on that same PHP.
 pub fn shim_files(php: &PhpInstall, composer_phar: Option<&Path>) -> Vec<(&'static str, String)> {
-    let exe = Path::new(&php.dir).join("php.exe");
+    let exe = Path::new(&php.dir).join(crate::platform::exe("php.exe"));
     let ini = php.ini.as_ref().map(|i| format!(" -c \"{}\"", i.display())).unwrap_or_default();
     let mut files = vec![("php.cmd", format!("@echo off\r\nrem Made by NexDB: the PHP picked on Check my setup.\r\n\"{}\"{ini} %*\r\n", exe.display()))];
     if let Some(phar) = composer_phar {
@@ -165,7 +165,7 @@ pub fn with_dir(path: &str, dir: &Path, first: bool) -> String {
 
 /// The first folder on `path` with php.exe or php.cmd: what a new terminal runs as `php`.
 pub fn first_php(path: &str) -> Option<PathBuf> {
-    path.split(';').filter(|p| !p.is_empty()).map(PathBuf::from).find(|d| d.join("php.exe").is_file() || d.join("php.cmd").is_file())
+    path.split(';').filter(|p| !p.is_empty()).map(PathBuf::from).find(|d| d.join(crate::platform::exe("php.exe")).is_file() || d.join("php.cmd").is_file())
 }
 
 #[cfg(windows)]
@@ -273,7 +273,7 @@ fn set_system_path(path: &str) -> Result<(), String> {
 
 #[cfg(not(windows))]
 fn set_system_path(_path: &str) -> Result<(), String> {
-    Err("Only on Windows.".into())
+    Err("Choosing the PHP for other terminals isn't on Mac yet. NexDB's own terminal already uses NexDB's PHP.".into())
 }
 
 #[cfg(test)]

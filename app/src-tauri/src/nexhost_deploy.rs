@@ -3,7 +3,7 @@
 
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use crate::settings::Settings;
 
@@ -264,8 +264,8 @@ pub fn commands(step: &str, folder: &Path, first_npm: bool) -> Result<Vec<&'stat
 pub fn run(root: &Path, settings: &Settings, dir: &Path, command: &str, line: &dyn Fn(&str)) -> Result<(), String> {
     let existing = std::env::var("PATH").unwrap_or_default();
     let dirs: Vec<PathBuf> = crate::terminal::tool_dirs(root, settings);
-    let mut cmd = Command::new("cmd");
-    cmd.arg("/C").arg(command).current_dir(dir).env("PATH", crate::terminal::path_with(&dirs, &existing));
+    let mut cmd = crate::platform::shell(command);
+    cmd.current_dir(dir).env("PATH", crate::terminal::path_with(&dirs, &existing));
     cmd.env("COMPOSER_NO_INTERACTION", "1").env("NO_COLOR", "1").env("npm_config_color", "false");
     cmd.env("npm_config_fund", "false").env("npm_config_update_notifier", "false").env("npm_config_audit", "false");
     let php_dir = root.join("etc").join("php");

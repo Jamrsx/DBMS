@@ -385,7 +385,7 @@ mod tests {
         crate::configure::write_file(&ini, &crate::configure::mysql_ini(&crate::configure::MysqlConf { base_dir: &mysql_dir, data_dir: &data, port: 3398, logs_dir: &logs })).unwrap();
         crate::configure::setup_mysql(&mysql_dir, &ini, &data, 3398, None).unwrap();
         let sup = crate::supervisor::Supervisor::new(vec![crate::supervisor::ServiceSpec {
-            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join("mysqld.exe"),
+            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join(crate::platform::exe("mysqld.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: mysql_dir.clone(), port: 3398, managed: true, stop: crate::supervisor::StopMethod::MysqlEvent, log: logs.join("mysql_error.log"),
         }]);

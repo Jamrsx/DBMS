@@ -18,7 +18,7 @@ pub fn init(bin: &Path, data: &Path) -> Result<(), String> {
     }
     let data_arg = data.display().to_string();
     let out = crate::configure::run_quiet(
-        &bin.join("initdb.exe"),
+        &bin.join(crate::platform::exe("initdb.exe")),
         &["-D", &data_arg, "-U", USER, "--auth=trust", "-E", "UTF8", "--no-locale"],
         Duration::from_secs(180),
     )
@@ -56,7 +56,7 @@ mod tests {
             id: "postgres".into(),
             name: "PostgreSQL".into(),
             version: Some(tool.version.clone()),
-            exe: bin.join("postgres.exe"),
+            exe: bin.join(crate::platform::exe("postgres.exe")),
             args: vec![
                 "-D".into(),
                 data.display().to_string(),
@@ -74,7 +74,7 @@ mod tests {
         sup.start("postgres").unwrap();
         let p = port.to_string();
         let out = crate::configure::run_quiet(
-            &bin.join("psql.exe"),
+            &bin.join(crate::platform::exe("psql.exe")),
             &["-h", "127.0.0.1", "-p", &p, "-U", USER, "-At", "-c", "select 40 + 2"],
             Duration::from_secs(30),
         )

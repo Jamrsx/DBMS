@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+#[cfg(windows)]
 use std::process::Command;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -15,6 +16,7 @@ pub struct Deleted {
     pub path: String,
 }
 
+#[cfg(windows)]
 fn powershell(script: &str) -> Result<String, String> {
     let mut cmd = Command::new(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe");
     cmd.args(["-NoProfile", "-NonInteractive", "-Command", script]);
@@ -31,11 +33,25 @@ fn powershell(script: &str) -> Result<String, String> {
     }
 }
 
+#[cfg_attr(not(windows), allow(dead_code))]
 fn ps_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "''"))
 }
 
+/// macOS: the Trash can't be read without Full Disk Access, so NexDB lists nothing and points
+/// to Finder's "Put Back" instead.
+#[cfg(not(windows))]
+pub fn list(_www: &Path) -> Result<Vec<Deleted>, String> {
+    Ok(vec![])
+}
+
+#[cfg(not(windows))]
+pub fn restore(_www: &Path, _item: &Deleted) -> Result<(), String> {
+    Err("On a Mac, open the Trash in Finder, right-click the project and choose Put Back.".into())
+}
+
 /// Folders in the bin that were deleted from `www`, newest first.
+#[cfg(windows)]
 pub fn list(www: &Path) -> Result<Vec<Deleted>, String> {
     let www = www.display().to_string();
     let script = format!(
@@ -60,6 +76,7 @@ pub fn list(www: &Path) -> Result<Vec<Deleted>, String> {
 }
 
 /// Puts a deleted project back in `www` under its old name.
+#[cfg(windows)]
 pub fn restore(www: &Path, item: &Deleted) -> Result<(), String> {
     if crate::projects::host_label(&item.name).is_none() && !item.name.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
         return Err("That item can't be restored here.".into());

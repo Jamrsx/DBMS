@@ -277,7 +277,7 @@ async fn ensure_vc_runtime(
         subdir: None,
         file: None,
     };
-    let installer = root.join("tmp").join("downloads").join("vc_redist.x64.exe");
+    let installer = root.join("tmp").join("downloads").join(crate::platform::exe("vc_redist.x64.exe"));
     fetch(client, &download, &installer, step, emit).await?;
     emit(Progress {
         step: step.into(),
@@ -406,9 +406,10 @@ pub fn refresh_configs(root: &Path, settings: &crate::settings::Settings) -> Res
     // Keep `composer` pointed at the PHP in use, which may have just been switched.
     let composer_dir = root.join("bin").join("composer");
     if composer_dir.join("composer.phar").is_file() {
-        let php = layout.php.as_ref().map(|dir| dir.join("php.exe"));
+        let php = layout.php.as_ref().map(|dir| dir.join(crate::platform::exe("php.exe")));
         let ini = cli_ini(&layout.etc);
-        configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
+        configure::write_file(&composer_dir.join(COMPOSER_SHIM), &composer_shim(php.as_deref(), &ini))?;
+        make_runnable(&composer_dir.join(COMPOSER_SHIM)).map_err(|e| e.to_string())?;
     }
     if let Some(server_root) = &layout.apache {
         configure_apache(&layout, server_root)?;
@@ -587,9 +588,10 @@ fn save_settings(l: &Layout, settings: &SavedSettings) -> Result<Option<String>,
     // Point `composer` at the PHP the user chose, not whichever php.exe is first on PATH.
     let composer_dir = l.root.join("bin").join("composer");
     if composer_dir.join("composer.phar").is_file() {
-        let php = l.php.as_ref().map(|dir| dir.join("php.exe"));
+        let php = l.php.as_ref().map(|dir| dir.join(crate::platform::exe("php.exe")));
         let ini = cli_ini(&l.etc);
-        configure::write_file(&composer_dir.join("composer.bat"), &composer_shim(php.as_deref(), &ini))?;
+        configure::write_file(&composer_dir.join(COMPOSER_SHIM), &composer_shim(php.as_deref(), &ini))?;
+        make_runnable(&composer_dir.join(COMPOSER_SHIM)).map_err(|e| e.to_string())?;
     }
     let json = serde_json::to_string_pretty(settings).map_err(|e| e.to_string())?;
     configure::write_file(&l.etc.join("devmanager.json"), &json)?;
@@ -842,6 +844,10 @@ pub fn extract_into(archive: &Path, target: &Path) -> io::Result<()> {
 
 /// Like `extract_into`, but with `subdir` only that folder of the archive is unpacked.
 pub fn extract_part(archive: &Path, target: &Path, subdir: Option<&str>) -> io::Result<()> {
+    #[cfg(unix)]
+    if is_tarball(archive) {
+        return extract_tar(archive, target, subdir);
+    }
     let mut zip = zip::ZipArchive::new(File::open(archive)?).map_err(io::Error::other)?;
     let strip = match subdir {
         Some(sub) => Some(PathBuf::from(sub)),
@@ -875,6 +881,12 @@ pub fn extract_part(archive: &Path, target: &Path, subdir: Option<&str>) -> io::
                 fs::create_dir_all(parent)?;
             }
             io::copy(&mut entry, &mut File::create(&out)?)?;
+            // macOS: keep the "runnable" flag the archive has, so programs can start.
+            #[cfg(unix)]
+            if let Some(mode) = entry.unix_mode() {
+                use std::os::unix::fs::PermissionsExt;
+                fs::set_permissions(&out, fs::Permissions::from_mode(mode & 0o7777))?;
+            }
         }
     }
 
@@ -885,6 +897,45 @@ pub fn extract_part(archive: &Path, target: &Path, subdir: Option<&str>) -> io::
         fs::create_dir_all(parent)?;
     }
     fs::rename(&staging, target)
+}
+
+/// Mac builds come as `.tar.xz` (or `.tar.gz`), which keep file modes and links.
+#[cfg_attr(not(unix), allow(dead_code))]
+fn is_tarball(archive: &Path) -> bool {
+    let name = archive.file_name().unwrap_or_default().to_string_lossy().to_ascii_lowercase();
+    [".tar.xz", ".tar.gz", ".tgz", ".tar"].iter().any(|ext| name.ends_with(ext))
+}
+
+/// Unpacks a tarball with the system `tar` (bsdtar refuses absolute paths and `..` itself),
+/// then moves its single top folder, or `subdir`, to `target`.
+#[cfg(unix)]
+fn extract_tar(archive: &Path, target: &Path, subdir: Option<&str>) -> io::Result<()> {
+    let staging = target.with_extension("staging");
+    if staging.exists() {
+        fs::remove_dir_all(&staging)?;
+    }
+    fs::create_dir_all(&staging)?;
+    let out = std::process::Command::new("/usr/bin/tar").arg("-xf").arg(archive).arg("-C").arg(&staging).output()?;
+    if !out.status.success() {
+        let _ = fs::remove_dir_all(&staging);
+        return Err(io::Error::other(String::from_utf8_lossy(&out.stderr).trim().to_string()));
+    }
+    let top: Vec<PathBuf> = fs::read_dir(&staging)?.flatten().map(|e| e.path()).collect();
+    let root = match subdir {
+        Some(sub) => staging.join(sub),
+        None if top.len() == 1 && top[0].is_dir() => top[0].clone(),
+        None => staging.clone(),
+    };
+    if target.exists() {
+        fs::remove_dir_all(target)?;
+    }
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::rename(&root, target)?;
+    let _ = fs::remove_dir_all(&staging);
+    crate::platform::unix::allow_downloaded(target);
+    Ok(())
 }
 
 /// The one top-level folder holding every directory in the zip, if there is exactly one.
@@ -916,6 +967,7 @@ fn cli_ini(etc: &Path) -> PathBuf {
 /// falling back to `php` on PATH when no PHP is configured.
 /// A terminal opened for a project on another PHP version sets NEXDB_PHP_EXE and NEXDB_PHP_INI,
 /// so Composer runs with that project's PHP too.
+#[cfg(windows)]
 pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
     let default = match php {
         Some(php) => format!("\"{}\" -c \"{}\" \"%~dp0composer.phar\" %*", php.display(), ini.display()),
@@ -926,11 +978,48 @@ pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
     )
 }
 
+/// macOS: a `composer` shell script doing the same as `composer.bat`.
+#[cfg(not(windows))]
+pub fn composer_shim(php: Option<&Path>, ini: &Path) -> String {
+    use crate::platform::sh_quote;
+    let default = match php {
+        Some(php) => format!(
+            "exec {} -c {} \"$here/composer.phar\" \"$@\"",
+            sh_quote(&php.display().to_string()),
+            sh_quote(&ini.display().to_string())
+        ),
+        None => "exec php \"$here/composer.phar\" \"$@\"".into(),
+    };
+    format!(
+        "#!/bin/sh\nhere=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nif [ -n \"$NEXDB_PHP_EXE\" ]; then exec \"$NEXDB_PHP_EXE\" -c \"$NEXDB_PHP_INI\" \"$here/composer.phar\" \"$@\"; fi\n{default}\n"
+    )
+}
+
+/// File name of the Composer launcher: `composer.bat` on Windows, `composer` on macOS.
+pub const COMPOSER_SHIM: &str = if cfg!(windows) { "composer.bat" } else { "composer" };
+
+/// Makes a script runnable on macOS (does nothing on Windows).
+pub fn make_runnable(_path: &Path) -> io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(_path, fs::Permissions::from_mode(0o755))?;
+    }
+    Ok(())
+}
+
 /// Composer is a single `.phar`; add a `composer.bat` so `composer` works in a terminal.
 pub fn install_composer(phar: &Path, target: &Path) -> io::Result<()> {
     fs::create_dir_all(target)?;
     fs::copy(phar, target.join("composer.phar"))?;
-    fs::write(target.join("composer.bat"), "@php \"%~dp0composer.phar\" %*\r\n")
+    #[cfg(windows)]
+    return fs::write(target.join("composer.bat"), "@php \"%~dp0composer.phar\" %*\r\n");
+    #[cfg(not(windows))]
+    {
+        let shim = target.join(COMPOSER_SHIM);
+        fs::write(&shim, composer_shim(None, Path::new("")))?;
+        make_runnable(&shim)
+    }
 }
 
 #[cfg(test)]
@@ -979,7 +1068,7 @@ mod tests {
         make_zip(&archive, &[("php.exe", "php"), ("ext/php_curl.dll", "dll"), ("lib/x.lib", "lib")]);
         let target = dir.path().join("php-8.5.12");
         extract_into(&archive, &target).unwrap();
-        assert!(target.join("php.exe").is_file());
+        assert!(target.join(crate::platform::exe("php.exe")).is_file());
         assert!(target.join("ext/php_curl.dll").is_file());
     }
 
@@ -1144,7 +1233,7 @@ mod tests {
         let download = catalog.download_for("nginx", &version).unwrap().clone();
         let target = dir.path().join("bin").join("nginx").join(format!("nginx-{version}"));
         tauri::async_runtime::block_on(install_archive(&download, dir.path(), &target, "get-nginx", &|_| {})).unwrap();
-        assert!(target.join("nginx.exe").is_file(), "nginx.exe should be at the top of the target");
+        assert!(target.join(crate::platform::exe("nginx.exe")).is_file(), "nginx.exe should be at the top of the target");
         assert!(target.join("conf").join("nginx.conf").is_file());
         assert!(!dir.path().join("tmp/downloads").read_dir().unwrap().any(|_| true), "archive cleaned up");
 
@@ -1276,7 +1365,7 @@ mod tests {
 
         let mysql_dir = target_dir(root, "mysql", &request.items[2].version);
         let out = configure::run_quiet(
-            &mysql_dir.join("bin").join("mysql.exe"),
+            &mysql_dir.join("bin").join(crate::platform::exe("mysql.exe")),
             &["--protocol=TCP", "-h", "127.0.0.1", "-P", "3397", "-u", "root", "-ptest-pw", "-N", "-e", "SELECT VERSION()"],
             Duration::from_secs(30),
         )
@@ -1298,7 +1387,7 @@ mod tests {
         let catalog = crate::catalog::bundled();
         let version = catalog.tools.git.as_ref().unwrap().version.clone();
         let (dir, _) = real_install("git", &version);
-        let git = dir.path().join("bin").join("git").join(format!("git-{version}")).join("cmd").join("git.exe");
+        let git = dir.path().join("bin").join("git").join(format!("git-{version}")).join("cmd").join(crate::platform::exe("git.exe"));
         let out = std::process::Command::new(&git).arg("--version").output().unwrap();
         println!("{}", String::from_utf8_lossy(&out.stdout).trim());
         assert!(out.status.success());
@@ -1322,8 +1411,8 @@ mod python_tests {
         let target = dir.path().join("bin").join("python").join(format!("python-{}", tool.version));
         tauri::async_runtime::block_on(crate::installer::install_archive(&tool.download, dir.path(), &target, "get-python", &|_| {}))
             .unwrap();
-        assert!(target.join("python.exe").is_file() && !target.join("python.nuspec").exists());
-        let out = crate::configure::run_quiet(&target.join("python.exe"), &["-m", "pip", "--version"], Duration::from_secs(60)).unwrap();
+        assert!(target.join(crate::platform::exe("python.exe")).is_file() && !target.join("python.nuspec").exists());
+        let out = crate::configure::run_quiet(&target.join(crate::platform::exe("python.exe")), &["-m", "pip", "--version"], Duration::from_secs(60)).unwrap();
         println!("pip: {}", out.text.trim());
         assert!(out.success && out.text.starts_with("pip "), "{}", out.text);
     }

@@ -14,11 +14,11 @@ use crate::settings::Settings;
 /// The PHP a project runs on (its own version, else NexDB's default) and its php.ini folder.
 pub fn php_for(root: &Path, settings: &Settings, project: &str) -> Option<(PathBuf, PathBuf)> {
     if let Some(extra) = crate::phpver::for_project(root, settings, project) {
-        return Some((extra.dir.join("php.exe"), extra.ini_dir));
+        return Some((extra.dir.join(crate::platform::exe("php.exe")), extra.ini_dir));
     }
     let c = settings.components.iter().find(|c| c.id == "php")?;
     let path = PathBuf::from(&c.path);
-    let exe = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) { path } else { path.join("php.exe") };
+    let exe = if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("exe")) { path } else { path.join(crate::platform::exe("php.exe")) };
     exe.is_file().then(|| (exe, root.join("etc").join("php")))
 }
 

@@ -47,7 +47,7 @@ pub fn installed(root: &Path, settings: &Settings) -> BTreeMap<String, PathBuf> 
             let name = e.file_name().to_string_lossy().to_string();
             let version = name.strip_prefix("php-")?.to_string();
             let dir = e.path();
-            dir.join("php-cgi.exe").is_file().then_some((version, dir))
+            dir.join(crate::platform::exe("php-cgi.exe")).is_file().then_some((version, dir))
         })
         .collect()
 }

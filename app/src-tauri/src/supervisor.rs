@@ -120,7 +120,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 id: "php".into(),
                 name: "PHP (FastCGI)".into(),
                 version: php.version.clone(),
-                exe: dir.join("php-cgi.exe"),
+                exe: dir.join(crate::platform::exe("php-cgi.exe")),
                 args: vec!["-b".into(), format!("127.0.0.1:{port}"), "-c".into(), etc.join("php").join("php.ini").display().to_string()],
                 cwd: dir,
                 port,
@@ -135,7 +135,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 id: format!("php-{}", extra.version),
                 name: format!("PHP {} (FastCGI)", extra.version),
                 version: Some(extra.version.clone()),
-                exe: extra.dir.join("php-cgi.exe"),
+                exe: extra.dir.join(crate::platform::exe("php-cgi.exe")),
                 args: vec![
                     "-b".into(),
                     format!("127.0.0.1:{}", extra.port),
@@ -170,7 +170,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 id: "mysql".into(),
                 name: "MySQL".into(),
                 version: component("mysql").and_then(|c| c.version.clone()),
-                exe: dir.join("bin").join("mysqld.exe"),
+                exe: dir.join("bin").join(crate::platform::exe("mysqld.exe")),
                 args: vec![format!("--defaults-file={}", etc.join("mysql").join("my.ini").display()), "--console".into()],
                 cwd: dir,
                 port: mysql.port,
@@ -187,7 +187,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 id: "apache".into(),
                 name: "Apache".into(),
                 version: apache.version.clone(),
-                exe: root_dir.join("bin").join("httpd.exe"),
+                exe: root_dir.join("bin").join(crate::platform::exe("httpd.exe")),
                 args: vec!["-f".into(), etc.join("apache").join("httpd.conf").display().to_string()],
                 cwd: root_dir,
                 port,
@@ -204,7 +204,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 id: "nginx".into(),
                 name: "nginx".into(),
                 version: nginx.version.clone(),
-                exe: dir.join("nginx.exe"),
+                exe: dir.join(crate::platform::exe("nginx.exe")),
                 args: vec!["-p".into(), format!("{}/", dir.display()), "-c".into(), etc.join("nginx").join("nginx.conf").display().to_string()],
                 cwd: dir,
                 port,
@@ -222,7 +222,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "postgres".into(),
             name: "PostgreSQL".into(),
             version: component("postgres").and_then(|c| c.version.clone()),
-            exe: dir.join("bin").join("postgres.exe"),
+            exe: dir.join("bin").join(crate::platform::exe("postgres.exe")),
             args: vec![
                 "-D".into(),
                 data.join("postgres").display().to_string(),
@@ -243,7 +243,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "mariadb".into(),
             name: "MariaDB".into(),
             version: component("mariadb").and_then(|c| c.version.clone()),
-            exe: dir.join("bin").join("mariadbd.exe"),
+            exe: dir.join("bin").join(crate::platform::exe("mariadbd.exe")),
             args: vec![format!("--defaults-file={}", etc.join("mariadb").join("my.ini").display()), "--console".into()],
             cwd: dir,
             port: crate::extradb::MARIADB_PORT,
@@ -258,7 +258,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "mongodb".into(),
             name: "MongoDB".into(),
             version: component("mongodb").and_then(|c| c.version.clone()),
-            exe: dir.join("bin").join("mongod.exe"),
+            exe: dir.join("bin").join(crate::platform::exe("mongod.exe")),
             args: vec![
                 "--dbpath".into(),
                 data.join("mongodb").display().to_string(),
@@ -282,7 +282,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "mailpit".into(),
             name: "Mail catcher".into(),
             version: component("mailpit").and_then(|c| c.version.clone()),
-            exe: dir.join("mailpit.exe"),
+            exe: dir.join(crate::platform::exe("mailpit.exe")),
             args: vec![
                 "--smtp".into(),
                 format!("127.0.0.1:{MAIL_SMTP_PORT}"),
@@ -303,7 +303,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "memcached".into(),
             name: "Memcached".into(),
             version: component("memcached").and_then(|c| c.version.clone()),
-            exe: dir.join("bin").join("memcached.exe"),
+            exe: dir.join("bin").join(crate::platform::exe("memcached.exe")),
             // 64 MB of memory, TCP only, this PC only.
             args: vec![
                 "-p".into(),
@@ -328,7 +328,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
             id: "redis".into(),
             name: "Redis".into(),
             version: component("redis").and_then(|c| c.version.clone()),
-            exe: dir.join("redis-server.exe"),
+            exe: dir.join(crate::platform::exe("redis-server.exe")),
             args: vec![
                 "--port".into(),
                 REDIS_PORT.to_string(),
@@ -447,6 +447,12 @@ impl Supervisor {
             command.env("PHP_FCGI_MAX_REQUESTS", "0");
         }
         crate::scan::hide_console(&mut command);
+        // macOS: own process group, so stopping reaches Apache's and PHP's worker processes too.
+        #[cfg(unix)]
+        {
+            use std::os::unix::process::CommandExt;
+            command.process_group(0);
+        }
         let mut child = command.spawn().map_err(|e| format!("Couldn't start {}: {e}", spec.name))?;
 
         #[cfg(windows)]
@@ -497,8 +503,13 @@ impl Supervisor {
         };
         let pid = running.child.id();
         let asked = match spec.stop {
+            // macOS: Apache and MySQL shut down cleanly on SIGTERM.
+            #[cfg(unix)]
+            StopMethod::ApacheEvent | StopMethod::MysqlEvent => signal_group(pid, "TERM"),
+            #[cfg(windows)]
             StopMethod::ApacheEvent => signal_event(&[format!("ap{pid}_shutdown"), format!("Global\\ap{pid}_shutdown")]),
             // The name mysqld.exe creates (`mysqld%d_shutdown`); MariaDB's older name as fallback.
+            #[cfg(windows)]
             StopMethod::MysqlEvent => signal_event(&[format!("mysqld{pid}_shutdown"), format!("MySQLShutdown{pid}")]),
             StopMethod::NginxQuit => {
                 let mut args: Vec<String> = vec!["-s".into(), "quit".into()];
@@ -509,7 +520,7 @@ impl Supervisor {
                 cmd.status().is_ok_and(|s| s.success())
             }
             StopMethod::RedisShutdown => {
-                let mut cmd = Command::new(spec.exe.with_file_name("redis-cli.exe"));
+                let mut cmd = Command::new(spec.exe.with_file_name(crate::platform::exe("redis-cli.exe")));
                 cmd.args(["-p", &spec.port.to_string(), "shutdown"])
                     .current_dir(&spec.cwd)
                     .stdin(Stdio::null())
@@ -520,7 +531,7 @@ impl Supervisor {
             }
             StopMethod::PgCtl => {
                 let data = spec.args.iter().skip_while(|a| *a != "-D").nth(1).cloned().unwrap_or_default();
-                let mut cmd = Command::new(spec.exe.with_file_name("pg_ctl.exe"));
+                let mut cmd = Command::new(spec.exe.with_file_name(crate::platform::exe("pg_ctl.exe")));
                 cmd.args(["stop", "-D", &data, "-m", "fast", "-s"])
                     .current_dir(&spec.cwd)
                     .stdin(Stdio::null())
@@ -542,6 +553,8 @@ impl Supervisor {
             }
         }
         // Not asked, or didn't stop in time: end it. Dropping the job ends any children too.
+        #[cfg(unix)]
+        signal_group(pid, "KILL");
         let _ = running.child.kill();
         let _ = running.child.wait();
         Ok(())
@@ -682,9 +695,12 @@ fn signal_event(names: &[String]) -> bool {
     })
 }
 
-#[cfg(not(windows))]
-fn signal_event(_names: &[String]) -> bool {
-    false
+/// macOS: sends a signal to a service's whole process group (it was started as its leader).
+#[cfg(unix)]
+fn signal_group(pid: u32, signal: &str) -> bool {
+    let sig = if signal == "KILL" { libc::SIGKILL } else { libc::SIGTERM };
+    // SAFETY: killpg only sends a signal; the group id is our own child's pid.
+    unsafe { libc::killpg(pid as libc::pid_t, sig) == 0 }
 }
 
 #[cfg(windows)]
@@ -785,7 +801,7 @@ mod tests {
         fs::write(log.with_extension("console.log"), "--- Apache starting ---\n").unwrap();
         let sup = Supervisor::new(vec![ServiceSpec {
             id: "apache".into(), name: "Apache".into(), version: None,
-            exe: dir.path().join("httpd.exe"), args: vec![], cwd: dir.path().into(), port: 1,
+            exe: dir.path().join(crate::platform::exe("httpd.exe")), args: vec![], cwd: dir.path().into(), port: 1,
             managed: true, stop: StopMethod::Kill, log: log.clone(),
         }]);
         sup.clear_log("apache").unwrap();
@@ -803,7 +819,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let spec = ServiceSpec {
             id: "php".into(), name: "PHP".into(), version: None,
-            exe: dir.path().join("nope.exe"), args: vec![], cwd: dir.path().into(), port: 1,
+            exe: dir.path().join(crate::platform::exe("nope.exe")), args: vec![], cwd: dir.path().into(), port: 1,
             managed: true, stop: StopMethod::Kill, log: dir.path().join("php.log"),
         };
         let sup = Supervisor::new(vec![spec]);
@@ -838,12 +854,12 @@ mod tests {
 
         let sup = Supervisor::new(vec![
             ServiceSpec {
-                id: "php".into(), name: "PHP".into(), version: None, exe: php_dir.join("php-cgi.exe"),
+                id: "php".into(), name: "PHP".into(), version: None, exe: php_dir.join(crate::platform::exe("php-cgi.exe")),
                 args: vec!["-b".into(), format!("127.0.0.1:{fcgi_port}"), "-c".into(), etc.join("php").join("php.ini").display().to_string()],
                 cwd: php_dir.clone(), port: fcgi_port, managed: true, stop: StopMethod::Kill, log: logs.join("php.log"),
             },
             ServiceSpec {
-                id: "apache".into(), name: "Apache".into(), version: None, exe: apache_root.join("bin").join("httpd.exe"),
+                id: "apache".into(), name: "Apache".into(), version: None, exe: apache_root.join("bin").join(crate::platform::exe("httpd.exe")),
                 args: vec!["-f".into(), etc.join("apache").join("httpd.conf").display().to_string()],
                 cwd: apache_root.clone(), port: web_port, managed: true, stop: StopMethod::ApacheEvent, log: logs.join("apache_error.log"),
             },
@@ -894,7 +910,7 @@ mod tests {
         configure::setup_mysql(&base, &ini, &data, port, None).unwrap();
 
         let sup = Supervisor::new(vec![ServiceSpec {
-            id: "mysql".into(), name: "MySQL".into(), version: None, exe: base.join("bin").join("mysqld.exe"),
+            id: "mysql".into(), name: "MySQL".into(), version: None, exe: base.join("bin").join(crate::platform::exe("mysqld.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: base.clone(), port, managed: true, stop: StopMethod::MysqlEvent, log: logs.join("mysql_error.log"),
         }]);

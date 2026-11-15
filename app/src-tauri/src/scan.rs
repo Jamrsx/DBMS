@@ -176,17 +176,17 @@ fn scan_component(spec: &ComponentSpec, services: &[(String, PathBuf)]) -> Compo
     let mut candidates: Vec<(PathBuf, String, Option<String>)> = Vec::new();
     for (source, pattern) in spec.known_paths {
         for dir in expand_pattern(pattern) {
-            candidates.push((dir.join(spec.exe), (*source).into(), None));
+            candidates.push((dir.join(crate::platform::exe(spec.exe)), (*source).into(), None));
         }
     }
     for (service, exe) in services {
-        if file_name_eq(exe, spec.exe) {
+        if file_name_eq(exe, &crate::platform::exe(spec.exe)) {
             candidates.push((exe.clone(), "Windows service".into(), Some(service.clone())));
         }
     }
     let path_hits: Vec<PathBuf> =
         std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
-            .map(|dir| dir.join(spec.exe))
+            .map(|dir| dir.join(crate::platform::exe(spec.exe)))
             .filter(|path| path.is_file())
             .collect();
     let on_path: HashSet<String> = path_hits.iter().map(|p| normalize(p)).collect();
@@ -385,7 +385,7 @@ pub(crate) fn hide_console(command: &mut Command) {
 }
 
 #[cfg(not(windows))]
-fn hide_console(_command: &mut Command) {}
+pub(crate) fn hide_console(_command: &mut Command) {}
 
 fn scan_ports() -> Vec<PortStatus> {
     let listeners = listening_ports();
@@ -434,6 +434,12 @@ pub fn first_free(start: u16, busy: &HashSet<u16>) -> Option<u16> {
 }
 
 /// (port, pid) for every listening TCP socket, from `netstat -ano`.
+#[cfg(not(windows))]
+fn listening_ports() -> Vec<(u16, u32)> {
+    crate::platform::unix::listening_ports()
+}
+
+#[cfg(windows)]
 fn listening_ports() -> Vec<(u16, u32)> {
     let Some(text) = run_capture(Path::new("netstat"), &["-ano", "-p", "TCP"], VERSION_TIMEOUT)
     else {
@@ -458,6 +464,12 @@ pub fn parse_netstat(text: &str) -> Vec<(u16, u32)> {
         .collect()
 }
 
+#[cfg(not(windows))]
+fn process_name(pid: u32) -> Option<String> {
+    crate::platform::unix::process_name(pid)
+}
+
+#[cfg(windows)]
 fn process_name(pid: u32) -> Option<String> {
     if pid == 4 {
         return Some("System (Windows HTTP service)".into());

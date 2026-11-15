@@ -73,6 +73,25 @@ impl Tools {
 pub struct Tool {
     pub version: String,
     pub download: Download,
+    /// Mac builds of the same version, one per chip. See docs/macos-port.md.
+    #[serde(default)]
+    pub macos: Option<MacDownloads>,
+}
+
+/// Mac downloads: Intel (`x64`) and Apple Silicon (`arm64`), same version on both.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MacDownloads {
+    #[serde(default)]
+    pub x64: Option<Download>,
+    #[serde(default)]
+    pub arm64: Option<Download>,
+}
+
+impl MacDownloads {
+    /// The download for this Mac's chip.
+    pub fn for_this_chip(&self) -> Option<Download> {
+        if cfg!(target_arch = "aarch64") { self.arm64.clone() } else { self.x64.clone() }
+    }
 }
 
 /// An official Windows x64 download and the checksum it must match.
@@ -117,6 +136,9 @@ pub struct CatalogLine {
     pub security: bool,
     #[serde(default)]
     pub download: Option<Download>,
+    /// Mac builds of this line's latest version, one per chip.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub macos: Option<MacDownloads>,
 }
 
 impl Catalog {
@@ -179,7 +201,29 @@ pub struct Choices {
 }
 
 pub fn bundled() -> Catalog {
-    serde_json::from_str(BUNDLED).expect("bundled catalog.json is valid")
+    for_this_os(serde_json::from_str(BUNDLED).expect("bundled catalog.json is valid"))
+}
+
+/// On a Mac, every download becomes the Mac build for this chip, or none when there isn't one
+/// yet (the app then shows it as not available). Composer and phpMyAdmin are the same files on
+/// every OS. On Windows nothing changes.
+pub fn for_this_os(mut catalog: Catalog) -> Catalog {
+    if cfg!(windows) {
+        return catalog;
+    }
+    for c in &mut catalog.components {
+        for l in &mut c.lines {
+            l.download = l.macos.as_ref().and_then(MacDownloads::for_this_chip);
+        }
+    }
+    let t = &mut catalog.tools;
+    for slot in [&mut t.git, &mut t.mailpit, &mut t.redis, &mut t.postgres, &mut t.python, &mut t.cloudflared, &mut t.mariadb, &mut t.mongodb, &mut t.memcached] {
+        *slot = slot.take().and_then(|mut tool| {
+            tool.download = tool.macos.as_ref().and_then(MacDownloads::for_this_chip)?;
+            Some(tool)
+        });
+    }
+    catalog
 }
 
 /// Labels and recommends every installable version as of `today` (days since 1970-01-01).
@@ -322,6 +366,7 @@ mod tests {
             support_end: None,
             eol: None,
             security: false,
+            macos: None,
             download: Some(Download {
                 url: format!("https://example.test/{latest}.zip"),
                 size: Some(1),

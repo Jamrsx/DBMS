@@ -221,7 +221,7 @@ pub fn check_value(key: &str, value: &str) -> Result<(), String> {
 /// Starts PHP with an ini and lists its modules, to catch a broken file before it's used:
 /// a startup warning or error (an extension that won't load, a typo) comes back in plain words.
 pub fn test_ini(php_dir: &Path, ini: &Path) -> Result<(), String> {
-    let out = crate::configure::run_quiet(&php_dir.join("php.exe"), &["-c", &ini.display().to_string(), "-m"], std::time::Duration::from_secs(30))
+    let out = crate::configure::run_quiet(&php_dir.join(crate::platform::exe("php.exe")), &["-c", &ini.display().to_string(), "-m"], std::time::Duration::from_secs(30))
         .map_err(|e| format!("Couldn't run PHP to check the settings: {e}"))?;
     let bad = out
         .text
@@ -372,7 +372,7 @@ mod tests {
         let ini = dir.path().join("php.ini");
         fs::write(&ini, render(php, &etc)).unwrap();
         test_ini(php, &ini).unwrap();
-        let out = crate::configure::run_quiet(&php.join("php.exe"), &["-c", &ini.display().to_string(), "-m"], std::time::Duration::from_secs(30)).unwrap();
+        let out = crate::configure::run_quiet(&php.join(crate::platform::exe("php.exe")), &["-c", &ini.display().to_string(), "-m"], std::time::Duration::from_secs(30)).unwrap();
         assert!(out.text.contains("soap"), "{}", out.text);
         fs::write(own_lines_path(&etc, "8.5.12"), "extension=does_not_exist\n").unwrap();
         fs::write(&ini, render(php, &etc)).unwrap();

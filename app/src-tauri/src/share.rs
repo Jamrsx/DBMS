@@ -56,7 +56,11 @@ fn powershell(script: &str) -> Option<String> {
 }
 
 /// Whether NexDB's firewall rule exists (reading rules needs no administrator).
+/// macOS has no such rule: its firewall asks the user itself, so it counts as ready.
 pub fn firewall_ready() -> bool {
+    if cfg!(not(windows)) {
+        return true;
+    }
     powershell(&format!("@(Get-NetFirewallRule -DisplayName '{FIREWALL_RULE}' -ErrorAction SilentlyContinue).Count"))
         .is_some_and(|n| n != "0" && !n.is_empty())
 }
@@ -64,6 +68,10 @@ pub fn firewall_ready() -> bool {
 /// Whether Windows treats the current network as private. Phones are only let in on private
 /// networks (home, office), never on public Wi-Fi.
 pub fn network_private() -> Option<bool> {
+    if cfg!(not(windows)) {
+        // macOS has no private/public network setting; leave the choice to the user.
+        return None;
+    }
     let category = powershell("(Get-NetConnectionProfile | Where-Object { $_.IPv4Connectivity -ne 'Disconnected' } | Select-Object -First 1).NetworkCategory")?;
     Some(matches!(category.as_str(), "Private" | "DomainAuthenticated"))
 }
@@ -129,11 +137,14 @@ fn tailscale_exe() -> Option<std::path::PathBuf> {
     let installed = ["ProgramFiles", "ProgramFiles(x86)"]
         .into_iter()
         .filter_map(|var| std::env::var(var).ok())
-        .map(|dir| Path::new(&dir).join("Tailscale").join("tailscale.exe"))
+        .map(|dir| Path::new(&dir).join("Tailscale").join(crate::platform::exe("tailscale.exe")))
         .find(|p| p.is_file());
+    // macOS: the Tailscale app keeps its command-line tool inside the app bundle.
+    let mac = Path::new("/Applications/Tailscale.app/Contents/MacOS/Tailscale");
+    let installed = installed.or_else(|| (cfg!(target_os = "macos") && mac.is_file()).then(|| mac.to_path_buf()));
     installed.or_else(|| {
         std::env::var_os("PATH")
-            .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join("tailscale.exe")).find(|p| p.is_file()))
+            .and_then(|paths| std::env::split_paths(&paths).map(|d| d.join(crate::platform::exe("tailscale.exe"))).find(|p| p.is_file()))
     })
 }
 
@@ -192,6 +203,9 @@ pub fn tailscale_nexhost() -> TailscaleInfo {
 const NEXHOST_TAILSCALE_RULE: &str = "NexDB NexHost sites (Tailscale)";
 
 fn rule_exists(rule: &str) -> bool {
+    if cfg!(not(windows)) {
+        return true;
+    }
     powershell(&format!("@(Get-NetFirewallRule -DisplayName '{rule}' -ErrorAction SilentlyContinue).Count"))
         .is_some_and(|n| n != "0" && !n.is_empty())
 }
@@ -226,14 +240,15 @@ pub fn allow_tailscale_nexhost() -> Result<(), String> {
     allow_tailscale_rule(NEXHOST_TAILSCALE_RULE, "sites you host with NexHost", &crate::nexhost::PORTS)
 }
 
+/// macOS needs no rule: its firewall asks the user itself the first time a server listens.
 #[cfg(not(windows))]
 pub fn allow_tailscale_firewall() -> Result<(), String> {
-    Err("Sharing is only available on Windows.".into())
+    Ok(())
 }
 
 #[cfg(not(windows))]
 pub fn allow_tailscale_nexhost() -> Result<(), String> {
-    Err("Sharing is only available on Windows.".into())
+    Ok(())
 }
 
 #[cfg(test)]
@@ -275,7 +290,7 @@ pub(crate) fn encode_command(script: &str) -> String {
 
 #[cfg(not(windows))]
 pub fn allow_firewall() -> Result<(), String> {
-    Err("Sharing is only available on Windows.".into())
+    Ok(())
 }
 
 /// A running quick tunnel and the public address Cloudflare gave it.

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Settings } from "../Wizard";
 import type { Selection } from "./Components";
 import { pathProblem } from "./Welcome";
+import { EXAMPLE_ROOT, joinPath } from "../lib/os";
 import { checkPort } from "../lib/ports";
 import type { Install, PortStatus } from "../lib/scan";
 
@@ -37,7 +38,7 @@ export function mysqlMode(selection: Selection): MysqlMode {
 /** `C:\NexDB\data\mysql-9.7` for version 9.7.4. */
 export function defaultDataDir(installRoot: string, version: string | null): string {
   const line = version?.split(".").slice(0, 2).join(".") ?? "server";
-  return `${installRoot.replace(/\\+$/, "")}\\data\\mysql-${line}`;
+  return joinPath(installRoot, "data", `mysql-${line}`);
 }
 
 export function effectiveDataDir(m: MysqlSettings, installRoot: string, version: string | null) {
@@ -68,7 +69,7 @@ export function validateMysql(
     if (m.password !== m.confirm) return "The two passwords don't match.";
   }
   const dataDir = effectiveDataDir(m, settings.installRoot, version);
-  const dirProblem = pathProblem("Data folder", dataDir, "C:\\NexDB\\data\\mysql");
+  const dirProblem = pathProblem("Data folder", dataDir, joinPath(EXAMPLE_ROOT, "data", "mysql"));
   if (dirProblem) return dirProblem;
   if (isInside(dataDir, settings.wwwDir)) {
     return "Keep the data folder outside the projects folder, so it's never served on the web.";

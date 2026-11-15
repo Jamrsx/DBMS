@@ -796,6 +796,12 @@ pub fn write_vhosts(
     Ok(())
 }
 
+#[cfg(not(windows))]
+pub fn hosts_path() -> PathBuf {
+    PathBuf::from("/etc/hosts")
+}
+
+#[cfg(windows)]
 pub fn hosts_path() -> PathBuf {
     let root = std::env::var_os("SystemRoot").map(PathBuf::from).unwrap_or_else(|| PathBuf::from(r"C:\Windows"));
     root.join(r"System32\drivers\etc\hosts")
@@ -898,9 +904,33 @@ pub fn sync_hosts_elevated(hosts: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// Writes the hosts block on macOS: one password prompt, then the DNS cache is flushed so
+/// the new addresses work at once.
 #[cfg(not(windows))]
-pub fn sync_hosts_elevated(_: &[String]) -> Result<(), String> {
-    Err("Project addresses are only available on Windows.".into())
+pub fn sync_hosts_elevated(hosts: &[String]) -> Result<(), String> {
+    use crate::platform::sh_quote;
+    let current = fs::read_to_string(hosts_path()).unwrap_or_default();
+    let updated = apply_block(&current, hosts);
+    if updated == current {
+        return Ok(());
+    }
+    // The new contents go through a temp file, so no project name is ever put in a command line.
+    let dir = std::env::temp_dir().join(format!("nexdb-hosts-{}", std::process::id()));
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let src = dir.join("hosts.new");
+    fs::write(&src, &updated).map_err(|e| e.to_string())?;
+    let script = format!(
+        "/bin/cat {} > {} && /usr/bin/dscacheutil -flushcache; /usr/bin/killall -HUP mDNSResponder; true",
+        sh_quote(&src.display().to_string()),
+        sh_quote(&hosts_path().display().to_string())
+    );
+    let result = crate::platform::unix::run_as_admin(&script);
+    let _ = fs::remove_dir_all(&dir);
+    result?;
+    if fs::read_to_string(hosts_path()).unwrap_or_default() != updated {
+        return Err("The hosts file didn't change. Security software may be blocking it.".into());
+    }
+    Ok(())
 }
 
 #[cfg(test)]

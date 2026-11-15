@@ -1,6 +1,7 @@
 import { invoke } from "../lib/invoke";
 import { useEffect, useState } from "react";
 import { inDesktopApp } from "../lib/scan";
+import { isMac } from "../lib/os";
 
 /** "Start with Windows": NexDB opens hidden in the notification area at sign-in. */
 export function StartupToggle() {
@@ -31,7 +32,7 @@ export function StartupToggle() {
     <div className="startup-toggle">
       <label>
         <input type="checkbox" checked={on} onChange={(e) => change(e.target.checked)} />
-        <span>Start with Windows</span>
+        <span>{isMac ? "Open at login" : "Start with Windows"}</span>
       </label>
       {error && (
         <p className="field-error" role="alert">

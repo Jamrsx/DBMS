@@ -198,10 +198,55 @@ mod startup {
     }
 }
 
+/// macOS: a LaunchAgent in ~/Library/LaunchAgents starts NexDB in the tray at login.
 #[cfg(not(windows))]
 mod startup {
-    pub fn get() -> bool { false }
-    pub fn set(_: bool) -> Result<(), String> { Err("Start with Windows is only available on Windows".into()) }
+    use std::path::PathBuf;
+
+    const LABEL: &str = "com.jamrsx.nexdb.autostart";
+
+    fn plist() -> PathBuf {
+        crate::platform::unix::home().join("Library/LaunchAgents").join(format!("{LABEL}.plist"))
+    }
+
+    fn xml_escape(s: &str) -> String {
+        s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;")
+    }
+
+    pub fn get() -> bool {
+        plist().is_file()
+    }
+
+    pub fn set(on: bool) -> Result<(), String> {
+        let path = plist();
+        if !on {
+            return match std::fs::remove_file(&path) {
+                Ok(()) => Ok(()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(format!("Couldn't remove NexDB from login items: {e}")),
+            };
+        }
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let body = format!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>{LABEL}</string>
+  <key>ProgramArguments</key>
+  <array><string>{}</string><string>{}</string></array>
+  <key>RunAtLoad</key><true/>
+</dict>
+</plist>
+"#,
+            xml_escape(&exe.display().to_string()),
+            super::TRAY_ARG
+        );
+        if let Some(dir) = path.parent() {
+            std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        }
+        std::fs::write(&path, body).map_err(|e| format!("Couldn't add NexDB to login items: {e}"))
+    }
 }
 
 #[tauri::command]

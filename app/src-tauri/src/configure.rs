@@ -252,7 +252,7 @@ default-character-set=utf8mb4
 
 /// Validates an Apache config with `httpd -t`, returning Apache's message on failure.
 pub fn check_apache(server_root: &Path, conf: &Path) -> Result<(), String> {
-    let httpd = server_root.join("bin").join("httpd.exe");
+    let httpd = server_root.join("bin").join(crate::platform::exe("httpd.exe"));
     let out = run_quiet(&httpd, &["-t", "-f", &conf.display().to_string()], Duration::from_secs(30))
         .map_err(|err| format!("Couldn't run Apache to check its config: {err}"))?;
     if out.success { Ok(()) } else { Err(format!("Apache rejected the config: {}", out.text.trim())) }
@@ -260,7 +260,7 @@ pub fn check_apache(server_root: &Path, conf: &Path) -> Result<(), String> {
 
 /// Validates an nginx config with `nginx -t`, returning nginx's message on failure.
 pub fn check_nginx(nginx_dir: &Path, conf: &Path) -> Result<(), String> {
-    let nginx = nginx_dir.join("nginx.exe");
+    let nginx = nginx_dir.join(crate::platform::exe("nginx.exe"));
     let prefix = format!("{}/", conf_path(nginx_dir));
     let out = run_quiet(&nginx, &["-t", "-p", &prefix, "-c", &conf_path(conf)], Duration::from_secs(30))
         .map_err(|err| format!("Couldn't run nginx to check its config: {err}"))?;
@@ -286,7 +286,7 @@ pub fn setup_mysql(
     if data_dir.is_dir() && fs::read_dir(data_dir).map(|mut d| d.next().is_some()).unwrap_or(false) {
         return Ok(MysqlSetup::KeptExisting);
     }
-    let mysqld = base_dir.join("bin").join("mysqld.exe");
+    let mysqld = base_dir.join("bin").join(crate::platform::exe("mysqld.exe"));
     let defaults = format!("--defaults-file={}", ini.display());
 
     let init = run_quiet(&mysqld, &[&defaults, "--initialize-insecure", "--console"], Duration::from_secs(300))
@@ -307,7 +307,7 @@ pub fn setup_mysql(
             "ALTER USER 'root'@'localhost' IDENTIFIED BY '{}';\nSHUTDOWN;\n",
             sql_string(password)
         );
-        let client = base_dir.join("bin").join("mysql.exe");
+        let client = base_dir.join("bin").join(crate::platform::exe("mysql.exe"));
         let port_arg = port.to_string();
         let out = run_with_stdin(
             &client,
@@ -520,7 +520,7 @@ memory_limit = 128M
         let dir = tempfile::tempdir().unwrap();
         let ini = dir.path().join("php.ini");
         write_file(&ini, &php_ini(&php_dir)).unwrap();
-        let out = run_quiet(&php_dir.join("php.exe"), &["-c", &ini.display().to_string(), "-m"], Duration::from_secs(30)).unwrap();
+        let out = run_quiet(&php_dir.join(crate::platform::exe("php.exe")), &["-c", &ini.display().to_string(), "-m"], Duration::from_secs(30)).unwrap();
         println!("{}", out.text);
         assert!(out.success);
         assert!(!out.text.contains("Warning"), "an extension failed to load");
@@ -567,11 +567,11 @@ memory_limit = 128M
         assert!(matches!(setup_mysql(&base, &ini, &data, port, Some("other")).unwrap(), MysqlSetup::KeptExisting));
 
         // Start it again and sign in with the new password (over stdin config, not args).
-        let mysqld = base.join("bin").join("mysqld.exe");
+        let mysqld = base.join("bin").join(crate::platform::exe("mysqld.exe"));
         let defaults = format!("--defaults-file={}", ini.display());
         let mut server = spawn_quiet(&mysqld, &[&defaults, "--console"]).unwrap();
         wait_for_port(port, Duration::from_secs(90), &mut server).unwrap();
-        let client = base.join("bin").join("mysql.exe");
+        let client = base.join("bin").join(crate::platform::exe("mysql.exe"));
         let cnf = dir.path().join("client.cnf");
         write_file(&cnf, &format!("[client]\nuser=root\npassword=\"{}\"\n", password.replace('\\', "\\\\").replace('"', "\\\""))).unwrap();
         let cnf_arg = format!("--defaults-extra-file={}", cnf.display());

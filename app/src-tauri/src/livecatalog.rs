@@ -27,7 +27,7 @@ struct Cache {
 }
 
 fn cache_path() -> PathBuf {
-    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    let base = crate::platform::local_data_dir();
     base.join("NexDB").join("catalog-live.json")
 }
 
@@ -42,6 +42,11 @@ fn read_cache() -> Option<Cache> {
 /// The bundled catalog with the last live check laid over it.
 pub fn current() -> Catalog {
     let mut catalog = catalog::bundled();
+    // The live check reads Windows downloads from the vendors' sites; Macs use the bundled
+    // catalog's own Mac builds instead.
+    if cfg!(not(windows)) {
+        return catalog;
+    }
     if let Some(cache) = read_cache() {
         merge(&mut catalog, cache);
     }
@@ -208,6 +213,7 @@ async fn component(client: &reqwest::Client, id: &str, name: &str, eol: &str, to
             support_end: cy["support"].as_str().map(str::to_string),
             eol: cy["eol"].as_str().map(str::to_string),
             download,
+            macos: None,
         });
     }
     Ok(CatalogComponent { id: id.into(), name: name.into(), lines })

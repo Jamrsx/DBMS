@@ -140,7 +140,7 @@ fn now() -> i64 {
 
 /// `%LOCALAPPDATA%\NexDB\.nexdb-lic`: per user, hidden.
 fn store_path() -> PathBuf {
-    let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    let base = crate::platform::local_data_dir();
     base.join("NexDB").join(".nexdb-lic")
 }
 
@@ -215,13 +215,25 @@ fn machine_guid() -> Option<String> {
     key.get_value::<String, _>("MachineGuid").ok().filter(|g| !g.is_empty())
 }
 
-#[cfg(not(windows))]
+/// macOS: the hardware UUID (IOPlatformUUID). Hashed by `machine_id`, never sent raw.
+#[cfg(target_os = "macos")]
+fn machine_guid() -> Option<String> {
+    crate::platform::unix::machine_id()
+}
+
+#[cfg(all(not(windows), not(target_os = "macos")))]
 fn machine_guid() -> Option<String> {
     std::fs::read_to_string("/etc/machine-id").ok().map(|s| s.trim().to_string())
 }
 
+#[cfg(windows)]
 pub fn device_name() -> String {
     std::env::var("COMPUTERNAME").unwrap_or_else(|_| "This PC".to_string())
+}
+
+#[cfg(not(windows))]
+pub fn device_name() -> String {
+    crate::platform::unix::device_name().unwrap_or_else(|| "This Mac".to_string())
 }
 
 // ---------- Encrypted file ----------

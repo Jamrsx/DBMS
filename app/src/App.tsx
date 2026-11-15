@@ -51,6 +51,7 @@ function MainApp() {
   const [view, setView] = useState<View>("loading");
   const [repairRoot, setRepairRoot] = useState<string | null>(null);
   const [found, setFound] = useState<FoundInstall[]>([]);
+  const [defaultRoot, setDefaultRoot] = useState<string | undefined>(undefined);
   // Just finished setup: the welcome screen plays, then the tour.
   const [welcome, setWelcome] = useState(false);
   // No valid license: the license screen, and nothing else, until one is activated.
@@ -62,6 +63,7 @@ function MainApp() {
       .then((info) => {
         setRepairRoot(info.repair_root ?? null);
         setFound(info.found ?? []);
+        setDefaultRoot(info.default_root ?? undefined);
         setView(info.installed ? "dashboard" : "setup");
       })
       .catch(() => setView("setup"));
@@ -140,6 +142,7 @@ function MainApp() {
   return (
     <Wizard
       repairRoot={repairRoot}
+      defaultRoot={defaultRoot}
       found={found}
       onFinish={() => {
         markPreviewInstalled();

@@ -37,6 +37,7 @@ mod phpfix;
 mod phpini;
 mod pg;
 mod phpver;
+mod platform;
 mod postgres;
 mod projectops;
 mod projects;
@@ -155,6 +156,8 @@ struct SetupInfo {
     repair_root: Option<String>,
     /// NexDB folders from before (another drive, a reinstall), which setup can pick up.
     found: Vec<migrate::Found>,
+    /// Suggested install folder: `C:\NexDB` on Windows, `~/NexDB` on macOS.
+    default_root: String,
 }
 
 /// Whether a finished install exists, so the app opens on the dashboard instead of setup.
@@ -172,6 +175,7 @@ fn setup_info(app: tauri::AppHandle, stack: tauri::State<Stack>) -> SetupInfo {
             .flatten()
             .map(|p| p.display().to_string()),
         found: if guard.is_none() { migrate::find(app.path().app_config_dir().ok().as_deref()) } else { Vec::new() },
+        default_root: platform::default_root().display().to_string(),
     }
 }
 
@@ -895,7 +899,7 @@ fn used_share_ports(settings: &settings::Settings) -> std::collections::BTreeMap
 /// NexDB's cloudflared, once installed from the Versions page or the Share panel.
 fn cloudflared_exe(settings: &settings::Settings) -> Option<PathBuf> {
     let c = settings.components.iter().find(|c| c.id == "cloudflared")?;
-    let exe = PathBuf::from(&c.path).join("cloudflared.exe");
+    let exe = PathBuf::from(&c.path).join(crate::platform::exe("cloudflared.exe"));
     exe.is_file().then_some(exe)
 }
 
@@ -2121,7 +2125,7 @@ async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, St
     let (root, settings, _) = stack.get()?;
     let picked = app.dialog().file().set_title("Where is ngrok.exe?").add_filter("ngrok", &["exe"]).blocking_pick_file();
     let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
-    if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case("ngrok.exe")) {
+    if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&crate::platform::exe("ngrok.exe"))) {
         return Err("Pick the file called ngrok.exe.".into());
     }
     let mut account =
@@ -4035,7 +4039,7 @@ fn mysql_bin(settings: &settings::Settings) -> Result<std::path::PathBuf, String
     } else {
         path.join("bin")
     };
-    if !bin.join("mysqldump.exe").is_file() {
+    if !bin.join(crate::platform::exe("mysqldump.exe")).is_file() {
         return Err("MySQL's backup tool is missing. Reinstall MySQL on the Versions page.".into());
     }
     Ok(bin)

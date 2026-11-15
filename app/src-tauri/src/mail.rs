@@ -223,7 +223,7 @@ mod tests {
             id: "mailpit".into(),
             name: "Mail catcher".into(),
             version: None,
-            exe: target.join("mailpit.exe"),
+            exe: target.join(crate::platform::exe("mailpit.exe")),
             args: vec![
                 "--smtp".into(),
                 format!("127.0.0.1:{smtp}"),

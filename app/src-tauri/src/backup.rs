@@ -189,7 +189,7 @@ pub fn dump_to(mysql_bin: &Path, root: &Path, port: u16, password: Option<&str>,
     let partial = target.with_extension("sql.part");
     let options = ClientOptions::new(root, port, password)?;
     let out = hidden(
-        Command::new(mysql_bin.join("mysqldump.exe"))
+        Command::new(mysql_bin.join(crate::platform::exe("mysqldump.exe")))
             .arg(options.arg())
             .args([
                 "--single-transaction",
@@ -232,7 +232,7 @@ pub fn import(mysql_bin: &Path, root: &Path, port: u16, password: Option<&str>, 
     let input = File::open(file).map_err(|e| format!("Couldn't open {}: {e}", file.display()))?;
     let options = ClientOptions::new(root, port, password)?;
     let out = hidden(
-        Command::new(mysql_bin.join("mysql.exe"))
+        Command::new(mysql_bin.join(crate::platform::exe("mysql.exe")))
             .arg(options.arg())
             .arg("--default-character-set=utf8mb4")
             .arg(database)
@@ -335,7 +335,7 @@ mod tests {
         crate::configure::write_file(&ini, &crate::configure::mysql_ini(&crate::configure::MysqlConf { base_dir: &mysql_dir, data_dir: &data, port, logs_dir: &logs })).unwrap();
         crate::configure::setup_mysql(&mysql_dir, &ini, &data, port, Some(password)).unwrap();
         let sup = Supervisor::new(vec![ServiceSpec {
-            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join("mysqld.exe"),
+            id: "mysql".into(), name: "MySQL".into(), version: None, exe: mysql_dir.join("bin").join(crate::platform::exe("mysqld.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: mysql_dir.clone(), port, managed: true, stop: StopMethod::MysqlEvent, log: logs.join("mysql_error.log"),
         }]);

@@ -40,7 +40,7 @@ pub fn setup_mariadb(base: &Path, root: &Path) -> Result<(), String> {
     let datadir = format!("--datadir={}", data.display());
     let port = format!("--port={MARIADB_PORT}");
     let out = crate::configure::run_quiet(
-        &base.join("bin").join("mariadb-install-db.exe"),
+        &base.join("bin").join(crate::platform::exe("mariadb-install-db.exe")),
         &[&datadir, &port],
         Duration::from_secs(180),
     )
@@ -180,7 +180,7 @@ mod tests {
             id: "mariadb".into(),
             name: "MariaDB".into(),
             version: Some(tool.version.clone()),
-            exe: base.join("bin").join("mariadbd.exe"),
+            exe: base.join("bin").join(crate::platform::exe("mariadbd.exe")),
             args: vec![format!("--defaults-file={}", ini.display()), "--console".into()],
             cwd: base.clone(),
             port: 3317,
@@ -190,7 +190,7 @@ mod tests {
         }]);
         sup.start("mariadb").unwrap();
         let out = crate::configure::run_quiet(
-            &base.join("bin").join("mariadb.exe"),
+            &base.join("bin").join(crate::platform::exe("mariadb.exe")),
             &["-h", "127.0.0.1", "-P", "3317", "-u", "root", "-N", "-e", "SELECT VERSION();"],
             Duration::from_secs(30),
         )
@@ -219,7 +219,7 @@ mod tests {
             id: "mongodb".into(),
             name: "MongoDB".into(),
             version: Some(tool.version.clone()),
-            exe: base.join("bin").join("mongod.exe"),
+            exe: base.join("bin").join(crate::platform::exe("mongod.exe")),
             args: vec![
                 "--dbpath".into(),
                 root.join("data").join("mongodb").display().to_string(),
@@ -258,7 +258,7 @@ mod tests {
             id: "memcached".into(),
             name: "Memcached".into(),
             version: Some(tool.version.clone()),
-            exe: base.join("bin").join("memcached.exe"),
+            exe: base.join("bin").join(crate::platform::exe("memcached.exe")),
             args: vec!["-p".into(), port.to_string(), "-U".into(), "0".into(), "-l".into(), "127.0.0.1".into(), "-m".into(), "64".into()],
             cwd: base.clone(),
             port,

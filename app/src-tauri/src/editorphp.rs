@@ -116,7 +116,7 @@ pub fn merged(existing: Option<&str>, php: &ProjectPhp) -> Result<Value, String>
             _ => return Err("The project's .vscode/settings.json isn't valid JSON, so NexDB left it as it is.".into()),
         },
     };
-    let php_exe = php.php_dir.join("php.exe").display().to_string();
+    let php_exe = php.php_dir.join(crate::platform::exe("php.exe")).display().to_string();
     let path = php.path_dirs.iter().map(|d| d.display().to_string()).chain(["${env:PATH}".to_string()]).collect::<Vec<_>>().join(";");
 
     let mut env = match root.remove("terminal.integrated.env.windows") {

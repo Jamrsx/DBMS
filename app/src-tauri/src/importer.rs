@@ -94,12 +94,12 @@ fn datadir_in(conf: &str) -> Option<PathBuf> {
 fn mysql_servers(version_dirs: &[PathBuf], default_port: u16, data: &dyn Fn(&Path) -> Option<PathBuf>) -> Vec<Server> {
     version_dirs
         .iter()
-        .filter(|d| d.join("bin").join("mysqldump.exe").is_file() || d.join("bin").join("mariadb-dump.exe").is_file())
+        .filter(|d| d.join("bin").join(crate::platform::exe("mysqldump.exe")).is_file() || d.join("bin").join(crate::platform::exe("mariadb-dump.exe")).is_file())
         .map(|d| {
             let name = d.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
             let ini = ["my.ini", "bin/my.ini"].iter().find_map(|f| fs::read_to_string(d.join(f)).ok());
-            let mariadb = name.contains("mariadb") || d.join("bin").join("mariadb-dump.exe").is_file();
-            let mysqld = d.join("bin").join("mysqld.exe");
+            let mariadb = name.contains("mariadb") || d.join("bin").join(crate::platform::exe("mariadb-dump.exe")).is_file();
+            let mysqld = d.join("bin").join(crate::platform::exe("mysqld.exe"));
             let data = ini.as_deref().and_then(datadir_in).or_else(|| data(d)).filter(|p| p.join("mysql").is_dir());
             Server {
                 engine: if mariadb { "mariadb" } else { "mysql" }.into(),
@@ -140,7 +140,7 @@ pub fn sources(root: &Path, settings: &Settings) -> Vec<Source> {
     let mut out = Vec::new();
     for drive in ["C", "D"] {
         let laragon = PathBuf::from(format!(r"{drive}:\laragon"));
-        if laragon.join("laragon.exe").is_file() {
+        if laragon.join(crate::platform::exe("laragon.exe")).is_file() {
             let www = laragon.join("www");
             let mut dirs = glob_dirs(&laragon.join("bin").join("mysql"));
             dirs.extend(glob_dirs(&laragon.join("bin").join("mariadb")));
@@ -182,7 +182,7 @@ pub fn sources(root: &Path, settings: &Settings) -> Vec<Source> {
         out.push(source(&format!("{}-{}", s.engine, out.len()), label.trim(), &path, None, &nexdb_www, vec![s]));
     }
     for dir in glob_dirs(Path::new(r"C:\Program Files\PostgreSQL")) {
-        if !dir.join("bin").join("pg_dump.exe").is_file() {
+        if !dir.join("bin").join(crate::platform::exe("pg_dump.exe")).is_file() {
             continue;
         }
         let version = dir.file_name().map(|n| n.to_string_lossy().to_string());
@@ -260,7 +260,7 @@ impl TempServer {
             }
         };
         let bin = Path::new(&server.bin);
-        let admin = if bin.join("mysqladmin.exe").is_file() { bin.join("mysqladmin.exe") } else { bin.join("mariadb-admin.exe") };
+        let admin = if bin.join(crate::platform::exe("mysqladmin.exe")).is_file() { bin.join(crate::platform::exe("mysqladmin.exe")) } else { bin.join(crate::platform::exe("mariadb-admin.exe")) };
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(90);
         loop {
             if crate::supervisor::port_listening(port) {
@@ -356,7 +356,7 @@ pub fn databases(root: &Path, server: &Server, password: Option<&str>) -> Result
     }
     let out = if server.engine == "postgres" {
         hidden(
-            Command::new(bin.join("psql.exe"))
+            Command::new(bin.join(crate::platform::exe("psql.exe")))
                 .args(["-h", "127.0.0.1", "-p", &server.port.to_string(), "-U", &server.user, "-At", "-d", "postgres"])
                 .args(["-c", "SELECT datname FROM pg_database WHERE NOT datistemplate ORDER BY 1"])
                 .env("PGPASSWORD", password.unwrap_or_default())
@@ -366,7 +366,7 @@ pub fn databases(root: &Path, server: &Server, password: Option<&str>) -> Result
         .output()
     } else {
         let options = crate::backup::ClientOptions::for_user(root, port, &server.user, password)?;
-        let client = if bin.join("mysql.exe").is_file() { bin.join("mysql.exe") } else { bin.join("mariadb.exe") };
+        let client = if bin.join(crate::platform::exe("mysql.exe")).is_file() { bin.join(crate::platform::exe("mysql.exe")) } else { bin.join(crate::platform::exe("mariadb.exe")) };
         let out = hidden(
             Command::new(client)
                 .arg(options.arg())
@@ -550,24 +550,32 @@ fn copy_project(from: &Path, to: &Path, line: &dyn Fn(String)) -> Result<(), Str
     if crate::projects::host_label(&to.file_name().unwrap_or_default().to_string_lossy()).is_none() {
         line("The name has capitals or spaces, so it gets no .test address; it opens at localhost/name.".into());
     }
-    line(format!("> robocopy \"{}\" \"{}\"", from.display(), to.display()));
-    let out = hidden(
-        Command::new("robocopy")
-            .arg(from)
-            .arg(to)
-            .args(["/E", "/XJ", "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NP", "/MT:8"])
-            .stdin(Stdio::null()),
-    )
-    .output()
-    .map_err(|e| format!("Couldn't run robocopy: {e}"))?;
-    // robocopy: below 8 means copied (with or without extras), 8 and up means some files failed.
-    let code = out.status.code().unwrap_or(16);
-    let text = String::from_utf8_lossy(&out.stdout);
-    for l in text.lines().map(str::trim).filter(|l| l.starts_with("Files :") || l.starts_with("Bytes :")) {
-        line(l.to_string());
+    #[cfg(not(windows))]
+    {
+        line(format!("> cp -R \"{}\" \"{}\"", from.display(), to.display()));
+        crate::platform::unix::copy_dir(from, to).map_err(|e| format!("Some files couldn't be copied: {e}"))?;
     }
-    if code >= 8 {
-        return Err(format!("Some files couldn't be copied (robocopy code {code}). Close programs using them and try again."));
+    #[cfg(windows)]
+    {
+        line(format!("> robocopy \"{}\" \"{}\"", from.display(), to.display()));
+        let out = hidden(
+            Command::new("robocopy")
+                .arg(from)
+                .arg(to)
+                .args(["/E", "/XJ", "/R:1", "/W:1", "/NFL", "/NDL", "/NJH", "/NP", "/MT:8"])
+                .stdin(Stdio::null()),
+        )
+        .output()
+        .map_err(|e| format!("Couldn't run robocopy: {e}"))?;
+        // robocopy: below 8 means copied (with or without extras), 8 and up means some files failed.
+        let code = out.status.code().unwrap_or(16);
+        let text = String::from_utf8_lossy(&out.stdout);
+        for l in text.lines().map(str::trim).filter(|l| l.starts_with("Files :") || l.starts_with("Bytes :")) {
+            line(l.to_string());
+        }
+        if code >= 8 {
+            return Err(format!("Some files couldn't be copied (robocopy code {code}). Close programs using them and try again."));
+        }
     }
     Ok(())
 }
@@ -616,7 +624,7 @@ fn copy_mysql(t: &Target, d: &DatabasePick, source_port: u16, line: &dyn Fn(Stri
     fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     let file = tmp.join(format!("import-{}.sql", d.name));
     let source_bin = Path::new(&d.server.bin);
-    let dump = if source_bin.join("mysqldump.exe").is_file() { source_bin.join("mysqldump.exe") } else { source_bin.join("mariadb-dump.exe") };
+    let dump = if source_bin.join(crate::platform::exe("mysqldump.exe")).is_file() { source_bin.join(crate::platform::exe("mysqldump.exe")) } else { source_bin.join(crate::platform::exe("mariadb-dump.exe")) };
     line(format!("> mysqldump {} (port {source_port})", d.name));
     let options = crate::backup::ClientOptions::for_user(t.root, source_port, &d.server.user, d.password.as_deref())?;
     let mut args = vec!["--single-transaction", "--routines", "--events", "--triggers", "--default-character-set=utf8mb4", "--no-tablespaces"];
@@ -684,7 +692,7 @@ fn copy_postgres(t: &Target, d: &DatabasePick, line: &dyn Fn(String)) -> Result<
     let file = tmp.join(format!("import-{}.pgsql", d.name));
     line(format!("> pg_dump {} (port {})", d.name, d.server.port));
     let out = hidden(
-        Command::new(Path::new(&d.server.bin).join("pg_dump.exe"))
+        Command::new(Path::new(&d.server.bin).join(crate::platform::exe("pg_dump.exe")))
             .args(["-h", "127.0.0.1", "-p", &d.server.port.to_string(), "-U", &d.server.user])
             .args(["--no-owner", "--no-acl", "-f"])
             .arg(&file)
@@ -699,7 +707,7 @@ fn copy_postgres(t: &Target, d: &DatabasePick, line: &dyn Fn(String)) -> Result<
         let _ = fs::remove_file(&file);
         return Err(server_error(&d.server, &String::from_utf8_lossy(&out.stderr)));
     }
-    let psql = dir.join("bin").join("psql.exe");
+    let psql = dir.join("bin").join(crate::platform::exe("psql.exe"));
     let run = |args: &[&str]| {
         hidden(Command::new(&psql).args(["-h", "127.0.0.1", "-p", &port.to_string(), "-U", "postgres", "-v", "ON_ERROR_STOP=1"]).args(args).stdin(Stdio::null()))
             .output()

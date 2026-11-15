@@ -89,7 +89,7 @@ pub fn parse_git_status(text: &str) -> Option<Git> {
 fn git_exe(root: &Path, settings: &Settings) -> PathBuf {
     crate::terminal::tool_dirs(root, settings)
         .into_iter()
-        .map(|d| d.join("git.exe"))
+        .map(|d| d.join(crate::platform::exe("git.exe")))
         .find(|p| p.is_file())
         .unwrap_or_else(|| PathBuf::from("git"))
 }
@@ -174,7 +174,29 @@ pub fn rename(www: &Path, old: &str, new: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// macOS: moves the project folder to the Trash through Finder, so "Put Back" works.
+#[cfg(not(windows))]
+pub fn recycle(www: &Path, name: &str) -> Result<(), String> {
+    let dir = crate::projects::project_dir(www, name).ok_or("That project doesn't exist any more.")?;
+    let script = format!(
+        "tell application \"Finder\" to delete (POSIX file {} as alias)",
+        crate::platform::applescript_quote(&dir.display().to_string())
+    );
+    let out = Command::new("/usr/bin/osascript").args(["-e", &script]).output()
+        .map_err(|e| format!("Couldn't ask Finder to move the project: {e}"))?;
+    if dir.exists() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(if err.contains("-1743") {
+            "macOS didn't let NexDB use Finder. Allow it in System Settings, Privacy & Security, Automation, then try again.".into()
+        } else {
+            format!("Couldn't move the project to the Trash. {}", err.lines().next().unwrap_or("").trim())
+        });
+    }
+    Ok(())
+}
+
 /// Moves the project folder to the Recycle Bin, so it can still be brought back.
+#[cfg(windows)]
 pub fn recycle(www: &Path, name: &str) -> Result<(), String> {
     let dir = crate::projects::project_dir(www, name).ok_or("That project doesn't exist any more.")?;
     let path = dir.display().to_string().replace('\'', "''");
