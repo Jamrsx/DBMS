@@ -140,7 +140,8 @@ mod tests {
         let exe = exe.display().to_string();
         let taken = vec![("mysql".to_string(), 3306), ("custom-api".to_string(), 9000)];
         assert!(check("", &exe, "", 9100, &taken).is_err());
-        assert!(check("Thing", r"C:\nope\missing.exe", "", 9100, &taken).unwrap_err().contains(".exe"));
+        let wrong_file = if cfg!(windows) { ".exe" } else { "program file" };
+        assert!(check("Thing", r"C:\nope\missing.exe", "", 9100, &taken).unwrap_err().contains(wrong_file));
         assert!(check("Thing", &exe, "", 80, &taken).unwrap_err().contains("1024"));
         assert!(check("API", &exe, "", 9100, &taken).unwrap_err().contains("already a service"));
         assert!(check("Thing", &exe, "", 3306, &taken).unwrap_err().contains("mysql"));
