@@ -351,11 +351,19 @@
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/mysql-9.7.4-macos-arm64.tar.xz",
-              "size": 38031900,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1121/mysql-9.7.4-macos-arm64.tar.xz",
+              "size": 38029608,
               "checksum": {
                 "algo": "sha256",
-                "value": "127c7362be7fdcf827786c8905f56d1b3d13237fb84c266a75e04f6614614e03"
+                "value": "0b55eeae76dd8802b4ae7c3fdfa8588ca52b67b8d5e8f76b7f496782dd96bf8f"
+              }
+            },
+            "x64": {
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1121/mysql-9.7.4-macos-x64.tar.xz",
+              "size": 42294064,
+              "checksum": {
+                "algo": "sha256",
+                "value": "73f4cd069e3fb442bc1f7cde9bab29abe5bb7243e02d41b7a96cd3f9a055b83a"
               }
             }
           }
