@@ -190,19 +190,20 @@ Not done yet:
 
 ## Phase 2 status (2026-11-15)
 
-Written, not run yet:
+The build scripts live in the public repository **Jamrsx/nexdb-servers** (free Mac build minutes;
+only open-source build recipes, no NexDB code):
 
-- `scripts/macos-servers/build.sh <id> <version>` builds one program for the machine's chip:
-  Redis, PostgreSQL, Apache (with APR and static OpenSSL/PCRE2), nginx, PHP (static-php-cli, every
-  extension built in, `php`, `php-fpm`, `php-cgi`), MySQL (CMake + Ninja), Node (official build if it
-  runs on macOS 12, else from source) and Mailpit. Libraries are made to load from the program's own
-  folder (`@rpath`) and the files are re-signed ad hoc. Each archive is checked: no file may need a
-  macOS newer than 12.0 or load a library from Homebrew or the build machine.
-- `.github/workflows/macos-servers.yml`: by hand only; every catalog version of each chosen program,
-  on an Intel and an Apple Silicon runner. GitHub shows "Run workflow" only once the file is on the
-  default branch (or the workflow lives in a public build repository).
-- `scripts/macos-servers/catalog.py add <files> <url>` writes the `macos.x64` / `macos.arm64`
-  entries; `catalog/build-catalog.mjs` now keeps them when it refreshes the Windows data.
+- `scripts/build.sh <id> <version>` builds one program for the machine's chip: Redis, PostgreSQL,
+  Apache (with APR and static OpenSSL/PCRE2), nginx, PHP (static-php-cli, every extension built in,
+  `php`, `php-fpm`, `php-cgi`), MySQL (CMake + Ninja), Node (official build if it runs on macOS 12,
+  else from source) and Mailpit. Libraries load from the program's own folder (`@rpath`), files are
+  re-signed ad hoc, and each archive is checked: nothing may need a macOS newer than 12.0 or load a
+  library from Homebrew or the build machine.
+- `versions.txt` lists what to build. Refresh it from this repo with
+  `python scripts/macos-servers/catalog.py versions <id>` when the catalog changes.
+- Actions -> "Build Mac servers" builds on Intel and Apple Silicon runners and publishes a release.
+- Here, `scripts/macos-servers/catalog.py add <files> <release URL>` writes the `macos.x64` /
+  `macos.arm64` entries; `catalog/build-catalog.mjs` keeps them when it refreshes the Windows data.
 - On macOS NexDB writes no `extension=` lines into php.ini (they are built in).
 
 Still to check on the first run: the exact static-php-cli download name, whether MySQL 8.4/9.x/26.x
