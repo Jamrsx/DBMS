@@ -85,7 +85,7 @@ pub struct MacDownloads {
     pub x64: Option<Download>,
     #[serde(default)]
     pub arm64: Option<Download>,
-    /// The oldest macOS this program runs on, when newer than NexDB's own (12.0). Node 24+ and
+    /// The oldest macOS this program runs on, when newer than NexDB's own (13.0). Node 24+ and
     /// Mailpit's official builds need macOS 13 or later; older Macs don't see them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub min_macos: Option<String>,

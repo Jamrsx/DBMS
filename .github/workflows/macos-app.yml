@@ -1,4 +1,4 @@
-# Builds the NexDB Mac app as one universal .dmg (Intel + Apple Silicon), macOS 12 or newer.
+# Builds the NexDB Mac app as one universal .dmg (Intel + Apple Silicon), macOS 13 or newer.
 # Plan and background: docs/macos-port.md
 #
 # Starts by hand (Actions -> "NexDB macOS app" -> Run workflow), or on each push to the
@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MACOSX_DEPLOYMENT_TARGET: "12.0"
+  MACOSX_DEPLOYMENT_TARGET: "13.0"
 
 jobs:
   dmg:
@@ -100,7 +100,7 @@ jobs:
           fi
           npm run tauri build -- --target universal-apple-darwin --bundles app,dmg "${extra[@]}"
 
-      - name: Check the app is universal and allows macOS 12
+      - name: Check the app is universal and allows macOS 13
         run: |
           bin="src-tauri/target/universal-apple-darwin/release/bundle/macos/NexDB.app/Contents/MacOS/NexDB"
           archs=$(lipo -archs "$bin"); echo "archs: $archs"
@@ -108,7 +108,7 @@ jobs:
           for arch in x86_64 arm64; do
             minos=$(vtool -arch "$arch" -show-build "$bin" | awk '/minos/ {print $2}')
             echo "$arch minos $minos"
-            [ "$minos" = "12.0" ] || { echo "::error::$arch slice needs macOS $minos, expected 12.0"; exit 1; }
+            [ "$minos" = "13.0" ] || { echo "::error::$arch slice needs macOS $minos, expected 13.0"; exit 1; }
           done
           /usr/libexec/PlistBuddy -c "Print :LSMinimumSystemVersion" \
             "src-tauri/target/universal-apple-darwin/release/bundle/macos/NexDB.app/Contents/Info.plist"

@@ -13,7 +13,7 @@ removed (see the end).
 
 | # | Do this | Expected |
 |---|---|---|
-| 1 | Open the `.dmg`, drag NexDB to Applications, open it | macOS says it can't check the app. Go to System Settings → Privacy & Security → "Open Anyway" (on macOS 12–14 you can also right-click the app → Open). |
+| 1 | Open the `.dmg`, drag NexDB to Applications, open it | macOS says it can't check the app. Go to System Settings → Privacy & Security → "Open Anyway" (on macOS 13–14 you can also right-click the app → Open). |
 | 2 | NexDB opens | Window and Nex appear, no blank screen |
 | 3 | Setup wizard, first page | Install folder shows `/Users/<name>/NexDB`; no "must be a full path" error |
 | 4 | System check step | Ports 80, 443, 3306 listed as free or with the program using them |

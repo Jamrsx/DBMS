@@ -2,6 +2,10 @@
 
 Status: plan only (2026-11-15). Nothing here is built or tested on a real Mac yet.
 
+> **Update 2026-11-15: the floor is now macOS 13 Ventura**, chosen by the user (test Mac: MacBook
+> Air 2018, Intel i5, macOS 14.8.9). Where this document says macOS 12 / 12.0, read 13 / 13.0.
+> Node 24 and 26 still need 13.5 and are offered only on Macs that new (`min_macos` in the catalog).
+
 ## Goal
 
 Every Mac gets the same NexDB: same features, same server versions.
