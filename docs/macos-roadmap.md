@@ -60,8 +60,9 @@ Each gap: build, test on the MacBook, tick off.
 
 1. Merge `macos-port` into `main` (Windows build and tests must still pass).
 2. Version bump (same number for Windows and Mac, e.g. 0.5.8).
-3. Apple Developer account ($99/year), then set `MACOS_SIGNING=true` and the six secrets:
-   the `.dmg` is signed and notarized, so no "Apple can't check it" warning.
+3. Later, when affordable (decided 2026-11-17: not now): Apple Developer account ($99/year),
+   then `MACOS_SIGNING=true` and the six secrets. Until then the `.dmg` is unsigned and the
+   download page explains System Settings → Privacy & Security → Open Anyway.
 4. Publish the `.dmg` beside the Windows installer in Jamrsx/nexdb-releases, with
    `darwin-x86_64` and `darwin-aarch64` in `latest.json` for in-app updates.
 5. Website: a Mac download button and "macOS 13 or newer" on the download page.
