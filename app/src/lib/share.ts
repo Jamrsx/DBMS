@@ -332,6 +332,14 @@ export async function saveFixedLink(
   for (const s of Object.values(preview)) s.fixed_address = provider ? `https://${previewFixed.address}` : null;
 }
 
+/** macOS: downloads ngrok's official build into NexDB's folder (signature checked). */
+export async function installNgrok(): Promise<string> {
+  if (inDesktopApp) return invoke("fixed_link_install_ngrok");
+  await new Promise((r) => setTimeout(r, 800));
+  previewFixed.ngrok = "/Users/you/NexDB/bin/ngrok/ngrok";
+  return previewFixed.ngrok;
+}
+
 export async function pickNgrok(): Promise<string | null> {
   if (inDesktopApp) return invoke("fixed_link_pick_ngrok");
   previewFixed.ngrok = "C:\\Users\\you\\AppData\\Local\\ngrok\\ngrok.exe";

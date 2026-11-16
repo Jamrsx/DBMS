@@ -1,7 +1,7 @@
 import { COMPUTER, isMac } from "../lib/os";
 import { PlanLock, useFeature } from "../components/PlanLock";
 import { useCallback, useEffect, useState } from "react";
-import { fixedLinkInfo, pickNgrok, saveFixedLink, type FixedLinkInfo } from "../lib/share";
+import { fixedLinkInfo, installNgrok, pickNgrok, saveFixedLink, type FixedLinkInfo } from "../lib/share";
 
 /**
  * A public link that stays the same, on the user's own free ngrok or Cloudflare account. NexDB
@@ -52,6 +52,20 @@ export function FixedLinkCard({ active }: { active: boolean }) {
     }
   }
 
+  async function installNgrokNow() {
+    setBusy(true);
+    setMessage(null);
+    try {
+      await installNgrok();
+      setMessage({ ok: true, text: "ngrok is installed. Turn the link on from a project's Share tab." });
+      load();
+    } catch (e) {
+      setMessage({ ok: false, text: String(e) });
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (!info) return null;
   const set = info.has_token && !editing;
   if (nexhost === false) {
@@ -78,19 +92,33 @@ export function FixedLinkCard({ active }: { active: boolean }) {
             Using <strong>{info.provider === "ngrok" ? "ngrok" : "Cloudflare"}</strong> at{" "}
             <code>https://{info.address}</code>. The token is saved on this {COMPUTER} only.
           </p>
-          {info.provider === "ngrok" && !info.ngrok && (
+          {info.provider === "ngrok" && !info.ngrok && isMac && (
+            <div className="field-warn">
+              <p>ngrok isn't on this Mac yet. NexDB can install ngrok's official Mac version for you.</p>
+              <div className="set-row-actions">
+                <button
+                  className="btn btn-small btn-primary"
+                  disabled={busy}
+                  data-working={busy || undefined}
+                  onClick={() => void installNgrokNow()}
+                >
+                  {busy ? "Installing ngrok…" : "Install ngrok"}
+                </button>
+                <button className="link-btn" disabled={busy} onClick={() => void pickNgrok().then(load)}>
+                  I have it: pick the ngrok file
+                </button>
+              </div>
+              <p className="field-hint">
+                Downloaded from ngrok.com into NexDB's folder; it's kept only if Apple's signature check says ngrok made
+                it. Or install it yourself in Terminal: <code>brew install ngrok</code>.
+              </p>
+            </div>
+          )}
+          {info.provider === "ngrok" && !info.ngrok && !isMac && (
             <p className="field-warn">
-              NexDB can't find ngrok on this {COMPUTER}.{" "}
-              {isMac ? (
-                <>
-                  Install it (in Terminal: <code>brew install ngrok</code>, or download it from ngrok.com), then
-                  open this page again, or{" "}
-                </>
-              ) : (
-                "Install it from ngrok.com, then "
-              )}
+              NexDB can't find ngrok on this PC. Install it from ngrok.com, then{" "}
               <button className="link-btn" onClick={() => void pickNgrok().then(load)}>
-                {isMac ? "pick the ngrok file" : "pick ngrok.exe"}
+                pick ngrok.exe
               </button>
               .
             </p>

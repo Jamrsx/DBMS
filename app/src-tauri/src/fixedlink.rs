@@ -80,6 +80,86 @@ pub fn find_ngrok(saved: Option<&str>) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
+/// ngrok's official download for this Mac's chip (always its newest stable version).
+#[cfg_attr(windows, allow(dead_code))]
+fn ngrok_download_url() -> &'static str {
+    if cfg!(target_arch = "aarch64") {
+        "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-arm64.zip"
+    } else {
+        "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-amd64.zip"
+    }
+}
+
+/// Apple's signature details of a program: `codesign` checks it is intact and signed through
+/// Apple's chain; the "Authority" lines name who signed it.
+#[cfg(not(windows))]
+fn signed_by_ngrok(exe: &Path) -> Result<(), String> {
+    let verify = Command::new("/usr/bin/codesign")
+        .args(["--verify", "--strict"])
+        .arg(exe)
+        .output()
+        .map_err(|e| format!("Couldn't check ngrok's signature: {e}"))?;
+    if !verify.status.success() {
+        return Err("The downloaded ngrok isn't validly signed, so it wasn't kept. Install it with Homebrew instead (brew install ngrok).".into());
+    }
+    let details = Command::new("/usr/bin/codesign").args(["-dvv"]).arg(exe).output().map_err(|e| e.to_string())?;
+    let text = String::from_utf8_lossy(&details.stderr).to_string() + &String::from_utf8_lossy(&details.stdout);
+    if !ngrok_authority(&text) {
+        return Err("The downloaded ngrok isn't signed by ngrok, so it wasn't kept. Install it with Homebrew instead (brew install ngrok).".into());
+    }
+    Ok(())
+}
+
+/// The signer is an Apple Developer ID issued to ngrok.
+#[cfg_attr(windows, allow(dead_code))]
+fn ngrok_authority(codesign_details: &str) -> bool {
+    codesign_details
+        .lines()
+        .any(|l| l.starts_with("Authority=Developer ID Application:") && l.to_lowercase().contains("ngrok"))
+}
+
+/// macOS: puts ngrok in `<root>/bin/ngrok/ngrok`, only if Apple's signature says ngrok made it.
+#[cfg(not(windows))]
+pub async fn install_ngrok(root: &Path) -> Result<PathBuf, String> {
+    let bytes = reqwest::Client::builder()
+        .user_agent(concat!("NexDB/", env!("CARGO_PKG_VERSION")))
+        .connect_timeout(Duration::from_secs(20))
+        .build()
+        .map_err(|e| e.to_string())?
+        .get(ngrok_download_url())
+        .send()
+        .await
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| format!("Couldn't download ngrok: {e}"))?
+        .bytes()
+        .await
+        .map_err(|e| format!("Couldn't download ngrok: {e}"))?;
+    let dir = root.join("bin").join("ngrok");
+    let exe = dir.join("ngrok");
+    let staged = dir.join("ngrok.new");
+    std::fs::create_dir_all(&dir).map_err(|e| format!("Couldn't make {}: {e}", dir.display()))?;
+    {
+        let mut zip = zip::ZipArchive::new(std::io::Cursor::new(bytes.to_vec())).map_err(|e| format!("The ngrok download isn't a valid zip: {e}"))?;
+        let mut entry = zip.by_name("ngrok").map_err(|_| "The ngrok download has no ngrok program in it.".to_string())?;
+        let mut out = std::fs::File::create(&staged).map_err(|e| format!("Couldn't save ngrok: {e}"))?;
+        std::io::copy(&mut entry, &mut out).map_err(|e| format!("Couldn't save ngrok: {e}"))?;
+    }
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755)).map_err(|e| e.to_string())?;
+    if let Err(e) = signed_by_ngrok(&staged) {
+        let _ = std::fs::remove_file(&staged);
+        return Err(e);
+    }
+    std::fs::rename(&staged, &exe).map_err(|e| format!("Couldn't save ngrok: {e}"))?;
+    crate::platform::unix::allow_downloaded(&dir);
+    Ok(exe)
+}
+
+#[cfg(windows)]
+pub async fn install_ngrok(_root: &Path) -> Result<PathBuf, String> {
+    Err("Install ngrok from ngrok.com, then pick ngrok.exe.".into())
+}
+
 /// The command for the provider. Tokens go in the environment, never on the command line.
 pub fn command(account: &Account, cloudflared: Option<&Path>) -> Result<Command, String> {
     match account.provider.as_str() {
@@ -359,6 +439,14 @@ pub fn router_stop() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_ngrok_s_developer_id_counts() {
+        let ok = "Executable=/x/ngrok\nAuthority=Developer ID Application: ngrok LLC (ABCDE12345)\nAuthority=Developer ID Certification Authority\nAuthority=Apple Root CA\n";
+        assert!(ngrok_authority(ok));
+        assert!(!ngrok_authority("Authority=Developer ID Application: Someone Else (ZZZ)\nAuthority=Apple Root CA\n"));
+        assert!(!ngrok_authority("Signature=adhoc\n"), "ad-hoc signatures name nobody");
+    }
 
     #[test]
     fn hosts_are_matched_loosely() {

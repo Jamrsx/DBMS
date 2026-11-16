@@ -455,6 +455,7 @@ pub fn run() {
             fixed_link_info,
             fixed_link_save,
             fixed_link_pick_ngrok,
+            fixed_link_install_ngrok,
             share_public_stop,
             share_dev_start,
             share_dev_stop,
@@ -2132,16 +2133,32 @@ async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, St
     if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&name)) {
         return Err(format!("Pick the file called {name}."));
     }
+    save_ngrok_path(&stack, &root, &settings, &path)?;
+    Ok(Some(path.display().to_string()))
+}
+
+/// macOS: downloads ngrok's official Mac build into NexDB's folder, checks it carries ngrok's
+/// Apple signature, and remembers where it is. Returns its path.
+#[tauri::command]
+async fn fixed_link_install_ngrok(stack: tauri::State<'_, Stack>) -> Result<String, String> {
+    license::require_feature("nexhost")?;
+    let (root, settings, _) = stack.get()?;
+    let path = fixedlink::install_ngrok(&root).await?;
+    save_ngrok_path(&stack, &root, &settings, &path)?;
+    Ok(path.display().to_string())
+}
+
+fn save_ngrok_path(stack: &Stack, root: &std::path::Path, settings: &settings::Settings, path: &std::path::Path) -> Result<(), String> {
     let mut account =
         settings.preferences.fixed_link.clone().unwrap_or(fixedlink::Account { provider: "ngrok".into(), ..Default::default() });
     account.ngrok_path = Some(path.display().to_string());
     let value = serde_json::to_value(&account).map_err(|e| e.to_string())?;
-    settings::edit(&root, |v| {
+    settings::edit(root, |v| {
         v["preferences"]["fixed_link"] = value.clone();
         Ok(())
     })?;
     stack.update_settings(|s| s.preferences.fixed_link = Some(account));
-    Ok(Some(path.display().to_string()))
+    Ok(())
 }
 
 #[tauri::command]
