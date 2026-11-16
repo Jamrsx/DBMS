@@ -2123,10 +2123,14 @@ async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, St
     license::require_feature("nexhost")?;
     use tauri_plugin_dialog::DialogExt;
     let (root, settings, _) = stack.get()?;
-    let picked = app.dialog().file().set_title("Where is ngrok.exe?").add_filter("ngrok", &["exe"]).blocking_pick_file();
+    let name = crate::platform::exe("ngrok.exe");
+    let dialog = app.dialog().file().set_title(format!("Where is {name}?"));
+    // macOS programs have no file extension to filter on.
+    let dialog = if cfg!(windows) { dialog.add_filter("ngrok", &["exe"]) } else { dialog };
+    let picked = dialog.blocking_pick_file();
     let Some(path) = picked.and_then(|p| p.into_path().ok()) else { return Ok(None) };
-    if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&crate::platform::exe("ngrok.exe"))) {
-        return Err("Pick the file called ngrok.exe.".into());
+    if !path.file_name().is_some_and(|n| n.to_string_lossy().eq_ignore_ascii_case(&name)) {
+        return Err(format!("Pick the file called {name}."));
     }
     let mut account =
         settings.preferences.fixed_link.clone().unwrap_or(fixedlink::Account { provider: "ngrok".into(), ..Default::default() });

@@ -85,7 +85,11 @@ pub fn command(account: &Account, cloudflared: Option<&Path>) -> Result<Command,
     match account.provider.as_str() {
         "ngrok" => {
             let exe = find_ngrok(account.ngrok_path.as_deref())
-                .ok_or("NexDB can't find ngrok. Install it from ngrok.com, then pick ngrok.exe in Settings.")?;
+                .ok_or(if cfg!(windows) {
+                    "NexDB can't find ngrok. Install it from ngrok.com, then pick ngrok.exe in Settings."
+                } else {
+                    "NexDB can't find ngrok. Install it (Terminal: brew install ngrok, or download it from ngrok.com), then pick the ngrok file in Settings."
+                })?;
             let mut cmd = Command::new(exe);
             cmd.args(["http", &format!("127.0.0.1:{FIXED_PORT}"), "--url", &format!("https://{}", account.address), "--log", "stderr", "--log-format", "logfmt"])
                 .env("NGROK_AUTHTOKEN", &account.token);

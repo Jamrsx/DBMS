@@ -1,8 +1,11 @@
 # NexDB for Mac: roadmap after the first server builds
 
 Floor: macOS 13 Ventura. Test Mac: MacBook Air 2018 (Intel i5, macOS 14.8.9).
-Status on 2026-11-15: app code ported (branch `macos-port`), server builds running in
-Jamrsx/nexdb-servers. Each stage ends with a check before the next starts.
+Status on 2026-11-17: Stage 1 done; Stage 2 passed on the MacBook Air after three fix rounds
+(Stage 3): setup, Apache, PHP, MySQL, projects, database and mail work. Left from the test:
+ngrok must be installed on the Mac (`brew install ngrok`); PHP extensions show as built in.
+Done early from Stage 4: "which PHP other terminals use" (~/.zprofile), leftover-service cleanup.
+Each stage ends with a check before the next starts.
 
 ## Stage 1: first installable build (Claude, about 1 hour after the builds finish)
 

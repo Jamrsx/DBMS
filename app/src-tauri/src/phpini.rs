@@ -123,6 +123,9 @@ pub fn ensure_own_lines(etc: &Path, version: &str) -> Result<PathBuf, String> {
 
 /// Extensions this PHP ships (`ext\php_<name>.dll`), minus test-only ones.
 pub fn available(php_dir: &Path) -> Vec<String> {
+    if cfg!(not(windows)) {
+        return built_in(php_dir);
+    }
     let mut out: Vec<String> = fs::read_dir(php_dir.join("ext"))
         .into_iter()
         .flatten()
@@ -137,8 +140,31 @@ pub fn available(php_dir: &Path) -> Vec<String> {
     out
 }
 
+/// macOS: NexDB's Mac PHP has its extensions compiled in (no ext folder), so `php -m` lists them.
+/// The handful every PHP has (Core, standard…) are left out.
+fn built_in(php_dir: &Path) -> Vec<String> {
+    const ALWAYS: [&str; 9] = ["core", "date", "hash", "json", "pcre", "random", "reflection", "spl", "standard"];
+    let exe = php_dir.join(crate::platform::exe("php.exe"));
+    let Ok(out) = std::process::Command::new(exe).args(["-n", "-m"]).stdin(std::process::Stdio::null()).output() else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(|l| l.trim().to_lowercase())
+        .filter(|l| !l.is_empty() && !l.starts_with('['))
+        .map(|l| if l == "zend opcache" { "opcache".to_string() } else { l })
+        .filter(|l| !ALWAYS.contains(&l.as_str()))
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}
+
 /// Why an extension can't be turned on here, if it can't.
 pub fn blocked(php_dir: &Path, ext: &str) -> Option<&'static str> {
+    if cfg!(not(windows)) {
+        return Some("Built into NexDB's Mac PHP, so it's always on.");
+    }
     // PostgreSQL's extensions need libpq.dll beside php.exe; without it PHP warns on every run.
     (matches!(ext, "pdo_pgsql" | "pgsql") && !php_dir.join("libpq.dll").is_file())
         .then_some("Needs libpq.dll beside php.exe, which this PHP build doesn't have.")
@@ -147,6 +173,9 @@ pub fn blocked(php_dir: &Path, ext: &str) -> Option<&'static str> {
 /// The extensions to load: the defaults this PHP has, with your choices applied.
 pub fn enabled(php_dir: &Path, choices: &Choices) -> Vec<String> {
     let have = available(php_dir);
+    if cfg!(not(windows)) {
+        return have;
+    }
     let mut on: Vec<String> = DEFAULT_EXTENSIONS.iter().map(|s| s.to_string()).filter(|e| have.contains(e)).collect();
     // PostgreSQL support is on by default when this PHP can load it.
     for pg in ["pdo_pgsql"] {

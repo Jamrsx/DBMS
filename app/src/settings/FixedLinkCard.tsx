@@ -1,3 +1,4 @@
+import { COMPUTER, isMac } from "../lib/os";
 import { PlanLock, useFeature } from "../components/PlanLock";
 import { useCallback, useEffect, useState } from "react";
 import { fixedLinkInfo, pickNgrok, saveFixedLink, type FixedLinkInfo } from "../lib/share";
@@ -75,13 +76,21 @@ export function FixedLinkCard({ active }: { active: boolean }) {
         <div className="fixed-set">
           <p>
             Using <strong>{info.provider === "ngrok" ? "ngrok" : "Cloudflare"}</strong> at{" "}
-            <code>https://{info.address}</code>. The token is saved on this PC only.
+            <code>https://{info.address}</code>. The token is saved on this {COMPUTER} only.
           </p>
           {info.provider === "ngrok" && !info.ngrok && (
             <p className="field-warn">
-              NexDB can't find ngrok on this PC. Install it from ngrok.com, then{" "}
+              NexDB can't find ngrok on this {COMPUTER}.{" "}
+              {isMac ? (
+                <>
+                  Install it (in Terminal: <code>brew install ngrok</code>, or download it from ngrok.com), then
+                  open this page again, or{" "}
+                </>
+              ) : (
+                "Install it from ngrok.com, then "
+              )}
               <button className="link-btn" onClick={() => void pickNgrok().then(load)}>
-                pick ngrok.exe
+                {isMac ? "pick the ngrok file" : "pick ngrok.exe"}
               </button>
               .
             </p>
