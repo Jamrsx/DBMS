@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Terminal } from "lucide-react";
 import { chooseOtherTerminals, otherTerminals, type OtherTerminals } from "../lib/terminals";
 import { nexCelebrate } from "../lib/nex";
+import { isMac } from "../lib/os";
 
 /** "PHP 8.5.12 (NexDB)", for the list. */
 const label = (i: { version: string; source: string }) => `PHP ${i.version} · ${i.source}`;
@@ -41,7 +42,9 @@ export function OtherTerminalsCard() {
         ok: true,
         text: chosen
           ? `New terminals now use PHP ${chosen.version}. Terminals already open keep the old one until you open a new one.`
-          : "Back to how Windows had it. New terminals use the first PHP on Windows' own PATH.",
+          : isMac
+            ? "Back to how your Mac had it. New Terminal windows use the PHP they found before."
+            : "Back to how Windows had it. New terminals use the first PHP on Windows' own PATH.",
       });
       if (chosen) nexCelebrate(`Other terminals use PHP ${chosen.version} now.`);
     } catch (e) {
@@ -59,14 +62,14 @@ export function OtherTerminalsCard() {
           Other terminals use {current ? label(current) : info.current_dir ? `PHP from ${info.current_dir}` : "no PHP"}
         </p>
         <p className="field-hint">
-          That's cmd, PowerShell and an editor's terminal. NexDB's own Terminal, and projects opened in VS Code from
+          {isMac ? "That's Terminal, iTerm and an editor's terminal." : "That's cmd, PowerShell and an editor's terminal."} NexDB's own Terminal, and projects opened in VS Code from
           NexDB, always use the PHP each project is set to.
         </p>
         <div className="other-php-pick">
           <label className="field">
             <span className="field-label">Use in other terminals</span>
             <select className="input" value={pick} disabled={busy} onChange={(e) => setPick(e.target.value)}>
-              <option value="">As Windows has it{asWindows && current ? ` (${label(current)})` : ""}</option>
+              <option value="">{isMac ? "As your Mac has it" : "As Windows has it"}{asWindows && current ? ` (${label(current)})` : ""}</option>
               {info.installs.map((i) => (
                 <option key={i.dir} value={i.dir}>
                   {label(i)}
@@ -80,12 +83,13 @@ export function OtherTerminalsCard() {
             data-working={busy || undefined}
             onClick={() => void apply()}
           >
-            {busy ? "Waiting for Windows…" : "Use it"}
+            {busy ? (isMac ? "Saving…" : "Waiting for Windows…") : "Use it"}
           </button>
         </div>
         <p className="field-hint">
-          The first time, Windows asks for permission, because this changes the system PATH. NexDB adds one small folder
-          in front of it; nothing of Laragon or other tools is changed or removed.
+          {isMac
+            ? "NexDB adds 3 marked lines to ~/.zprofile that put one small folder first; no password needed. Nothing of Homebrew, MAMP or other tools is changed or removed."
+            : "The first time, Windows asks for permission, because this changes the system PATH. NexDB adds one small folder in front of it; nothing of Laragon or other tools is changed or removed."}
         </p>
         {message && (
           <p className={message.ok ? "set-ok" : "field-error"} role={message.ok ? "status" : "alert"}>

@@ -95,6 +95,62 @@ fn split_complete(bytes: &[u8]) -> usize {
     }
 }
 
+/// macOS zsh: a login shell runs Apple's path_helper and the user's own ~/.zprofile, which put
+/// /usr/local/bin, Homebrew and the like in front of NexDB's tools. NexDB's startup files (in
+/// `etc/zsh`, used through ZDOTDIR) load the user's own files first, then put NexDB's folders
+/// back at the front, so `php`, `node` and `mysql` are NexDB's (this project's) here.
+#[cfg(not(windows))]
+fn zsh_keeps_nexdb_first(root: &Path, cmd: &mut CommandBuilder, dirs: &[PathBuf]) {
+    if !crate::platform::unix::user_shell().ends_with("zsh") {
+        return;
+    }
+    let own = root.join("etc").join("zsh");
+    if write_zsh_files(&own).is_err() {
+        return;
+    }
+    let user = std::env::var("ZDOTDIR")
+        .ok()
+        .filter(|d| !d.is_empty())
+        .unwrap_or_else(|| crate::platform::unix::home().display().to_string());
+    cmd.env("NEXDB_USER_ZDOTDIR", user);
+    cmd.env("NEXDB_PATH_FIRST", dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(":"));
+    cmd.env("ZDOTDIR", &own);
+}
+
+#[cfg(not(windows))]
+fn zsh_file(name: &str) -> String {
+    let mut text = format!(
+        "# Made by NexDB for its Terminal: runs your own {name}, then keeps NexDB's tools first.\n\
+         NEXDB_OWN_ZDOTDIR=\"$ZDOTDIR\"\n\
+         ZDOTDIR=\"$NEXDB_USER_ZDOTDIR\"\n\
+         [[ -r \"$ZDOTDIR/{name}\" ]] && source \"$ZDOTDIR/{name}\"\n\
+         NEXDB_USER_ZDOTDIR=\"$ZDOTDIR\"\n\
+         ZDOTDIR=\"$NEXDB_OWN_ZDOTDIR\"\n"
+    );
+    // .zlogin runs last, for interactive shells and `zsh -l -c` alike.
+    if name == ".zlogin" {
+        text.push_str(
+            "[[ -n \"$NEXDB_PATH_FIRST\" ]] && export PATH=\"$NEXDB_PATH_FIRST:$PATH\"\n\
+             [[ \"$HISTFILE\" == \"$NEXDB_OWN_ZDOTDIR/.zsh_history\" ]] && HISTFILE=\"$NEXDB_USER_ZDOTDIR/.zsh_history\"\n\
+             ZDOTDIR=\"$NEXDB_USER_ZDOTDIR\"\n",
+        );
+    }
+    text
+}
+
+#[cfg(not(windows))]
+fn write_zsh_files(dir: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dir)?;
+    for name in [".zshenv", ".zprofile", ".zshrc", ".zlogin"] {
+        let path = dir.join(name);
+        let text = zsh_file(name);
+        if std::fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
+            std::fs::write(&path, text)?;
+        }
+    }
+    Ok(())
+}
+
 /// PowerShell in the projects folder with NexDB's tools on PATH; `extra` are added to its arguments.
 /// `php` is the project's own PHP version when it doesn't use the default.
 fn shell_command(
@@ -145,6 +201,12 @@ fn shell_command(
         }
     }
     cmd.env("PATH", path_with(&dirs, &existing));
+    // macOS: `mysql -u root` talks to NexDB's MySQL, not whatever owns /tmp/mysql.sock.
+    #[cfg(not(windows))]
+    {
+        cmd.env("MYSQL_UNIX_PORT", crate::platform::mysql_socket(root));
+        zsh_keeps_nexdb_first(root, &mut cmd, &dirs);
+    }
     if php_ini.join("php.ini").is_file() {
         cmd.env("PHPRC", php_ini);
     }

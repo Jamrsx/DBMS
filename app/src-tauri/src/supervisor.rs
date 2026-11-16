@@ -98,6 +98,16 @@ pub struct Supervisor {
 }
 
 /// Service definitions for a saved install, in start order (PHP and MySQL before web servers).
+/// `httpd -f <conf>`. On macOS Apache otherwise detaches into the background and its starter
+/// exits at once, so NexDB would lose track of it ("already running" on the next Start).
+fn apache_args(conf: &Path) -> Vec<String> {
+    let mut args = vec!["-f".to_string(), conf.display().to_string()];
+    if cfg!(not(windows)) {
+        args.push("-DFOREGROUND".into());
+    }
+    args
+}
+
 pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
     let etc = root.join("etc");
     let logs = root.join("logs");
@@ -188,7 +198,7 @@ pub fn specs_for(root: &Path, settings: &Settings) -> Vec<ServiceSpec> {
                 name: "Apache".into(),
                 version: apache.version.clone(),
                 exe: root_dir.join("bin").join(crate::platform::exe("httpd.exe")),
-                args: vec!["-f".into(), etc.join("apache").join("httpd.conf").display().to_string()],
+                args: apache_args(&etc.join("apache").join("httpd.conf")),
                 cwd: root_dir,
                 port,
                 managed: true,
@@ -417,6 +427,10 @@ impl Supervisor {
     fn launch(&self, spec: &ServiceSpec) -> Result<(), String> {
         if !spec.exe.is_file() {
             return Err(format!("{} isn't installed: its files at {} are missing. Reinstall it on the Versions page.", spec.name, spec.exe.display()));
+        }
+        #[cfg(unix)]
+        if port_listening(spec.port) {
+            stop_leftover(spec);
         }
         if port_listening(spec.port) {
             let owner = crate::scan::port_status(spec.port, &spec.name);
@@ -693,6 +707,41 @@ fn signal_event(names: &[String]) -> bool {
             ok
         }
     })
+}
+
+/// macOS: a copy of this very service left running by an earlier NexDB (one that crashed, or an
+/// Apache that detached itself) holds its port. When the program on the port is this service's
+/// own file in NexDB's folder, it's stopped cleanly (then forcibly) so Start can go ahead.
+/// Anything else on the port (another program, another MySQL) is never touched.
+#[cfg(unix)]
+fn stop_leftover(spec: &ServiceSpec) {
+    let Some(pid) = crate::scan::port_status(spec.port, &spec.name).pid else { return };
+    let Some(path) = crate::platform::unix::process_path(pid) else { return };
+    let same = |a: &Path, b: &Path| a == b || matches!((a.canonicalize(), b.canonicalize()), (Ok(x), Ok(y)) if x == y);
+    if !same(&path, &spec.exe) {
+        return;
+    }
+    // Its whole group (Apache's workers too), unless it shares NexDB's own group.
+    // SAFETY: getpgid and getpgrp only read process ids.
+    let (group, ours) = unsafe { (libc::getpgid(pid as libc::pid_t), libc::getpgrp()) };
+    let send = |signal: &str| {
+        if group > 0 && group != ours {
+            signal_group(group as u32, signal);
+        } else {
+            let sig = if signal == "KILL" { libc::SIGKILL } else { libc::SIGTERM };
+            // SAFETY: kill only sends a signal to the process found on our port.
+            unsafe { libc::kill(pid as libc::pid_t, sig) };
+        }
+    };
+    send("TERM");
+    let deadline = Instant::now() + STOP_TIMEOUT;
+    while port_listening(spec.port) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(200));
+    }
+    if port_listening(spec.port) {
+        send("KILL");
+        std::thread::sleep(Duration::from_millis(500));
+    }
 }
 
 /// macOS: sends a signal to a service's whole process group (it was started as its leader).

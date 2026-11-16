@@ -186,6 +186,14 @@ pub fn render(php_dir: &Path, etc: &Path) -> String {
     let values = settings(&choices);
     let values: Vec<(&str, &str)> = values.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
     let mut ini = crate::configure::render_php_ini_with(&template, &ext_dir, &on, &values);
+    // macOS: "localhost" in a project's settings means MySQL's socket file; point PHP at NexDB's
+    // (otherwise it reaches /tmp/mysql.sock, which may be another MySQL on this Mac).
+    if cfg!(not(windows)) && etc.is_absolute() {
+        if let Some(root) = etc.parent() {
+            let socket = crate::configure::conf_path(&crate::platform::mysql_socket(root));
+            ini.push_str(&format!("\r\n; NexDB's MySQL\r\nmysqli.default_socket = \"{socket}\"\r\npdo_mysql.default_socket = \"{socket}\"\r\n"));
+        }
+    }
     if let Ok(own) = fs::read_to_string(own_lines_path(etc, &version)) {
         if own.lines().any(|l| !l.trim().is_empty() && !l.trim_start().starts_with(';')) {
             ini.push_str(&format!("\r\n; Your own lines, from {}\r\n", own_lines_path(etc, &version).display()));

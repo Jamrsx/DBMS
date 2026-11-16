@@ -1,3 +1,4 @@
+import { COMPUTER } from "../lib/os";
 import { useCallback, useEffect, useState } from "react";
 import { OtherTerminalsCard } from "./OtherTerminalsCard";
 import { AlertTriangle, CheckCircle2, FileArchive, Info, RefreshCw, XCircle } from "lucide-react";
@@ -162,7 +163,7 @@ export function HealthPage({
               <section key={area} className="health-area" aria-labelledby={`health-${area}`}>
                 <h2 id={`health-${area}`}>
                   <span className={`dot dot-${worst}`} aria-hidden="true" />
-                  {area}
+                  {area === "This PC" ? `This ${COMPUTER}` : area}
                 </h2>
                 <ul className="health-list">
                   {items.map((c, i) => {

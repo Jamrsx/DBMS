@@ -97,6 +97,14 @@ pub fn parse_lsof_listen(text: &str) -> Vec<(u16, u32)> {
 }
 
 /// Quotes text for a POSIX shell: `it's` becomes `'it'\''s'`.
+/// macOS: the socket file NexDB's MySQL uses, inside NexDB's folder. MySQL's default,
+/// /tmp/mysql.sock, is shared with every other MySQL on the Mac (Homebrew, MAMP, an older
+/// NexDB), so two of them can't run side by side. Socket paths are limited to 104 bytes.
+pub fn mysql_socket(root: &std::path::Path) -> std::path::PathBuf {
+    let own = root.join("logs").join("mysql.sock");
+    if own.as_os_str().len() < 100 { own } else { std::path::PathBuf::from("/tmp/nexdb-mysql.sock") }
+}
+
 pub fn sh_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', r"'\''"))
 }
@@ -162,6 +170,41 @@ pub mod unix {
     }
 
     /// The user's login shell, normally `/bin/zsh`.
+    /// The full path of a running process's program, such as `/Users/me/NexDB/bin/.../httpd`.
+    pub fn process_path(pid: u32) -> Option<PathBuf> {
+        let o = Command::new("/bin/ps").args(["-p", &pid.to_string(), "-o", "comm="]).output().ok()?;
+        let full = String::from_utf8_lossy(&o.stdout).trim().to_string();
+        full.starts_with('/').then(|| PathBuf::from(full))
+    }
+
+    /// PATH as a new Terminal window has it (the login shell reads ~/.zprofile and the like).
+    /// Falls back to NexDB's own PATH if the shell doesn't answer within a few seconds.
+    pub fn login_path() -> String {
+        let fallback = || std::env::var("PATH").unwrap_or_default();
+        let child = Command::new(user_shell())
+            .args(["-l", "-c", "printf %s \"$PATH\""])
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+        let Ok(mut child) = child else { return fallback() };
+        let start = std::time::Instant::now();
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if start.elapsed() < std::time::Duration::from_secs(5) => {
+                    std::thread::sleep(std::time::Duration::from_millis(30))
+                }
+                _ => {
+                    let _ = child.kill();
+                    return fallback();
+                }
+            }
+        }
+        let out = child.wait_with_output().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
+        if out.is_empty() { fallback() } else { out }
+    }
+
     pub fn user_shell() -> String {
         std::env::var("SHELL").ok().filter(|s| !s.is_empty()).unwrap_or_else(|| "/bin/zsh".into())
     }
