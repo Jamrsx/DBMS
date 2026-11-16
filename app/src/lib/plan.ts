@@ -1,4 +1,5 @@
 import type { Settings } from "../Wizard";
+import { isMac, joinPath } from "./os";
 import type { Choices } from "./catalog";
 import type { ScanReport } from "./scan";
 import type { Selections } from "../steps/Components";
@@ -77,7 +78,7 @@ export function buildPlan({ settings, selections, choices, scan, mysql }: PlanIn
   names.set("composer", "Composer");
   names.set("git", "Git");
 
-  const components: PlannedComponent[] = ORDER.filter((id) => selections[id]?.enabled).map(
+  const components: PlannedComponent[] = ORDER.filter((id) => selections[id]?.enabled && (id !== "git" || choices.git_version)).map(
     (id) => {
       const sel = selections[id];
       const name = names.get(id) ?? id;
@@ -98,8 +99,8 @@ export function buildPlan({ settings, selections, choices, scan, mysql }: PlanIn
       const version = id === "composer" ? choices.composer_version : id === "git" ? choices.git_version : sel.version;
       const path =
         id === "composer"
-          ? `${root}\\bin\\composer`
-          : `${root}\\bin\\${BIN_FOLDER[id]}\\${id}-${version}`;
+          ? joinPath(root, "bin", "composer")
+          : joinPath(root, "bin", BIN_FOLDER[id], `${id}-${version}`);
       return { id, name, action: "install", version, path, source: null };
     },
   );
@@ -138,7 +139,7 @@ function planSteps(
 
   steps.push({ id: "folders", title: "Create the install and projects folders", admin: false });
   // PHP and Apache Windows builds need the Visual C++ runtime. Unknown counts as missing.
-  if ((installing("php") || installing("apache")) && !vcRuntimeOk(scan?.vc_runtime)) {
+  if (!isMac && (installing("php") || installing("apache")) && !vcRuntimeOk(scan?.vc_runtime)) {
     steps.push({
       id: "vc-runtime",
       title: scan?.vc_runtime

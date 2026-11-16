@@ -1,4 +1,5 @@
 import type { InstallPlan } from "../lib/plan";
+import { COMPUTER, isMac } from "../lib/os";
 
 interface Props {
   plan: InstallPlan;
@@ -12,7 +13,7 @@ export function Review({ plan, onEdit }: Props) {
   return (
     <>
       <p className="lede">
-        Check everything before installing. Nothing has been changed on this PC yet.
+        Check everything before installing. Nothing has been changed on this {COMPUTER} yet.
       </p>
 
       <div className="review">
@@ -81,7 +82,7 @@ export function Review({ plan, onEdit }: Props) {
               <li key={s.id}>
                 {s.title}
                 {s.admin && <span className="tag tag-admin">Admin</span>}
-                {s.confirm && <span className="tag tag-admin">Windows asks</span>}
+                {s.confirm && <span className="tag tag-admin">{isMac ? "macOS asks" : "Windows asks"}</span>}
               </li>
             ))}
           </ol>
@@ -91,7 +92,7 @@ export function Review({ plan, onEdit }: Props) {
                 ? "No administrator approval needed."
                 : `${adminSteps} step${adminSteps > 1 ? "s" : ""} need${adminSteps > 1 ? "" : "s"} administrator approval.`,
               confirmSteps > 0 &&
-                "Windows will ask you to confirm trusting the local certificate; it only covers .test and localhost.",
+                `${isMac ? "macOS asks for your Mac password to trust" : "Windows will ask you to confirm trusting"} the local certificate; it only covers .test and localhost.`,
             ]
               .filter(Boolean)
               .join(" ")}

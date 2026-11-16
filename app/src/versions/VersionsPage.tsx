@@ -1,3 +1,4 @@
+import { isMac } from "../lib/os";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
@@ -397,7 +398,7 @@ function OtherVersion({
   progress: ReactNode;
   onInstall: () => void;
 }) {
-  const why = !a.downloadable ? "No Windows download yet" : !a.allowed ? "Needs a database backup first" : null;
+  const why = !a.downloadable ? `No ${isMac ? "Mac" : "Windows"} download yet` : !a.allowed ? "Needs a database backup first" : null;
   return (
     <li className="ver-row">
       <span className="ver-num">{a.version}</span>

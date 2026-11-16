@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Settings } from "../Wizard";
 import type { Selection } from "./Components";
 import { pathProblem } from "./Welcome";
-import { EXAMPLE_ROOT, joinPath } from "../lib/os";
+import { COMPUTER, EXAMPLE_ROOT, joinPath } from "../lib/os";
 import { checkPort } from "../lib/ports";
 import type { Install, PortStatus } from "../lib/scan";
 
@@ -137,7 +137,7 @@ export function MySQL({ value, onChange, mode, settings, version, existing }: Pr
     <>
       <p className="lede">
         {mode === "new"
-          ? `MySQL ${version ?? ""} will run on this PC with the usual root user, like any MySQL install.`
+          ? `MySQL ${version ?? ""} will run on this ${COMPUTER} with the usual root user, like any MySQL install.`
           : `NexDB will use your existing ${existingName} ${existing?.version ?? ""}. Tell it how to connect so the database manager works.`}
       </p>
 
@@ -210,7 +210,7 @@ export function MySQL({ value, onChange, mode, settings, version, existing }: Pr
           )}
           <span className="field-hint">
             {value.noPassword
-              ? "Anyone on this PC can sign in as root. Fine for local development; don't use it for real data."
+              ? `Anyone on this ${COMPUTER} can sign in as root. Fine for local development; don't use it for real data.`
               : mode === "new"
                 ? "Used once to set up MySQL. NexDB doesn't save it."
                 : "Leave empty if your root user has no password."}

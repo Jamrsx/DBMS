@@ -5,6 +5,7 @@ import { inDesktopApp } from "../lib/scan";
 import { cancelInstall, isGone, runInstall, type Progress } from "../lib/install";
 import { loadChoices, type Choices } from "../lib/catalog";
 import { Nex } from "../components/Nex";
+import { isMac } from "../lib/os";
 
 /** Pick another version for a component whose download was taken down, then install again. */
 export type SwitchVersion = (id: string, version: string, choices: Choices) => void;
@@ -131,7 +132,7 @@ function InstallStep({
       <span className="install-title">
         {title}
         {admin && <span className="tag tag-admin">Admin</span>}
-        {confirm && <span className="tag tag-admin">Windows asks</span>}
+        {confirm && <span className="tag tag-admin">{isMac ? "macOS asks" : "Windows asks"}</span>}
       </span>
       <span className="install-state">
         {status === "pending" && (runState === "running" ? "Waiting" : "Not started")}

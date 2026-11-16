@@ -1,6 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { LABEL_TEXT, type Choices, type ComponentChoices } from "../lib/catalog";
 import type { Install, ScanReport } from "../lib/scan";
+import { COMPUTER, isMac } from "../lib/os";
 
 /** What the user picked for one component. */
 export interface Selection {
@@ -36,7 +37,8 @@ export function defaultSelections(choices: Choices): Selections {
     COMPONENTS.map((info) => [
       info.id,
       {
-        enabled: info.defaultOn,
+        // No Git build on Mac (Macs have their own); the option is hidden there.
+        enabled: info.defaultOn && (info.id !== "git" || !!choices.git_version),
         version: byId.get(info.id)?.recommended ?? null,
         existingPath: null,
       },
@@ -81,7 +83,7 @@ export function Components({ choices, scan, selections, onChange }: Props) {
       </p>
 
       <ul className="choice-list">
-        {COMPONENTS.map((info) => {
+        {COMPONENTS.filter((info) => info.id !== "git" || choices.git_version).map((info) => {
           const sel = selections[info.id];
           const catalog = byId.get(info.id);
           // NexDB installs its own copies; it never borrows another tool's PHP, Apache or MySQL.
@@ -174,7 +176,7 @@ function VersionPicker({
                 v.note,
                 v.downloadable
                   ? v.download_size && `${Math.round(v.download_size / 2 ** 20)} MB`
-                  : "No Windows download yet",
+                  : `No ${isMac ? "Mac" : "Windows"} download yet`,
               ]
                 .filter(Boolean)
                 .join(" · ")}
@@ -185,7 +187,7 @@ function VersionPicker({
 
       {existing.length > 0 && (
         <fieldset>
-          <legend className="picker-legend">Or use what's already on this PC</legend>
+          <legend className="picker-legend">Or use what's already on this {COMPUTER}</legend>
           {existing.map((i) => (
             <label key={i.path} className="option" title={i.path}>
               <input

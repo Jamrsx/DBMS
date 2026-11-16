@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { inDesktopApp, runSystemScan, type ComponentFinding, type ScanReport } from "../lib/scan";
+import { COMPUTER, isMac } from "../lib/os";
 
 /** Space a default stack (Apache, PHP, MySQL, Node, Composer) needs, with headroom. */
 const REQUIRED_BYTES = 2 * 2 ** 30;
@@ -42,7 +43,7 @@ export function SystemScan({ state, onRescan }: { state: ScanState; onRescan: ()
   return (
     <>
       <p className="lede">
-        A quick, read-only look at what's already on this PC. Nothing is changed.
+        A quick, read-only look at what's already on this {COMPUTER}. Nothing is changed.
       </p>
 
       {!inDesktopApp && (
@@ -117,15 +118,18 @@ function ScanResults({ report, onRescan }: { report: ScanReport; onRescan: () =>
       <section aria-labelledby="system-heading">
         <h2 id="system-heading">System</h2>
         <ul className="check-list">
-          <li className="check">
-            <span className={`dot ${report.vc_runtime ? "dot-ok" : "dot-warn"}`} aria-hidden="true" />
-            <span className="check-main">Visual C++ runtime</span>
-            <span className="check-status">
-              {report.vc_runtime
-                ? `Installed (${report.vc_runtime})`
-                : "Missing: will be installed (one admin prompt)"}
-            </span>
-          </li>
+          {/* Windows only: Mac builds don't need Microsoft's runtime. */}
+          {!isMac && (
+            <li className="check">
+              <span className={`dot ${report.vc_runtime ? "dot-ok" : "dot-warn"}`} aria-hidden="true" />
+              <span className="check-main">Visual C++ runtime</span>
+              <span className="check-status">
+                {report.vc_runtime
+                  ? `Installed (${report.vc_runtime})`
+                  : "Missing: will be installed (one admin prompt)"}
+              </span>
+            </li>
+          )}
           <li className="check">
             <span
               className={`dot ${diskOk === false ? "dot-bad" : diskOk ? "dot-ok" : "dot-warn"}`}

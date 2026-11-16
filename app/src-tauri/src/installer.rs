@@ -137,7 +137,7 @@ pub async fn run(
     };
 
     report("folders", StepStatus::Running, None);
-    let folders = ["bin", "data", "etc", "tmp\\downloads"].map(|f| root.join(f));
+    let folders = [root.join("bin"), root.join("data"), root.join("etc"), root.join("tmp").join("downloads")];
     for dir in folders.iter().chain([PathBuf::from(request.www_dir.trim())].iter()) {
         if let Err(err) = fs::create_dir_all(dir) {
             let msg = format!("Couldn't create {}: {err}", dir.display());
@@ -154,7 +154,8 @@ pub async fn run(
         .map_err(|err| format!("Couldn't start the downloader: {err}"))?;
 
     // PHP and Apache Windows builds need the Visual C++ runtime, and so does checking their configs.
-    if options.system_changes && request.items.iter().any(|i| i.id == "php" || i.id == "apache") {
+    // Mac builds don't use it.
+    if cfg!(windows) && options.system_changes && request.items.iter().any(|i| i.id == "php" || i.id == "apache") {
         let step = "vc-runtime";
         report(step, StepStatus::Running, None);
         match ensure_vc_runtime(&client, &root, step, &emit).await {

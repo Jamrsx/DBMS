@@ -9,13 +9,13 @@ export const COMPUTER = isMac ? "Mac" : "PC";
 
 /** Joins folder names with this OS's separator. */
 export function joinPath(base: string, ...parts: string[]): string {
-  return [base.replace(/[\/]+$/, ""), ...parts].join(SEP);
+  return [base.replace(/[\\\/]+$/, ""), ...parts].join(SEP);
 }
 
 /** A full path for this OS: `C:\…` on Windows, `/…` on macOS. */
 export function isFullPath(path: string): boolean {
-  return isMac ? /^\/[^/]/.test(path) : /^[a-zA-Z]:\[^\]/.test(path);
+  return isMac ? /^\/[^/]/.test(path) : /^[a-zA-Z]:\\[^\\]/.test(path);
 }
 
 /** Example install folder for hints when the real default isn't known yet. */
-export const EXAMPLE_ROOT = isMac ? "/Users/you/NexDB" : "C:\NexDB";
+export const EXAMPLE_ROOT = isMac ? "/Users/you/NexDB" : "C:\\NexDB";
