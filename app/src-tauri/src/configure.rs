@@ -95,8 +95,11 @@ const APACHE_MODULES: &[&str] = &[
 ];
 
 pub fn apache_conf(c: &ApacheConf) -> String {
-    let modules: String = APACHE_MODULES
+    // On Mac and Linux, Apache refuses to start without mod_unixd (Windows has no such module).
+    let unix_only: &[&str] = if cfg!(unix) { &["unixd"] } else { &[] };
+    let modules: String = unix_only
         .iter()
+        .chain(APACHE_MODULES)
         .map(|m| format!("LoadModule {m}_module modules/mod_{m}.so\n"))
         .collect();
     let php = if c.php {

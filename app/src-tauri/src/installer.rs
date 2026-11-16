@@ -936,7 +936,48 @@ fn extract_tar(archive: &Path, target: &Path, subdir: Option<&str>) -> io::Resul
     fs::rename(&root, target)?;
     let _ = fs::remove_dir_all(&staging);
     crate::platform::unix::allow_downloaded(target);
+    link_top_level_programs(target)?;
     Ok(())
+}
+
+/// Mac Node and Redis keep their programs in `bin/`, Windows builds at the top of the folder,
+/// where the rest of NexDB looks (and what goes on PATH). Links at the top make both work.
+#[cfg(unix)]
+fn link_top_level_programs(dir: &Path) -> io::Result<()> {
+    const PROGRAMS: [&str; 6] = ["node", "npm", "npx", "corepack", "redis-server", "redis-cli"];
+    for name in PROGRAMS {
+        let top = dir.join(name);
+        if dir.join("bin").join(name).exists() && fs::symlink_metadata(&top).is_err() {
+            std::os::unix::fs::symlink(Path::new("bin").join(name), &top)?;
+        }
+    }
+    Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod unix_layout_tests {
+    use super::*;
+
+    #[test]
+    fn node_programs_are_linked_at_the_top() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("bin")).unwrap();
+        fs::write(dir.path().join("bin").join("node"), "#!/bin/sh\n").unwrap();
+        link_top_level_programs(dir.path()).unwrap();
+        assert!(dir.path().join("node").is_file(), "node reachable at the top");
+        assert!(!dir.path().join("npm").exists(), "no link for a program that isn't there");
+        // Running it twice is fine.
+        link_top_level_programs(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn apache_loads_unixd_on_unix() {
+        let p = Path::new("/x");
+        let conf = configure::apache_conf(&configure::ApacheConf {
+            server_root: p, port: 80, www_dir: p, etc_dir: p, logs_dir: p, php: false, fcgi_port: 9085,
+        });
+        assert!(conf.contains("LoadModule unixd_module modules/mod_unixd.so"));
+    }
 }
 
 /// The one top-level folder holding every directory in the zip, if there is exactly one.
