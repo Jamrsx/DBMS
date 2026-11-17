@@ -44,12 +44,13 @@ what failed. Repeat until the Stage 2 list passes.
 
 | Gap | Plan |
 |---|---|
-| MariaDB, MongoDB, Memcached, Python | MongoDB and Python have official Mac builds (catalog entries); MariaDB and Memcached get build scripts in nexdb-servers |
+| MongoDB, Python | Official Mac builds (catalog entries) |
+| MariaDB, Memcached | Not in the first Mac release (decided 2026-11-17): MySQL and Redis cover them; they show "No Mac download yet" |
 | Git | Use the Mac's own Git; if missing, NexDB offers `xcode-select --install` |
-| "Which PHP other terminals use" | Mac version: a NexDB block in `~/.zprofile` |
+| "Which PHP other terminals use" | Done: a NexDB block in `~/.zprofile` |
 | Restore deleted projects | Keep NexDB's own record of what it moved to the Trash |
 | License file not encrypted on Mac | Store it in the macOS Keychain |
-| Servers left running after a NexDB crash | Clean them up on the next start |
+| Servers left running after a NexDB crash | Done: stopped on the next Start |
 | System scan misses MAMP / Homebrew installs | Add their folders |
 | UI says "PC" / shows `C:\` examples | Mac wording and paths everywhere |
 | Nex tours | A Nex walkthrough for the Mac-specific steps (password prompt, Open Anyway) |
