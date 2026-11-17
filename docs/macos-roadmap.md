@@ -53,6 +53,7 @@ what failed. Repeat until the Stage 2 list passes.
 | Servers left running after a NexDB crash | Done: stopped on the next Start |
 | System scan misses MAMP / Homebrew installs | Add their folders |
 | UI says "PC" / shows `C:\` examples | Mac wording and paths everywhere |
+| Uninstall | Settings → Uninstall NexDB: keep or delete the NexDB folder; stops servers; removes Open at login, hosts lines, the HTTPS certificate, the ~/.zprofile block and app settings; NexDB.app to the Trash |
 | Nex tours | A Nex walkthrough for the Mac-specific steps (password prompt, Open Anyway) |
 
 Each gap: build, test on the MacBook, tick off.
