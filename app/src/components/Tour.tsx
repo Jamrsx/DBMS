@@ -3,6 +3,7 @@ import { Nex, type NexState } from "./Nex";
 import { isPractice, setPractice } from "../lib/practice";
 import { WHATS_NEW_STEPS, type WhatsNewChapter } from "./whatsNew";
 import { showSettingsSection } from "../lib/settingsNav";
+import { isMac } from "../lib/os";
 
 /**
  * The guided tutorial. Nex walks to whatever it's explaining, the rest of the window dims, and
@@ -53,6 +54,8 @@ interface Step {
   waitOn?: string;
   /** Done when the step starts, like opening a sample project. */
   run?: () => void;
+  /** Shown only on a Mac (things only a Mac does). */
+  macOnly?: boolean;
 }
 
 export type GuideStep = Step;
@@ -60,7 +63,7 @@ export type GuideStep = Step;
 const nav = (page: Page) => `.nav-item[data-page="${page}"]`;
 const here = (sel: string) => `.page:not([hidden]) ${sel}`;
 
-const STEPS: Step[] = [
+const STEPS_ANY_OS: Step[] = [
   {
     chapter: "Welcome",
     title: "Hi, I'm Nex!",
@@ -72,6 +75,18 @@ const STEPS: Step[] = [
     title: "The sidebar",
     body: "Every page lives here. Ctrl+1 to Ctrl+9 and Ctrl+0 jump straight to them.",
     target: '[data-guide="rail"]',
+  },
+  {
+    chapter: "Welcome",
+    macOnly: true,
+    title: "Your Mac password",
+    body: "When a project gets its name.test address, macOS asks for your Mac password once. That's macOS, not NexDB: NexDB never sees or keeps it.",
+  },
+  {
+    chapter: "Welcome",
+    macOnly: true,
+    title: "In the menu bar",
+    body: "NexDB also sits in the menu bar at the top of the screen. Closing this window keeps your servers running; Quit there stops them all.",
   },
   {
     chapter: "Dashboard",
@@ -188,6 +203,14 @@ const STEPS: Step[] = [
     page: "health",
   },
   {
+    chapter: "Check my setup",
+    macOnly: true,
+    title: "PHP in Terminal",
+    body: "Pick which PHP Terminal, iTerm and your editor use. NexDB adds three marked lines to ~/.zprofile; no password needed, and choosing As your Mac has it takes them out again.",
+    target: here('[data-guide="other-php"]'),
+    page: "health",
+  },
+  {
     chapter: "Settings",
     title: "Settings",
     body: "Click Settings.",
@@ -201,6 +224,15 @@ const STEPS: Step[] = [
     target: here('[data-guide="settings-nav"]'),
     page: "settings",
     run: () => showSettingsSection("general"),
+  },
+  {
+    chapter: "Settings",
+    macOnly: true,
+    title: "Removing NexDB",
+    body: "A Mac has no uninstaller, so it's here: Updates, then Uninstall NexDB. It undoes what NexDB added to your Mac and keeps your projects and databases unless you say otherwise.",
+    target: here('[data-guide="uninstall"]'),
+    page: "settings",
+    run: () => showSettingsSection("updates"),
   },
   {
     chapter: "Settings",
@@ -230,6 +262,8 @@ const STEPS: Step[] = [
   },
 ];
 
+// Mac-only steps (password prompt, menu bar, uninstall) are left out on Windows.
+const STEPS: Step[] = STEPS_ANY_OS.filter((s) => !s.macOnly || isMac);
 const ALL: Step[] = [...STEPS, ...WHATS_NEW_STEPS];
 
 /** Starts the tutorial, from the beginning or at one chapter. */

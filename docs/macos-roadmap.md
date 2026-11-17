@@ -44,17 +44,17 @@ what failed. Repeat until the Stage 2 list passes.
 
 | Gap | Plan |
 |---|---|
-| MongoDB, Python | Official Mac builds (catalog entries) |
+| MongoDB, Python | Done: MongoDB 9.0.4 (macOS 14+), Python 3.14.10 (python-build-standalone) |
 | MariaDB, Memcached | Not in the first Mac release (decided 2026-11-17): MySQL and Redis cover them; they show "No Mac download yet" |
 | Git | Use the Mac's own Git; if missing, NexDB offers `xcode-select --install` |
 | "Which PHP other terminals use" | Done: a NexDB block in `~/.zprofile` |
-| Restore deleted projects | Keep NexDB's own record of what it moved to the Trash |
-| License file not encrypted on Mac | Store it in the macOS Keychain |
+| Restore deleted projects | Done: NexDB records where Finder put each project; Finder moves it back |
+| License file not encrypted on Mac | Done: encrypted with a key kept in the login Keychain |
 | Servers left running after a NexDB crash | Done: stopped on the next Start |
-| System scan misses MAMP / Homebrew installs | Add their folders |
-| UI says "PC" / shows `C:\` examples | Mac wording and paths everywhere |
-| Uninstall | Settings → Updates → "Uninstall NexDB" button at the bottom: keep or delete the NexDB folder; stops servers; removes Open at login, hosts lines, the HTTPS certificate, the ~/.zprofile block and app settings; NexDB.app to the Trash |
-| Nex tours | A Nex walkthrough for the Mac-specific steps (password prompt, Open Anyway) |
+| System scan misses MAMP / Homebrew installs | Done: MAMP, XAMPP, Homebrew, /usr/local/mysql, macOS Apache |
+| UI says "PC" / shows `C:\` examples | Done: Mac wording pass (lib/macWording.ts), ⌘ shortcuts |
+| Uninstall | Done: Settings → Updates → "Uninstall NexDB" button at the bottom: keep or delete the NexDB folder; stops servers; removes Open at login, hosts lines, the HTTPS certificate, the ~/.zprofile block and app settings; NexDB.app to the Trash |
+| Nex tours | Done (Mac-only steps in the main tour); "Open Anyway" goes on the download page |
 
 Each gap: build, test on the MacBook, tick off.
 

@@ -1,3 +1,4 @@
+import { forThisOs } from "../lib/macWording";
 import { useCallback, useEffect, useState } from "react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
@@ -322,7 +323,7 @@ export function FileManager({ site, onSites }: { site: Site; onSites?: (s: Site[
                     title={`Delete ${e.name}`}
                     aria-label={`Delete ${e.name}`}
                     onClick={() => {
-                      if (window.confirm(`Delete ${e.name}? It moves to C:\\NexDB\\nexhost\\.deleted, so you can get it back.`))
+                      if (window.confirm(forThisOs(`Delete ${e.name}? It moves to C:\\NexDB\\nexhost\\.deleted, so you can get it back.`)))
                         run(removeEntry(site.name, join(e.name)), `Deleted ${e.name}.`);
                     }}
                   >

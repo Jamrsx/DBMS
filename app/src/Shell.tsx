@@ -41,6 +41,7 @@ import { HelpPage } from "./help/HelpPage";
 import { InboxPanel } from "./dashboard/InboxPanel";
 import { PerformancePage } from "./performance/PerformancePage";
 import { mailList } from "./lib/mail";
+import { isMac } from "./lib/os";
 
 type Page =
   | "dashboard"
@@ -82,7 +83,7 @@ const PAGES: Page[] = [
 /** Each page's shortcut follows its place in the sidebar: Ctrl+1 to Ctrl+9, then Ctrl+0. */
 const keyNo = (p: Page) => (PAGES.indexOf(p) + 1) % 10;
 const keys = (p: Page) => `Control+${keyNo(p)}`;
-const keyHint = (p: Page) => `Ctrl+${keyNo(p)}`;
+const keyHint = (p: Page) => `${isMac ? "⌘" : "Ctrl+"}${keyNo(p)}`;
 
 /** The page open when NexDB last closed, so it opens where the user left off. */
 function savedPage(): Page {
@@ -135,7 +136,9 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
   // Ctrl+1 … Ctrl+9 open the sidebar's pages in order.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.ctrlKey || e.altKey || e.shiftKey || e.metaKey) return;
+      // macOS: ⌘1 … ⌘9, like other Mac apps.
+      const mod = isMac ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey;
+      if (!mod || e.altKey || e.shiftKey) return;
       if (!/^[0-9]$/.test(e.key)) return;
       // 1 is the first page; 0 is the tenth.
       const i = e.key === "0" ? 9 : Number(e.key) - 1;
@@ -275,12 +278,12 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
           type="button"
           className="nav-item nav-search"
           data-guide="search"
-          title="Search pages, projects, databases and actions (Ctrl+K)"
+          title={`Search pages, projects, databases and actions (${isMac ? "⌘K" : "Ctrl+K"})`}
           onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
         >
           <Search size={16} strokeWidth={2} aria-hidden="true" />
           <span className="nav-label">Search</span>
-          <kbd className="nav-label">Ctrl K</kbd>
+          <kbd className="nav-label">{isMac ? "⌘K" : "Ctrl K"}</kbd>
         </button>
 
         <nav className="nav" aria-label="Main">

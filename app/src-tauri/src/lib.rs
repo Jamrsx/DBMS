@@ -456,6 +456,8 @@ pub fn run() {
             fixed_link_save,
             fixed_link_pick_ngrok,
             fixed_link_install_ngrok,
+            uninstall_info,
+            uninstall_app,
             share_public_stop,
             share_dev_start,
             share_dev_stop,
@@ -2135,6 +2137,68 @@ async fn fixed_link_pick_ngrok(app: tauri::AppHandle, stack: tauri::State<'_, St
     }
     save_ngrok_path(&stack, &root, &settings, &path)?;
     Ok(Some(path.display().to_string()))
+}
+
+#[derive(serde::Serialize)]
+struct UninstallInfo {
+    root: Option<String>,
+    www: Option<String>,
+    projects: usize,
+    databases: usize,
+    /// The projects folder is inside the NexDB folder, so deleting it deletes them.
+    projects_inside: bool,
+}
+
+/// What "also delete the NexDB folder" would remove, for Settings → Updates → Uninstall.
+#[tauri::command]
+async fn uninstall_info(app: tauri::AppHandle) -> Result<UninstallInfo, String> {
+    let config = app.path().app_config_dir().ok();
+    blocking(move || {
+        Ok(match uninstall::find(config.as_deref()) {
+            Some(c) => UninstallInfo {
+                projects_inside: c.www.starts_with(&c.root),
+                root: Some(c.root.display().to_string()),
+                www: Some(c.www.display().to_string()),
+                projects: c.projects,
+                databases: c.databases,
+            },
+            None => UninstallInfo { root: None, www: None, projects: 0, databases: 0, projects_inside: false },
+        })
+    })
+    .await
+}
+
+/// Uninstalls NexDB. Windows: opens NexDB's own uninstaller (it asks about the folder) and
+/// quits. macOS: stops the servers, undoes what NexDB added to the Mac, deletes the NexDB folder
+/// if asked, moves NexDB.app to the Trash and quits. Returns what couldn't be done (Mac).
+#[tauri::command]
+async fn uninstall_app(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, delete_folder: bool) -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    {
+        let _ = (&stack, delete_folder);
+        let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+        let uninstaller = exe.parent().map(|d| d.join("uninstall.exe")).filter(|p| p.is_file())
+            .ok_or("NexDB's uninstaller isn't next to NexDB. Use Settings → Apps → Installed apps → NexDB → Uninstall.")?;
+        std::process::Command::new(&uninstaller).spawn().map_err(|e| format!("Couldn't open the uninstaller: {e}"))?;
+        app.exit(0);
+        Ok(Vec::new())
+    }
+    #[cfg(not(windows))]
+    {
+        if let Ok((_, _, sup)) = stack.get() {
+            let sup = sup.clone();
+            let _ = tauri::async_runtime::spawn_blocking(move || sup.stop_all()).await;
+        }
+        let config = app.path().app_config_dir().ok();
+        let mut problems = blocking(move || Ok(uninstall::remove_from_mac(config.as_deref(), delete_folder))).await?;
+        if let Err(e) = uninstall::trash_app() {
+            problems.push(e);
+        }
+        if problems.is_empty() {
+            app.exit(0);
+        }
+        Ok(problems)
+    }
 }
 
 /// macOS: downloads ngrok's official Mac build into NexDB's folder, checks it carries ngrok's

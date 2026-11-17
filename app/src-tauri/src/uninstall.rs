@@ -80,6 +80,73 @@ pub fn delete(root: &Path) -> Result<(), String> {
     })
 }
 
+/// macOS has no uninstaller, so NexDB undoes what it added to the Mac itself (Settings →
+/// Updates → Uninstall NexDB). Servers must be stopped first. Returns what couldn't be done,
+/// in plain words; an empty list means everything went.
+#[cfg(not(windows))]
+pub fn remove_from_mac(config_dir: Option<&Path>, delete_folder: bool) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut note = |r: Result<(), String>, what: &str| {
+        if let Err(e) = r {
+            problems.push(format!("{what}: {e}"));
+        }
+    };
+    let found = find(config_dir);
+
+    // Open at login.
+    note(crate::tray::autostart_set(false), "Open at login");
+    // The .test addresses in /etc/hosts (macOS asks for the password, as when they were added).
+    note(crate::projects::sync_hosts_elevated(&[]), "The .test addresses in /etc/hosts");
+    // NexDB's HTTPS certificate in the login keychain.
+    if let Ok(ca) = crate::admin::ensure_ca_existing(&crate::admin::ca_dir()) {
+        let keychain = crate::platform::unix::home().join("Library/Keychains/login.keychain-db");
+        let _ = std::process::Command::new("/usr/bin/security")
+            .args(["delete-certificate", "-t", "-Z", &ca.thumbprint])
+            .arg(&keychain)
+            .output();
+    }
+    // The PHP picked for other terminals (~/.zprofile block and its scripts).
+    if let Some(c) = &found {
+        note(crate::syspath::choose_none(&c.root), "The PHP for other terminals");
+    }
+    // The license key in the Keychain, and NexDB's own records.
+    let _ = std::process::Command::new("/usr/bin/security")
+        .args(["delete-generic-password", "-s", "com.jamrsx.nexdb", "-a", "nexdb-license-key"])
+        .output();
+    let _ = std::fs::remove_dir_all(crate::platform::local_data_dir().join("NexDB"));
+    // The NexDB folder, when asked; projects outside it always stay.
+    if delete_folder {
+        if let Some(c) = &found {
+            note(delete(&c.root), "The NexDB folder");
+        }
+    }
+    // Last: the pointer to the NexDB folder and the app's settings.
+    if let Some(dir) = config_dir {
+        let _ = std::fs::remove_dir_all(dir);
+    }
+    problems
+}
+
+/// macOS: moves NexDB.app (the bundle this program runs from) to the Trash through Finder.
+#[cfg(not(windows))]
+pub fn trash_app() -> Result<(), String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let app = exe
+        .ancestors()
+        .find(|p| p.extension().is_some_and(|e| e == "app"))
+        .ok_or("NexDB isn't running from an .app, so there's nothing to move to the Trash.")?;
+    let script = format!(
+        "tell application \"Finder\" to delete (POSIX file {} as alias)",
+        crate::platform::applescript_quote(&app.display().to_string())
+    );
+    let out = std::process::Command::new("/usr/bin/osascript").args(["-e", &script]).output().map_err(|e| e.to_string())?;
+    if out.status.success() {
+        Ok(())
+    } else {
+        Err(format!("Drag {} to the Trash yourself.", app.display()))
+    }
+}
+
 /// Runs the whole thing with Windows message boxes. Returns when the user has answered.
 #[cfg(windows)]
 pub fn run(config_dir: Option<&Path>) {

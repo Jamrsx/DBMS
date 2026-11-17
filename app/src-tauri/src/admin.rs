@@ -140,6 +140,14 @@ pub fn ensure_ca(dir: &Path) -> Result<LocalCa, String> {
     Ok(LocalCa { thumbprint: thumbprint(&pem)?, cert_path, created })
 }
 
+/// The local CA if NexDB made one; never creates it (for uninstalling).
+#[cfg_attr(windows, allow(dead_code))]
+pub fn ensure_ca_existing(dir: &Path) -> Result<LocalCa, String> {
+    let cert_path = dir.join("devmanager-ca.crt");
+    let pem = fs::read_to_string(&cert_path).map_err(|_| "No NexDB certificate.".to_string())?;
+    Ok(LocalCa { thumbprint: thumbprint(&pem)?, cert_path, created: false })
+}
+
 fn generate_ca() -> Result<(String, String), rcgen::Error> {
     let mut params = CertificateParams::new(Vec::<String>::new())?;
     let mut name = DistinguishedName::new();

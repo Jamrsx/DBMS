@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { isMac } from "../lib/os";
 import { FixedLinkCard } from "./FixedLinkCard";
 import { CHAPTERS, showGuide } from "../components/Tour";
 import { WHATS_NEW } from "../components/whatsNew";
@@ -33,6 +34,7 @@ import {
   type AppSettings,
 } from "../lib/appsettings";
 import { LicenseCard } from "./LicenseCard";
+import { uninstallApp, uninstallInfo, type UninstallInfo } from "../lib/uninstall";
 import { autoUpdateOn, checkUpdates, installUpdates, setAutoUpdate, useUpdates } from "../lib/updates";
 
 const SECTION_INFO: Record<SettingsSection, { label: string; lede: string; Icon: typeof Globe }> = {
@@ -162,6 +164,7 @@ export function SettingsPage({ active }: { active: boolean }) {
                 <>
                   <UpdatesCard version={settings.app_version} />
                   <WhatsNewCard version={settings.app_version} />
+                  <UninstallCard />
                 </>
               )}
               {show("license") && <LicenseCard />}
@@ -683,6 +686,126 @@ function WhatsNewCard({ version }: { version: string }) {
         )}
         {more && earlier.map(release)}
       </div>
+    </Card>
+  );
+}
+
+/**
+ * Uninstall NexDB, at the end of Settings → Updates. Keeping the NexDB folder (projects,
+ * databases) is the default; deleting it asks once more. Windows hands over to NexDB's own
+ * uninstaller; a Mac has none, so NexDB undoes what it added and moves itself to the Trash.
+ */
+function UninstallCard() {
+  const [info, setInfo] = useState<UninstallInfo | null>(null);
+  const [open, setOpen] = useState(false);
+  const [deleteFolder, setDeleteFolder] = useState(false);
+  const [sure, setSure] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [problems, setProblems] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function start() {
+    setOpen(true);
+    setError(null);
+    setInfo(await uninstallInfo().catch(() => null));
+  }
+
+  async function uninstall() {
+    setBusy(true);
+    setError(null);
+    try {
+      setProblems(await uninstallApp(isMac && deleteFolder));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const holds = info?.root
+    ? info.projects_inside
+      ? `your ${plural(info.projects, "project")} and ${plural(info.databases, "database")}`
+      : `your ${plural(info.databases, "database")} (projects in ${info.www} stay either way)`
+    : "";
+
+  return (
+    <Card title="Uninstall NexDB" lede="Removes NexDB from this computer. Your projects and databases are kept unless you choose otherwise.">
+      {!open ? (
+        <button className="btn btn-small" data-guide="uninstall" onClick={() => void start()}>
+          Uninstall NexDB…
+        </button>
+      ) : !isMac ? (
+        <div className="danger-zone">
+          <p>NexDB's uninstaller opens and NexDB closes. It asks whether to keep the NexDB folder (keeping it is the default).</p>
+          <div className="set-row-actions">
+            <button className="btn btn-small btn-danger" disabled={busy} onClick={() => void uninstall()}>
+              Open the uninstaller
+            </button>
+            <button className="btn btn-small" disabled={busy} onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="danger-zone">
+          <p>
+            NexDB stops its servers and removes what it added to this Mac: Open at login, the .test addresses in
+            /etc/hosts, its HTTPS certificate, the PHP picked for other terminals and its settings. Then NexDB.app goes to
+            the Trash. macOS asks for your password once, for the addresses.
+          </p>
+          {info?.root && (
+            <label className="check-row">
+              <input
+                type="checkbox"
+                checked={deleteFolder}
+                disabled={busy}
+                onChange={(e) => {
+                  setDeleteFolder(e.target.checked);
+                  setSure(false);
+                }}
+              />
+              <span>
+                Also delete the NexDB folder, <code>{info.root}</code>: {holds}, and the versions NexDB installed.
+              </span>
+            </label>
+          )}
+          {deleteFolder && (
+            <label className="check-row">
+              <input type="checkbox" checked={sure} disabled={busy} onChange={(e) => setSure(e.target.checked)} />
+              <span>I understand the folder is deleted for good; it can't be brought back.</span>
+            </label>
+          )}
+          <div className="set-row-actions">
+            <button
+              className="btn btn-small btn-danger"
+              disabled={busy || (deleteFolder && !sure)}
+              data-working={busy || undefined}
+              onClick={() => void uninstall()}
+            >
+              {busy ? "Uninstalling…" : deleteFolder ? "Uninstall and delete the folder" : "Uninstall, keep the folder"}
+            </button>
+            <button className="btn btn-small" disabled={busy} onClick={() => setOpen(false)}>
+              Cancel
+            </button>
+          </div>
+          {problems.length > 0 && (
+            <div className="field-warn" role="alert">
+              <p>NexDB is uninstalled except for these; you can do them by hand:</p>
+              <ul>
+                {problems.map((p) => (
+                  <li key={p}>{p}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      {error && (
+        <p className="field-error" role="alert">
+          {error}
+        </p>
+      )}
     </Card>
   );
 }

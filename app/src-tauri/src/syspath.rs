@@ -299,6 +299,15 @@ pub fn choose(root: &Path, settings: &Settings, dir: Option<&str>) -> Result<(),
     Ok(())
 }
 
+/// Other terminals go back to how the computer had them (for uninstalling).
+#[cfg_attr(windows, allow(dead_code))]
+pub fn choose_none(root: &Path) -> Result<(), String> {
+    let shims = shim_dir(root);
+    put_first(&shims, false)?;
+    let _ = std::fs::remove_dir_all(&shims);
+    Ok(())
+}
+
 /// Puts NexDB's folder first for new terminals (`on`), or takes it out again.
 #[cfg(windows)]
 fn put_first(shims: &Path, on: bool) -> Result<(), String> {
