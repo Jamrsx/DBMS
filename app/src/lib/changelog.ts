@@ -7,6 +7,16 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.8",
+    title: "NexDB for Mac; uninstall from Settings",
+    changes: [
+      "NexDB now runs on Macs too: Intel and Apple Silicon, macOS 13 Ventura or newer. Apache, PHP 8.2 to 8.5, MySQL 9.7, PostgreSQL, Redis, Node.js, nginx, Mailpit, MongoDB and Python, with the same projects, databases, NexHost and sharing as on Windows.",
+      "On a Mac, NexDB offers to move itself to Applications, puts a shortcut on the Desktop and in the NexDB folder, and keeps an Uninstall NexDB file there.",
+      "Settings → Updates has an Uninstall NexDB button at the bottom. On Windows it opens NexDB's uninstaller; on a Mac it removes everything NexDB added and keeps your projects and databases unless you choose otherwise.",
+      "Check my setup → pick which PHP other terminals use now works on Mac too, and finds Homebrew, MAMP, XAMPP and Herd installs.",
+    ],
+  },
+  {
     version: "0.5.7",
     title: "Share and host privately with Tailscale; open your projects folder",
     changes: [

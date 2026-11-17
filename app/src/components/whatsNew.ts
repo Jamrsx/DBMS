@@ -9,6 +9,7 @@ import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
 
 export const WHATS_NEW = [
+  { version: "0.5.8", chapter: "New in 0.5.8" },
   { version: "0.5.7", chapter: "New in 0.5.7" },
   { version: "0.5.6", chapter: "New in 0.5.6" },
   { version: "0.5.5", chapter: "New in 0.5.5" },
@@ -32,6 +33,27 @@ const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.8",
+    title: "NexDB is on Mac now",
+    body: "NexDB runs on Macs too, Intel and Apple Silicon, with the same projects and databases. One new thing here as well: uninstalling from Settings. Practice mode: nothing on your PC changes.",
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.8",
+    title: "Settings",
+    body: "Click Settings.",
+    target: '.nav-item[data-page="settings"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.5.8",
+    title: "Uninstall NexDB",
+    body: "At the bottom of Updates. It keeps your projects and databases unless you choose otherwise, and asks before anything goes. You won't need it, but now it's easy to find.",
+    page: "settings",
+    run: () => showSettingsSection("updates"),
+    target: here('[data-guide="uninstall"]'),
+  },
   {
     chapter: "New in 0.5.7",
     title: "Two new things in Projects",
