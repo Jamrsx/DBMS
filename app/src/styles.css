@@ -10997,11 +10997,13 @@ button.nh-map-node:focus-visible {
   --glass-edge: rgb(255 255 255 / 0.4);
   --shadow-sm: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(16 24 40 / 0.08);
   --shadow-panel: 0 1px 2px rgb(16 24 40 / 0.06), 0 10px 32px rgb(16 24 40 / 0.1);
-  --btn-bg: rgb(255 255 255 / 0.5);
+  --btn-bg: rgb(255 255 255 / 0.74);
   --btn-edge: inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 rgb(16 24 40 / 0.05),
     0 1px 2px rgb(16 24 40 / 0.07);
   --btn-primary-edge: inset 0 1px 0 rgb(255 255 255 / 0.32), 0 1px 3px rgb(37 99 235 / 0.35);
   --scrim: rgb(30 36 48 / 0.18);
+  --btn-border: rgb(22 28 40 / 0.16);
+  --btn-bg-hover: rgb(255 255 255 / 0.92);
   --scrollbar: rgb(22 28 40 / 0.22);
 }
 
@@ -11016,17 +11018,19 @@ button.nh-map-node:focus-visible {
   --text-2: #bcc2cc;
   --text-3: #9ba2ae;
   --border: rgb(255 255 255 / 0.08);
-  --border-strong: rgb(255 255 255 / 0.15);
+  --border-strong: rgb(255 255 255 / 0.2);
   --nav-hover: rgb(255 255 255 / 0.07);
   --accent-soft: rgb(80 130 240 / 0.24);
   --glass-rim: rgb(255 255 255 / 0.12);
   --glass-edge: rgb(255 255 255 / 0.06);
   --shadow-sm: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(0 0 0 / 0.35);
   --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 36px rgb(0 0 0 / 0.32);
-  --btn-bg: rgb(255 255 255 / 0.08);
-  --btn-edge: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(0 0 0 / 0.3);
+  --btn-bg: rgb(255 255 255 / 0.14);
+  --btn-edge: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 1px 3px rgb(0 0 0 / 0.35);
   --btn-primary-edge: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 1px 3px rgb(0 0 0 / 0.4);
   --scrim: rgb(0 0 0 / 0.32);
+  --btn-border: rgb(255 255 255 / 0.22);
+  --btn-bg-hover: rgb(255 255 255 / 0.22);
   --scrollbar: rgb(255 255 255 / 0.18);
 }
 
@@ -11038,6 +11042,21 @@ html[data-glass] {
 /* The one floating work surface: translucent, with a bright top rim and a soft inner edge. */
 html[data-glass] .panel {
   box-shadow: inset 0 1px 0 var(--glass-rim), inset 0 0 0 1px var(--glass-edge), var(--shadow-panel);
+}
+
+/* Buttons: a brighter frosted face than the panel, so each one reads as something to press. */
+html[data-glass] .btn:not(.btn-primary, .btn-quiet, [aria-pressed="true"]) {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+}
+
+html[data-glass] .btn:not(.btn-primary, .btn-quiet, [aria-pressed="true"]):hover:not(:disabled) {
+  background: var(--btn-bg-hover);
+}
+
+html[data-glass] .btn:not(.btn-primary, .btn-quiet, [aria-pressed="true"]):disabled {
+  background: transparent;
+  box-shadow: none;
 }
 
 /* Things that float over the page blur what is under them, so text never sits on busy content. */

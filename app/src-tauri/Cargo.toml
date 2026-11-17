@@ -70,6 +70,12 @@ strip = true
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_Security_Cryptography", "Win32_System_Threading", "Win32_System_JobObjects", "Win32_UI_WindowsAndMessaging"] }
 winreg = "0.56.0"
+# Glass look: Mica on Windows 11 (glass.rs). Already part of Tauri; listed to learn if Mica took.
+window-vibrancy = "0.8"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Glass look: read the Mac's "Reduce transparency" setting (glass.rs).
+objc2-app-kit = "0.3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

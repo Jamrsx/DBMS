@@ -34,9 +34,13 @@ function readGlass(): boolean {
   }
 }
 
+/** The Mac's Reduce transparency, as the core reads it (the Mac web view doesn't report it). */
+let nativeReduced = false;
+const reducedListeners = new Set<() => void>();
+
 /** The OS setting "Reduce transparency" (macOS) / "Transparency effects" off (Windows). */
 export function transparencyReduced(): boolean {
-  return reduceTransparencyQuery().matches;
+  return nativeReduced || reduceTransparencyQuery().matches;
 }
 
 /** In a plain browser (the dev preview) there is no desktop behind the window, so paint a sample one. */
@@ -53,10 +57,24 @@ function syncWindow() {
   // Your own desktop picture, if copied to app/dev-preview/wallpaper.jpg (git-ignored, dev only).
   if (browserPreview) root.style.setProperty("--preview-wall", 'url("/dev-preview/wallpaper.jpg")');
   if (!isTauri()) return;
-  invoke("set_window_glass", { on, dark: root.dataset.theme === "dark" }).catch(() => {
-    // An older core without the command: the page stays on its solid look.
-    root.removeAttribute("data-glass");
-  });
+  invoke<{ applied: boolean; reduced: boolean }>("set_window_glass", {
+    on,
+    dark: root.dataset.theme === "dark",
+  })
+    .then(({ applied, reduced }) => {
+      // See-through only where the window really blurs (not Windows 10, not side windows).
+      root.toggleAttribute("data-glass", applied);
+      if (reduced !== nativeReduced) {
+        nativeReduced = reduced;
+        reducedListeners.forEach((tell) => tell());
+        // The Mac setting changed since last time: ask again with it in mind.
+        syncWindow();
+      }
+    })
+    .catch(() => {
+      // An older core without the command: the page stays on its solid look.
+      root.removeAttribute("data-glass");
+    });
 }
 
 function apply(choice: ThemeChoice) {
@@ -123,11 +141,16 @@ export function useGlass() {
     // Follow the OS accessibility setting live.
     const query = reduceTransparencyQuery();
     const onChange = () => {
-      setReduced(query.matches);
+      setReduced(transparencyReduced());
       syncWindow();
     };
+    const fromCore = () => setReduced(transparencyReduced());
     query.addEventListener("change", onChange);
-    return () => query.removeEventListener("change", onChange);
+    reducedListeners.add(fromCore);
+    return () => {
+      query.removeEventListener("change", onChange);
+      reducedListeners.delete(fromCore);
+    };
   }, []);
 
   const update = useCallback((next: boolean) => {

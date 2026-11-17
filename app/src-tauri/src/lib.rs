@@ -11,6 +11,7 @@ mod migrate;
 mod envfile;
 mod nodever;
 mod gate;
+mod glass;
 mod extradb;
 mod schema;
 mod usage;
@@ -60,6 +61,12 @@ use std::path::PathBuf;
 
 /// Scans the system for existing runtimes, busy ports, the VC++ runtime and disk space.
 /// Runs on a worker thread so the window stays responsive.
+/// Glass look: turns the window's own blur on or off (light or dark) and says whether it took.
+#[tauri::command]
+fn set_window_glass(window: tauri::WebviewWindow, on: bool, dark: bool) -> glass::GlassState {
+    glass::set(&window, on, dark)
+}
+
 #[tauri::command]
 async fn system_scan(install_root: String) -> Result<scan::ScanReport, String> {
     tauri::async_runtime::spawn_blocking(move || scan::run(&PathBuf::from(install_root)))
@@ -397,6 +404,7 @@ pub fn run() {
         .manage(Arc::new(share::Tunnels::default()))
         .manage(Arc::new(laravel::Workers::default()))
         .invoke_handler(tauri::generate_handler![
+            set_window_glass,
             nexhost_list,
             nexhost_create,
             nexhost_delete,
