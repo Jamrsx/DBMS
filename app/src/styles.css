@@ -11121,22 +11121,34 @@ html[data-glass] .tutorial-dialog::backdrop {
   display: none;
 }
 
-/* Dev preview in a plain browser: no desktop shows through a browser tab, so paint a sample
-   wallpaper (already soft, as the OS blur would make it) to judge the look against. */
+/* Dev preview in a plain browser: no desktop shows through a browser tab, so paint one behind the
+   app, blurred the way the OS blur does. Your own wallpaper when app/dev-preview/wallpaper.jpg
+   exists (lib/theme.ts), otherwise a plain sample. */
 html[data-glass-preview][data-theme="light"] {
-  background:
-    radial-gradient(60% 70% at 12% 18%, #f3b38a 0%, transparent 60%),
-    radial-gradient(55% 60% at 88% 12%, #8fb7f0 0%, transparent 62%),
-    radial-gradient(70% 70% at 70% 92%, #b79be8 0%, transparent 60%),
-    radial-gradient(50% 50% at 25% 85%, #7fd0c0 0%, transparent 60%),
-    #dfe4ec;
+  background: #b9c6dc;
 }
 
 html[data-glass-preview][data-theme="dark"] {
+  background: #0b1530;
+}
+
+html[data-glass-preview]::before {
+  content: "";
+  position: fixed;
+  inset: -80px;
+  z-index: -1;
+  /* The OS frosting (Windows Mica / macOS vibrancy): the wallpaper's colour, lightened or darkened
+     toward the chosen theme. */
   background:
-    radial-gradient(60% 70% at 12% 18%, #6b2f4a 0%, transparent 60%),
-    radial-gradient(55% 60% at 88% 12%, #1f4d8f 0%, transparent 62%),
-    radial-gradient(70% 70% at 70% 92%, #3d2a78 0%, transparent 60%),
-    radial-gradient(50% 50% at 25% 85%, #134d4a 0%, transparent 60%),
-    #0d1015;
+    linear-gradient(var(--preview-frost), var(--preview-frost)),
+    var(--preview-wall, none) center / cover no-repeat;
+  filter: blur(48px) saturate(125%);
+}
+
+html[data-glass-preview][data-theme="light"]::before {
+  --preview-frost: rgb(236 240 247 / 0.66);
+}
+
+html[data-glass-preview][data-theme="dark"]::before {
+  --preview-frost: rgb(20 24 34 / 0.45);
 }

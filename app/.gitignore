@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local-only sample wallpaper for the Glass browser preview (lib/theme.ts)
+dev-preview/

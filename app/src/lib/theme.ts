@@ -50,6 +50,8 @@ function syncWindow() {
   const on = glassWanted && !transparencyReduced();
   root.toggleAttribute("data-glass", on);
   root.toggleAttribute("data-glass-preview", on && browserPreview);
+  // Your own desktop picture, if copied to app/dev-preview/wallpaper.jpg (git-ignored, dev only).
+  if (browserPreview) root.style.setProperty("--preview-wall", 'url("/dev-preview/wallpaper.jpg")');
   if (!isTauri()) return;
   invoke("set_window_glass", { on, dark: root.dataset.theme === "dark" }).catch(() => {
     // An older core without the command: the page stays on its solid look.
