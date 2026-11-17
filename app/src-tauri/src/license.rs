@@ -286,13 +286,123 @@ pub(crate) mod dpapi {
     }
 }
 
+/// macOS: the license file is encrypted with a random key kept in the user's login Keychain,
+/// so the file is useless anywhere else (Windows uses DPAPI for the same). The key reaches the
+/// `security` tool on its standard input, never on a command line other programs can see.
 #[cfg(not(windows))]
 pub(crate) mod dpapi {
-    pub fn protect(data: &[u8]) -> Result<Vec<u8>, String> {
-        Ok(data.to_vec())
+    use sha2::{Digest, Sha256};
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    const SERVICE: &str = "com.jamrsx.nexdb";
+    const ACCOUNT: &str = "nexdb-license-key";
+    /// Marks an encrypted file (older test builds wrote plain JSON).
+    const MAGIC: &[u8; 4] = b"NXK1";
+
+    fn hex(bytes: &[u8]) -> String {
+        bytes.iter().map(|b| format!("{b:02x}")).collect()
     }
+
+    fn unhex(s: &str) -> Option<Vec<u8>> {
+        (s.len() % 2 == 0).then_some(())?;
+        (0..s.len()).step_by(2).map(|i| u8::from_str_radix(&s[i..i + 2], 16).ok()).collect()
+    }
+
+    fn read_key() -> Option<Vec<u8>> {
+        let out = Command::new("/usr/bin/security")
+            .args(["find-generic-password", "-s", SERVICE, "-a", ACCOUNT, "-w"])
+            .stderr(Stdio::null())
+            .output()
+            .ok()?;
+        let key = unhex(String::from_utf8_lossy(&out.stdout).trim())?;
+        (out.status.success() && key.len() == 32).then_some(key)
+    }
+
+    fn new_key() -> Result<Vec<u8>, String> {
+        let mut key = vec![0u8; 32];
+        getrandom::fill(&mut key).map_err(|e| format!("Couldn't make a key: {e}"))?;
+        let mut child = Command::new("/usr/bin/security")
+            .arg("-i")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| format!("Couldn't reach the Keychain: {e}"))?;
+        let line = format!("add-generic-password -U -s {SERVICE} -a {ACCOUNT} -w {}\n", hex(&key));
+        child.stdin.take().ok_or("Couldn't reach the Keychain.")?.write_all(line.as_bytes()).map_err(|e| e.to_string())?;
+        child.wait().map_err(|e| e.to_string())?;
+        read_key().filter(|k| *k == key).ok_or_else(|| "Couldn't save the license key in the Keychain.".to_string())
+    }
+
+    /// SHA-256 in counter mode: the stream XORed over the data.
+    fn stream(key: &[u8], nonce: &[u8], len: usize) -> Vec<u8> {
+        let mut out = Vec::with_capacity(len + 32);
+        let mut counter: u64 = 0;
+        while out.len() < len {
+            out.extend_from_slice(&Sha256::new().chain_update(key).chain_update(nonce).chain_update(counter.to_le_bytes()).finalize());
+            counter += 1;
+        }
+        out.truncate(len);
+        out
+    }
+
+    fn tag(key: &[u8], nonce: &[u8], cipher: &[u8]) -> Vec<u8> {
+        Sha256::new().chain_update(b"tag").chain_update(key).chain_update(nonce).chain_update(cipher).finalize().to_vec()
+    }
+
+    pub fn seal(key: &[u8], nonce: &[u8; 16], data: &[u8]) -> Vec<u8> {
+        let cipher: Vec<u8> = data.iter().zip(stream(key, nonce, data.len())).map(|(a, b)| a ^ b).collect();
+        let mut out = MAGIC.to_vec();
+        out.extend_from_slice(nonce);
+        out.extend_from_slice(&tag(key, nonce, &cipher));
+        out.extend_from_slice(&cipher);
+        out
+    }
+
+    pub fn open(key: &[u8], sealed: &[u8]) -> Option<Vec<u8>> {
+        let rest = sealed.strip_prefix(MAGIC.as_slice())?;
+        if rest.len() < 48 {
+            return None;
+        }
+        let (nonce, rest) = rest.split_at(16);
+        let (t, cipher) = rest.split_at(32);
+        if tag(key, nonce, cipher) != t {
+            return None;
+        }
+        Some(cipher.iter().zip(stream(key, nonce, cipher.len())).map(|(a, b)| a ^ b).collect())
+    }
+
+    pub fn protect(data: &[u8]) -> Result<Vec<u8>, String> {
+        let key = match read_key() {
+            Some(k) => k,
+            None => new_key()?,
+        };
+        let mut nonce = [0u8; 16];
+        getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
+        Ok(seal(&key, &nonce, data))
+    }
+
     pub fn unprotect(data: &[u8]) -> Option<Vec<u8>> {
-        Some(data.to_vec())
+        if data.first() == Some(&b'{') {
+            // Saved in plain form by an earlier test build; it is encrypted on the next save.
+            return Some(data.to_vec());
+        }
+        open(&read_key()?, data)
+    }
+}
+
+#[cfg(all(test, not(windows)))]
+mod keychain_file_tests {
+    #[test]
+    fn sealed_license_opens_only_with_its_key_and_unchanged() {
+        let key = [7u8; 32];
+        let sealed = super::dpapi::seal(&key, &[1u8; 16], b"{\"token\":\"abc\"}");
+        assert_eq!(super::dpapi::open(&key, &sealed).as_deref(), Some(b"{\"token\":\"abc\"}".as_slice()));
+        assert!(super::dpapi::open(&[8u8; 32], &sealed).is_none(), "wrong key");
+        let mut changed = sealed.clone();
+        *changed.last_mut().unwrap() ^= 1;
+        assert!(super::dpapi::open(&key, &changed).is_none(), "tampered");
     }
 }
 

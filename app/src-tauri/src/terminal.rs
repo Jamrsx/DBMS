@@ -63,7 +63,8 @@ pub fn tool_dirs(root: &Path, settings: &Settings) -> Vec<PathBuf> {
     }
     // Python and the commands pip installs; psql; redis-cli.
     if let Some(python) = dir_of("python") {
-        dirs.push(python.join("Scripts"));
+        // Windows keeps pip's commands in Scripts, macOS in bin.
+        dirs.push(python.join(if cfg!(windows) { "Scripts" } else { "bin" }));
         dirs.push(python);
     }
     if let Some(postgres) = dir_of("postgres") {

@@ -178,12 +178,19 @@ pub fn rename(www: &Path, old: &str, new: &str) -> Result<(), String> {
 #[cfg(not(windows))]
 pub fn recycle(www: &Path, name: &str) -> Result<(), String> {
     let dir = crate::projects::project_dir(www, name).ok_or("That project doesn't exist any more.")?;
+    // Finder answers with where it put it, so NexDB can bring it back later.
     let script = format!(
-        "tell application \"Finder\" to delete (POSIX file {} as alias)",
+        "tell application \"Finder\" to return POSIX path of ((delete (POSIX file {} as alias)) as alias)",
         crate::platform::applescript_quote(&dir.display().to_string())
     );
     let out = Command::new("/usr/bin/osascript").args(["-e", &script]).output()
         .map_err(|e| format!("Couldn't ask Finder to move the project: {e}"))?;
+    if !dir.exists() {
+        let trash_path = String::from_utf8_lossy(&out.stdout).trim().to_string();
+        if !trash_path.is_empty() {
+            crate::recyclebin::remember(www, name, &trash_path);
+        }
+    }
     if dir.exists() {
         let err = String::from_utf8_lossy(&out.stderr);
         return Err(if err.contains("-1743") {

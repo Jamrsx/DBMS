@@ -944,11 +944,15 @@ fn extract_tar(archive: &Path, target: &Path, subdir: Option<&str>) -> io::Resul
 /// where the rest of NexDB looks (and what goes on PATH). Links at the top make both work.
 #[cfg(unix)]
 fn link_top_level_programs(dir: &Path) -> io::Result<()> {
-    const PROGRAMS: [&str; 6] = ["node", "npm", "npx", "corepack", "redis-server", "redis-cli"];
-    for name in PROGRAMS {
+    // (name at the top, program in bin/): Python's are called python3 and pip3 there.
+    const PROGRAMS: [(&str, &str); 8] = [
+        ("node", "node"), ("npm", "npm"), ("npx", "npx"), ("corepack", "corepack"),
+        ("redis-server", "redis-server"), ("redis-cli", "redis-cli"), ("python", "python3"), ("pip", "pip3"),
+    ];
+    for (name, program) in PROGRAMS {
         let top = dir.join(name);
-        if dir.join("bin").join(name).exists() && fs::symlink_metadata(&top).is_err() {
-            std::os::unix::fs::symlink(Path::new("bin").join(name), &top)?;
+        if dir.join("bin").join(program).exists() && fs::symlink_metadata(&top).is_err() {
+            std::os::unix::fs::symlink(Path::new("bin").join(program), &top)?;
         }
     }
     Ok(())

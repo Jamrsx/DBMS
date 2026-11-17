@@ -174,7 +174,8 @@ pub fn run(install_root: &Path) -> ScanReport {
 fn scan_component(spec: &ComponentSpec, services: &[(String, PathBuf)]) -> ComponentFinding {
     // Named locations first, so a copy that is also on PATH keeps its stack name.
     let mut candidates: Vec<(PathBuf, String, Option<String>)> = Vec::new();
-    for (source, pattern) in spec.known_paths {
+    let known = if cfg!(windows) { spec.known_paths } else { mac_known_paths(spec.id) };
+    for (source, pattern) in known {
         for dir in expand_pattern(pattern) {
             candidates.push((dir.join(crate::platform::exe(spec.exe)), (*source).into(), None));
         }
@@ -198,6 +199,7 @@ fn scan_component(spec: &ComponentSpec, services: &[(String, PathBuf)]) -> Compo
     let unique: Vec<_> = candidates
         .into_iter()
         .filter(|(path, _, _)| path.is_file())
+        .filter(|(path, _, _)| !is_mac_git_stub(path))
         .filter(|(path, _, _)| seen.insert(normalize(path)))
         .collect();
 
@@ -256,13 +258,56 @@ fn version_from_folders(exe: &Path) -> Option<String> {
 }
 
 /// Expands a Windows path where a segment may contain `*` (one folder level).
+/// Where MAMP, XAMPP, Homebrew (Apple Silicon and Intel), the official MySQL installer and
+/// macOS itself keep each program on a Mac.
+fn mac_known_paths(id: &str) -> &'static [(&'static str, &'static str)] {
+    const BREW: [(&str, &str); 2] = [("Homebrew", "/opt/homebrew/bin"), ("Homebrew", "/usr/local/bin")];
+    match id {
+        "php" => &[
+            ("MAMP", "/Applications/MAMP/bin/php/*/bin"),
+            ("XAMPP", "/Applications/XAMPP/xamppfiles/bin"),
+            BREW[0], BREW[1],
+            ("Homebrew", "/opt/homebrew/opt/php*/bin"),
+            ("Homebrew", "/usr/local/opt/php*/bin"),
+        ],
+        "node" => &[BREW[0], BREW[1]],
+        "apache" => &[
+            ("MAMP", "/Applications/MAMP/Library/bin"),
+            ("XAMPP", "/Applications/XAMPP/xamppfiles/bin"),
+            BREW[0], BREW[1],
+            ("macOS", "/usr/sbin"),
+        ],
+        "nginx" => &[("MAMP", "/Applications/MAMP/Library/bin"), BREW[0], BREW[1]],
+        "mysql" => &[
+            ("MAMP", "/Applications/MAMP/Library/bin"),
+            ("MAMP", "/Applications/MAMP/Library/bin/*/bin"),
+            ("XAMPP", "/Applications/XAMPP/xamppfiles/sbin"),
+            ("MySQL installer", "/usr/local/mysql/bin"),
+            BREW[0], BREW[1],
+        ],
+        "git" => &[("Xcode tools", "/Library/Developer/CommandLineTools/usr/bin"), BREW[0], BREW[1]],
+        _ => &[],
+    }
+}
+
+/// macOS: /usr/bin/git without Apple's developer tools is a stub that pops up an install
+/// dialog when run, so the scan leaves it alone.
+fn is_mac_git_stub(path: &Path) -> bool {
+    cfg!(not(windows))
+        && path == Path::new("/usr/bin/git")
+        && !Path::new("/Library/Developer/CommandLineTools/usr/bin/git").exists()
+        && !Path::new("/Applications/Xcode.app").exists()
+}
+
 fn expand_pattern(pattern: &str) -> Vec<PathBuf> {
+    // macOS patterns start with `/`; Windows ones with a drive (`C:\`).
+    let sep = if pattern.starts_with('/') { '/' } else { '\\' };
     let mut current = vec![PathBuf::new()];
-    for (i, segment) in pattern.split('\\').enumerate() {
+    for (i, segment) in pattern.split(sep).enumerate() {
         let mut next = Vec::new();
         for base in &current {
             if i == 0 {
-                next.push(PathBuf::from(format!("{segment}\\")));
+                next.push(PathBuf::from(if sep == '/' { "/".to_string() } else { format!("{segment}\\") }));
             } else if segment.contains('*') {
                 let Ok(entries) = std::fs::read_dir(base) else { continue };
                 for entry in entries.flatten() {
