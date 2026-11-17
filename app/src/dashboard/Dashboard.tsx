@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { ServiceGuide, type GuideId } from "./ServiceGuide";
+import { PhpMyAdmin } from "../database/PhpMyAdmin";
 import { inDesktopApp, realDesktopApp } from "../lib/scan";
 import { Nex } from "../components/Nex";
 import { nexCelebrate, nexOops, nexSay } from "../lib/nex";
@@ -45,6 +46,7 @@ type Busy = Record<string, "starting" | "stopping">;
 export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: () => void; active?: boolean }) {
   const [services, setServices] = useState<ServiceStatus[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [pmaError, setPmaError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [guide, setGuide] = useState<GuideId | null>(null);
@@ -123,6 +125,7 @@ export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: (
 
   const managed = services?.filter((s) => s.managed) ?? [];
   const anyBusy = Object.keys(busy).length > 0;
+  const anyUp = managed.some((s) => s.state === "running" || s.state === "starting");
   const failures = services?.filter((s) => s.state === "failed" && s.message) ?? [];
 
   return (
@@ -135,33 +138,39 @@ export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: (
           </p>
         </div>
         <div className="dash-actions">
-          <button
-            className="btn"
-            disabled={anyBusy || !managed.some((s) => s.state === "running" || s.state === "starting")}
-            onClick={() =>
-              run(
-                managed.map((s) => s.id),
-                "stopping",
-                () => stopServices(),
-              )
-            }
-          >
-            Stop all
-          </button>
-          <button
-            className="btn btn-primary"
-            data-guide="start-all"
-            disabled={anyBusy || managed.length === 0 || managed.every((s) => s.state === "running")}
-            onClick={() =>
-              run(
-                managed.map((s) => s.id),
-                "starting",
-                () => startServices(),
-              )
-            }
-          >
-            Start all
-          </button>
+          <PhpMyAdmin onError={setPmaError} guide="dash-pma" />
+          {/* One button: Stop all while anything runs, Start all otherwise. */}
+          {anyUp ? (
+            <button
+              className="btn"
+              data-guide="start-all"
+              disabled={anyBusy}
+              onClick={() =>
+                run(
+                  managed.map((s) => s.id),
+                  "stopping",
+                  () => stopServices(),
+                )
+              }
+            >
+              <Square size={14} aria-hidden="true" /> Stop all
+            </button>
+          ) : (
+            <button
+              className="btn btn-primary"
+              data-guide="start-all"
+              disabled={anyBusy || managed.length === 0}
+              onClick={() =>
+                run(
+                  managed.map((s) => s.id),
+                  "starting",
+                  () => startServices(),
+                )
+              }
+            >
+              <Play size={14} aria-hidden="true" /> Start all
+            </button>
+          )}
         </div>
       </header>
 
@@ -172,6 +181,11 @@ export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: (
           </p>
         )}
         <MissingBanner onOpenVersions={onOpenVersions} />
+        {pmaError && (
+          <div className="error-box" role="alert">
+            <p>Couldn't open phpMyAdmin: {pmaError}</p>
+          </div>
+        )}
         {loadError && (
           <div className="error-box" role="alert">
             <p>Couldn't read service status: {loadError}</p>

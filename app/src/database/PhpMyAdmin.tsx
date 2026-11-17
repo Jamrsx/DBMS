@@ -3,7 +3,14 @@ import { Download, ExternalLink } from "lucide-react";
 import { pmaInstall, pmaOpen, pmaStatus, type PmaStatus } from "../lib/phpmyadmin";
 
 /** Opens phpMyAdmin in the browser, or installs it first. It lives at localhost/phpmyadmin. */
-export function PhpMyAdmin({ onError }: { onError: (message: string | null) => void }) {
+export function PhpMyAdmin({
+  onError,
+  guide,
+}: {
+  onError: (message: string | null) => void;
+  /** Tour anchor (data-guide) for where this button sits. */
+  guide?: string;
+}) {
   const [status, setStatus] = useState<PmaStatus | null>(null);
   const [percent, setPercent] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,6 +47,7 @@ export function PhpMyAdmin({ onError }: { onError: (message: string | null) => v
     return (
       <button
         className="btn btn-quiet"
+        data-guide={guide}
         onClick={install}
         disabled={busy}
         title="Adds phpMyAdmin at localhost/phpmyadmin"
@@ -50,7 +58,7 @@ export function PhpMyAdmin({ onError }: { onError: (message: string | null) => v
     );
   }
   return (
-    <button className="btn btn-quiet" onClick={() => pmaOpen().catch((e) => onError(String(e)))} title={status.url}>
+    <button className="btn btn-quiet" data-guide={guide} onClick={() => pmaOpen().catch((e) => onError(String(e)))} title={status.url}>
       <ExternalLink size={15} aria-hidden="true" /> phpMyAdmin {status.version ?? ""}
     </button>
   );

@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.5.9",
+    title: "Glass look; one Start all button; phpMyAdmin on the Dashboard",
+    changes: [
+      "A new Glass look, in light or dark: tick Glass look under Light / Dark / System and your desktop shows softly blurred through NexDB. On Windows it uses Acrylic; on a Mac the classic blur, or Apple's Liquid Glass on macOS 26. If your computer is set to reduce transparency, NexDB stays solid so text stays easy to read.",
+      "The Dashboard has one button for the whole stack: Start all, which turns into Stop all while anything is running.",
+      "phpMyAdmin opens straight from the Dashboard, next to Start all, without going to the Database page first.",
+    ],
+  },
+  {
     version: "0.5.8",
     title: "NexDB for Mac; uninstall from Settings",
     changes: [

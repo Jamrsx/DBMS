@@ -29,7 +29,7 @@ const TOPICS: Topic[] = [
     chapter: "Dashboard",
     steps: [
       "Each service on the Dashboard shows whether it runs, its port and its version.",
-      "Start or stop one with its own button, or all of them with Start all and Stop all.",
+      "Start or stop one with its own button, or all of them with the button at the top: Start all, which turns into Stop all while anything is running.",
       "If one won't start, its row says why, for example another program using port 80. Logs shows what it wrote.",
       "NexDB can start them when Windows starts: Settings → General.",
     ],

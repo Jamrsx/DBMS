@@ -105,7 +105,7 @@ const STEPS_ANY_OS: Step[] = [
   {
     chapter: "Dashboard",
     title: "Start all",
-    body: "Starts everything your sites need. You can also start or stop one service from its own row, and read its log.",
+    body: "Starts everything your sites need, then turns into Stop all while anything runs. You can also start or stop one service from its own row, and read its log.",
     target: '[data-guide="start-all"]',
     page: "dashboard",
   },

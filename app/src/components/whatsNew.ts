@@ -38,7 +38,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "New in 0.5.9",
     title: "A new look: Glass",
-    body: `Panels can now let your desktop show through, softly blurred, in light or dark. Practice mode: nothing on your ${COMPUTER} changes.`,
+    body: `Three new things: a Glass look, one button to start or stop everything, and phpMyAdmin right on the Dashboard. Practice mode: nothing on your ${COMPUTER} changes.`,
     mood: "hello",
   },
   {
@@ -46,6 +46,20 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     title: "Glass look",
     body: `Tick Glass look to try it. It works with Light, Dark and System. If your ${COMPUTER} is set to reduce transparency, it stays solid so text stays easy to read. Untick it any time to go back.`,
     target: ".glass-toggle",
+  },
+  {
+    chapter: "New in 0.5.9",
+    title: "One button for the whole stack",
+    body: "Start all starts everything. While anything is running it turns into Stop all, so there's only ever one button to look for.",
+    page: "dashboard",
+    target: here('[data-guide="start-all"]'),
+  },
+  {
+    chapter: "New in 0.5.9",
+    title: "phpMyAdmin from the Dashboard",
+    body: "Opens phpMyAdmin in your browser without going to the Database page first. If it isn't installed yet, the same button installs it.",
+    page: "dashboard",
+    target: here('[data-guide="dash-pma"]'),
   },
   {
     chapter: "New in 0.5.8",
