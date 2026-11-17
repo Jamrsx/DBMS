@@ -42,6 +42,7 @@ import { InboxPanel } from "./dashboard/InboxPanel";
 import { PerformancePage } from "./performance/PerformancePage";
 import { mailList } from "./lib/mail";
 import { isMac } from "./lib/os";
+import { macAppPlace } from "./lib/macapp";
 
 type Page =
   | "dashboard"
@@ -132,6 +133,11 @@ export function Shell({ holdTour = false }: { holdTour?: boolean }) {
       title.focus({ preventScroll: true });
     }
   }, [page]);
+
+  // macOS: the Desktop and NexDB-folder shortcuts and the uninstaller, once setup is done.
+  useEffect(() => {
+    void macAppPlace().catch(() => undefined);
+  }, []);
 
   // Ctrl+1 … Ctrl+9 open the sidebar's pages in order.
   useEffect(() => {

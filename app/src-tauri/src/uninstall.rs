@@ -114,6 +114,18 @@ pub fn remove_from_mac(config_dir: Option<&Path>, delete_folder: bool) -> Vec<St
         .args(["delete-generic-password", "-s", "com.jamrsx.nexdb", "-a", "nexdb-license-key"])
         .output();
     let _ = std::fs::remove_dir_all(crate::platform::local_data_dir().join("NexDB"));
+    // The shortcuts NexDB made (only if they are still shortcuts) and its uninstaller file.
+    let mut made = vec![crate::platform::unix::home().join("Desktop").join("NexDB.app")];
+    if let Some(c) = &found {
+        made.push(c.root.join("NexDB.app"));
+        let _ = std::fs::remove_file(c.root.join("Uninstall NexDB.command"));
+        let _ = std::fs::remove_file(c.root.join("etc").join(".mac-shortcuts"));
+    }
+    for link in made {
+        if std::fs::symlink_metadata(&link).is_ok_and(|m| m.file_type().is_symlink()) {
+            let _ = std::fs::remove_file(&link);
+        }
+    }
     // The NexDB folder, when asked; projects outside it always stay.
     if delete_folder {
         if let Some(c) = &found {
@@ -125,6 +137,65 @@ pub fn remove_from_mac(config_dir: Option<&Path>, delete_folder: bool) -> Vec<St
         let _ = std::fs::remove_dir_all(dir);
     }
     problems
+}
+
+/// macOS: `NexDB --uninstall`, run by `Uninstall NexDB.command` in the NexDB folder. Asks with
+/// macOS dialogs (keeping the folder is the default), then does what Settings → Updates →
+/// Uninstall NexDB does.
+#[cfg(target_os = "macos")]
+pub fn run_mac(config_dir: Option<&Path>) {
+    let q = crate::platform::applescript_quote;
+    let found = find(config_dir);
+    let text = match &found {
+        Some(c) => format!(
+            "Uninstall NexDB from this Mac?\n\nNexDB removes what it added to the Mac (Open at login, the .test addresses, its certificate and settings) and moves NexDB.app to the Trash.\n\nThe NexDB folder {} holds {}.",
+            c.root.display(),
+            if c.www.starts_with(&c.root) {
+                format!("your {} and {}", plural(c.projects, "project"), plural(c.databases, "database"))
+            } else {
+                format!("your {}", plural(c.databases, "database"))
+            }
+        ),
+        None => "Uninstall NexDB from this Mac?".into(),
+    };
+    let buttons = if found.is_some() {
+        "{\"Cancel\", \"Uninstall, delete the folder\", \"Uninstall, keep the folder\"}"
+    } else {
+        "{\"Cancel\", \"Uninstall, keep the folder\"}"
+    };
+    let answer = dialog(&format!(
+        "button returned of (display dialog {} with title \"Uninstall NexDB\" buttons {buttons} default button \"Uninstall, keep the folder\" cancel button \"Cancel\" with icon caution)",
+        q(&text)
+    ));
+    let Some(answer) = answer else { return };
+    let delete_folder = answer.contains("delete");
+    if delete_folder {
+        let root = found.as_ref().map(|c| c.root.display().to_string()).unwrap_or_default();
+        let sure = dialog(&format!(
+            "button returned of (display dialog {} with title \"Delete the NexDB folder\" buttons {{\"Keep it\", \"Delete it\"}} default button \"Keep it\" cancel button \"Keep it\" with icon stop)",
+            q(&format!("Delete {root} and everything in it?\n\nThis can't be undone."))
+        ));
+        if sure.as_deref() != Some("Delete it") {
+            return;
+        }
+    }
+    let mut problems = remove_from_mac(config_dir, delete_folder);
+    if let Err(e) = trash_app() {
+        problems.push(e);
+    }
+    let done = if problems.is_empty() {
+        "NexDB is uninstalled.".to_string()
+    } else {
+        format!("NexDB is uninstalled, except for these; you can do them by hand:\n\n{}", problems.join("\n"))
+    };
+    let _ = dialog(&format!("display dialog {} with title \"Uninstall NexDB\" buttons {{\"OK\"}} default button \"OK\"", q(&done)));
+}
+
+/// One AppleScript dialog; None when cancelled.
+#[cfg(target_os = "macos")]
+fn dialog(script: &str) -> Option<String> {
+    let out = std::process::Command::new("/usr/bin/osascript").args(["-e", script]).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string())
 }
 
 /// macOS: moves NexDB.app (the bundle this program runs from) to the Trash through Finder.

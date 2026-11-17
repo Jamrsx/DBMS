@@ -6,6 +6,7 @@ mod configure;
 mod db;
 mod dbconnect;
 mod uninstall;
+mod macapp;
 mod migrate;
 mod envfile;
 mod nodever;
@@ -296,6 +297,12 @@ pub fn run() {
             let config = std::env::var_os("APPDATA").map(|d| std::path::PathBuf::from(d).join("com.jamrsx.nexdb"));
             uninstall::run(config.as_deref());
         }
+        // macOS: from `Uninstall NexDB.command` in the NexDB folder.
+        #[cfg(target_os = "macos")]
+        {
+            let config = platform::local_data_dir().join("com.jamrsx.nexdb");
+            uninstall::run_mac(Some(&config));
+        }
         return;
     }
     let app = tauri::Builder::default()
@@ -332,6 +339,9 @@ pub fn run() {
                     if let Err(e) = projects::write_site_configs(&root, &settings) {
                         eprintln!("Couldn't rewrite the site settings at launch: {e}");
                     }
+                    // macOS: Desktop/folder shortcuts (once) and the uninstaller file.
+                    #[cfg(target_os = "macos")]
+                    macapp::ensure_shortcuts(&root);
                 }
             }
             if loaded && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
@@ -458,6 +468,8 @@ pub fn run() {
             fixed_link_install_ngrok,
             uninstall_info,
             uninstall_app,
+            mac_app_place,
+            mac_move_to_applications,
             share_public_stop,
             share_dev_start,
             share_dev_stop,
@@ -2147,6 +2159,42 @@ struct UninstallInfo {
     databases: usize,
     /// The projects folder is inside the NexDB folder, so deleting it deletes them.
     projects_inside: bool,
+}
+
+/// macOS: whether NexDB runs from Applications. Once it does and setup is done, the Desktop and
+/// NexDB-folder shortcuts and the uninstaller file are made (shortcuts only once).
+#[tauri::command]
+fn mac_app_place(stack: tauri::State<'_, Stack>) -> macapp::AppPlace {
+    let place = macapp::place();
+    #[cfg(target_os = "macos")]
+    if place.in_applications {
+        if let Ok((root, _, _)) = stack.get() {
+            macapp::ensure_shortcuts(&root);
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = &stack;
+    place
+}
+
+/// macOS: copies NexDB to Applications and reopens it from there; this copy quits.
+#[tauri::command]
+async fn mac_move_to_applications(app: tauri::AppHandle, stack: tauri::State<'_, Stack>) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let target = blocking(macapp::copy_to_applications).await?;
+        if let Ok((_, _, sup)) = stack.get() {
+            let _ = tauri::async_runtime::spawn_blocking(move || sup.stop_all()).await;
+        }
+        macapp::reopen_later(&target);
+        app.exit(0);
+        Ok(())
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (&app, &stack);
+        Err("Only on a Mac.".into())
+    }
 }
 
 /// What "also delete the NexDB folder" would remove, for Settings → Updates → Uninstall.

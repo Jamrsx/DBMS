@@ -11,6 +11,7 @@ import { realDesktopApp } from "./lib/scan";
 import { showGuide } from "./components/Tour";
 import { Diagram } from "./database/Diagram";
 import { TerminalPage } from "./terminal/TerminalPage";
+import { MacMoveDialog } from "./components/MacMoveDialog";
 import { markPreviewInstalled, setupInfo, type FoundInstall } from "./lib/services";
 
 type View = "loading" | "setup" | "dashboard";
@@ -44,7 +45,12 @@ export default function App() {
       </div>
     );
   }
-  return <MainApp />;
+  return (
+    <>
+      <MainApp />
+      <MacMoveDialog />
+    </>
+  );
 }
 
 function MainApp() {
