@@ -44,5 +44,18 @@ jobs:
       - name: Type-check for Intel Macs
         run: cargo check --all-targets --target x86_64-apple-darwin
 
+      # Logs need a GitHub sign-in to read; each failing test also becomes a public error note
+      # (its name and the first lines of why), shown on the run's summary page.
       - name: Tests on Apple Silicon
-        run: cargo test --lib
+        run: |
+          set +e
+          cargo test --lib 2>&1 | tee test.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != 0 ]; then
+            grep -E "^---- .* stdout ----$" test.log | sed -E 's/^---- (.*) stdout ----$/\1/' | while read -r t; do
+              why=$(awk -v t="---- $t stdout ----" '$0==t{f=1;next} f&&/^---- /{exit} f' test.log | grep -v "^note:" | head -6 | tr '\n' ' ' | sed 's/%/%25/g')
+              echo "::error title=Test failed: $t::$why"
+            done
+            grep -E "^error(\[E[0-9]+\])?:" test.log | head -10 | sed 's/^/::error title=Build error::/'
+          fi
+          exit $code

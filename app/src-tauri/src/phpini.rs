@@ -354,6 +354,7 @@ mod tests {
         php
     }
 
+    #[cfg(windows)] // Windows' ext\php_*.dll files; Mac PHP has its extensions built in.
     #[test]
     fn choices_turn_extensions_on_and_off() {
         let dir = tempfile::tempdir().unwrap();
