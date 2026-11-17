@@ -1,7 +1,8 @@
 //! "Glass look" (see app/src/lib/theme.ts): the main window's own see-through blur.
 //!
 //! - macOS 26+: Apple's Liquid Glass; macOS 13-15: the classic sidebar vibrancy (Tauri falls back).
-//! - Windows 11: Mica, tinted light or dark. Windows 10 has no Mica, so Glass stays solid there.
+//! - Windows 10/11: Acrylic (a live blur of what's behind), tinted light or dark; Mica if Acrylic
+//!   isn't available; otherwise Glass stays solid.
 //!
 //! The main window is created transparent (tauri.conf.json); with Glass off, or on a system that
 //! can't blur, the page paints its usual solid background, so the window looks exactly as before.
@@ -65,14 +66,26 @@ fn reduce_transparency() -> bool {
 
 #[cfg(windows)]
 fn apply(window: &WebviewWindow, dark: bool) -> bool {
-    // Called directly (not through Tauri's set_effects) to learn whether Mica took: Windows 10
-    // answers "unsupported", and the page then stays solid instead of showing a bare desktop.
+    // Acrylic: a live blur of whatever is behind the window, so the desktop really shows through
+    // (Mica only borrows a faint tint of the wallpaper). The tint keeps text readable on any
+    // wallpaper. Called directly (not through Tauri's set_effects) to learn whether it took.
+    clear(window);
+    let tint = if dark { (16, 18, 24, 150) } else { (238, 241, 246, 150) };
+    if window_vibrancy::apply_acrylic(window, Some(tint)).is_ok() {
+        // Title bar to match Glass Light / Glass Dark.
+        let _ = window.set_theme(Some(if dark { tauri::Theme::Dark } else { tauri::Theme::Light }));
+        return true;
+    }
+    // Older Windows without Acrylic: Mica if it has it, otherwise the page stays solid.
     window_vibrancy::apply_mica(window, Some(dark)).is_ok()
 }
 
 #[cfg(windows)]
 fn clear(window: &WebviewWindow) {
+    let _ = window_vibrancy::clear_acrylic(window);
     let _ = window_vibrancy::clear_mica(window);
+    // Back to following Windows' own light/dark for the title bar.
+    let _ = window.set_theme(None);
 }
 
 #[cfg(windows)]

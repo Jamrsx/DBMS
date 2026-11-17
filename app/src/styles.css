@@ -10980,15 +10980,16 @@ button.nh-map-node:focus-visible {
    and a light rim on raised edges. Off when the OS asks for less transparency (lib/theme.ts). */
 
 :root[data-glass][data-theme="light"] {
-  --bg: rgb(226 230 237 / 0.14);
+  --bg: rgb(226 230 237 / 0.22);
   --rail: transparent;
-  --surface: rgb(249 250 252 / 0.34);
+  --surface: rgb(249 250 252 / 0.48);
   --surface-2: rgb(236 239 244 / 0.3);
   --surface-3: rgb(226 230 237 / 0.36);
   --surface-solid: #f6f7f9;
   --surface-float: rgb(247 248 250 / 0.84);
-  --text-2: #3b414d;
-  --text-3: #4f5663;
+  --text: #0e1014;
+  --text-2: #2c323d;
+  --text-3: #424955;
   --border: rgb(22 28 40 / 0.09);
   --border-strong: rgb(22 28 40 / 0.17);
   --nav-hover: rgb(255 255 255 / 0.4);
@@ -11008,15 +11009,16 @@ button.nh-map-node:focus-visible {
 }
 
 :root[data-glass][data-theme="dark"] {
-  --bg: rgb(12 14 18 / 0.14);
+  --bg: rgb(12 14 18 / 0.24);
   --rail: transparent;
-  --surface: rgb(30 34 41 / 0.34);
+  --surface: rgb(24 27 33 / 0.5);
   --surface-2: rgb(52 58 68 / 0.32);
   --surface-3: rgb(62 69 80 / 0.38);
   --surface-solid: #171a1f;
   --surface-float: rgb(30 34 41 / 0.84);
-  --text-2: #bcc2cc;
-  --text-3: #9ba2ae;
+  --text: #f4f6f9;
+  --text-2: #d5dae2;
+  --text-3: #b3bac5;
   --border: rgb(255 255 255 / 0.08);
   --border-strong: rgb(255 255 255 / 0.2);
   --nav-hover: rgb(255 255 255 / 0.07);
