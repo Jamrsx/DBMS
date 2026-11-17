@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 export type ThemeChoice = "light" | "dark" | "system";
 
@@ -19,12 +20,50 @@ function readChoice(): ThemeChoice {
 /** How long switching between light and dark fades, so it never flashes. Matches styles.css. */
 const FADE_MS = 700;
 
+/* ------------------------------------------------------------------ glass */
+
+const GLASS_KEY = "nexdb.glass";
+const reduceTransparencyQuery = () => window.matchMedia("(prefers-reduced-transparency: reduce)");
+
+/** Whether the person turned Glass on (it still shows solid while the OS asks for less transparency). */
+function readGlass(): boolean {
+  try {
+    return localStorage.getItem(GLASS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** The OS setting "Reduce transparency" (macOS) / "Transparency effects" off (Windows). */
+export function transparencyReduced(): boolean {
+  return reduceTransparencyQuery().matches;
+}
+
+/** In a plain browser (the dev preview) there is no desktop behind the window, so paint a sample one. */
+const browserPreview = import.meta.env.DEV && !isTauri();
+
+let glassWanted = readGlass();
+
+/** Asks the window for its native blur (macOS vibrancy / Liquid Glass, Windows 11 Mica) to match. */
+function syncWindow() {
+  const root = document.documentElement;
+  const on = glassWanted && !transparencyReduced();
+  root.toggleAttribute("data-glass", on);
+  root.toggleAttribute("data-glass-preview", on && browserPreview);
+  if (!isTauri()) return;
+  invoke("set_window_glass", { on, dark: root.dataset.theme === "dark" }).catch(() => {
+    // An older core without the command: the page stays on its solid look.
+    root.removeAttribute("data-glass");
+  });
+}
+
 function apply(choice: ThemeChoice) {
   const root = document.documentElement;
   const theme = choice === "system" ? (darkQuery().matches ? "dark" : "light") : choice;
   const set = () => {
     root.dataset.theme = theme;
     root.style.colorScheme = theme;
+    syncWindow();
   };
   // First paint, or no change: apply at once.
   if (!root.dataset.theme || root.dataset.theme === theme) return set();
@@ -71,4 +110,34 @@ export function useTheme() {
   }, []);
 
   return [choice, update] as const;
+}
+
+/** Glass on or off, whether the OS is holding it back, and a setter that saves and applies it. */
+export function useGlass() {
+  const [on, setOn] = useState(glassWanted);
+  const [reduced, setReduced] = useState(transparencyReduced);
+
+  useEffect(() => {
+    // Follow the OS accessibility setting live.
+    const query = reduceTransparencyQuery();
+    const onChange = () => {
+      setReduced(query.matches);
+      syncWindow();
+    };
+    query.addEventListener("change", onChange);
+    return () => query.removeEventListener("change", onChange);
+  }, []);
+
+  const update = useCallback((next: boolean) => {
+    glassWanted = next;
+    setOn(next);
+    try {
+      localStorage.setItem(GLASS_KEY, next ? "1" : "0");
+    } catch {
+      // Not saved; it still applies for this session.
+    }
+    syncWindow();
+  }, []);
+
+  return { on, reduced, setGlass: update } as const;
 }

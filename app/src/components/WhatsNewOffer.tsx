@@ -40,7 +40,8 @@ function newer(a: string, b: string): boolean {
 export function WhatsNewOffer() {
   const current = CHANGELOG[0]?.version ?? "";
   const seen = read(SEEN_KEY) ?? "0";
-  const tour = WHATS_NEW.find((w) => newer(w.version, seen));
+  // A chapter for a release still being built (newer than this app) waits until it ships.
+  const tour = WHATS_NEW.find((w) => newer(w.version, seen) && !newer(w.version, current));
   const [open, setOpen] = useState(() => {
     // A new install: the first-run tutorial covers everything, so just remember the version.
     if (read("nexdb.guideDone") !== "1") {

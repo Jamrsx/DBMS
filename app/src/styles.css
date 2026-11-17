@@ -237,7 +237,7 @@ h2 {
 .step.done .step-num {
   background: var(--ok);
   border-color: var(--ok);
-  color: var(--surface);
+  color: var(--surface-solid, var(--surface));
 }
 
 .step.current {
@@ -685,7 +685,7 @@ h2 {
 .tag-recommended {
   background: var(--text);
   border-color: var(--text);
-  color: var(--surface);
+  color: var(--surface-solid, var(--surface));
 }
 
 .tag-latest {
@@ -974,12 +974,12 @@ h2 {
 
 .is-done .install-icon {
   background: var(--ok);
-  color: var(--surface);
+  color: var(--surface-solid, var(--surface));
 }
 
 .is-failed .install-icon {
   background: var(--bad);
-  color: var(--surface);
+  color: var(--surface-solid, var(--surface));
 }
 
 .is-running .install-icon {
@@ -3488,7 +3488,7 @@ h1 {
 .wizard-steps .done .wizard-num {
   border-color: var(--ok);
   background: var(--ok);
-  color: var(--surface);
+  color: var(--surface-solid, var(--surface));
 }
 
 .wizard-close {
@@ -10971,4 +10971,172 @@ button.nh-map-node:focus-visible {
   width: 100%;
   aspect-ratio: 16 / 9;
   background: #000;
+}
+
+/* ------------------------------------------------------------------ glass look */
+/* "Glass look" (lib/theme.ts): set as data-glass on top of light or dark, so every light/dark rule
+   still applies. The window behind is the OS's own blur (macOS vibrancy or Liquid Glass, Windows 11
+   Mica); the page adds a tint so text keeps its contrast on any wallpaper, translucent surfaces,
+   and a light rim on raised edges. Off when the OS asks for less transparency (lib/theme.ts). */
+
+:root[data-glass][data-theme="light"] {
+  --bg: rgb(226 230 237 / 0.3);
+  --rail: transparent;
+  --surface: rgb(249 250 252 / 0.52);
+  --surface-2: rgb(236 239 244 / 0.46);
+  --surface-3: rgb(226 230 237 / 0.5);
+  --surface-solid: #f6f7f9;
+  --surface-float: rgb(247 248 250 / 0.84);
+  --text-2: #3b414d;
+  --text-3: #4f5663;
+  --border: rgb(22 28 40 / 0.09);
+  --border-strong: rgb(22 28 40 / 0.17);
+  --nav-hover: rgb(255 255 255 / 0.4);
+  --accent-soft: rgb(37 99 235 / 0.13);
+  --glass-rim: rgb(255 255 255 / 0.85);
+  --glass-edge: rgb(255 255 255 / 0.4);
+  --shadow-sm: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(16 24 40 / 0.08);
+  --shadow-panel: 0 1px 2px rgb(16 24 40 / 0.06), 0 10px 32px rgb(16 24 40 / 0.1);
+  --btn-bg: rgb(255 255 255 / 0.62);
+  --btn-edge: inset 0 1px 0 var(--glass-rim), inset 0 -1px 0 rgb(16 24 40 / 0.05),
+    0 1px 2px rgb(16 24 40 / 0.07);
+  --btn-primary-edge: inset 0 1px 0 rgb(255 255 255 / 0.32), 0 1px 3px rgb(37 99 235 / 0.35);
+  --scrim: rgb(30 36 48 / 0.18);
+  --scrollbar: rgb(22 28 40 / 0.22);
+}
+
+:root[data-glass][data-theme="dark"] {
+  --bg: rgb(12 14 18 / 0.3);
+  --rail: transparent;
+  --surface: rgb(30 34 41 / 0.5);
+  --surface-2: rgb(52 58 68 / 0.46);
+  --surface-3: rgb(62 69 80 / 0.5);
+  --surface-solid: #171a1f;
+  --surface-float: rgb(30 34 41 / 0.84);
+  --text-2: #bcc2cc;
+  --text-3: #9ba2ae;
+  --border: rgb(255 255 255 / 0.08);
+  --border-strong: rgb(255 255 255 / 0.15);
+  --nav-hover: rgb(255 255 255 / 0.07);
+  --accent-soft: rgb(80 130 240 / 0.24);
+  --glass-rim: rgb(255 255 255 / 0.12);
+  --glass-edge: rgb(255 255 255 / 0.06);
+  --shadow-sm: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(0 0 0 / 0.35);
+  --shadow-panel: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 36px rgb(0 0 0 / 0.32);
+  --btn-bg: rgb(255 255 255 / 0.08);
+  --btn-edge: inset 0 1px 0 var(--glass-rim), 0 1px 2px rgb(0 0 0 / 0.3);
+  --btn-primary-edge: inset 0 1px 0 rgb(255 255 255 / 0.2), 0 1px 3px rgb(0 0 0 / 0.4);
+  --scrim: rgb(0 0 0 / 0.32);
+  --scrollbar: rgb(255 255 255 / 0.18);
+}
+
+/* The window ground is the OS blur plus the --bg tint; nothing paints an opaque floor under it. */
+html[data-glass] {
+  background: transparent;
+}
+
+/* The one floating work surface: translucent, with a bright top rim and a soft inner edge. */
+html[data-glass] .panel {
+  box-shadow: inset 0 1px 0 var(--glass-rim), inset 0 0 0 1px var(--glass-edge), var(--shadow-panel);
+}
+
+/* Things that float over the page blur what is under them, so text never sits on busy content. */
+html[data-glass] :is(
+    .palette,
+    .link-dialog,
+    .diagram-designer,
+    .account-menu,
+    .account-pop,
+    .guide-bubble,
+    .whatsnew-offer,
+    .license-bubble,
+    .diagram-wizard-bubble,
+    .tutorial-dialog
+  ) {
+  background: var(--surface-float);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  box-shadow: inset 0 1px 0 var(--glass-rim), 0 4px 10px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.26);
+}
+
+/* Dimmed backgrounds behind dialogs: a lighter tint and a soft blur instead of a dark sheet. */
+html[data-glass] :is(.palette-backdrop, .inbox-overlay, .diagram-dialog-wrap, .grace-overlay) {
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(6px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(140%);
+}
+
+html[data-glass] .tutorial-dialog::backdrop {
+  background: var(--scrim);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Theme picker foot: the Glass switch sits under Light / Dark / System. */
+.theme-picker {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+}
+
+.theme-picker .theme-toggle {
+  margin: 0;
+}
+
+.glass-toggle {
+  padding: 0 4px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.glass-toggle label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.glass-toggle svg {
+  flex: none;
+  color: var(--text-3);
+}
+
+.glass-toggle input:checked ~ svg {
+  color: var(--accent-text);
+}
+
+.glass-hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+.rail-collapsed .glass-toggle label {
+  justify-content: center;
+}
+
+.rail-collapsed .glass-toggle span,
+.rail-collapsed .glass-hint {
+  display: none;
+}
+
+/* Dev preview in a plain browser: no desktop shows through a browser tab, so paint a sample
+   wallpaper (already soft, as the OS blur would make it) to judge the look against. */
+html[data-glass-preview][data-theme="light"] {
+  background:
+    radial-gradient(60% 70% at 12% 18%, #f3b38a 0%, transparent 60%),
+    radial-gradient(55% 60% at 88% 12%, #8fb7f0 0%, transparent 62%),
+    radial-gradient(70% 70% at 70% 92%, #b79be8 0%, transparent 60%),
+    radial-gradient(50% 50% at 25% 85%, #7fd0c0 0%, transparent 60%),
+    #dfe4ec;
+}
+
+html[data-glass-preview][data-theme="dark"] {
+  background:
+    radial-gradient(60% 70% at 12% 18%, #6b2f4a 0%, transparent 60%),
+    radial-gradient(55% 60% at 88% 12%, #1f4d8f 0%, transparent 62%),
+    radial-gradient(70% 70% at 70% 92%, #3d2a78 0%, transparent 60%),
+    radial-gradient(50% 50% at 25% 85%, #134d4a 0%, transparent 60%),
+    #0d1015;
 }

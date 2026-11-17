@@ -13,6 +13,12 @@
         var dark = choice === "dark" || (choice !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
         document.documentElement.dataset.theme = dark ? "dark" : "light";
         document.documentElement.style.colorScheme = dark ? "dark" : "light";
+        // Glass look (see lib/theme.ts); solid while the OS asks for less transparency.
+        var glass = false;
+        try { glass = localStorage.getItem("nexdb.glass") === "1"; } catch (e) {}
+        if (glass && !matchMedia("(prefers-reduced-transparency: reduce)").matches) {
+          document.documentElement.setAttribute("data-glass", "");
+        }
       })();
     </script>
   </head>

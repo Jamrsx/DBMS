@@ -7,8 +7,10 @@
 import type { GuideStep } from "./Tour";
 import { startServices } from "../lib/services";
 import { showSettingsSection } from "../lib/settingsNav";
+import { COMPUTER } from "../lib/os";
 
 export const WHATS_NEW = [
+  { version: "0.5.9", chapter: "New in 0.5.9" },
   { version: "0.5.8", chapter: "New in 0.5.8" },
   { version: "0.5.7", chapter: "New in 0.5.7" },
   { version: "0.5.6", chapter: "New in 0.5.6" },
@@ -33,6 +35,18 @@ const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.5.9",
+    title: "A new look: Glass",
+    body: `Panels can now let your desktop show through, softly blurred, in light or dark. Practice mode: nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.5.9",
+    title: "Glass look",
+    body: `Tick Glass look to try it. It works with Light, Dark and System. If your ${COMPUTER} is set to reduce transparency, it stays solid so text stays easy to read. Untick it any time to go back.`,
+    target: ".glass-toggle",
+  },
   {
     chapter: "New in 0.5.8",
     title: "NexDB is on Mac now",
