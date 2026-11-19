@@ -103,6 +103,28 @@ export function Database({
     }
   }, []);
 
+  // The list follows changes made anywhere (phpMyAdmin, a terminal, a project's migrations):
+  // it reloads when NexDB comes back to the front and every 15 seconds while this page shows.
+  useEffect(() => {
+    if (!active || version === null) return;
+    const quiet = () => {
+      dbDatabases()
+        .then(setDbs)
+        .catch(() => {});
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") quiet();
+    };
+    window.addEventListener("focus", quiet);
+    document.addEventListener("visibilitychange", onVisible);
+    const timer = window.setInterval(quiet, 15000);
+    return () => {
+      window.removeEventListener("focus", quiet);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(timer);
+    };
+  }, [active, version]);
+
   const connect = useCallback(
     async (password?: string) => {
       setConnecting(true);
@@ -372,8 +394,11 @@ export function Database({
                     setImportToken((n) => n + 1);
                   }}
                   onDropped={async () => {
+                    const gone = selected;
                     setSelected(null);
                     setTables([]);
+                    // Off the list at once; the reload confirms it.
+                    setDbs((list) => list.filter((d) => d.name !== gone));
                     await loadDbs();
                   }}
                 />

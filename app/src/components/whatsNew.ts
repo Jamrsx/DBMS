@@ -10,6 +10,7 @@ import { showSettingsSection } from "../lib/settingsNav";
 import { COMPUTER } from "../lib/os";
 
 export const WHATS_NEW = [
+  { version: "0.6.0", chapter: "New in 0.6.0" },
   { version: "0.5.9", chapter: "New in 0.5.9" },
   { version: "0.5.8", chapter: "New in 0.5.8" },
   { version: "0.5.7", chapter: "New in 0.5.7" },
@@ -35,6 +36,47 @@ const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.6.0",
+    title: "0.6.0: layouts that stay",
+    body: `A diagram layout you can save, a Versions page that reads at a glance, and imports from Mac tools. Practice mode: nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.6.0",
+    title: "Your arrangement, kept",
+    body: "Here's the sample blog database. Click Relationships.",
+    page: "database",
+    run: openDatabase("blog"),
+    target: here('[data-guide="diagram-open"]'),
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.6.0",
+    title: "Move a table, then save",
+    body: "Drag any table where you want it. Moves you haven't saved say Not saved yet. Save layout keeps this arrangement: the diagram opens like this every time, and Back to saved undoes moves since then.",
+    target: '[data-guide="diagram-save-layout"]',
+  },
+  {
+    chapter: "New in 0.6.0",
+    title: "Done looking?",
+    body: "Click Close to go back.",
+    target: '[data-guide="diagram-close"]',
+    wait: "click",
+  },
+  {
+    chapter: "New in 0.6.0",
+    title: "Versions at a glance",
+    body: "Every program, its version and where it stands: Up to date, an update ready, Missing or Not installed. Filter to Needs attention to see only what wants a click, or click a program to jump to it.",
+    page: "versions",
+    target: here('[data-guide="ver-glance"]'),
+  },
+  {
+    chapter: "New in 0.6.0",
+    title: "That's 0.6.0!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.5.9",
     title: "A new look: Glass",

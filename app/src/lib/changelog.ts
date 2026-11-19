@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.6.0",
+    title: "Save your diagram layout; a clearer Versions page; Mac imports",
+    changes: [
+      "The relationship diagram has a Save layout button. Arrange the tables the way you like, press Save layout, and the diagram opens like that every time, even after Nex, organize or an update. Moves you haven't saved yet say Not saved yet, and Back to saved undoes them.",
+      "The Versions page starts with At a glance: every program with its version and a badge (Up to date, Update to …, Missing or Not installed). Filter it by Needs attention, Installed or Not installed, and click one to jump to it.",
+      "Each program's card is easier to read: the version in use is highlighted in its own Installed list, and the other versions you can install fold away below.",
+      "On a Mac, Import from other tools now finds XAMPP, MAMP, Laravel Herd, Valet, DBngin, Homebrew's MySQL, MariaDB and PostgreSQL, the official MySQL installer and Postgres.app, and copies their projects and databases into NexDB.",
+      "The Database page's list keeps itself up to date: a deleted database disappears right away, and changes made elsewhere (phpMyAdmin, a terminal) show when you come back to NexDB.",
+      "On a Mac, deleting a database no longer fails when Finder has left a hidden .DS_Store file in its folder.",
+    ],
+  },
+  {
     version: "0.5.9",
     title: "Glass look; one Start all button; phpMyAdmin on the Dashboard",
     changes: [

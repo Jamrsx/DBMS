@@ -201,6 +201,11 @@ pub fn sources(root: &Path, settings: &Settings) -> Vec<Source> {
         let label = format!("PostgreSQL {}", version.unwrap_or_default());
         out.push(source(&format!("postgres-{}", out.len()), label.trim(), &dir, None, &nexdb_www, vec![server]));
     }
+    #[cfg(not(windows))]
+    {
+        let home = crate::platform::unix::home();
+        out.extend(mac_sources(Path::new("/"), &home, &nexdb_www));
+    }
     out.retain(|s| !Path::new(&s.path).starts_with(root));
     let nexdb_mysql = settings.mysql.as_ref().map(|m| m.port);
     for s in &mut out {
@@ -209,6 +214,164 @@ pub fn sources(root: &Path, settings: &Settings) -> Vec<Source> {
             server.same_port = nexdb_port == Some(server.port);
             server.running = !server.same_port && crate::supervisor::port_listening(server.port);
         }
+    }
+    out
+}
+
+/// A MySQL or MariaDB whose client tools are in `bin`. MariaDB ships `aria_chk`, MySQL doesn't.
+#[cfg_attr(windows, allow(dead_code))]
+fn mysql_server_at(bin: &Path, mysqld: PathBuf, data: PathBuf, conf: Option<String>, default_port: u16, version: Option<String>) -> Option<Server> {
+    let dump = |n: &str| bin.join(crate::platform::exe(n)).is_file();
+    if !dump("mysqldump.exe") && !dump("mariadb-dump.exe") {
+        return None;
+    }
+    let mariadb = dump("mariadb-dump.exe") || dump("aria_chk.exe");
+    Some(Server {
+        engine: if mariadb { "mariadb" } else { "mysql" }.into(),
+        version,
+        bin: bin.display().to_string(),
+        port: conf.as_deref().and_then(port_in).unwrap_or(default_port),
+        user: "root".into(),
+        running: false,
+        mysqld: mysqld.is_file().then(|| mysqld.display().to_string()),
+        data: data.join("mysql").is_dir().then(|| data.display().to_string()),
+        same_port: false,
+    })
+}
+
+/// A PostgreSQL whose client tools are in `bin`.
+#[cfg_attr(windows, allow(dead_code))]
+fn postgres_server_at(bin: &Path, version: Option<String>, user: &str, port: u16) -> Option<Server> {
+    bin.join(crate::platform::exe("pg_dump.exe")).is_file().then(|| Server {
+        engine: "postgres".into(),
+        version,
+        bin: bin.display().to_string(),
+        port,
+        user: user.into(),
+        running: false,
+        mysqld: None,
+        data: None,
+        same_port: false,
+    })
+}
+
+/// Folders Laravel Valet or Herd serve sites from (`"paths"` in their config.json).
+#[cfg_attr(windows, allow(dead_code))]
+fn valet_paths(config: &Path) -> Vec<PathBuf> {
+    let Ok(text) = fs::read_to_string(config) else { return Vec::new() };
+    let Ok(json) = serde_json::from_str::<serde_json::Value>(&text) else { return Vec::new() };
+    json.get("paths")
+        .and_then(|p| p.as_array())
+        .map(|a| a.iter().filter_map(|p| p.as_str()).map(PathBuf::from).filter(|p| p.is_dir()).collect())
+        .unwrap_or_default()
+}
+
+/// What other tools keep on a Mac: XAMPP, MAMP, Herd, Valet, DBngin, Homebrew's MySQL,
+/// MariaDB and PostgreSQL, the official MySQL installer and Postgres.app. `disk` is `/`
+/// (a test folder in tests) and `home` the user's home folder.
+#[cfg_attr(windows, allow(dead_code))]
+pub fn mac_sources(disk: &Path, home: &Path, nexdb_www: &Path) -> Vec<Source> {
+    let mut out = Vec::new();
+    let me = home.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "postgres".into());
+    let apps = disk.join("Applications");
+
+    // XAMPP: projects in htdocs, MariaDB with its tools in bin and the server in sbin.
+    let xampp = apps.join("XAMPP").join("xamppfiles");
+    if xampp.join("htdocs").is_dir() {
+        let conf = fs::read_to_string(xampp.join("etc").join("my.cnf")).ok();
+        let servers = mysql_server_at(&xampp.join("bin"), xampp.join("sbin").join("mysqld"), xampp.join("var").join("mysql"), conf, 3306, None)
+            .into_iter()
+            .collect();
+        out.push(source("xampp", "XAMPP", &apps.join("XAMPP"), Some(&xampp.join("htdocs")), nexdb_www, servers));
+    }
+
+    // MAMP (and MAMP PRO): MySQL 8.0 / 5.7 in Library/bin/mysqlXX, older MAMP in Library/bin.
+    // Its MySQL listens on 8889 unless set to the usual ports.
+    let mamp = apps.join("MAMP");
+    if mamp.join("htdocs").is_dir() || mamp.join("Library").is_dir() {
+        let conf = fs::read_to_string(mamp.join("conf").join("my.cnf")).ok();
+        let lib = mamp.join("Library").join("bin");
+        let mut servers = Vec::new();
+        for dir in glob_dirs(&lib) {
+            let name = dir.file_name().unwrap_or_default().to_string_lossy().to_string();
+            if !name.starts_with("mysql") {
+                continue;
+            }
+            let bin = dir.join("bin");
+            let version = name.strip_prefix("mysql").filter(|v| v.len() == 2).map(|v| format!("{}.{}", &v[..1], &v[1..]));
+            servers.extend(mysql_server_at(&bin, bin.join("mysqld"), mamp.join("db").join(&name), conf.clone(), 8889, version));
+        }
+        if servers.is_empty() {
+            servers.extend(mysql_server_at(&lib, lib.join("mysqld"), mamp.join("db").join("mysql"), conf, 8889, None));
+        }
+        out.push(source("mamp", "MAMP", &mamp, Some(&mamp.join("htdocs")), nexdb_www, servers));
+    }
+
+    // Laravel Herd and Valet: the folders they serve, ~/Herd by default for Herd.
+    let mut herd = valet_paths(&home.join("Library").join("Application Support").join("Herd").join("config").join("valet").join("config.json"));
+    if herd.is_empty() && home.join("Herd").is_dir() {
+        herd.push(home.join("Herd"));
+    }
+    for (i, dir) in herd.iter().enumerate() {
+        out.push(source(&format!("herd-{i}"), "Herd", dir, Some(dir), nexdb_www, Vec::new()));
+    }
+    for (i, dir) in valet_paths(&home.join(".config").join("valet").join("config.json")).iter().enumerate() {
+        if !herd.contains(dir) {
+            out.push(source(&format!("valet-{i}"), "Valet", dir, Some(dir), nexdb_www, Vec::new()));
+        }
+    }
+
+    // DBngin keeps each server version in /Users/Shared/DBngin/<engine>/<version>.
+    let dbngin = disk.join("Users").join("Shared").join("DBngin");
+    let mut servers: Vec<Server> = Vec::new();
+    for engine in ["mysql", "mariadb"] {
+        for dir in glob_dirs(&dbngin.join(engine)) {
+            let version = dir.file_name().map(|n| n.to_string_lossy().to_string());
+            servers.extend(mysql_server_at(&dir.join("bin"), dir.join("bin").join("mysqld"), dir.join("data"), None, 3306, version));
+        }
+    }
+    for dir in glob_dirs(&dbngin.join("postgresql")) {
+        let version = dir.file_name().map(|n| n.to_string_lossy().to_string());
+        servers.extend(postgres_server_at(&dir.join("bin"), version, "postgres", 5432));
+    }
+    if !servers.is_empty() {
+        out.push(source("dbngin", "DBngin", &dbngin, None, nexdb_www, servers));
+    }
+
+    // Homebrew (Apple Silicon in /opt/homebrew, Intel in /usr/local): opt/mysql, opt/mysql@8.0,
+    // opt/mariadb, opt/postgresql@16. Its MySQL keeps data in var/mysql; its PostgreSQL's
+    // admin user is the Mac's own user.
+    for prefix in [disk.join("opt").join("homebrew"), disk.join("usr").join("local")] {
+        let mut servers = Vec::new();
+        for dir in glob_dirs(&prefix.join("opt")) {
+            let name = dir.file_name().unwrap_or_default().to_string_lossy().to_lowercase();
+            let version = name.split_once('@').map(|(_, v)| v.to_string());
+            if name.starts_with("mysql") || name.starts_with("mariadb") || name.starts_with("percona") {
+                let conf = fs::read_to_string(prefix.join("etc").join("my.cnf")).ok();
+                servers.extend(mysql_server_at(&dir.join("bin"), dir.join("bin").join("mysqld"), prefix.join("var").join("mysql"), conf, 3306, version));
+            } else if name.starts_with("postgresql") {
+                servers.extend(postgres_server_at(&dir.join("bin"), version, &me, 5432));
+            }
+        }
+        if !servers.is_empty() {
+            let id = if prefix.ends_with("homebrew") { "brew" } else { "brew-intel" };
+            out.push(source(id, "Homebrew", &prefix, None, nexdb_www, servers));
+        }
+    }
+
+    // The official MySQL installer (/usr/local/mysql) and Postgres.app.
+    let official = disk.join("usr").join("local").join("mysql");
+    if let Some(s) = mysql_server_at(&official.join("bin"), official.join("bin").join("mysqld"), official.join("data"), fs::read_to_string(disk.join("etc").join("my.cnf")).ok(), 3306, None) {
+        out.push(source("mysql-installer", "MySQL", &official, None, nexdb_www, vec![s]));
+    }
+    let pg_app = apps.join("Postgres.app").join("Contents").join("Versions");
+    let servers: Vec<Server> = glob_dirs(&pg_app)
+        .into_iter()
+        .filter(|d| !d.ends_with("latest"))
+        .filter_map(|d| postgres_server_at(&d.join("bin"), d.file_name().map(|n| n.to_string_lossy().to_string()), &me, 5432))
+        .collect();
+    if !servers.is_empty() {
+        out.push(source("postgres-app", "Postgres.app", &apps.join("Postgres.app"), None, nexdb_www, servers));
     }
     out
 }
@@ -248,6 +411,9 @@ impl TempServer {
         if server.engine == "mysql" {
             cmd.args(["--mysqlx=OFF", "--skip-log-bin"]);
         }
+        // macOS: its own socket, so it doesn't fight over /tmp/mysql.sock with a MySQL already running.
+        #[cfg(not(windows))]
+        cmd.arg(format!("--socket={}", root.join("logs").join("import-mysqld.sock").display()));
         cmd.stdin(Stdio::null()).stdout(out.try_clone().map_err(|e| e.to_string())?).stderr(out);
         hidden(&mut cmd);
         let mut child = cmd.spawn().map_err(|e| format!("Couldn't start the other MySQL: {e}"))?;
@@ -279,6 +445,12 @@ impl TempServer {
                 let text = fs::read_to_string(&log).unwrap_or_default();
                 return Err(if text.contains("Unable to lock") || text.contains("in use by another") {
                     format!("That MySQL is already running somewhere. Connect to it on its own port (usually {}) instead.", server.port)
+                } else if text.contains("Permission denied") || text.contains("Errcode: 13") || text.contains("Operation not permitted") {
+                    if server.same_port {
+                        format!("NexDB isn't allowed to open that MySQL's data folder. It uses port {}, like NexDB's MySQL: set it to another port (like 3307) in its own app, start it there, then try again.", server.port)
+                    } else {
+                        format!("NexDB isn't allowed to open that MySQL's data folder. Start it in its own app (it uses port {}), then try again.", server.port)
+                    }
                 } else {
                     let last = text.lines().filter(|l| l.contains("ERROR")).last().unwrap_or("it stopped without saying why");
                     format!("The other MySQL didn't start: {}", last.trim())
@@ -771,6 +943,47 @@ mod tests {
         assert_eq!(port_in("[client]\nport=3306\n[mysqld]\nport=3306"), Some(3306));
         assert_eq!(port_in("#port = 1\nlisten_addresses = '*'\nport = 5433\t\t# (change requires restart)"), Some(5433));
         assert_eq!(port_in("max_port=4"), None);
+    }
+
+    #[test]
+    fn finds_mac_tools() {
+        let disk = tempfile::tempdir().unwrap();
+        let d = disk.path();
+        let file = |p: PathBuf| {
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, "").unwrap();
+        };
+        let exe = crate::platform::exe;
+        // XAMPP with MariaDB, one project and its own dashboard folder.
+        let xampp = d.join("Applications/XAMPP/xamppfiles");
+        fs::create_dir_all(xampp.join("htdocs/blog")).unwrap();
+        fs::create_dir_all(xampp.join("htdocs/dashboard")).unwrap();
+        fs::create_dir_all(xampp.join("var/mysql/mysql")).unwrap();
+        file(xampp.join("bin").join(exe("mysqldump.exe")));
+        file(xampp.join("bin").join(exe("aria_chk.exe")));
+        file(xampp.join("sbin/mysqld"));
+        // MAMP with MySQL 8.0 on 8889.
+        let mamp = d.join("Applications/MAMP");
+        fs::create_dir_all(mamp.join("htdocs/shop")).unwrap();
+        file(mamp.join("Library/bin/mysql80/bin").join(exe("mysqldump.exe")));
+        // Herd's default folder, Homebrew PostgreSQL, Postgres.app.
+        let home = d.join("Users/ana");
+        fs::create_dir_all(home.join("Herd/api")).unwrap();
+        file(d.join("opt/homebrew/opt/postgresql@16/bin").join(exe("pg_dump.exe")));
+        file(d.join("Applications/Postgres.app/Contents/Versions/17/bin").join(exe("pg_dump.exe")));
+
+        let found = mac_sources(d, &home, &d.join("nexdb-www"));
+        let ids: Vec<&str> = found.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(ids, ["xampp", "mamp", "herd-0", "brew", "postgres-app"]);
+        let x = &found[0];
+        assert_eq!(x.projects.iter().map(|p| p.name.as_str()).collect::<Vec<_>>(), ["blog"]);
+        assert_eq!((x.servers[0].engine.as_str(), x.servers[0].port), ("mariadb", 3306));
+        assert!(x.servers[0].mysqld.is_some() && x.servers[0].data.is_some());
+        let m = &found[1].servers[0];
+        assert_eq!((m.engine.as_str(), m.port, m.version.as_deref()), ("mysql", 8889, Some("8.0")));
+        assert_eq!(found[2].projects[0].name, "api");
+        assert_eq!((found[3].servers[0].user.as_str(), found[3].servers[0].version.as_deref()), ("ana", Some("16")));
+        assert_eq!(found[4].servers[0].user, "ana");
     }
 
     // Uses Windows paths (C:\..., .exe); macOS behaviour is covered by the Mac check run.

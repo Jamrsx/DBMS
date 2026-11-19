@@ -1,6 +1,6 @@
-import { isMac } from "../lib/os";
+import { COMPUTER, isMac } from "../lib/os";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { AlertTriangle, ArrowUpCircle, Download, LoaderCircle, SlidersHorizontal, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowUpCircle, CheckCircle2, CircleDashed, Download, LoaderCircle, SlidersHorizontal, Trash2 } from "lucide-react";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
 import { CustomServicesCard } from "./CustomServicesCard";
 import { MoreMenu } from "../components/MoreMenu";
@@ -29,6 +29,56 @@ const LABEL_TEXT: Record<VersionLabel, string> = {
 
 type Action = "install" | "use" | "remove" | "update" | "reinstall";
 
+/** Where a program stands, in one word, for the overview and each card's badge. */
+type Status = "missing" | "update" | "ok" | "none";
+
+function statusOf(c: ComponentVersions): Status {
+  if (c.missing) return "missing";
+  if (c.hint?.kind === "update") return "update";
+  return c.active ? "ok" : "none";
+}
+
+const STATUS_TEXT: Record<Status, string> = {
+  missing: "Missing",
+  update: "Update ready",
+  ok: "Up to date",
+  none: "Not installed",
+};
+
+/** A coloured badge with an icon and a word, so it reads without relying on colour alone. */
+function StatusBadge({ c }: { c: ComponentVersions }) {
+  const status = statusOf(c);
+  const Icon =
+    status === "ok" ? CheckCircle2 : status === "update" ? ArrowUpCircle : status === "missing" ? AlertTriangle : CircleDashed;
+  return (
+    <span className={`ver-badge ver-badge-${status}`}>
+      <Icon size={13} aria-hidden="true" />
+      {status === "update" && c.hint ? (
+        <>
+          Update to <span className="ver-badge-num">{c.hint.version}</span>
+        </>
+      ) : (
+        STATUS_TEXT[status]
+      )}
+    </span>
+  );
+}
+
+type Filter = "all" | "attention" | "installed" | "not-installed";
+
+const FILTERS: { id: Filter; label: string; test: (c: ComponentVersions) => boolean }[] = [
+  { id: "all", label: "All", test: () => true },
+  { id: "attention", label: "Needs attention", test: (c) => statusOf(c) === "update" || statusOf(c) === "missing" },
+  { id: "installed", label: "Installed", test: (c) => !!c.active },
+  { id: "not-installed", label: "Not installed", test: (c) => !c.active },
+];
+
+const SECTIONS: { kind: ComponentVersions["kind"]; title: string | null; lede?: string }[] = [
+  { kind: "runtime", title: "Languages and servers" },
+  { kind: "tool", title: "Tools" },
+  { kind: "service", title: "Extra services", lede: "Optional helpers. Once installed they show on the Dashboard with the others." },
+];
+
 /** What is happening right now, so only one change runs at a time. */
 type Busy = { id: string; version: string; what: "install" | "use" | "remove"; percent: number | null } | null;
 
@@ -37,6 +87,7 @@ export function VersionsPage({ active }: { active: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [busy, setBusy] = useState<Busy>(null);
+  const [filter, setFilter] = useState<Filter>("all");
 
   const load = useCallback(() => {
     versionsOverview()
@@ -131,46 +182,66 @@ export function VersionsPage({ active }: { active: boolean }) {
             {done}
           </p>
         )}
-        {info && info.components.length > 4 && (
-          <nav className="ver-jump" aria-label="Jump to">
-            {info.components.map((c) => (
-              <a
-                key={c.id}
-                href={`#ver-${c.id}`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  document.getElementById(`ver-${c.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                {c.name}
-              </a>
-            ))}
-          </nav>
+        {info && (
+          <section className="ver-glance" data-guide="ver-glance" aria-label="All programs at a glance">
+            <div className="ver-glance-head">
+              <h2>At a glance</h2>
+              <div className="ver-filter" role="group" aria-label="Show">
+                {FILTERS.map((f) => {
+                  const count = info.components.filter(f.test).length;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="ver-filter-btn"
+                      aria-pressed={filter === f.id}
+                      disabled={count === 0 && f.id !== "all"}
+                      onClick={() => setFilter(f.id)}
+                    >
+                      {f.label} <span className="ver-filter-count">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <ul className="ver-glance-list">
+              {info.components.filter(FILTERS.find((f) => f.id === filter)!.test).map((c) => (
+                <li key={c.id}>
+                  <a
+                    href={`#ver-${c.id}`}
+                    className="ver-glance-item"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(`ver-${c.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  >
+                    <span className="ver-glance-name">
+                      {c.name}
+                      {c.active && <span className="ver-glance-ver">{c.active}</span>}
+                    </span>
+                    <StatusBadge c={c} />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-        {info?.components
-          .filter((c) => c.kind === "runtime")
-          .map((c) => (
-            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
-          ))}
-        {info && info.components.some((c) => c.kind === "tool") && <h2 className="ver-section">Tools</h2>}
-        {info?.components
-          .filter((c) => c.kind === "tool")
-          .map((c) => (
-            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
-          ))}
-        {info && info.components.some((c) => c.kind === "service") && (
-          <>
-            <h2 className="ver-section">Extra services</h2>
-            <p className="set-lede ver-section-lede">
-              Optional helpers. Once installed they show on the Dashboard with the others.
-            </p>
-          </>
-        )}
-        {info?.components
-          .filter((c) => c.kind === "service")
-          .map((c) => (
-            <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
-          ))}
+        {info &&
+          SECTIONS.map((sec) => {
+            const shown = info.components.filter((c) => c.kind === sec.kind && FILTERS.find((f) => f.id === filter)!.test(c));
+            if (shown.length === 0) return null;
+            return (
+              <section key={sec.kind} className="ver-group" aria-label={sec.title ?? undefined}>
+                <h2 className="ver-section">
+                  {sec.title} <span className="ver-section-count">{shown.length}</span>
+                </h2>
+                {sec.lede && <p className="set-lede ver-section-lede">{sec.lede}</p>}
+                {shown.map((c) => (
+                  <ComponentCard key={c.id} c={c} busy={busy} onRun={run} />
+                ))}
+              </section>
+            );
+          })}
         {info && <CustomServicesCard active={active} />}
       </div>
     </main>
@@ -204,16 +275,12 @@ function ComponentCard({
   return (
     <section className="set-card ver-card" data-guide={`ver-${c.id}`} aria-labelledby={`ver-${c.id}`}>
       <div className="ver-head">
-        <h2 id={`ver-${c.id}`}>{c.name}</h2>
-        {c.missing ? (
-          <span className="ver-missing-tag">Missing</span>
-        ) : c.active ? (
-          <span className="ver-inuse">In use: {c.active}</span>
-        ) : (
-          <span className="ver-none">Not installed</span>
-        )}
+        <div className="ver-title">
+          <h2 id={`ver-${c.id}`}>{c.name}</h2>
+          <p className="set-lede ver-about">{c.about}</p>
+        </div>
+        <StatusBadge c={c} />
       </div>
-      <p className="set-lede ver-about">{c.about}</p>
 
       {c.missing && c.active && (
         <div className="ver-hint ver-hint-missing" role="alert">
@@ -281,16 +348,24 @@ function ComponentCard({
         !others.some((a) => a.version === mine.version) && <Progress name={c.name} busy={mine} />}
 
       {c.installed.length > 0 && (
-        <ul className="ver-list" aria-label={`Installed ${c.name} versions`}>
+        <h3 className="ver-sub">
+          Installed on this {COMPUTER} <span className="ver-section-count">{c.installed.length}</span>
+        </h3>
+      )}
+      {c.installed.length > 0 && (
+        <ul className="ver-list ver-list-installed" aria-label={`Installed ${c.name} versions`}>
           {c.installed.map((i) => (
-            <li key={i.version} className="ver-row">
-              <span className="ver-num">{i.version}</span>
+            <li key={i.version} className={i.active ? "ver-row ver-row-active" : "ver-row"}>
+              <span className="ver-num">
+                {i.version}
+                {i.active && <span className="ver-tag">In use</span>}
+              </span>
               {mine?.version === i.version ? (
                 <Progress name={c.name} busy={mine} inline />
               ) : confirmRemove === i.version ? (
                 <span className="ver-actions">
                   <span className="field-hint">
-                    Remove {c.name} {i.version} from this PC?
+                    Remove {c.name} {i.version} from this {COMPUTER}?
                   </span>
                   <button className="btn btn-small" onClick={() => setConfirmRemove(null)}>
                     Keep it
@@ -308,9 +383,7 @@ function ComponentCard({
                 </span>
               ) : (
                 <span className="ver-actions">
-                  {i.active ? (
-                    <span className="ver-tag">In use</span>
-                  ) : (
+                  {!i.active && (
                     <button className="btn btn-small" disabled={locked} onClick={() => ask(i.version, "use")}>
                       Use this
                     </button>
@@ -332,7 +405,7 @@ function ComponentCard({
                         ...(!i.active
                           ? [
                               {
-                                label: "Remove from this PC…",
+                                label: `Remove from this ${COMPUTER}…`,
                                 icon: <Trash2 size={14} aria-hidden="true" />,
                                 danger: true,
                                 disabled: locked,
@@ -365,9 +438,9 @@ function ComponentCard({
       {others.length > 0 && c.kind === "runtime" && (
         <details className="ver-more" open={others.some((a) => a.version === mine?.version) || undefined}>
           <summary>
-            Other {c.name} versions you can install ({others.length})
+            Other {c.name} versions you can install <span className="ver-section-count">{others.length}</span>
           </summary>
-          <ul className="ver-list">
+          <ul className="ver-list ver-list-other">
             {others.map((a) => (
               <OtherVersion
                 key={a.version}

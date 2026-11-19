@@ -3530,8 +3530,8 @@ h1 {
 
 .wizard-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 6px;
 }
 
 .wizard-card {
@@ -11172,4 +11172,323 @@ html[data-glass-preview][data-theme="light"]::before {
 
 html[data-glass-preview][data-theme="dark"]::before {
   --preview-frost: rgb(20 24 34 / 0.45);
+}
+
+/* Relationship diagram: whether the arrangement is saved. */
+.diagram-save-state {
+  font-size: 12px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.diagram-save-state.field-error {
+  white-space: normal;
+  max-width: 260px;
+}
+
+/* ------------------------------------------------ versions, 0.6.0: easier to read */
+
+.ver-glance {
+  margin: 0 0 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.ver-glance-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ver-glance-head h2 {
+  margin: 0;
+  font: 600 15px var(--font-display);
+}
+
+.ver-filter {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+
+.ver-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font: 500 13px var(--font);
+  cursor: pointer;
+}
+
+.ver-filter-btn:hover:not(:disabled) {
+  color: var(--text);
+}
+
+.ver-filter-btn[aria-pressed="true"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.ver-filter-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.ver-filter-btn:focus-visible,
+.ver-glance-item:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.ver-glance-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 6px;
+}
+
+.ver-glance-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 10px;
+  height: 100%;
+  padding: 8px 10px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.ver-glance-item:hover {
+  border-color: var(--border-strong);
+  background: var(--nav-hover);
+}
+
+.ver-glance-name {
+  font: 600 14px var(--font);
+}
+
+.ver-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font: 600 12px/1.4 var(--font);
+  white-space: nowrap;
+}
+
+.ver-badge-num {
+  font: 500 12px var(--mono);
+}
+
+.ver-badge-ok {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+
+.ver-badge-update {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.ver-badge-missing {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.ver-badge-none {
+  border: 1px solid var(--border);
+  color: var(--text-2);
+}
+
+.ver-group + .ver-group,
+.ver-group + .set-card {
+  margin-top: 8px;
+}
+
+.ver-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.ver-section-count {
+  display: inline-block;
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font: 600 11.5px/1.6 var(--font);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+.ver-card .ver-head {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ver-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.ver-card .ver-head h2 {
+  font: 600 17px/1.3 var(--font-display);
+}
+
+.ver-card .ver-about {
+  max-width: 68ch;
+  margin: 4px 0 0 !important;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.ver-card .ver-head .ver-badge {
+  margin-top: 2px;
+}
+
+.ver-card > .ver-hint,
+.ver-card > .ver-confirm,
+.ver-card > .ver-progress {
+  margin-top: 14px;
+}
+
+.ver-card .ver-hint p {
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.ver-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 6px;
+  font: 600 12px var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.ver-list-installed {
+  margin-top: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+/* No overflow clipping (the ⋯ menu opens over it), so the rows round their own corners. */
+.ver-list-installed .ver-row:first-child {
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+}
+
+.ver-list-installed .ver-row:last-child {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.ver-list-installed .ver-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: 6px 8px 6px 12px;
+  min-height: 44px;
+}
+
+.ver-list-installed .ver-actions {
+  grid-column: 2;
+}
+
+.ver-row-active {
+  background: var(--ok-soft);
+}
+
+.ver-num {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 14px var(--mono);
+}
+
+.ver-num .ver-tag {
+  grid-column: auto;
+  padding: 1px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font: 600 11.5px/1.5 var(--font);
+}
+
+.ver-card .ver-more {
+  margin-top: 10px;
+}
+
+.ver-card .ver-more summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 13.5px;
+  list-style: none;
+}
+
+.ver-card .ver-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.ver-card .ver-more summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin: 0 2px 0 2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.15s var(--ease-out);
+}
+
+.ver-card .ver-more[open] summary::before {
+  transform: rotate(45deg);
+}
+
+.ver-list-other .ver-row {
+  grid-template-columns: 110px minmax(0, 1fr) auto;
+  padding: 6px 4px;
+}
+
+.ver-list-other .ver-labels .field-hint {
+  font-size: 12.5px;
+}
+
+.ver-glance-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ver-glance-ver {
+  font: 500 12px var(--mono);
+  color: var(--text-2);
 }

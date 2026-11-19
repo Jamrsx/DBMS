@@ -217,3 +217,28 @@ function sampleCompare(a: string, b: string): SchemaDiff[] {
     },
   ];
 }
+
+export type DiagramLayout = Record<string, { x: number; y: number }>;
+
+const browserLayoutKey = (name: string) => `nexdb.diagram.saved.${name}`;
+
+/** The layout saved with Save layout (in NexDB's settings folder), or null. */
+export async function diagramLayout(name: string): Promise<DiagramLayout | null> {
+  if (realDesktopApp && !isPractice()) return invoke<DiagramLayout | null>("diagram_layout_get", { name });
+  try {
+    return JSON.parse(localStorage.getItem(browserLayoutKey(name)) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+/** Saves the layout; null forgets it, so the tables are placed automatically again. */
+export async function saveDiagramLayout(name: string, layout: DiagramLayout | null): Promise<void> {
+  if (realDesktopApp && !isPractice()) return invoke("diagram_layout_save", { name, layout });
+  try {
+    if (layout) localStorage.setItem(browserLayoutKey(name), JSON.stringify(layout));
+    else localStorage.removeItem(browserLayoutKey(name));
+  } catch {
+    // Not remembered in the preview.
+  }
+}

@@ -321,7 +321,53 @@ impl Db {
         if SYSTEM_DATABASES.contains(&name.to_lowercase().as_str()) {
             return Err("MySQL's built-in databases can't be deleted here.".into());
         }
-        self.conn()?.query_drop(format!("DROP DATABASE {q}")).map_err(friendly)
+        let mut conn = self.conn()?;
+        match conn.query_drop(format!("DROP DATABASE {q}")) {
+            Ok(()) => Ok(()),
+            // macOS: Finder leaves .DS_Store (and ._ files) in folders it has shown, and MySQL
+            // won't remove a database folder holding files it doesn't know ("errno: 66 -
+            // Directory not empty"). Its tables are gone by then; clear those files and retry.
+            Err(e) if is_dir_not_empty(&e.to_string()) => {
+                let datadir: Option<String> = conn.query_first("SELECT @@datadir").map_err(friendly)?;
+                if let Some(dir) = datadir {
+                    remove_stray_files(&std::path::Path::new(&dir).join(name));
+                }
+                conn.query_drop(format!("DROP DATABASE {q}")).map_err(friendly)
+            }
+            Err(e) => Err(friendly(e)),
+        }
+    }
+}
+
+/// MySQL couldn't remove a database folder because other files are in it.
+fn is_dir_not_empty(error: &str) -> bool {
+    error.contains("errno: 66") || error.contains("errno: 39") || error.contains("Directory not empty")
+}
+
+/// Removes the files the OS (not MySQL) leaves in a folder: .DS_Store, ._* and Thumbs.db.
+fn remove_stray_files(dir: &std::path::Path) {
+    for entry in std::fs::read_dir(dir).into_iter().flatten().flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name == ".DS_Store" || name.starts_with("._") || name.eq_ignore_ascii_case("Thumbs.db") || name.eq_ignore_ascii_case("desktop.ini") {
+            let _ = std::fs::remove_file(entry.path());
+        }
+    }
+}
+
+#[cfg(test)]
+mod stray_file_tests {
+    use super::*;
+
+    #[test]
+    fn clears_only_os_files_from_a_database_folder() {
+        let dir = tempfile::tempdir().unwrap();
+        for f in [".DS_Store", "._shop.ibd", "Thumbs.db", "orders.ibd"] {
+            std::fs::write(dir.path().join(f), "").unwrap();
+        }
+        remove_stray_files(dir.path());
+        let left: Vec<String> = std::fs::read_dir(dir.path()).unwrap().flatten().map(|e| e.file_name().to_string_lossy().to_string()).collect();
+        assert_eq!(left, ["orders.ibd"]);
+        assert!(is_dir_not_empty("Error dropping database (can't rmdir './shop/', errno: 66 - Directory not empty)"));
     }
 }
 

@@ -520,6 +520,8 @@ pub fn run() {
             mail_delete,
             db_compare,
             diagram_window,
+            diagram_layout_get,
+            diagram_layout_save,
             import_sources,
             import_databases,
             import_run,
@@ -3054,6 +3056,44 @@ async fn db_schema(db: tauri::State<'_, db::Db>, name: String) -> Result<schema:
 async fn db_compare(db: tauri::State<'_, db::Db>, a: String, b: String) -> Result<Vec<schema::Diff>, String> {
     let db = db.inner().clone_handle();
     blocking(move || Ok(schema::compare(&schema::read(&db, &a)?, &schema::read(&db, &b)?))).await
+}
+
+/// Where a database's saved diagram layout is kept: one JSON file per database in NexDB's
+/// settings folder, so it survives updates and is the same in every window.
+fn diagram_layout_file(app: &tauri::AppHandle, name: &str) -> Result<std::path::PathBuf, String> {
+    if !db::valid_name(name) {
+        return Err(format!("\"{name}\" isn't a database name NexDB can show."));
+    }
+    let dir = app.path().app_config_dir().map_err(|e| e.to_string())?.join("diagram-layouts");
+    Ok(dir.join(format!("{}.json", name.replace('$', "_"))))
+}
+
+/// The layout saved with Save layout, as `{ "table": { "x": .., "y": .. } }`, or null.
+#[tauri::command]
+fn diagram_layout_get(app: tauri::AppHandle, name: String) -> Result<Option<serde_json::Value>, String> {
+    let file = diagram_layout_file(&app, &name)?;
+    match std::fs::read_to_string(&file) {
+        Ok(text) => Ok(serde_json::from_str(&text).ok()),
+        Err(_) => Ok(None),
+    }
+}
+
+/// Saves a diagram layout (Save layout); null removes it, so the tables are placed automatically.
+#[tauri::command]
+fn diagram_layout_save(app: tauri::AppHandle, name: String, layout: Option<serde_json::Value>) -> Result<(), String> {
+    let file = diagram_layout_file(&app, &name)?;
+    match layout {
+        Some(layout) => {
+            std::fs::create_dir_all(file.parent().unwrap()).map_err(|e| format!("Couldn't save the layout: {e}"))?;
+            let tmp = file.with_extension("json.tmp");
+            std::fs::write(&tmp, layout.to_string()).map_err(|e| format!("Couldn't save the layout: {e}"))?;
+            std::fs::rename(&tmp, &file).map_err(|e| format!("Couldn't save the layout: {e}"))
+        }
+        None => match std::fs::remove_file(&file) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(format!("Couldn't remove the saved layout: {e}")),
+            _ => Ok(()),
+        },
+    }
 }
 
 /// Opens a database's relationship diagram in a window of its own.

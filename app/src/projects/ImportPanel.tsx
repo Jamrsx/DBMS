@@ -5,6 +5,10 @@ import { nexCelebrate, nexOops } from "../lib/nex";
 import { onQuickstart } from "../lib/projects";
 import { dismissTask, runTask, useTask } from "../lib/tasks";
 import { importDatabases, importSources, runImport, type ImportServer, type ImportSource } from "../lib/importer";
+import { COMPUTER, isMac } from "../lib/os";
+
+/** The tools NexDB looks for on this computer. */
+const TOOLS = isMac ? "XAMPP, MAMP, Herd, Valet, DBngin, Homebrew" : "Laragon, XAMPP, WAMP";
 
 /** What the import task keeps. */
 interface ImportData {
@@ -138,8 +142,8 @@ export function ImportPanel({
         <h2 id="import-title">Import from other tools</h2>
       </div>
       <p className="field-hint">
-        Copies projects and databases from Laragon, XAMPP, WAMP and other MySQL, MariaDB or PostgreSQL installs on this
-        PC into NexDB. The originals stay exactly where they are.
+        Copies projects and databases from {TOOLS} and other MySQL, MariaDB or PostgreSQL installs on this{" "}
+        {COMPUTER} into NexDB. The originals stay exactly where they are.
       </p>
 
       {error && (
@@ -151,15 +155,15 @@ export function ImportPanel({
       {!sources ? (
         !error && (
           <p className="field-hint" role="status">
-            <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> Looking for Laragon, XAMPP, WAMP and
-            database servers…
+            <LoaderCircle size={13} className="status-spin" aria-hidden="true" /> Looking for {TOOLS} and database
+            servers…
           </p>
         )
       ) : sources.length === 0 ? (
         <div className="empty empty-nex">
           <Nex state="sleeping" size={110} />
           <p className="lede">
-            No Laragon, XAMPP, WAMP or other MySQL, MariaDB or PostgreSQL install found on this PC.
+            No {TOOLS} or other MySQL, MariaDB or PostgreSQL install found on this {COMPUTER}.
           </p>
         </div>
       ) : notes ? (
@@ -284,7 +288,7 @@ export function ImportPanel({
                         className="input input-medium"
                         type="password"
                         aria-label={`${s.user} password for ${ENGINE[s.engine]} on port ${s.port}`}
-                        placeholder={`${s.user} password (empty in Laragon and XAMPP)`}
+                        placeholder={`${s.user} password (${isMac ? "empty in XAMPP, root in MAMP" : "empty in Laragon and XAMPP"})`}
                         value={passwords[s.bin] ?? ""}
                         onChange={(e) => setPasswords((p) => ({ ...p, [s.bin]: e.target.value }))}
                       />

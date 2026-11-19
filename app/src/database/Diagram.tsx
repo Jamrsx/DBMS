@@ -10,6 +10,7 @@ import {
   Search,
   Table2,
   Link2,
+  Save,
   Undo2,
   WandSparkles,
 } from "lucide-react";
@@ -19,7 +20,7 @@ import { TableDesigner } from "./TableDesigner";
 import { realDesktopApp } from "../lib/scan";
 import { isPractice } from "../lib/practice";
 import { Nex } from "../components/Nex";
-import { dbSchema, type Schema, type SchemaLink, type SchemaTable } from "../lib/schema";
+import { dbSchema, diagramLayout, saveDiagramLayout, type Schema, type SchemaLink, type SchemaTable } from "../lib/schema";
 
 const CARD_W = 230;
 const HEAD_H = 34;
@@ -29,7 +30,18 @@ const GAP_Y = 36;
 
 type Pos = Record<string, { x: number; y: number }>;
 
+/** Where moves not saved yet are kept, so closing the window doesn't lose them. */
 const layoutKey = (db: string) => `nexdb.diagram.${db}`;
+
+/** Whole pixels, so a saved layout compares equal to what's on screen. */
+const rounded = (p: Pos): Pos =>
+  Object.fromEntries(Object.entries(p).map(([n, v]) => [n, { x: Math.round(v.x), y: Math.round(v.y) }]));
+
+function samePlaces(a: Pos, b: Pos, names: string[]) {
+  return names.every(
+    (n) => Math.round(a[n]?.x ?? 0) === Math.round(b[n]?.x ?? 0) && Math.round(a[n]?.y ?? 0) === Math.round(b[n]?.y ?? 0),
+  );
+}
 
 /** Tables placed in columns by how they point at each other: tables nothing points away from on
  * the left (users), the ones pointing at them to the right (posts → comments). */
@@ -119,6 +131,10 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
   const [schema, setSchema] = useState<Schema | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pos, setPos] = useState<Pos>({});
+  // The layout kept with Save layout, and whether what's on screen differs from it.
+  const [saved, setSaved] = useState<Pos | null>(null);
+  const [changed, setChanged] = useState(false);
+  const [saveState, setSaveState] = useState<{ kind: "saving" | "saved" | "error"; text?: string } | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const [selected, setSelected] = useState<string | null>(null);
   const [keysOnly, setKeysOnly] = useState(false);
@@ -131,19 +147,26 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
 
   const load = useCallback(() => {
     setError(null);
-    dbSchema(db)
-      .then((s) => {
+    Promise.all([dbSchema(db), diagramLayout(db).catch(() => null)])
+      .then(([s, kept]) => {
         setSchema(s);
-        const saved = loadPositions(db);
-        // Tables new since last time get a spot of their own.
+        setSaved(kept);
+        setSaveState(null);
         // Practice starts from a plain alphabetical grid, so Nex has something to untangle.
         const auto = isPractice() ? gridLayout(s) : nexLayout(s, false, new Set()).pos;
         if (isPractice()) {
           setPos(auto);
+          setChanged(false);
           return;
         }
-        // Keep saved spots for known tables; new tables get the automatic place.
-        setPos(Object.fromEntries(s.tables.map((t) => [t.name, saved?.[t.name] ?? auto[t.name]])));
+        // Moves not saved yet win, then the saved layout; tables new since then get the automatic place.
+        const draft = loadPositions(db);
+        const names = s.tables.map((t) => t.name);
+        const place = (from: Pos | null): Pos =>
+          Object.fromEntries(names.map((n) => [n, from?.[n] ?? kept?.[n] ?? auto[n]]));
+        const shown = place(draft);
+        setPos(shown);
+        setChanged(!!draft && !samePlaces(shown, place(kept), names));
       })
       .catch((e) => setError(String(e)));
   }, [db]);
@@ -160,12 +183,46 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
     [schema],
   );
 
+  /** Keeps moves not saved yet (until Save layout or Back to saved). */
   const save = (next: Pos) => {
+    setChanged(true);
+    setSaveState(null);
     try {
-      localStorage.setItem(layoutKey(db), JSON.stringify(next));
+      localStorage.setItem(layoutKey(db), JSON.stringify(rounded(next)));
     } catch {
-      // The layout just isn't remembered.
+      // The moves just aren't kept if the window closes.
     }
+  };
+  const forgetDraft = () => {
+    try {
+      localStorage.removeItem(layoutKey(db));
+    } catch {
+      // Nothing kept.
+    }
+  };
+
+  /** Save layout: this arrangement is the one the diagram opens with from now on. */
+  const saveLayout = async () => {
+    const layout = rounded(pos);
+    setSaveState({ kind: "saving" });
+    try {
+      await saveDiagramLayout(db, layout);
+      setSaved(layout);
+      setChanged(false);
+      forgetDraft();
+      setSaveState({ kind: "saved" });
+    } catch (e) {
+      setSaveState({ kind: "error", text: String(e) });
+    }
+  };
+
+  /** Back to saved: undoes every move since the last Save layout. */
+  const backToSaved = () => {
+    if (!saved || !schema) return;
+    setPos((p) => Object.fromEntries(schema.tables.map((t) => [t.name, saved[t.name] ?? p[t.name]])));
+    setChanged(false);
+    forgetDraft();
+    setSaveState(null);
   };
 
   const fit = useCallback(() => {
@@ -312,7 +369,12 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
         setDialog({ kind: "add", table: linking.table, column: linking.column, toTable: target.name });
       return;
     }
-    if (drag.current?.kind === "card") save(pos);
+    const d = drag.current;
+    if (d?.kind === "card" && d.name) {
+      const p = pos[d.name];
+      // A click without a move isn't a change.
+      if (p && (Math.round(p.x) !== Math.round(d.ox) || Math.round(p.y) !== Math.round(d.oy))) save(pos);
+    }
     drag.current = null;
   };
 
@@ -521,6 +583,40 @@ export function Diagram({ db, onClose }: { db: string; onClose?: () => void }) {
               >
                 <WandSparkles size={13} aria-hidden="true" /> Nex, organize
               </button>
+              {changed && saved && (
+                <button
+                  className="btn btn-small"
+                  onClick={backToSaved}
+                  title="Put every table back where it was when you last saved"
+                >
+                  <Undo2 size={13} aria-hidden="true" /> Back to saved
+                </button>
+              )}
+              {(
+                <button
+                  className={`btn btn-small${changed ? " btn-primary" : ""}`}
+                  data-guide="diagram-save-layout"
+                  disabled={saveState?.kind === "saving" || (!changed && !!saved)}
+                  onClick={() => void saveLayout()}
+                  title={
+                    changed || !saved
+                      ? "Keep this arrangement: the diagram opens like this from now on"
+                      : "This arrangement is saved; move a table to change it"
+                  }
+                >
+                  <Save size={13} aria-hidden="true" />{" "}
+                  {saveState?.kind === "saving" ? "Saving…" : changed || !saved ? "Save layout" : "Layout saved"}
+                </button>
+              )}
+              {(changed || saveState) && (
+                <span
+                  className={`diagram-save-state${saveState?.kind === "error" ? " field-error" : ""}`}
+                  role="status"
+                  aria-live="polite"
+                >
+                  {saveState?.kind === "error" ? saveState.text : changed ? "Not saved yet" : saveState?.kind === "saved" ? "Saved" : ""}
+                </span>
+              )}
             </>
           )}
           <button
