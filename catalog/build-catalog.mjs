@@ -16,7 +16,11 @@
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 
-const MAX_LINES = 4;
+// PHP has five supported lines while a new one overlaps the oldest.
+const MAX_LINES = 5;
+// PostgreSQL can't open a data folder from another major version, so its one-click update stays
+// on this line until NexDB can move databases across.
+const POSTGRES_LINE = "18";
 
 const COMPONENTS = [
   { id: "apache", name: "Apache", eol: "apache-http-server" },
@@ -129,8 +133,8 @@ async function phpmyadminTool() {
 /** Portable Git for Windows (MinGit); GitHub lists each file's SHA-256 as its digest. */
 async function gitTool() {
   const release = await getJson("https://api.github.com/repos/git-for-windows/git/releases/latest");
-  const asset = release.assets.find((a) => /^MinGit-[d.]+-64-bit.zip$/.test(a.name));
-  const version = asset.name.match(/^MinGit-([d.]+)-64-bit/)[1];
+  const asset = release.assets.find((a) => /^MinGit-[\d.]+-64-bit\.zip$/.test(a.name));
+  const version = asset.name.match(/^MinGit-([\d.]+)-64-bit/)[1];
   const sha = (asset.digest ?? "").replace(/^sha256:/, "");
   return { version, download: download(asset.browser_download_url, asset.size, "sha256", sha) };
 }
@@ -157,10 +161,10 @@ async function hashUrl(url) {
   return { size, sha: hash.digest("hex") };
 }
 
-/** PostgreSQL's newest supported line, as EnterpriseDB's Windows binaries zip. */
+/** The newest PostgreSQL of POSTGRES_LINE, as EnterpriseDB's Windows binaries zip. */
 async function postgresTool() {
   const cycles = await getJson("https://endoflife.date/api/postgresql.json");
-  for (const cy of cycles) {
+  for (const cy of cycles.filter((c) => String(c.cycle) === POSTGRES_LINE)) {
     const url = `https://get.enterprisedb.com/postgresql/postgresql-${cy.latest}-1-windows-x64-binaries.zip`;
     if (!(await headSize(url))) continue;
     const { size, sha } = await hashUrl(url);
@@ -293,7 +297,11 @@ const catalog = {
     redis: await githubTool("redis-windows/redis-windows", /^Redis-[\d.]+-Windows-x64-msys2\.zip$/),
     mariadb: await mariadbTool(),
     // No official Windows build; this one is built from memcached's own source, with a GitHub checksum.
-    memcached: await githubTool("jefyt/memcached-windows", /^memcached-[\d.]+-win64-mingw\.zip$/),
+    memcached: await githubTool("jefyt/memcached-windows", /^memcached-[\d.]+-win64-mingw\.zip$/).then((t) => ({
+      ...t,
+      // Its tags carry the build: 1.6.8_mingw_libressl.
+      version: t.version.replace(/_.*/, ""),
+    })),
     mongodb: await mongodbTool(),
   },
 };

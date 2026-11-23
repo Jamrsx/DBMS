@@ -10,6 +10,7 @@ import { showSettingsSection } from "../lib/settingsNav";
 import { COMPUTER } from "../lib/os";
 
 export const WHATS_NEW = [
+  { version: "0.6.1", chapter: "New in 0.6.1" },
   { version: "0.6.0", chapter: "New in 0.6.0" },
   { version: "0.5.9", chapter: "New in 0.5.9" },
   { version: "0.5.8", chapter: "New in 0.5.8" },
@@ -36,6 +37,32 @@ const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "New in 0.6.1",
+    title: "PHP 8.6 is here",
+    body: `This update brings PHP 8.6 and fresh versions of your tools. Practice mode: nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.6.1",
+    title: "Try it when you're ready",
+    body: "Open Other PHP versions to install 8.6 next to the one you use. NexDB keeps recommending 8.5 for now, so your projects stay as they are until you switch them.",
+    page: "versions",
+    target: here('[data-guide="ver-php"]'),
+  },
+  {
+    chapter: "New in 0.6.1",
+    title: "See what wants an update",
+    body: "Needs attention shows only the programs with an update ready or files missing. Updates inside the same version line are safe to take.",
+    page: "versions",
+    target: here('[data-guide="ver-glance"]'),
+  },
+  {
+    chapter: "New in 0.6.1",
+    title: "That's 0.6.1!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
+  },
   {
     chapter: "New in 0.6.0",
     title: "0.6.0: layouts that stay",

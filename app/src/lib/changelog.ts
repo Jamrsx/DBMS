@@ -7,6 +7,18 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.6.1",
+    title: "PHP 8.6 and the newest versions of your tools",
+    changes: [
+      "PHP 8.6 is ready to install on Windows and Mac, next to the versions you already have. NexDB keeps recommending PHP 8.5 until frameworks have caught up, so nothing moves to 8.6 unless you choose it.",
+      "Security and bug-fix updates for PHP 8.5, 8.4, 8.3 and 8.2, Node.js 26, 24 and 22, and Apache.",
+      "Newer nginx, PostgreSQL 18.7, MongoDB, Mailpit, Composer, Git, MariaDB and Cloudflare Tunnel.",
+      "Fixed on Mac: PHP 8.2, 8.3 and 8.4 were really running PHP 8.5.12 because of a mistake in how the Mac versions were built. Install the new 8.2, 8.3 or 8.4 from Versions to get the real one, and check your project afterwards, since it has been running on 8.5 until now.",
+      "PHP 8.2 stays in the list while it's still supported, even with five PHP versions to choose from.",
+      "PostgreSQL stays on version 18 for now: version 19 can't open databases made by 18, so updating won't put your data at risk.",
+    ],
+  },
+  {
     version: "0.6.0",
     title: "Save your diagram layout; a clearer Versions page; Mac imports",
     changes: [

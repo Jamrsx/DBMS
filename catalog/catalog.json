@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "generated": "2026-10-30",
+  "generated": "2026-11-23",
   "sources": [
     "endoflife.date",
     "php.net/releases",
@@ -28,8 +28,8 @@
       "lines": [
         {
           "line": "2.4",
-          "latest": "2.4.70",
-          "latest_date": "2026-11-06",
+          "latest": "2.4.71",
+          "latest_date": "2026-11-11",
           "line_released": "2012-02-21",
           "lts": false,
           "lts_from": null,
@@ -37,29 +37,29 @@
           "eol": null,
           "security": false,
           "download": {
-            "url": "https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.70-261106-Win64-VS18.zip",
-            "size": 14512491,
+            "url": "https://www.apachelounge.com/download/VS18/binaries/httpd-2.4.71-261112-Win64-VS18.zip",
+            "size": 14518924,
             "checksum": {
               "algo": "sha256",
-              "value": "b96a40b66a99428b2e4aea48ebe98bab826c768df4ace81f78dd7e26a98ad311"
+              "value": "44961a929dff16b767b3adbcea55760a942a00239b2891dc55806be34029e1fc"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/apache-2.4.70-macos-arm64.tar.xz",
-              "size": 5603484,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/apache-2.4.71-macos-arm64.tar.xz",
+              "size": 5603420,
               "checksum": {
                 "algo": "sha256",
-                "value": "3b067e0c7bf52f1a6eadd53175b0b28557b908b05ef1c28e29176d9dc3d887e2"
+                "value": "5887b6be21178af1a70515cd337a676b5af33bd767b658778bbb59494b616004"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/apache-2.4.70-macos-x64.tar.xz",
-              "size": 5260608,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/apache-2.4.71-macos-x64.tar.xz",
+              "size": 5261392,
               "checksum": {
                 "algo": "sha256",
-                "value": "06dfcc5e5fe7536b0f5eba22f6f9b424831e52acbe7cfc242b0ae21f1b52717a"
+                "value": "db7dc21f7fbf6a779f51b40dae04e2d80cfd43353b7e1f3b907f49b4cdf6e8ad"
               }
             }
           }
@@ -72,8 +72,8 @@
       "lines": [
         {
           "line": "1.31",
-          "latest": "1.31.8",
-          "latest_date": "2026-10-21",
+          "latest": "1.31.9",
+          "latest_date": "2026-11-18",
           "line_released": "2026-05-13",
           "lts": false,
           "lts_from": null,
@@ -81,37 +81,37 @@
           "eol": null,
           "security": false,
           "download": {
-            "url": "https://nginx.org/download/nginx-1.31.8.zip",
-            "size": 2794487,
+            "url": "https://nginx.org/download/nginx-1.31.9.zip",
+            "size": 2797360,
             "checksum": {
               "algo": "sha256",
-              "value": "fbb1501009be34655cc238d460714cf20391b639013f4c73859813d7938783fd"
+              "value": "6902ed577b34c0dfc744cdc28a4ebfcb3b73712e015fbd2aef2c3bfbab20dba5"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/nginx-1.31.8-macos-arm64.tar.xz",
-              "size": 2503616,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/nginx-1.31.9-macos-arm64.tar.xz",
+              "size": 2504256,
               "checksum": {
                 "algo": "sha256",
-                "value": "b391a9ec9d8ab8e4bc69afa6a7f084f4bb3ef3b494b4570dbadbde12b49687ef"
+                "value": "63c5813fcbc90fd1d12cdf40b9f877fcf4265cd93db0016226870108cd1c97fd"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/nginx-1.31.8-macos-x64.tar.xz",
-              "size": 2275464,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/nginx-1.31.9-macos-x64.tar.xz",
+              "size": 2275832,
               "checksum": {
                 "algo": "sha256",
-                "value": "81dbe304e7f46c8a8878f8c3281c43627af7502db2593500b012f69f339c9dcb"
+                "value": "c798b8c89dba4bf6979fa04893d6c017fa2c1cf01968a0e4194048a6c4aa9dee"
               }
             }
           }
         },
         {
           "line": "1.30",
-          "latest": "1.30.6",
-          "latest_date": "2026-10-14",
+          "latest": "1.30.7",
+          "latest_date": "2026-11-18",
           "line_released": "2026-04-14",
           "lts": false,
           "lts_from": null,
@@ -119,29 +119,29 @@
           "eol": null,
           "security": false,
           "download": {
-            "url": "https://nginx.org/download/nginx-1.30.6.zip",
-            "size": 2773293,
+            "url": "https://nginx.org/download/nginx-1.30.7.zip",
+            "size": 2775743,
             "checksum": {
               "algo": "sha256",
-              "value": "c6ee35edb0a861063323f709192ae50d1eefaf2ea7d00678bd2b22d8542dc61e"
+              "value": "204bb1685b777d7124e9afba2a1dc51edb0eccdfb366262186eb55803a382e02"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/nginx-1.30.6-macos-arm64.tar.xz",
-              "size": 2493252,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/nginx-1.30.7-macos-arm64.tar.xz",
+              "size": 2492960,
               "checksum": {
                 "algo": "sha256",
-                "value": "f8e5a10f9ee56fb5e7ca6d5ed8d4e4d310ce045c68416664662f8cc2a561f276"
+                "value": "c43eb27709525b289e9dba7913d950af88f97e1ab7986f1e32e7bf5242a9581b"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/nginx-1.30.6-macos-x64.tar.xz",
-              "size": 2263292,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/nginx-1.30.7-macos-x64.tar.xz",
+              "size": 2263120,
               "checksum": {
                 "algo": "sha256",
-                "value": "805089ee3b31d0d5b975e46d52e129c292a82ef9f991c7c19f3d1e517474ea55"
+                "value": "ff862a1292862112aebfde5de8a406a90113b658858eff5f571b672102b8aaa3"
               }
             }
           }
@@ -153,9 +153,47 @@
       "name": "PHP",
       "lines": [
         {
+          "line": "8.6",
+          "latest": "8.6.0",
+          "latest_date": "2026-11-19",
+          "line_released": "2026-11-19",
+          "lts": false,
+          "lts_from": null,
+          "support_end": "2028-12-31",
+          "eol": "2030-12-31",
+          "security": false,
+          "download": {
+            "url": "https://downloads.php.net/~windows/releases/php-8.6.0-nts-Win32-vs18-x64.zip",
+            "size": 39660643,
+            "checksum": {
+              "algo": "sha256",
+              "value": "d4783fffe1f4ab072600daff1622a7a2df936957a787a338c59e3dbd4d846d98"
+            },
+            "file_version": "8.6.0"
+          },
+          "macos": {
+            "arm64": {
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.6.0-macos-arm64.tar.xz",
+              "size": 51879172,
+              "checksum": {
+                "algo": "sha256",
+                "value": "9ba1ca68a62f7d995e9a6377803cf90ff5cbaf862e18907ba75fe9e52245d988"
+              }
+            },
+            "x64": {
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.6.0-macos-x64.tar.xz",
+              "size": 52681976,
+              "checksum": {
+                "algo": "sha256",
+                "value": "a58ab93f5d800fe1be4084d3eece7a4e4b82d800936364275372922d9c1b6e49"
+              }
+            }
+          }
+        },
+        {
           "line": "8.5",
-          "latest": "8.5.12",
-          "latest_date": "2026-10-21",
+          "latest": "8.5.13",
+          "latest_date": "2026-11-19",
           "line_released": "2025-11-20",
           "lts": false,
           "lts_from": null,
@@ -163,37 +201,37 @@
           "eol": "2029-12-31",
           "security": true,
           "download": {
-            "url": "https://downloads.php.net/~windows/releases/php-8.5.12-1-nts-Win32-vs17-x64.zip",
-            "size": 36310917,
+            "url": "https://downloads.php.net/~windows/releases/php-8.5.13-nts-Win32-vs17-x64.zip",
+            "size": 36399949,
             "checksum": {
               "algo": "sha256",
-              "value": "2a36a2edcb7a5b9252f638fd5e4cf84d7f6e066092654220dc0b63e5cf4e9723"
+              "value": "4ae6c72bc0ca4f6b8f3e9b107874bae0135699f3aabe6c26a1f6103d040eea97"
             },
-            "file_version": "8.5.12-1"
+            "file_version": "8.5.13"
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.5.12-macos-arm64.tar.xz",
-              "size": 51254676,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.5.13-macos-arm64.tar.xz",
+              "size": 51245220,
               "checksum": {
                 "algo": "sha256",
-                "value": "5ee4ed83a5347ed6f304bbefe1a5208d9ccb536e5527b38c28236c6b16a7871d"
+                "value": "5a81852a20aa38a2d72438ec74d89d94b728939de8b4f49e138d3908847fbb84"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.5.12-macos-x64.tar.xz",
-              "size": 51818184,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.5.13-macos-x64.tar.xz",
+              "size": 51831720,
               "checksum": {
                 "algo": "sha256",
-                "value": "ffd53f8a210514b922f7017c2bc1b1773907a551611d7b7090dc61d9c2486f6a"
+                "value": "d7f5ef0a9dc639f256b75c9601b5d3a991380cd413d0e0a8e1de359cfbbb1cb6"
               }
             }
           }
         },
         {
           "line": "8.4",
-          "latest": "8.4.27",
-          "latest_date": "2026-10-21",
+          "latest": "8.4.28",
+          "latest_date": "2026-11-19",
           "line_released": "2024-11-21",
           "lts": false,
           "lts_from": null,
@@ -201,37 +239,37 @@
           "eol": "2028-12-31",
           "security": true,
           "download": {
-            "url": "https://downloads.php.net/~windows/releases/php-8.4.27-1-nts-Win32-vs17-x64.zip",
-            "size": 35296081,
+            "url": "https://downloads.php.net/~windows/releases/php-8.4.28-nts-Win32-vs17-x64.zip",
+            "size": 35384096,
             "checksum": {
               "algo": "sha256",
-              "value": "dbae154a0a89791f36c3d48e68bae797878333e7d6cb5721e74617de59b63ab7"
+              "value": "c1f9280588b7b6ad7b518969022f0b0175f106fab9d0639ad0e4ce7cd47ac1ed"
             },
-            "file_version": "8.4.27-1"
+            "file_version": "8.4.28"
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.4.27-macos-arm64.tar.xz",
-              "size": 51237824,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.4.28-macos-arm64.tar.xz",
+              "size": 50451956,
               "checksum": {
                 "algo": "sha256",
-                "value": "aa2ba1b37fdc98e163df7c7ebe1fcada5dfa00d7d95ff074e4234701177f9891"
+                "value": "799b901f5662fbead3be885baaba7f7c66509f4ef5dd2f4dcf3af6c00e95905c"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.4.27-macos-x64.tar.xz",
-              "size": 51832840,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.4.28-macos-x64.tar.xz",
+              "size": 51058696,
               "checksum": {
                 "algo": "sha256",
-                "value": "dafb1ea7d24d6fa21fc135288d1c97d9a278c0f3d78056b651adb443d92eb93f"
+                "value": "a65c6243b0f95daeac54314fab9235ca50b34cb198839b018f9391eda6f2e341"
               }
             }
           }
         },
         {
           "line": "8.3",
-          "latest": "8.3.36",
-          "latest_date": "2026-10-21",
+          "latest": "8.3.37",
+          "latest_date": "2026-11-19",
           "line_released": "2023-11-23",
           "lts": false,
           "lts_from": null,
@@ -239,37 +277,37 @@
           "eol": "2027-12-31",
           "security": true,
           "download": {
-            "url": "https://downloads.php.net/~windows/releases/php-8.3.36-1-nts-Win32-vs16-x64.zip",
-            "size": 34179998,
+            "url": "https://downloads.php.net/~windows/releases/php-8.3.37-nts-Win32-vs16-x64.zip",
+            "size": 34185054,
             "checksum": {
               "algo": "sha256",
-              "value": "1a097d52b7a68622cdc723073b61cc70caf79c941218ff65b2d8441dbc6b10d4"
+              "value": "38808a798485e1c0938dfcce7e942131415fc6c7834f83a5a85a4c4edb5539d6"
             },
-            "file_version": "8.3.36-1"
+            "file_version": "8.3.37"
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.3.36-macos-arm64.tar.xz",
-              "size": 51230084,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.3.37-macos-arm64.tar.xz",
+              "size": 49070448,
               "checksum": {
                 "algo": "sha256",
-                "value": "19427e086c16558ae4c45c1c097fe7fc172d1b03c135465df9177174c8ccb258"
+                "value": "b1b1cf77363fa19566385424097c2d060a32f2b76b12ed6d3f300d48a2aa337e"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.3.36-macos-x64.tar.xz",
-              "size": 51830404,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.3.37-macos-x64.tar.xz",
+              "size": 49062784,
               "checksum": {
                 "algo": "sha256",
-                "value": "fd6140a0daa519cf9b946743862bb6e8846be6f2ece8f49f683fd30c6fb7cb33"
+                "value": "6a3e6a4e50ce2fadb3b7a59eacfea3f17d7c071984baeb9b6820f0f0bc7f2dec"
               }
             }
           }
         },
         {
           "line": "8.2",
-          "latest": "8.2.35",
-          "latest_date": "2026-10-21",
+          "latest": "8.2.36",
+          "latest_date": "2026-11-19",
           "line_released": "2022-12-08",
           "lts": false,
           "lts_from": null,
@@ -277,29 +315,29 @@
           "eol": "2026-12-31",
           "security": true,
           "download": {
-            "url": "https://downloads.php.net/~windows/releases/php-8.2.35-1-nts-Win32-vs16-x64.zip",
-            "size": 33780725,
+            "url": "https://downloads.php.net/~windows/releases/php-8.2.36-nts-Win32-vs16-x64.zip",
+            "size": 33785611,
             "checksum": {
               "algo": "sha256",
-              "value": "ebe75134c03869826cb1714d31fd5eb96afefa6d9fd35d786971c03020e7bce2"
+              "value": "0b541b7e9db3c55b9324f3f1f30f084a340657d1b57ca4f7a3acaca6b2e8a799"
             },
-            "file_version": "8.2.35-1"
+            "file_version": "8.2.36"
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.2.35-macos-arm64.tar.xz",
-              "size": 51223592,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.2.36-macos-arm64.tar.xz",
+              "size": 48837672,
               "checksum": {
                 "algo": "sha256",
-                "value": "55a4c329043cfaf7dca60fadaa443143c2cb40aca38dceb889da33754218e4da"
+                "value": "5ca324c3e2175402578009c5efc1b2500dfb35cc3d124ded37bdec79362d6c76"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/php-8.2.35-macos-x64.tar.xz",
-              "size": 51828060,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-1219/php-8.2.36-macos-x64.tar.xz",
+              "size": 48822388,
               "checksum": {
                 "algo": "sha256",
-                "value": "0cbb03d35a31dbee440ae5a2c14bfa834eadea309f7983b6688b52ce02eef5ce"
+                "value": "8611f09efa7262e39742bb98c52e40b5ab7d89612e9b639021aa9ae9ca8a22c9"
               }
             }
           }
@@ -396,86 +434,86 @@
       "lines": [
         {
           "line": "26",
-          "latest": "26.13.0",
-          "latest_date": "2026-10-28",
+          "latest": "26.13.1",
+          "latest_date": "2026-11-11",
           "line_released": "2026-05-05",
           "lts": false,
           "lts_from": "2026-10-28",
           "support_end": "2027-10-27",
           "eol": "2029-04-30",
-          "security": false,
+          "security": true,
           "download": {
-            "url": "https://nodejs.org/dist/v26.13.0/node-v26.13.0-win-x64.zip",
-            "size": 41157375,
+            "url": "https://nodejs.org/dist/v26.13.1/node-v26.13.1-win-x64.zip",
+            "size": 41166246,
             "checksum": {
               "algo": "sha256",
-              "value": "dcc60d59a0746999f99064a01c020445d54d84228c691cdbf25b49ac3b59150a"
+              "value": "e2edda75bfb089654705cf65a13b58933bfd5f57148e8ebda916f58a2474f1f7"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-26.13.0-macos-arm64.tar.xz",
-              "size": 31284724,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-26.13.1-macos-arm64.tar.xz",
+              "size": 31252264,
               "checksum": {
                 "algo": "sha256",
-                "value": "e9f5b6a6e9ad4d1dead207e7c7b945bf1a25b705aee84b3e6af297a108fd5a4b"
+                "value": "f490497e516e9d4289da746f2d241d8d9e5b87f52cd5b153c9c409aa63fa8637"
               }
             },
             "min_macos": "13.5",
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-26.13.0-macos-x64.tar.xz",
-              "size": 33298724,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-26.13.1-macos-x64.tar.xz",
+              "size": 33289640,
               "checksum": {
                 "algo": "sha256",
-                "value": "4a299aeaf0aa911a4c725b0f9a9bebb5796ff18c718d31e5c3e9b31a7ac16733"
+                "value": "19e7bf35be29a58a870a4f4419beecdb3cbfa6a3a295c0c4f0657071554bcc0b"
               }
             }
           }
         },
         {
           "line": "24",
-          "latest": "24.22.2",
-          "latest_date": "2026-10-28",
+          "latest": "24.22.3",
+          "latest_date": "2026-11-11",
           "line_released": "2025-05-06",
           "lts": false,
           "lts_from": "2025-10-28",
           "support_end": "2026-10-20",
           "eol": "2028-04-30",
-          "security": false,
+          "security": true,
           "download": {
-            "url": "https://nodejs.org/dist/v24.22.2/node-v24.22.2-win-x64.zip",
-            "size": 37754834,
+            "url": "https://nodejs.org/dist/v24.22.3/node-v24.22.3-win-x64.zip",
+            "size": 37762649,
             "checksum": {
               "algo": "sha256",
-              "value": "ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2"
+              "value": "e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-24.22.2-macos-arm64.tar.xz",
-              "size": 27997532,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-24.22.3-macos-arm64.tar.xz",
+              "size": 27999712,
               "checksum": {
                 "algo": "sha256",
-                "value": "9d5e77480229bc20e567e36b918885a86fb917c93dc94a873cb76b2c4e393f4f"
+                "value": "d77e202fee8ee6f77890a8215e7d21e522075139237bcd5e1c80317ed0c1391e"
               }
             },
             "min_macos": "13.5",
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-24.22.2-macos-x64.tar.xz",
-              "size": 29761024,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-24.22.3-macos-x64.tar.xz",
+              "size": 29745820,
               "checksum": {
                 "algo": "sha256",
-                "value": "ea6f87f4c8e7e99a45d4463e6012adba439f56753f7a163770b758c44a618bed"
+                "value": "8ccbbcd161ec6c650c3c86f97a568a6cf31f926d1f8c10d1898bf38a7387f329"
               }
             }
           }
         },
         {
           "line": "22",
-          "latest": "22.23.4",
-          "latest_date": "2026-10-21",
+          "latest": "22.23.5",
+          "latest_date": "2026-11-11",
           "line_released": "2024-04-24",
           "lts": false,
           "lts_from": "2024-10-29",
@@ -483,29 +521,29 @@
           "eol": "2027-04-30",
           "security": true,
           "download": {
-            "url": "https://nodejs.org/dist/v22.23.4/node-v22.23.4-win-x64.zip",
-            "size": 35604229,
+            "url": "https://nodejs.org/dist/v22.23.5/node-v22.23.5-win-x64.zip",
+            "size": 35630346,
             "checksum": {
               "algo": "sha256",
-              "value": "cbc74b5e0982c9dbb41525fd8fb5dcd32fbee237863f7829072f4639a1ce5f20"
+              "value": "4a191082e9706866830379d577d2cc8a50c776fcd9436a8d061b063ed0d9a0e3"
             },
             "file_version": null
           },
           "macos": {
             "arm64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-22.23.4-macos-arm64.tar.xz",
-              "size": 26317356,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-22.23.5-macos-arm64.tar.xz",
+              "size": 26314416,
               "checksum": {
                 "algo": "sha256",
-                "value": "1257792fbf5cb0b324ddf4d6642d777ae78b42d4365ab8bbae4d62e5a2248537"
+                "value": "331bad85b9ff1acb01ebfe45a1ef9ab70114075bfdc883ffdd85d942424860d6"
               }
             },
             "x64": {
-              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/node-22.23.4-macos-x64.tar.xz",
-              "size": 27940340,
+              "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/node-22.23.5-macos-x64.tar.xz",
+              "size": 27911520,
               "checksum": {
                 "algo": "sha256",
-                "value": "f1e31d767a6fa80cf47068573d269b6606477fd54cf7a66a3bc357cfab558b01"
+                "value": "adc40fd1002e14ac3a6c42499d937dac65145576214b9db6462d837114ce0f3f"
               }
             }
           }
@@ -515,13 +553,13 @@
   ],
   "tools": {
     "composer": {
-      "version": "2.11.0",
+      "version": "2.11.2",
       "download": {
-        "url": "https://getcomposer.org/download/2.11.0/composer.phar",
+        "url": "https://getcomposer.org/download/2.11.2/composer.phar",
         "size": null,
         "checksum": {
           "algo": "sha256",
-          "value": "9674f12a2a181100d889ebfd0b4510805b3e94cea57869b14b383753d602599b"
+          "value": "dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028"
         },
         "file_version": null
       }
@@ -533,109 +571,79 @@
         "size": 16431330,
         "checksum": {
           "algo": "sha256",
-          "value": "2d2e13c735366d318425c78e4ee2cc8fc648d77faba3ddea2cd516e43885733f"
+          "value": "2d2e13c735366d318425c78e4ee2cc8fc648d77faba3ddea2cd516e43885733f  phpmyadmin-5.2.3-all-language"
         },
         "file_version": null
       }
     },
     "git": {
-      "version": "2.56.0.4",
+      "version": "2.56.1",
       "download": {
-        "url": "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.4/MinGit-2.56.0.4-64-bit.zip",
-        "size": 39846926,
+        "url": "https://github.com/git-for-windows/git/releases/download/v2.56.1.windows.1/MinGit-2.56.1-64-bit.zip",
+        "size": 39849768,
         "checksum": {
           "algo": "sha256",
-          "value": "e3bf78351fe777fba47ddee5950082f8a98bb0f02604fdc7ba3ee2cb68ffa877"
+          "value": "4a92850b6e917da4fd010669b614b55dccf5b0ec333a534cc4be4700dfefdafd"
         },
         "file_version": null
       }
     },
     "mailpit": {
-      "version": "1.33.0",
+      "version": "1.34.0",
       "download": {
-        "url": "https://github.com/axllent/mailpit/releases/download/v1.33.0/mailpit-windows-amd64.zip",
-        "size": 11134450,
+        "url": "https://github.com/axllent/mailpit/releases/download/v1.34.0/mailpit-windows-amd64.zip",
+        "size": 11288840,
         "checksum": {
           "algo": "sha256",
-          "value": "47122dd828ff80dcaef62b2952c478b178afadadf066c990489608e537121bfd"
+          "value": "8f080d41374bf22686606374a0a483c8563c1bf29ae078179792392ff8c911d7"
         },
         "file_version": null
       },
       "macos": {
         "arm64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/mailpit-1.33.0-macos-arm64.tar.xz",
-          "size": 7708520,
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/mailpit-1.34.0-macos-arm64.tar.xz",
+          "size": 7771748,
           "checksum": {
             "algo": "sha256",
-            "value": "f7c32874f4691069a3abf9a374c5ff78a0016de9e2e05040e1f8563f42827461"
+            "value": "18026e38dc9e0619159ee238b2a7265503015887839c2dd6a5d78d5c5877edf6"
           }
         },
         "x64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/mailpit-1.33.0-macos-x64.tar.xz",
-          "size": 8559256,
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/mailpit-1.34.0-macos-x64.tar.xz",
+          "size": 8686892,
           "checksum": {
             "algo": "sha256",
-            "value": "5a524882f885321fe61e4b44f2d9d8da7bfd5f4a17442221cea8073274837a87"
-          }
-        }
-      }
-    },
-    "redis": {
-      "version": "8.10.3",
-      "download": {
-        "url": "https://github.com/redis-windows/redis-windows/releases/download/8.10.3/Redis-8.10.3-Windows-x64-msys2.zip",
-        "size": 14036243,
-        "checksum": {
-          "algo": "sha256",
-          "value": "af16df340525b431e9ec8dabfd625d5e7a233f82805b5418819904ea909c447f"
-        },
-        "file_version": null
-      },
-      "macos": {
-        "arm64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/redis-8.10.3-macos-arm64.tar.xz",
-          "size": 3478012,
-          "checksum": {
-            "algo": "sha256",
-            "value": "3c7163c2407661753498172df89e9266ae27c7a647d54ef1eec9c89d8d1fdc92"
-          }
-        },
-        "x64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/redis-8.10.3-macos-x64.tar.xz",
-          "size": 3337248,
-          "checksum": {
-            "algo": "sha256",
-            "value": "ef8d96e59a49a2c2399d4ab071d90695338315f52c1cee14d65a4d31b1960070"
+            "value": "31fa4d37e307434c9686247ae00218aec0cea1e712e668b89571303cbd66a057"
           }
         }
       }
     },
     "postgres": {
-      "version": "18.6",
+      "version": "18.7",
       "download": {
-        "url": "https://get.enterprisedb.com/postgresql/postgresql-18.6-1-windows-x64-binaries.zip",
-        "size": 343808005,
+        "url": "https://get.enterprisedb.com/postgresql/postgresql-18.7-1-windows-x64-binaries.zip",
+        "size": 389515503,
         "checksum": {
           "algo": "sha256",
-          "value": "fbe23da234ee31547bf8a36d29dfd81e82b849df2d2b78d2eecb43d360252f8c"
+          "value": "ead0bbc27fb678fa24dcf86b738981323042abd073c744103bf7f3aed23f9a33"
         },
         "file_version": null
       },
       "macos": {
         "arm64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/postgres-18.6-macos-arm64.tar.xz",
-          "size": 8556448,
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/postgres-18.7-macos-arm64.tar.xz",
+          "size": 8582860,
           "checksum": {
             "algo": "sha256",
-            "value": "993d00918cf0f5be624317a83b6b6160433aed63db5945f9d1580b10badd5172"
+            "value": "1c72e53d6012503a076917c4eeacba556b12a8fdadca7e1228e47f0d99e125c6"
           }
         },
         "x64": {
-          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/postgres-18.6-macos-x64.tar.xz",
-          "size": 9039168,
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261123-0336/postgres-18.7-macos-x64.tar.xz",
+          "size": 9059288,
           "checksum": {
             "algo": "sha256",
-            "value": "8d02ec7a01b7f739863a7f04d4dfb20df7d7d29bc61360e4bdcf18b3726dfb6c"
+            "value": "ad90a4e1ff3b2b3b7fefb8e57a6b6a804245b18a6e8baf4e8d272c1a3acd1d9a"
           }
         }
       }
@@ -672,77 +680,76 @@
       }
     },
     "cloudflared": {
-      "version": "2026.10.7",
+      "version": "2026.11.1",
       "download": {
-        "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-windows-amd64.exe",
-        "size": 55390512,
+        "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.11.1/cloudflared-windows-amd64.exe",
+        "size": 55483112,
         "checksum": {
           "algo": "sha256",
-          "value": "2493dbc168923bb3e59e5e7716f71deced92992eea9acd6e9d74f84ac7751343"
+          "value": "341deda3db5ec498a0482254d6c38c0b7cf01a30c37bb5dd95d2216d08955e35"
         },
         "file_version": null,
         "file": "cloudflared.exe"
       },
       "macos": {
         "x64": {
-          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-amd64.tgz",
-          "size": 21834416,
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.11.1/cloudflared-darwin-amd64.tgz",
+          "size": 21857340,
           "checksum": {
             "algo": "sha256",
-            "value": "02f3edfd87684dd5b705607688e4eb4b323f6e777b81e7b3a85af556aa356848"
+            "value": "5e0403b188dfee71fbd9b995e7dc9910d61b661c52371935ab6475d41185632f"
           }
         },
         "arm64": {
-          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.10.7/cloudflared-darwin-arm64.tgz",
-          "size": 19847161,
+          "url": "https://github.com/cloudflare/cloudflared/releases/download/2026.11.1/cloudflared-darwin-arm64.tgz",
+          "size": 19898712,
           "checksum": {
             "algo": "sha256",
-            "value": "3586ccf397e98e5f437e60e7c307ca6ac463e110580503af8bb8e6f9ebf831bd"
+            "value": "02fe4bcf08f2c09699cff30658228a739a0c47fb75f3653d1b8772a27ade4462"
+          }
+        }
+      }
+    },
+    "redis": {
+      "version": "8.10.3",
+      "download": {
+        "url": "https://github.com/redis-windows/redis-windows/releases/download/8.10.3/Redis-8.10.3-Windows-x64-msys2.zip",
+        "size": 14036243,
+        "checksum": {
+          "algo": "sha256",
+          "value": "af16df340525b431e9ec8dabfd625d5e7a233f82805b5418819904ea909c447f"
+        },
+        "file_version": null
+      },
+      "macos": {
+        "arm64": {
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/redis-8.10.3-macos-arm64.tar.xz",
+          "size": 3478012,
+          "checksum": {
+            "algo": "sha256",
+            "value": "3c7163c2407661753498172df89e9266ae27c7a647d54ef1eec9c89d8d1fdc92"
+          }
+        },
+        "x64": {
+          "url": "https://github.com/Jamrsx/nexdb-servers/releases/download/mac-servers-20261115-1029/redis-8.10.3-macos-x64.tar.xz",
+          "size": 3337248,
+          "checksum": {
+            "algo": "sha256",
+            "value": "ef8d96e59a49a2c2399d4ab071d90695338315f52c1cee14d65a4d31b1960070"
           }
         }
       }
     },
     "mariadb": {
-      "version": "12.3.3",
+      "version": "12.3.4",
       "download": {
-        "url": "https://archive.mariadb.org/mariadb-12.3.3/winx64-packages/mariadb-12.3.3-winx64.zip",
-        "size": 104081715,
+        "url": "https://archive.mariadb.org/mariadb-12.3.4/winx64-packages/mariadb-12.3.4-winx64.zip",
+        "size": 106623921,
         "checksum": {
           "algo": "sha256",
-          "value": "4b5706b47148b47c8f36963c8352d1ddee37a1287b4690428f631a74b09b85a0"
+          "value": "178020ae8ff7d0caf77b5a3ad7e33e574e13001352d31b02503f97224e4b1f77"
         },
         "file_version": null
-      }
-    },
-    "mongodb": {
-      "version": "9.0.4",
-      "download": {
-        "url": "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-9.0.4.zip",
-        "size": 988758776,
-        "checksum": {
-          "algo": "sha256",
-          "value": "1e6234c8c33e75de3659a7e1104cb12f1cb68ae41cba60b625537c1ed9256d43"
-        },
-        "file_version": null
-      },
-      "macos": {
-        "x64": {
-          "url": "https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-9.0.4.tgz",
-          "size": 182499475,
-          "checksum": {
-            "algo": "sha256",
-            "value": "cc7e5a17b9ccff0e1b2dab62858ad17bd519c87c4937fac89721bc4c6d326ef0"
-          }
-        },
-        "arm64": {
-          "url": "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-9.0.4.tgz",
-          "size": 172386558,
-          "checksum": {
-            "algo": "sha256",
-            "value": "66b9ebbbb7218cfa774a95172e353698cc214d31cbb6d73be04978a01d5c288c"
-          }
-        },
-        "min_macos": "14.0"
       }
     },
     "memcached": {
@@ -755,6 +762,37 @@
           "value": "48ec62cef718f0d73698414b783c0e4a69821013553ca00afe0eed324eb5994b"
         },
         "file_version": null
+      }
+    },
+    "mongodb": {
+      "version": "9.0.8",
+      "download": {
+        "url": "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-9.0.8.zip",
+        "size": 992283654,
+        "checksum": {
+          "algo": "sha256",
+          "value": "ee18c81847efebd869564e8ec42ca37b0cac7fe353c321969c5db16c3b7e4e8e"
+        },
+        "file_version": null
+      },
+      "macos": {
+        "x64": {
+          "url": "https://fastdl.mongodb.org/osx/mongodb-macos-x86_64-9.0.8.tgz",
+          "size": 187543796,
+          "checksum": {
+            "algo": "sha256",
+            "value": "8e8d7d147ff5cca0ece5acd2097b2ac21cbe096df75a737f756cf4bf99a71d4c"
+          }
+        },
+        "arm64": {
+          "url": "https://fastdl.mongodb.org/osx/mongodb-macos-arm64-9.0.8.tgz",
+          "size": 179744121,
+          "checksum": {
+            "algo": "sha256",
+            "value": "8e057ec463a52cfdea4b1b8f5d5108a622d9116dfff76332854b3627db772833"
+          }
+        },
+        "min_macos": "14.0"
       }
     }
   }

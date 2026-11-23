@@ -15,7 +15,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 /// How long a live check is trusted before asking the sites again.
 const FRESH_SECS: u64 = 12 * 3600;
 /// Release lines shown per component (matches the build script).
-const MAX_LINES: usize = 4;
+const MAX_LINES: usize = 5;
 
 #[derive(Serialize, Deserialize)]
 struct Cache {
