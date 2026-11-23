@@ -7,6 +7,14 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.6.2",
+    title: "Easier to read in Glass look",
+    changes: [
+      "In Glass look, the Background tasks list, ⋯ menus and chart tips no longer show the page through their text, on Windows and Mac.",
+      "Table headers, bottom bars that stay in place, and the relationship diagram now have a solid background, so nothing shows through them while you scroll.",
+    ],
+  },
+  {
     version: "0.6.1",
     title: "PHP 8.6 and the newest versions of your tools",
     changes: [

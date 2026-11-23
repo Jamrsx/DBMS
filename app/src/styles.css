@@ -11072,12 +11072,26 @@ html[data-glass] :is(
     .whatsnew-offer,
     .license-bubble,
     .diagram-wizard-bubble,
-    .tutorial-dialog
+    .tutorial-dialog,
+    .tasks-pop,
+    .menu-list,
+    .more-list,
+    .perf-tip
   ) {
   background: var(--surface-float);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
   backdrop-filter: blur(28px) saturate(170%);
   box-shadow: inset 0 1px 0 var(--glass-rim), 0 4px 10px rgb(0 0 0 / 0.08), 0 24px 56px rgb(0 0 0 / 0.26);
+}
+
+html[data-glass] .guide-bubble::before {
+  background: var(--surface-float);
+}
+
+/* Solid, because content moves or sits right under them. The diagram overlay must not get a
+   backdrop-filter: that would re-anchor the fixed dialogs inside it and clip them. */
+html[data-glass] :is(.diagram-overlay, .data-table th, .env-foot.pending, .link-actions) {
+  background: var(--surface-solid);
 }
 
 /* Dimmed backgrounds behind dialogs: a lighter tint and a soft blur instead of a dark sheet. */
