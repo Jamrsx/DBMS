@@ -1336,6 +1336,7 @@ mod tests {
                 ("blog".to_string(), crate::settings::AppShare { port: 8186, front: String::new(), backend: String::new(), dev: Some(5173) }),
             ]),
             site_roots: &std::collections::BTreeMap::from([("blog".to_string(), "public".to_string())]),
+            sites: true,
         })
         .unwrap();
         let shop = fs::read_to_string(etc.join("nginx/sites-enabled/shop.conf")).unwrap();

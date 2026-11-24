@@ -390,6 +390,9 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
     } else {
         clear_confs(&etc.join("apache").join("sites-enabled"))?;
     }
+    if !crate::license::is_full() {
+        return write_free_site_configs(root, settings, web, port);
+    }
     let cert = if settings.preferences.https {
         let mut names: Vec<String> = vec!["localhost".into(), "127.0.0.1".into(), "::1".into()];
         names.extend(list(www, port).into_iter().filter_map(|p| p.host));
@@ -400,7 +403,7 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
     let https = cert.as_ref().map(|c| Https { port: settings.preferences.https_port, cert: &c.cert_path, key: &c.key_path });
     let roots = &settings.preferences.site_root;
     if web == "apache" {
-        write_vhosts(&etc, www, port, https.as_ref(), &php_ports, roots)?;
+        write_vhosts(&etc, www, port, https.as_ref(), &php_ports, roots, true)?;
         write_apache_shares(&etc, www, port, &settings.preferences, roots)?;
         let ts = nexhost_tailscale_ip(settings);
         let nexhost = crate::nexhost::conf(root, "apache", &settings.preferences.nexhost, settings.php_fastcgi_port, Path::new(""), ts.as_deref());
@@ -426,10 +429,47 @@ pub fn write_site_configs(root: &Path, settings: &crate::settings::Settings) -> 
         share_dev: &settings.preferences.share_dev,
         share_app: &settings.preferences.share_app,
         site_roots: roots,
+        sites: true,
     })?;
     let ts = nexhost_tailscale_ip(settings);
     let nexhost = crate::nexhost::conf(root, "nginx", &settings.preferences.nexhost, settings.php_fastcgi_port, &params, ts.as_deref());
     crate::configure::write_file(&etc.join("nginx").join("sites-enabled").join("zz-nexhost.conf"), &nexhost)
+}
+
+/// NexDB Free: `localhost` only, plain HTTP, one PHP. `.test` addresses show the paused page.
+/// Nothing in the saved settings changes, so every site returns as it was after an upgrade.
+fn write_free_site_configs(root: &Path, settings: &crate::settings::Settings, web: &str, port: u16) -> Result<(), String> {
+    let www = Path::new(&settings.www_dir);
+    let etc = root.join("etc");
+    let roots = &settings.preferences.site_root;
+    let no_ports = std::collections::BTreeMap::new();
+    if web == "apache" {
+        write_vhosts(&etc, www, port, None, &no_ports, roots, false)?;
+    } else {
+        let nginx_dir = settings
+            .components
+            .iter()
+            .find(|c| c.id == "nginx")
+            .map(|c| PathBuf::from(&c.path))
+            .ok_or("nginx isn't installed.")?;
+        write_nginx_sites(&NginxSites {
+            etc: &etc,
+            www,
+            port,
+            https: None,
+            php_ports: &no_ports,
+            fcgi_port: settings.php_fastcgi_port,
+            nginx_dir: &nginx_dir,
+            phpmyadmin: crate::phpmyadmin::installed(root).then(|| crate::phpmyadmin::dir(root)),
+            shared: &Default::default(),
+            share_dev: &Default::default(),
+            share_app: &Default::default(),
+            site_roots: roots,
+            sites: false,
+        })?;
+    }
+    let renew = format!("{}/#price", crate::license::api_base());
+    crate::freesites::write_paused(&etc, web, port, &crate::freesites::paused_sites(www, port, roots), &renew)
 }
 
 /// This PC's Tailscale address, asked only when a NexHost site is shared on Tailscale.
@@ -521,6 +561,8 @@ pub struct NginxSites<'a> {
     /// Whole apps (front end and Laravel backend) shared on one link.
     pub share_app: &'a std::collections::BTreeMap<String, crate::settings::AppShare>,
     pub site_roots: &'a SiteRoots,
+    /// False in NexDB Free: only localhost, no per-project `.test` sites.
+    pub sites: bool,
 }
 
 /// nginx's version of `write_vhosts`: one server block per project in `sites-enabled`, and
@@ -595,6 +637,9 @@ location ^~ /phpmyadmin/ {{
         first.push_str(&format!("\nlocation ^~ /{name}/ {{\n{}}}\n", php(*php_port)));
     }
     crate::configure::write_file(&local.join("00-localhost.conf"), &first)?;
+    if !s.sites {
+        return Ok(());
+    }
 
     for p in list_with(s.www, s.port, s.site_roots) {
         let Some(host) = &p.host else { continue };
@@ -734,6 +779,8 @@ pub fn write_vhosts(
     https: Option<&Https>,
     php_ports: &std::collections::BTreeMap<String, u16>,
     roots: &SiteRoots,
+    // False in NexDB Free: only localhost, no per-project `.test` sites.
+    sites: bool,
 ) -> Result<(), String> {
     let dir = etc.join("apache").join("sites-enabled");
     fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
@@ -788,6 +835,9 @@ pub fn write_vhosts(
         ));
     }
     crate::configure::write_file(&dir.join("00-localhost.conf"), &first)?;
+    if !sites {
+        return Ok(());
+    }
     for p in list_with(www, port, roots) {
         let Some(host) = &p.host else { continue };
         let body = format!("# Generated by NexDB for {}\n{}", p.name, vhost(host, Path::new(&p.doc_root), ""));
@@ -1080,7 +1130,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let www = dir.path().join("www");
         fs::create_dir_all(www.join("site/public")).unwrap();
-        write_vhosts(&dir.path().join("etc"), &www, 80, None, &Default::default(), &Default::default()).unwrap();
+        write_vhosts(&dir.path().join("etc"), &www, 80, None, &Default::default(), &Default::default(), true).unwrap();
         let sites = dir.path().join("etc/apache/sites-enabled");
         assert!(fs::read_to_string(sites.join("00-localhost.conf")).unwrap().contains("ServerName localhost"));
         let site = fs::read_to_string(sites.join("site.conf")).unwrap();
@@ -1089,7 +1139,7 @@ mod tests {
 
         let (cert, key) = (dir.path().join("sites.crt"), dir.path().join("sites.key"));
         let php_ports = [("site".to_string(), 9087u16)].into_iter().collect();
-        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key }), &php_ports, &Default::default()).unwrap();
+        write_vhosts(&dir.path().join("etc"), &www, 80, Some(&Https { port: 443, cert: &cert, key: &key }), &php_ports, &Default::default(), true).unwrap();
         let first = fs::read_to_string(sites.join("00-localhost.conf")).unwrap();
         assert!(first.contains("Listen 443") && first.contains("mod_ssl.so"), "{first}");
         assert!(first.contains("/site\">") && first.contains("proxy:fcgi://127.0.0.1:9087/"), "{first}");

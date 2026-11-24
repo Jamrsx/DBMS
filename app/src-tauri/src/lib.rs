@@ -50,6 +50,7 @@ mod settings;
 mod share;
 mod syspath;
 mod supervisor;
+mod freesites;
 mod terminal;
 mod tier;
 mod tray;
