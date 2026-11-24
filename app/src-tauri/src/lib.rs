@@ -251,6 +251,12 @@ async fn license_sign_in(email: String, password: String, move_here: Option<bool
     license::sign_in(&email, &password, move_here.unwrap_or(false)).await
 }
 
+/// Starts the one-click 14-day free trial on this PC.
+#[tauri::command]
+async fn license_start_trial() -> license::Outcome {
+    license::start_trial().await
+}
+
 /// The quiet check with the website, when online.
 #[tauri::command]
 async fn license_check_in() -> license::Outcome {
@@ -439,6 +445,7 @@ pub fn run() {
             license_status,
             license_activate,
             license_sign_in,
+            license_start_trial,
             license_change,
             license_check_in,
             license_unlink,

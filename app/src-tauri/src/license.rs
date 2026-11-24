@@ -74,6 +74,9 @@ pub struct Claims {
     /// Extra app features the plan includes ("nexhost"). Older licenses have none.
     #[serde(default)]
     pub features: Vec<String>,
+    /// The one-click 14-day free trial: it ends on its last day, with no grace days.
+    #[serde(default)]
+    pub trial: bool,
 }
 
 /// What's saved (encrypted) on this PC.
@@ -105,6 +108,7 @@ pub enum Status {
         check_by: i64,
         days_left: Option<i64>,
         features: Vec<String>,
+        trial: bool,
     },
     /// Valid, but it hasn't checked in with the website for too long.
     NeedsCheckin { key_hint: String, check_by: i64 },
@@ -120,7 +124,7 @@ pub enum Status {
         features: Vec<String>,
     },
     /// Its time ran out and the grace days are over.
-    Expired { key_hint: String, expires_at: i64, plan: Option<String>, seller: Option<String> },
+    Expired { key_hint: String, expires_at: i64, plan: Option<String>, seller: Option<String>, trial: bool },
     /// The PC clock is behind the newest time NexDB has seen.
     ClockBack { key_hint: String },
 }
@@ -165,8 +169,9 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
     }
     let at = at.max(last_seen);
     if let Some(end) = claims.expires_at {
-        if at >= end + GRACE_SECS {
-            return Status::Expired { key_hint: hint, expires_at: end, plan: claims.plan.clone(), seller: claims.seller.clone() };
+        let grace = if claims.trial { 0 } else { GRACE_SECS };
+        if at >= end + grace {
+            return Status::Expired { key_hint: hint, expires_at: end, plan: claims.plan.clone(), seller: claims.seller.clone(), trial: claims.trial };
         }
         if at >= end {
             return Status::Grace {
@@ -194,6 +199,7 @@ fn evaluate(claims: &Claims, last_seen: i64, at: i64) -> Status {
         check_by: claims.check_by,
         days_left: claims.expires_at.map(|end| ((end - at) as f64 / 86400.0).ceil() as i64),
         features: claims.features.clone(),
+        trial: claims.trial,
     }
 }
 
@@ -545,6 +551,11 @@ fn current_status() -> Status {
     cached.unwrap_or_else(status)
 }
 
+/// Full NexDB: a working license or trial, or a license within its grace days. Anything else is Free.
+pub fn is_full() -> bool {
+    current_status().is_active()
+}
+
 /// Whether this license's plan includes an app feature, like "nexhost".
 pub fn has_feature(name: &str) -> bool {
     feature_error(&current_status(), name).is_none()
@@ -695,6 +706,20 @@ pub async fn activate(key: &str, name: &str, email: &str, password: &str, move_h
     }
 }
 
+/// Starts the one-click 14-day free trial, once per computer. Sends only the hashed computer id
+/// and the app version: no name, email or device name.
+pub async fn start_trial() -> Outcome {
+    let body = serde_json::json!({ "machine_id": machine_id(), "app_version": env!("CARGO_PKG_VERSION") });
+    match post("trial", body).await {
+        Ok((200, json)) => match json["key"].as_str() {
+            Some(key) => accept(key, &json),
+            None => failure(&json, "The license server sent an answer NexDB doesn't understand."),
+        },
+        Ok((_, json)) => failure(&json, "The free trial couldn't be started."),
+        Err(e) => Outcome { ok: false, code: Some("offline".into()), message: Some(e), ..Default::default() },
+    }
+}
+
 /// The quiet check-in. Online: refreshes the license, or ends it if the website says it was
 /// turned off or moved. Offline: nothing changes.
 pub async fn check_in() -> Outcome {
@@ -799,6 +824,7 @@ mod tests {
             expires_at,
             check_by: 1_000 + 30 * 86400,
             features: vec![],
+            trial: false,
         }
     }
 
@@ -813,7 +839,30 @@ mod tests {
             check_by: 2_000,
             days_left: Some(10),
             features,
+            trial: false,
         }
+    }
+
+    #[test]
+    fn a_trial_has_no_grace_days() {
+        let mut c = claims(Some(5_000_000));
+        c.trial = true;
+        assert!(matches!(evaluate(&c, 1_000, 2_000), Status::Active { trial: true, .. }));
+        assert!(matches!(evaluate(&c, 1_000, 5_000_000), Status::Expired { trial: true, .. }));
+    }
+
+    #[test]
+    fn paid_licenses_keep_three_grace_days() {
+        let c = claims(Some(5_000_000));
+        assert!(matches!(evaluate(&c, 1_000, 5_000_000), Status::Grace { .. }));
+        assert!(matches!(evaluate(&c, 1_000, 5_000_000 + GRACE_SECS), Status::Expired { trial: false, .. }));
+    }
+
+    #[test]
+    fn tokens_from_before_trials_are_not_trials() {
+        let old = serde_json::json!({"v":1,"lid":4,"key_hint":"7KQ2","plan":"6 months","name":null,"email":null,
+            "machine":"a","issued_at":1000,"expires_at":null,"check_by":2000});
+        assert!(!serde_json::from_value::<Claims>(old).unwrap().trial);
     }
 
     #[test]
