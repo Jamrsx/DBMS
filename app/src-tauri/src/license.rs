@@ -552,8 +552,15 @@ fn current_status() -> Status {
 }
 
 /// Full NexDB: a working license or trial, or a license within its grace days. Anything else is Free.
+#[cfg(not(test))]
 pub fn is_full() -> bool {
     current_status().is_active()
+}
+
+/// Tests run as Full and never read or update this computer's real license file.
+#[cfg(test)]
+pub fn is_full() -> bool {
+    true
 }
 
 /// Whether this license's plan includes an app feature, like "nexhost".

@@ -3,7 +3,9 @@
 
 use crate::configure::{conf_path, write_file};
 use crate::projects::{list_with, SiteRoots};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashSet};
+use std::fs;
 use std::path::{Component, Path};
 
 /// The folder under `etc` that holds the paused page. It also marks that Free configs are in place.
@@ -49,9 +51,107 @@ pub fn paused_sites(www: &Path, port: u16, roots: &SiteRoots) -> Vec<PausedSite>
         .into_iter()
         .filter_map(|p| {
             let host = p.host?;
-            Some(PausedSite { local_url: local_url(www, Path::new(&p.doc_root), port), name: p.name, host, can_use_localhost: false })
+            let can_use_localhost = fs::read_to_string(Path::new(&p.path).join(".env")).is_ok_and(|env| points_at_test(&env, &host));
+            Some(PausedSite { local_url: local_url(www, Path::new(&p.doc_root), port), name: p.name, host, can_use_localhost })
         })
         .collect()
+}
+
+/// Keeps only sites the hosts file really knows, so someone who never had `.test` addresses
+/// isn't told their folders are "paused".
+pub fn in_hosts_file(sites: Vec<PausedSite>, hosts: &str) -> Vec<PausedSite> {
+    let known: HashSet<String> = hosts
+        .lines()
+        .map(|line| line.split('#').next().unwrap_or(""))
+        .flat_map(|line| line.split_whitespace().skip(1))
+        .map(str::to_lowercase)
+        .collect();
+    sites.into_iter().filter(|s| known.contains(&s.host.to_lowercase())).collect()
+}
+
+/// A change "Use localhost" made, so it can be undone after an upgrade.
+#[derive(Debug, Serialize, Deserialize)]
+struct UrlChange {
+    old: String,
+    new: String,
+}
+
+type UrlChanges = BTreeMap<String, UrlChange>;
+
+const CHANGES_FILE: &str = "free-url-changes.json";
+
+fn load_changes(etc: &Path) -> UrlChanges {
+    fs::read_to_string(etc.join(CHANGES_FILE)).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn save_changes(etc: &Path, changes: &UrlChanges) -> Result<(), String> {
+    let path = etc.join(CHANGES_FILE);
+    if changes.is_empty() {
+        return match fs::remove_file(&path) {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
+            _ => Ok(()),
+        };
+    }
+    write_file(&path, &serde_json::to_string_pretty(changes).map_err(|e| e.to_string())?)
+}
+
+/// The value of the `APP_URL` line, without its line ending.
+fn app_url(env: &str) -> Option<&str> {
+    env.lines().find_map(|line| line.strip_prefix("APP_URL=")).map(|v| v.trim_end_matches('\r'))
+}
+
+fn points_at_test(env: &str, host: &str) -> bool {
+    app_url(env).is_some_and(|v| v == format!("http://{host}") || v == format!("https://{host}"))
+}
+
+/// The same file with only the `APP_URL` value replaced; every other byte stays as it was.
+fn with_app_url(env: &str, value: &str) -> String {
+    env.split_inclusive('\n')
+        .map(|line| {
+            if !line.starts_with("APP_URL=") {
+                return line.to_string();
+            }
+            let ending = &line[line.trim_end_matches(['\r', '\n']).len()..];
+            format!("APP_URL={value}{ending}")
+        })
+        .collect()
+}
+
+/// Points a paused Laravel project at `localhost`. The first copy of its `.env` is kept outside
+/// the project, so passwords in it can't be committed to git by accident.
+pub fn use_localhost(etc: &Path, project_dir: &Path, name: &str, host: &str, local_url: &str) -> Result<(), String> {
+    let path = project_dir.join(".env");
+    let env = fs::read_to_string(&path).map_err(|_| "This project has no readable .env file.".to_string())?;
+    if !points_at_test(&env, host) {
+        return Err(format!("APP_URL in this project isn't {host}, so NexDB left it alone."));
+    }
+    let old = app_url(&env).unwrap_or_default().to_string();
+    let new = local_url.trim_end_matches('/').to_string();
+    let backup = etc.join("free-url-backups").join(format!("{name}.env"));
+    if !backup.exists() {
+        write_file(&backup, &env)?;
+    }
+    let mut changes = load_changes(etc);
+    changes.insert(name.to_string(), UrlChange { old, new: new.clone() });
+    save_changes(etc, &changes)?;
+    fs::write(&path, with_app_url(&env, &new)).map_err(|e| format!("Couldn't update .env: {e}"))
+}
+
+/// Puts back every `.test` address "Use localhost" changed, unless the line was edited since.
+/// Returns how many were restored.
+pub fn restore_urls(etc: &Path, www: &Path) -> Result<usize, String> {
+    let changes = load_changes(etc);
+    let mut restored = 0;
+    for (name, change) in &changes {
+        let path = www.join(name).join(".env");
+        let Ok(env) = fs::read_to_string(&path) else { continue };
+        if app_url(&env) == Some(change.new.as_str()) {
+            fs::write(&path, with_app_url(&env, &change.old)).map_err(|e| format!("Couldn't update .env: {e}"))?;
+            restored += 1;
+        }
+    }
+    save_changes(etc, &UrlChanges::new())?;
+    Ok(restored)
 }
 
 const PAGE_TOP: &str = r#"<!doctype html>
@@ -134,8 +234,6 @@ pub fn write_paused(etc: &Path, web: &str, port: u16, sites: &[PausedSite], rene
 mod tests {
     use super::*;
     use crate::projects::write_vhosts;
-    use std::fs;
-    use std::path::Path;
 
     #[test]
     fn paused_page_survives_hostile_project_names() {
@@ -184,6 +282,77 @@ mod tests {
         let sites = etc.join("apache").join("sites-enabled");
         assert!(sites.join("shop.conf").is_file());
         assert!(!sites.join("01-paused.conf").exists());
+    }
+
+    fn laravel(dir: &Path, env: &str) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let (www, etc) = (dir.join("www"), dir.join("etc"));
+        let project = www.join("shop");
+        fs::create_dir_all(&project).unwrap();
+        fs::create_dir_all(&etc).unwrap();
+        fs::write(project.join(".env"), env).unwrap();
+        (www, etc, project)
+    }
+
+    const ENV: &str = "APP_NAME=Shop\r\nAPP_URL=http://shop.test\r\nDB_PASSWORD=s3cret\r\n";
+    const LOCAL: &str = "http://localhost/shop/public/";
+
+    #[test]
+    fn use_localhost_changes_only_app_url_and_keeps_crlf() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_, etc, project) = laravel(dir.path(), ENV);
+        use_localhost(&etc, &project, "shop", "shop.test", LOCAL).unwrap();
+        assert_eq!(fs::read_to_string(project.join(".env")).unwrap(), "APP_NAME=Shop\r\nAPP_URL=http://localhost/shop/public\r\nDB_PASSWORD=s3cret\r\n");
+        assert_eq!(fs::read_to_string(etc.join("free-url-backups").join("shop.env")).unwrap(), ENV);
+        assert_eq!(fs::read_dir(&project).unwrap().count(), 1, "no backup with secrets inside the project");
+    }
+
+    #[test]
+    fn use_localhost_refuses_when_app_url_is_missing_or_different() {
+        for env in ["APP_NAME=Shop\n", "APP_URL=http://example.local\n"] {
+            let dir = tempfile::tempdir().unwrap();
+            let (_, etc, project) = laravel(dir.path(), env);
+            assert!(use_localhost(&etc, &project, "shop", "shop.test", LOCAL).is_err());
+            assert_eq!(fs::read_to_string(project.join(".env")).unwrap(), env);
+            assert!(!etc.join("free-url-changes.json").exists());
+        }
+    }
+
+    #[test]
+    fn restore_puts_back_the_test_address() {
+        let dir = tempfile::tempdir().unwrap();
+        let (www, etc, project) = laravel(dir.path(), ENV);
+        use_localhost(&etc, &project, "shop", "shop.test", LOCAL).unwrap();
+        assert_eq!(restore_urls(&etc, &www).unwrap(), 1);
+        assert_eq!(fs::read_to_string(project.join(".env")).unwrap(), ENV);
+        assert!(!etc.join("free-url-changes.json").exists());
+    }
+
+    #[test]
+    fn restore_never_overwrites_a_hand_edit() {
+        let dir = tempfile::tempdir().unwrap();
+        let (www, etc, project) = laravel(dir.path(), ENV);
+        use_localhost(&etc, &project, "shop", "shop.test", LOCAL).unwrap();
+        let edited = "APP_NAME=Shop\r\nAPP_URL=http://example.local\r\nDB_PASSWORD=s3cret\r\n";
+        fs::write(project.join(".env"), edited).unwrap();
+        assert_eq!(restore_urls(&etc, &www).unwrap(), 0);
+        assert_eq!(fs::read_to_string(project.join(".env")).unwrap(), edited);
+    }
+
+    #[test]
+    fn restore_skips_a_project_that_was_deleted() {
+        let dir = tempfile::tempdir().unwrap();
+        let (www, etc, project) = laravel(dir.path(), ENV);
+        use_localhost(&etc, &project, "shop", "shop.test", LOCAL).unwrap();
+        fs::remove_dir_all(&project).unwrap();
+        assert_eq!(restore_urls(&etc, &www).unwrap(), 0);
+    }
+
+    #[test]
+    fn only_sites_that_really_had_a_test_address_count_as_paused() {
+        let site = |name: &str| PausedSite { name: name.into(), host: format!("{name}.test"), local_url: String::new(), can_use_localhost: false };
+        let hosts = "# comment mentions old.test\r\n127.0.0.1 shop.test blog.test\r\n";
+        let names: Vec<String> = in_hosts_file(vec![site("shop"), site("new"), site("old")], hosts).into_iter().map(|s| s.name).collect();
+        assert_eq!(names, ["shop"]);
     }
 
     #[test]

@@ -256,6 +256,32 @@ async fn license_sign_in(email: String, password: String, move_here: Option<bool
     license::sign_in(&email, &password, move_here.unwrap_or(false)).await
 }
 
+/// `.test` sites this PC really had, now paused because NexDB is in Free.
+fn paused_site_list(settings: &settings::Settings) -> Vec<freesites::PausedSite> {
+    let Some((_, port)) = settings.web() else { return Vec::new() };
+    let hosts = std::fs::read_to_string(projects::hosts_path()).unwrap_or_default();
+    let sites = freesites::paused_sites(std::path::Path::new(&settings.www_dir), port, &settings.preferences.site_root);
+    freesites::in_hosts_file(sites, &hosts)
+}
+
+#[tauri::command]
+async fn paused_sites(stack: tauri::State<'_, Stack>) -> Result<Vec<freesites::PausedSite>, String> {
+    let (_, settings, _) = stack.get()?;
+    blocking(move || Ok(paused_site_list(&settings))).await
+}
+
+/// Points a paused Laravel project at its `localhost` address. Undone after an upgrade.
+#[tauri::command]
+async fn project_use_localhost(stack: tauri::State<'_, Stack>, name: String) -> Result<(), String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let site = paused_site_list(&settings).into_iter().find(|s| s.name == name).ok_or("That site isn't paused.")?;
+        let dir = projects::project_dir(std::path::Path::new(&settings.www_dir), &site.name).ok_or("That project doesn't exist any more.")?;
+        freesites::use_localhost(&root.join("etc"), &dir, &site.name, &site.host, &site.local_url)
+    })
+    .await
+}
+
 /// Starts the one-click 14-day free trial on this PC.
 #[tauri::command]
 async fn license_start_trial() -> license::Outcome {
@@ -453,6 +479,8 @@ pub fn run() {
             license_activate,
             license_sign_in,
             license_start_trial,
+            paused_sites,
+            project_use_localhost,
             license_change,
             license_check_in,
             license_unlink,

@@ -66,6 +66,8 @@ pub const FREE_COMMANDS: &[&str] = &[
     "backups_list",
     "backup_restore",
     "open_backups_folder",
+    "paused_sites",
+    "project_use_localhost",
 ];
 
 /// Whether `command` may run. Full runs everything; Free runs only the list above.
