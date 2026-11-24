@@ -28,6 +28,8 @@ export interface Choices {
   composer_version: string;
   /** Portable Git; null when the bundled catalog predates it. */
   git_version: string | null;
+  /** The PHP that NexDB Free installs. */
+  free_php?: string | null;
 }
 
 /**

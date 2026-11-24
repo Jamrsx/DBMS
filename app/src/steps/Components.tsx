@@ -22,7 +22,7 @@ interface ComponentInfo {
 
 /** Display order, descriptions and defaults. Composer has no catalog versions. */
 const COMPONENTS: ComponentInfo[] = [
-  { id: "apache", description: "Web server for your .test sites.", defaultOn: true },
+  { id: "apache", description: "Web server for your local sites.", defaultOn: true },
   { id: "php", description: "Runs PHP sites and tools like Laravel and WordPress.", defaultOn: true },
   { id: "mysql", description: "Database server, with the built-in database manager.", defaultOn: true },
   { id: "node", description: "JavaScript runtime with npm, for front-end builds.", defaultOn: true },
@@ -31,18 +31,49 @@ const COMPONENTS: ComponentInfo[] = [
   { id: "nginx", description: "Alternative web server. Optional.", defaultOn: false },
 ];
 
-export function defaultSelections(choices: Choices): Selections {
+export function defaultSelections(choices: Choices, free = false): Selections {
   const byId = new Map(choices.components.map((c) => [c.id, c]));
+  const version = (id: string) => (free && id === "php" && choices.free_php) || byId.get(id)?.recommended || null;
   return Object.fromEntries(
     COMPONENTS.map((info) => [
       info.id,
       {
         // No Git build on Mac (Macs have their own); the option is hidden there.
         enabled: info.defaultOn && (info.id !== "git" || !!choices.git_version),
-        version: byId.get(info.id)?.recommended ?? null,
+        version: version(info.id),
         existingPath: null,
       },
     ]),
+  );
+}
+
+/** NexDB Free: the fixed list setup installs, with no version pickers. */
+function FreeComponents({ choices, selections }: { choices: Choices; selections: Selections }) {
+  const byId = new Map(choices.components.map((c) => [c.id, c]));
+  const rows = COMPONENTS.filter((info) => info.id !== "nginx" && selections[info.id]?.enabled).map((info) => ({
+    id: info.id,
+    name: byId.get(info.id)?.name ?? (info.id === "git" ? "Git" : "Composer"),
+    description: info.id === "mysql" ? "Database server." : info.description,
+    version: selections[info.id].version ?? "Latest stable",
+  }));
+  rows.push({ id: "phpmyadmin", name: "phpMyAdmin", description: "Manage your databases in the browser.", version: "Latest stable" });
+  return (
+    <>
+      <p className="lede">NexDB will install the basics for local web development. You can add other PHP and Node versions yourself later.</p>
+      <ul className="choice-list">
+        {rows.map((row) => (
+          <li key={row.id} className="choice on">
+            <div className="choice-head">
+              <span className="choice-title">
+                <span className="choice-name">{row.name}</span>
+                <span className="muted">{row.description}</span>
+              </span>
+              <span className="choice-summary">{row.version}</span>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -59,9 +90,16 @@ interface Props {
   scan: ScanReport | null;
   selections: Selections;
   onChange: (selections: Selections) => void;
+  /** NexDB Free: a fixed list instead of version pickers. */
+  free?: boolean;
 }
 
-export function Components({ choices, scan, selections, onChange }: Props) {
+export function Components({ choices, scan, selections, onChange, free = false }: Props) {
+  if (free) return <FreeComponents choices={choices} selections={selections} />;
+  return <ComponentPicker choices={choices} scan={scan} selections={selections} onChange={onChange} />;
+}
+
+function ComponentPicker({ choices, scan, selections, onChange }: Props) {
   const byId = new Map(choices.components.map((c) => [c.id, c]));
   const set = (id: string, patch: Partial<Selection>) => {
     const next = { ...selections, [id]: { ...selections[id], ...patch } };

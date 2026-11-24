@@ -112,7 +112,22 @@ async fn run_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, requ
     installer::run(&catalog, &request, &installer::RunOptions::for_app(config_dir), |progress| {
         let _ = app.emit("install-progress", progress);
     })
-    .await
+    .await?;
+    // phpMyAdmin is how Free manages databases. If only this fails, setup still succeeds and the
+    // Database button offers to install it.
+    if request.items.iter().any(|i| matches!(i.id.as_str(), "apache" | "nginx")) {
+        let root = PathBuf::from(request.install_root.trim());
+        let port = request.mysql.as_ref().map(|m| m.port);
+        let emit = app.clone();
+        let done = phpmyadmin::install(&catalog.tools.phpmyadmin.download, &root, port, &move |p| {
+            let _ = emit.emit("install-progress", p);
+        })
+        .await;
+        if let Err(e) = done {
+            eprintln!("phpMyAdmin wasn't installed during setup: {e}");
+        }
+    }
+    Ok(())
 }
 
 /// Asks a running install to stop at the next safe point.

@@ -195,5 +195,9 @@ function planSteps(
   }
 
   steps.push({ id: "save", title: "Save settings", admin: false });
+  // Runs after the install itself; if only this fails, setup still finishes.
+  if (installing("apache") || installing("nginx")) {
+    steps.push({ id: "get-phpmyadmin", title: "Download, verify and unpack phpMyAdmin", admin: false });
+  }
   return steps;
 }

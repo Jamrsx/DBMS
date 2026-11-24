@@ -21,6 +21,7 @@ import { InstallView } from "./steps/InstallView";
 import { Check } from "lucide-react";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { loadChoices, type Choices } from "./lib/catalog";
+import { licenseStatus, licenseWorks } from "./lib/license";
 import { suggestPort } from "./lib/ports";
 import { buildPlan, type InstallPlan } from "./lib/plan";
 import { EXAMPLE_ROOT, joinPath } from "./lib/os";
@@ -64,6 +65,8 @@ export function Wizard({
   const [choices, setChoices] = useState<Choices | null>(null);
   const [choicesError, setChoicesError] = useState<string | null>(null);
   const [selections, setSelections] = useState<Selections | null>(null);
+  // No working license: setup installs NexDB Free's fixed list.
+  const [free, setFree] = useState(true);
   const [mysql, setMysql] = useState<{ mode: MysqlMode; value: MysqlSettings } | null>(null);
   const [error, setError] = useState<string | null>(null);
   /** The plan as it was when the user clicked Install. */
@@ -118,10 +121,12 @@ export function Wizard({
   }, [scanReport]);
 
   useEffect(() => {
-    loadChoices()
-      .then((c) => {
+    Promise.all([loadChoices(), licenseStatus().catch(() => null)])
+      .then(([c, license]) => {
+        const isFree = !licenseWorks(license);
+        setFree(isFree);
         setChoices(c);
-        setSelections(defaultSelections(c));
+        setSelections(defaultSelections(c, isFree));
       })
       .catch((err) => setChoicesError(String(err)));
   }, []);
@@ -229,6 +234,7 @@ export function Wizard({
           {current.id === "components" &&
             (choices && selections ? (
               <Components
+                free={free}
                 choices={choices}
                 scan={scanReport}
                 selections={selections}

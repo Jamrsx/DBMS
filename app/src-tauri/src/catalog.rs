@@ -229,6 +229,23 @@ pub struct Choices {
     pub components: Vec<ComponentChoices>,
     pub composer_version: String,
     pub git_version: Option<String>,
+    /// The PHP that NexDB Free installs.
+    pub free_php: Option<String>,
+}
+
+/// The PHP line NexDB Free installs. It stays here until a release deliberately changes it, so
+/// Free doesn't move to a brand-new PHP when the paid recommendation does.
+pub const FREE_PHP_LINE: &str = "8.5";
+
+/// The newest patch of Free's PHP line, or the normal recommendation if that line can't be downloaded.
+fn free_php(php: &CatalogComponent, today: i64) -> Option<String> {
+    let choices = component_choices(php, today);
+    choices
+        .versions
+        .iter()
+        .find(|v| v.line == FREE_PHP_LINE && v.downloadable)
+        .map(|v| v.version.clone())
+        .or(choices.recommended)
 }
 
 pub fn bundled() -> Catalog {
@@ -268,6 +285,7 @@ pub fn choices(catalog: &Catalog, today: i64) -> Choices {
             .collect(),
         composer_version: catalog.tools.composer.version.clone(),
         git_version: catalog.tools.git.as_ref().map(|g| g.version.clone()),
+        free_php: catalog.components.iter().find(|c| c.id == "php").and_then(|c| free_php(c, today)),
     }
 }
 
@@ -448,6 +466,23 @@ mod tests {
         // 90 days later the new line becomes the recommendation.
         let c = component_choices(&php, day("2026-12-30"));
         assert_eq!(c.recommended.as_deref(), Some("8.6.0"));
+    }
+
+    #[test]
+    fn free_php_is_the_newest_85_patch_even_after_86_is_recommended() {
+        let php = component("php", vec![line("8.6", "8.6.0", "2026-10-01"), line("8.5", "8.5.13", "2025-11-20")]);
+        let today = day("2026-12-30");
+        assert_eq!(component_choices(&php, today).recommended.as_deref(), Some("8.6.0"));
+        assert_eq!(free_php(&php, today).as_deref(), Some("8.5.13"));
+    }
+
+    #[test]
+    fn free_php_falls_back_when_85_has_no_download() {
+        let mut v85 = line("8.5", "8.5.13", "2025-11-20");
+        v85.download = None;
+        let php = component("php", vec![line("8.6", "8.6.0", "2026-10-01"), v85]);
+        let today = day("2026-12-30");
+        assert_eq!(free_php(&php, today), component_choices(&php, today).recommended);
     }
 
     #[test]
