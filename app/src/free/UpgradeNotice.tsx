@@ -27,7 +27,7 @@ export function UpgradeNotice({ trialAvailable, onOpen }: { trialAvailable: bool
   };
 
   return (
-    <aside className="free-notice" data-tour="free-upgrade" aria-label="Upgrade">
+    <aside className="free-notice" aria-label="Upgrade">
       <p>
         {trialAvailable ? "Try " : "Get "}
         <strong>.test sites</strong>, templates and one-click versions{trialAvailable ? " free for 14 days." : " with the full NexDB."}

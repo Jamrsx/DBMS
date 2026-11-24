@@ -57,6 +57,7 @@ export default function App() {
 function MainApp() {
   const [view, setView] = useState<View>("loading");
   const [repairRoot, setRepairRoot] = useState<string | null>(null);
+  const [repairMysql, setRepairMysql] = useState<{ keep: string | null; unknown: boolean }>({ keep: null, unknown: false });
   const [found, setFound] = useState<FoundInstall[]>([]);
   const [defaultRoot, setDefaultRoot] = useState<string | undefined>(undefined);
   // Just finished setup: the welcome screen plays, then the tour.
@@ -80,6 +81,7 @@ function MainApp() {
     setupInfo()
       .then((info) => {
         setRepairRoot(info.repair_root ?? null);
+        setRepairMysql({ keep: info.repair_mysql ?? null, unknown: !!info.repair_mysql_unknown });
         setFound(info.found ?? []);
         setDefaultRoot(info.default_root ?? undefined);
         setView(info.installed ? "dashboard" : "setup");
@@ -181,6 +183,7 @@ function MainApp() {
   return (
     <Wizard
       repairRoot={repairRoot}
+      repairMysql={repairMysql}
       defaultRoot={defaultRoot}
       found={found}
       onFinish={() => {

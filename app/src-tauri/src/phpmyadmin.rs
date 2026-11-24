@@ -182,6 +182,15 @@ pub async fn install(
     write_config(root, mysql_port)
 }
 
+/// How the phpMyAdmin row in setup ends. A failure doesn't stop setup.
+pub fn setup_result(result: &Result<(), String>) -> Progress {
+    let (status, message) = match result {
+        Ok(()) => (installer::StepStatus::Done, None),
+        Err(_) => (installer::StepStatus::Failed, Some("Couldn't get phpMyAdmin. You can install it later with the Database button.".to_string())),
+    };
+    Progress { step: "get-phpmyadmin".into(), status, message, bytes_done: 0, bytes_total: None }
+}
+
 /// phpMyAdmin's address, opened on one database when `db` is a plain database name.
 pub fn url_for_db(base: &str, db: Option<&str>) -> String {
     match db.filter(|d| !d.is_empty() && d.len() <= 64 && d.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')) {
@@ -193,6 +202,14 @@ pub fn url_for_db(base: &str, db: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_setup_row_always_finishes() {
+        assert_eq!(setup_result(&Ok(())).status, installer::StepStatus::Done);
+        let failed = setup_result(&Err("no internet".into()));
+        assert_eq!(failed.status, installer::StepStatus::Failed);
+        assert!(failed.message.unwrap().contains("Database button"));
+    }
 
     #[test]
     fn opens_on_one_database() {

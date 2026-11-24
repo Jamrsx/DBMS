@@ -123,9 +123,10 @@ async fn run_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, requ
             let _ = emit.emit("install-progress", p);
         })
         .await;
-        if let Err(e) = done {
+        if let Err(e) = &done {
             eprintln!("phpMyAdmin wasn't installed during setup: {e}");
         }
+        let _ = app.emit("install-progress", phpmyadmin::setup_result(&done));
     }
     Ok(())
 }
@@ -184,6 +185,10 @@ struct SetupInfo {
     www_dir: Option<String>,
     /// A NexDB folder whose settings file is missing, so setup can say it is repairing it.
     repair_root: Option<String>,
+    /// During a repair: the MySQL version the existing databases belong to.
+    repair_mysql: Option<String>,
+    /// During a repair: there is MySQL data, but NexDB can't tell which version made it.
+    repair_mysql_unknown: bool,
     /// NexDB folders from before (another drive, a reinstall), which setup can pick up.
     found: Vec<migrate::Found>,
     /// Suggested install folder: `C:\NexDB` on Windows, `~/NexDB` on macOS.
@@ -195,15 +200,24 @@ struct SetupInfo {
 fn setup_info(app: tauri::AppHandle, stack: tauri::State<Stack>) -> SetupInfo {
     stack.load(&app);
     let guard = stack.current.lock().unwrap();
+    let repair = guard.is_none().then(|| settings::broken_install(app.path().app_config_dir().ok().as_deref())).flatten();
+    let mysql = repair.as_ref().map(|root| {
+        let choices = catalog::choices(&livecatalog::current(), catalog::today());
+        let offered: Vec<String> = choices
+            .components
+            .iter()
+            .filter(|c| c.id == "mysql")
+            .flat_map(|c| c.versions.iter().filter(|v| v.downloadable).map(|v| v.version.clone()))
+            .collect();
+        versions::repair_mysql(&versions::installed_versions(root, "mysql"), versions::has_mysql_data(root), &offered)
+    });
     SetupInfo {
         installed: guard.is_some(),
         install_root: guard.as_ref().map(|l| l.root.display().to_string()),
         www_dir: guard.as_ref().map(|l| l.settings.www_dir.clone()),
-        repair_root: guard
-            .is_none()
-            .then(|| settings::broken_install(app.path().app_config_dir().ok().as_deref()))
-            .flatten()
-            .map(|p| p.display().to_string()),
+        repair_root: repair.map(|p| p.display().to_string()),
+        repair_mysql_unknown: mysql.as_ref().is_some_and(|m| m.unknown),
+        repair_mysql: mysql.and_then(|m| m.keep),
         found: if guard.is_none() { migrate::find(app.path().app_config_dir().ok().as_deref()) } else { Vec::new() },
         default_root: platform::default_root().display().to_string(),
     }

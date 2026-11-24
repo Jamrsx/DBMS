@@ -92,11 +92,22 @@ interface Props {
   onChange: (selections: Selections) => void;
   /** NexDB Free: a fixed list instead of version pickers. */
   free?: boolean;
+  /** Something to decide carefully, shown above the list. */
+  warning?: string | null;
 }
 
-export function Components({ choices, scan, selections, onChange, free = false }: Props) {
+export function Components({ choices, scan, selections, onChange, free = false, warning = null }: Props) {
   if (free) return <FreeComponents choices={choices} selections={selections} />;
-  return <ComponentPicker choices={choices} scan={scan} selections={selections} onChange={onChange} />;
+  return (
+    <>
+      {warning && (
+        <p className="notice" role="alert">
+          {warning}
+        </p>
+      )}
+      <ComponentPicker choices={choices} scan={scan} selections={selections} onChange={onChange} />
+    </>
+  );
 }
 
 function ComponentPicker({ choices, scan, selections, onChange }: Props) {

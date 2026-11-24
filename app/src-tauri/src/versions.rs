@@ -349,6 +349,33 @@ pub fn check_switch(root: &Path, settings: &Settings, id: &str, version: &str, c
     Ok(dir)
 }
 
+/// Which MySQL a repair should use, so existing databases never meet a different version.
+#[derive(Debug, PartialEq)]
+pub struct RepairMysql {
+    /// The one installed version, which can be installed again if needed.
+    pub keep: Option<String>,
+    /// There is MySQL or data here, but NexDB can't tell which version it belongs to.
+    pub unknown: bool,
+}
+
+pub fn repair_mysql(installed: &[String], has_data: bool, offered: &[String]) -> RepairMysql {
+    match installed {
+        [only] if offered.contains(only) => RepairMysql { keep: Some(only.clone()), unknown: false },
+        [] if !has_data => RepairMysql { keep: None, unknown: false },
+        _ => RepairMysql { keep: None, unknown: true },
+    }
+}
+
+/// Whether a `data/mysql-*` folder under this install has anything in it.
+pub fn has_mysql_data(root: &Path) -> bool {
+    fs::read_dir(root.join("data"))
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("mysql"))
+        .any(|e| fs::read_dir(e.path()).is_ok_and(|mut files| files.next().is_some()))
+}
+
 /// Removes an installed version that isn't in use.
 pub fn remove(root: &Path, settings: &Settings, id: &str, version: &str) -> Result<(), String> {
     if active_version(settings, id).as_deref() == Some(version) {
@@ -366,6 +393,39 @@ pub fn remove(root: &Path, settings: &Settings, id: &str, version: &str) -> Resu
 mod tests {
     use super::*;
     use crate::catalog::VersionChoice;
+
+    fn strings(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn repair_keeps_the_one_installed_mysql() {
+        let r = repair_mysql(&strings(&["8.4.13"]), true, &strings(&["9.7.4", "8.4.13"]));
+        assert_eq!(r, RepairMysql { keep: Some("8.4.13".into()), unknown: false });
+    }
+
+    #[test]
+    fn repair_asks_when_it_cannot_tell_which_mysql_made_the_data() {
+        let offered = strings(&["9.7.4", "8.4.13"]);
+        assert!(repair_mysql(&strings(&["9.7.4", "8.4.13"]), true, &offered).unknown);
+        assert!(repair_mysql(&[], true, &offered).unknown);
+        assert_eq!(repair_mysql(&strings(&["8.0.40"]), true, &offered), RepairMysql { keep: None, unknown: true });
+    }
+
+    #[test]
+    fn repair_with_no_mysql_or_data_is_a_normal_setup() {
+        assert_eq!(repair_mysql(&[], false, &strings(&["9.7.4"])), RepairMysql { keep: None, unknown: false });
+    }
+
+    #[test]
+    fn finds_existing_mysql_data_folders() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(!has_mysql_data(dir.path()));
+        fs::create_dir_all(dir.path().join("data").join("mysql-8.4")).unwrap();
+        assert!(!has_mysql_data(dir.path()), "an empty folder holds no data");
+        fs::write(dir.path().join("data").join("mysql-8.4").join("ibdata1"), "x").unwrap();
+        assert!(has_mysql_data(dir.path()));
+    }
 
     fn choice(line: &str, version: &str) -> VersionChoice {
         VersionChoice {

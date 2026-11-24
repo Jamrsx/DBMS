@@ -23,6 +23,10 @@ export interface SetupInfo {
   www_dir: string | null;
   /** A NexDB folder whose settings file is missing; setup repairs it. */
   repair_root?: string | null;
+  /** During a repair: the MySQL version the existing databases belong to. */
+  repair_mysql?: string | null;
+  /** During a repair: there is MySQL data, but NexDB can't tell which version made it. */
+  repair_mysql_unknown?: boolean;
   /** NexDB folders from before (another drive, a reinstall) that setup can pick up. */
   found?: FoundInstall[];
   /** Suggested install folder: C:\NexDB on Windows, ~/NexDB on macOS. */

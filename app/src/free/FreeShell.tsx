@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { CircleHelp, Database, Folder, Globe, LogIn, Play, Settings as SettingsIcon, Square, SquareTerminal } from "lucide-react";
+import { CircleHelp, Database, Folder, Globe, LogIn, Play, Settings as SettingsIcon, Sparkles, Square, SquareTerminal } from "lucide-react";
 import { Tour, showGuide } from "../components/Tour";
 import { UpdateNotice } from "../components/UpdateNotice";
 import { getAppSettings, type AppSettings } from "../lib/appsettings";
@@ -219,6 +219,9 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
         {php && <span className="free-top-php">PHP {php.version}</span>}
         <nav className="free-top-actions" aria-label="NexDB">
           <UpdateNotice />
+          <button type="button" className="btn btn-small btn-quiet" data-tour="free-upgrade" onClick={() => setScreen("upgrade")}>
+            <Sparkles size={14} aria-hidden="true" /> What you get
+          </button>
           <button type="button" className="btn btn-small btn-quiet" onClick={() => onLicense("signin")}>
             <LogIn size={14} aria-hidden="true" /> Sign in
           </button>

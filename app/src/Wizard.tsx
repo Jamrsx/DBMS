@@ -48,11 +48,14 @@ const BUILT = new Set(["welcome", "scan", "components", "mysql", "review", "inst
 export function Wizard({
   onFinish,
   repairRoot = null,
+  repairMysql = { keep: null, unknown: false },
   defaultRoot = EXAMPLE_ROOT,
   found = [],
 }: {
   onFinish: () => void;
   repairRoot?: string | null;
+  /** During a repair: which MySQL the existing databases belong to, if NexDB can tell. */
+  repairMysql?: { keep: string | null; unknown: boolean };
   /** Where NexDB goes unless the user picks another folder (from the app). */
   defaultRoot?: string;
   found?: FoundInstall[];
@@ -123,10 +126,13 @@ export function Wizard({
   useEffect(() => {
     Promise.all([loadChoices(), licenseStatus().catch(() => null)])
       .then(([c, license]) => {
-        const isFree = !licenseWorks(license);
+        // Existing databases must never meet another MySQL version without the person choosing it.
+        const isFree = !licenseWorks(license) && !repairMysql.unknown;
+        const picked = defaultSelections(c, isFree);
+        if (repairMysql.keep) picked.mysql = { ...picked.mysql, version: repairMysql.keep };
         setFree(isFree);
         setChoices(c);
-        setSelections(defaultSelections(c, isFree));
+        setSelections(picked);
       })
       .catch((err) => setChoicesError(String(err)));
   }, []);
@@ -235,6 +241,11 @@ export function Wizard({
             (choices && selections ? (
               <Components
                 free={free}
+                warning={
+                  repairMysql.unknown
+                    ? "NexDB found existing MySQL data but can't tell which version made it. Choose the MySQL version those databases were made with."
+                    : null
+                }
                 choices={choices}
                 scan={scanReport}
                 selections={selections}
