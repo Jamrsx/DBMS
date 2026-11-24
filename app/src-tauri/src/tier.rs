@@ -127,10 +127,15 @@ pub fn install_allowed(full: bool, installed: bool, repairing: bool) -> bool {
     full || !installed || repairing
 }
 
-/// Whether the site configs are in the other mode's form. The paused folder exists only while
-/// Free's configs are in place, so a routine license check never restarts the web server.
-pub fn needs_rewrite(full: bool, paused_dir_exists: bool) -> bool {
-    full == paused_dir_exists
+/// The extra `php-<version>` services that per-project PHP uses. Free doesn't run them.
+pub fn extra_php(all: &[String]) -> Vec<String> {
+    all.iter().filter(|id| id.starts_with("php-")).cloned().collect()
+}
+
+/// Whether NexDB still has to switch mode. The marker is written only after a switch to Free has
+/// finished, so a routine license check never restarts the web server.
+pub fn needs_rewrite(full: bool, marked_free: bool) -> bool {
+    full == marked_free
 }
 
 /// Puts the check in front of every app command. Plugin commands (like updates) don't come here.
@@ -206,6 +211,11 @@ mod tests {
     fn free_installs_only_during_setup_or_repair() {
         assert!(install_allowed(false, false, false) && install_allowed(false, true, true));
         assert!(!install_allowed(false, true, false) && install_allowed(true, true, false));
+    }
+
+    #[test]
+    fn renewal_brings_back_per_project_php() {
+        assert_eq!(extra_php(&ids(&["php", "php-8.3.14", "apache", "mailpit"])), ids(&["php-8.3.14"]));
     }
 
     #[test]

@@ -277,19 +277,31 @@ pub(crate) fn apply_mode(app: &tauri::AppHandle) {
 fn switch_mode(app: &tauri::AppHandle, full: bool) -> Result<(), String> {
     let stack = app.state::<Stack>();
     let (root, _, _) = stack.get()?;
-    let paused = root.join("etc").join(freesites::PAUSED_DIR);
-    if !tier::needs_rewrite(full, paused.is_dir()) {
+    let etc = root.join("etc");
+    if !tier::needs_rewrite(full, freesites::is_marked_free(&etc)) {
         return Ok(());
     }
     if full {
         let (_, settings, sup) = stack.get()?;
+        // Per-project PHP first, so a site on another version works as soon as Apache is back.
+        let web_up = settings.web().is_some_and(|(web, _)| sup.status().iter().any(|s| s.id == web && s.state == supervisor::State::Running));
+        if web_up {
+            for id in tier::extra_php(&sup.ids()) {
+                if let Err(e) = sup.start(&id) {
+                    eprintln!("Couldn't start {id}: {e}");
+                }
+            }
+        }
         apply_vhosts(&root, &settings, &sup)?;
-        freesites::restore_urls(&root.join("etc"), std::path::Path::new(&settings.www_dir))?;
+        freesites::restore_urls(&etc, std::path::Path::new(&settings.www_dir))?;
+        let _ = std::fs::remove_dir_all(etc.join(freesites::PAUSED_DIR));
         // Last, so a step that failed above is tried again next time.
-        return std::fs::remove_dir_all(&paused).map_err(|e| e.to_string());
+        return freesites::mark_free(&etc, false);
     }
     lose_nexhost(app);
-    // Read after the line above, which takes NexHost sites offline in the saved settings.
+    // A queue or scheduler could keep doing real work, like sending emails.
+    app.state::<Arc<laravel::Workers>>().stop_all();
+    // Read after the lines above, which take NexHost sites offline in the saved settings.
     let (_, settings, sup) = stack.get()?;
     let running: Vec<String> = sup
         .status()
@@ -302,7 +314,8 @@ fn switch_mode(app: &tauri::AppHandle, full: bool) -> Result<(), String> {
             eprintln!("Couldn't stop {id}: {e}");
         }
     }
-    apply_vhosts(&root, &settings, &sup)
+    apply_vhosts(&root, &settings, &sup)?;
+    freesites::mark_free(&etc, true)
 }
 
 /// Runs the mode switch after a license command, away from the async runtime.

@@ -412,19 +412,45 @@ mod keychain_file_tests {
     }
 }
 
-fn read_stored() -> Option<Stored> {
-    let raw = std::fs::read(store_path()).ok()?;
-    serde_json::from_slice(&dpapi::unprotect(&raw)?).ok()
+/// One reader or writer of the license file at a time, so a read never lands mid-save and an
+/// older copy can't overwrite a key that was just activated.
+static FILE_LOCK: Mutex<()> = Mutex::new(());
+
+fn file_turn() -> std::sync::MutexGuard<'static, ()> {
+    FILE_LOCK.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-fn write_stored(stored: &Stored) -> Result<(), String> {
-    let path = store_path();
-    if let Some(dir) = path.parent() {
-        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+/// What's on disk. Only `Missing` means this PC has no license: a file another program is
+/// holding for a moment must never turn a paying customer into a Free user.
+enum Saved {
+    Missing,
+    Unreadable,
+    Found(Stored),
+}
+
+fn read_saved(path: &std::path::Path) -> Saved {
+    match std::fs::read(path) {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Saved::Missing,
+        Err(_) => Saved::Unreadable,
+        Ok(raw) => dpapi::unprotect(&raw)
+            .and_then(|plain| serde_json::from_slice(&plain).ok())
+            .map_or(Saved::Missing, Saved::Found),
     }
-    let data = dpapi::protect(&serde_json::to_vec(stored).map_err(|e| e.to_string())?)?;
-    // Replacing a hidden file needs it gone first on Windows.
-    let _ = std::fs::remove_file(&path);
+}
+
+fn read_stored() -> Option<Stored> {
+    let _turn = file_turn();
+    match read_saved(&store_path()) {
+        Saved::Found(stored) => Some(stored),
+        _ => None,
+    }
+}
+
+/// Writes beside the file, then swaps it in, so the license is never missing or half-written.
+fn replace_file(path: &std::path::Path, data: &[u8]) -> Result<(), String> {
+    use std::io::Write;
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let temp = path.with_file_name(format!("{name}.{}.tmp", std::process::id()));
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create(true).truncate(true);
     #[cfg(windows)]
@@ -432,13 +458,52 @@ fn write_stored(stored: &Stored) -> Result<(), String> {
         use std::os::windows::fs::OpenOptionsExt;
         options.attributes(0x2); // FILE_ATTRIBUTE_HIDDEN
     }
-    use std::io::Write;
-    options.open(&path).and_then(|mut f| f.write_all(&data)).map_err(|e| format!("Couldn't save the license: {e}"))
+    let written = options
+        .open(&temp)
+        .and_then(|mut f| f.write_all(data).and_then(|_| f.sync_all()))
+        .and_then(|_| std::fs::rename(&temp, path));
+    if let Err(e) = written {
+        let _ = std::fs::remove_file(&temp);
+        return Err(format!("Couldn't save the license: {e}"));
+    }
+    Ok(())
+}
+
+fn write_stored_in_turn(stored: &Stored) -> Result<(), String> {
+    let path = store_path();
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let data = dpapi::protect(&serde_json::to_vec(stored).map_err(|e| e.to_string())?)?;
+    replace_file(&path, &data)
+}
+
+fn write_stored(stored: &Stored) -> Result<(), String> {
+    let _turn = file_turn();
+    write_stored_in_turn(stored)
+}
+
+fn forget_in_turn(notice: Option<String>) {
+    let _ = std::fs::remove_file(store_path());
+    set_cache(Status::None { notice });
 }
 
 fn forget(notice: Option<String>) {
-    let _ = std::fs::remove_file(store_path());
-    set_cache(Status::None { notice });
+    let _turn = file_turn();
+    forget_in_turn(notice);
+}
+
+/// The file couldn't be read right now: stay as we were.
+fn unreadable_status(cached: Option<Status>) -> Status {
+    cached.unwrap_or(Status::None { notice: None })
+}
+
+/// No license file. A message from the website about why it went stays visible.
+fn missing_status(cached: Option<Status>) -> Status {
+    match cached {
+        Some(Status::None { notice }) => Status::None { notice },
+        _ => Status::None { notice: None },
+    }
 }
 
 fn set_cache(status: Status) {
@@ -451,21 +516,27 @@ fn set_cache(status: Status) {
 
 /// The license state right now, from the saved file. Also moves the "newest time seen" forward.
 pub fn status() -> Status {
-    let Some(mut stored) = read_stored() else {
-        let s = Status::None { notice: None };
-        set_cache(s.clone());
-        return s;
+    let _turn = file_turn();
+    let cached = || CACHE.lock().ok().and_then(|c| c.clone());
+    let mut stored = match read_saved(&store_path()) {
+        Saved::Found(stored) => stored,
+        Saved::Unreadable => return unreadable_status(cached()),
+        Saved::Missing => {
+            let s = missing_status(cached());
+            set_cache(s.clone());
+            return s;
+        }
     };
     let claims = match verify(&stored.token, public_key_b64()) {
         Some(c) if c.machine.len() == 64 => c,
         // Changed, from another site's key, or broken: start over.
         _ => {
-            forget(Some("The saved license couldn't be read. Activate it again.".into()));
+            forget_in_turn(Some("The saved license couldn't be read. Activate it again.".into()));
             return Status::None { notice: Some("The saved license couldn't be read. Activate it again.".into()) };
         }
     };
     if let Some(notice) = stored.notice.take() {
-        let _ = write_stored(&stored);
+        let _ = write_stored_in_turn(&stored);
         let s = Status::None { notice: Some(notice) };
         set_cache(s.clone());
         return s;
@@ -474,7 +545,7 @@ pub fn status() -> Status {
     let s = evaluate(&claims, stored.last_seen, at);
     if at > stored.last_seen && !matches!(s, Status::ClockBack { .. }) {
         stored.last_seen = at;
-        let _ = write_stored(&stored);
+        let _ = write_stored_in_turn(&stored);
     }
     set_cache(s.clone());
     s
@@ -851,6 +922,39 @@ mod tests {
             features,
             trial: false,
         }
+    }
+
+    #[test]
+    fn saving_replaces_the_file_in_one_step_and_leaves_no_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(".nexdb-lic");
+        replace_file(&path, b"first").unwrap();
+        replace_file(&path, b"second").unwrap();
+        assert_eq!(std::fs::read(&path).unwrap(), b"second");
+        assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn only_a_missing_file_means_no_license() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(matches!(read_saved(&dir.path().join("nope")), Saved::Missing));
+        // A folder in its place can't be read: a read error, not "no license".
+        assert!(matches!(read_saved(dir.path()), Saved::Unreadable));
+    }
+
+    #[test]
+    fn a_read_error_keeps_the_last_status() {
+        let active = active_status(vec![]);
+        assert_eq!(unreadable_status(Some(active.clone())), active);
+        assert_eq!(unreadable_status(None), Status::None { notice: None });
+    }
+
+    #[test]
+    fn the_websites_message_stays_after_the_license_is_removed() {
+        let moved = Status::None { notice: Some("This key was moved to another PC.".into()) };
+        assert_eq!(missing_status(Some(moved.clone())), moved);
+        assert_eq!(missing_status(Some(active_status(vec![]))), Status::None { notice: None });
+        assert_eq!(missing_status(None), Status::None { notice: None });
     }
 
     #[test]

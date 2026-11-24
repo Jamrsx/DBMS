@@ -335,6 +335,15 @@ impl Workers {
         }
     }
 
+    /// Stops every worker of every project (when a license ends).
+    pub fn stop_all(&self) {
+        let workers: Vec<Worker> = self.0.lock().unwrap().drain().map(|(_, w)| w).collect();
+        for mut w in workers {
+            let _ = w.child.kill();
+            let _ = w.child.wait();
+        }
+    }
+
     /// Stops every worker of a project (before it is renamed or deleted).
     pub fn stop_project(&self, project: &str) {
         for kind in ["queue", "schedule"] {
@@ -364,6 +373,32 @@ impl Workers {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stop_all_ends_every_worker() {
+        let mut cmd = if cfg!(windows) { Command::new("ping") } else { Command::new("sleep") };
+        if cfg!(windows) {
+            cmd.args(["-n", "30", "127.0.0.1"]);
+        } else {
+            cmd.arg("30");
+        }
+        let child = cmd.stdout(std::process::Stdio::null()).spawn().unwrap();
+        #[cfg(windows)]
+        let job = crate::supervisor::job::Job::kill_on_close().and_then(|j| j.assign(&child).map(|_| j)).unwrap();
+        let workers = Workers::default();
+        workers.0.lock().unwrap().insert(
+            "shop#schedule".to_string(),
+            Worker {
+                child,
+                log: PathBuf::new(),
+                #[cfg(windows)]
+                _job: job,
+            },
+        );
+        assert!(workers.running("shop#schedule"));
+        workers.stop_all();
+        assert!(!workers.running("shop#schedule"));
+    }
 
     #[test]
     fn migrate_outcomes_in_plain_words() {
