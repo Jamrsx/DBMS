@@ -51,6 +51,7 @@ mod share;
 mod syspath;
 mod supervisor;
 mod terminal;
+mod tier;
 mod tray;
 mod versions;
 
@@ -409,7 +410,7 @@ pub fn run() {
         .manage(db::Db::default())
         .manage(Arc::new(share::Tunnels::default()))
         .manage(Arc::new(laravel::Workers::default()))
-        .invoke_handler(tauri::generate_handler![
+        .invoke_handler(tier::guard(tauri::generate_handler![
             set_window_glass,
             nexhost_list,
             nexhost_create,
@@ -606,7 +607,7 @@ pub fn run() {
             db_export_table_csv,
             db_save_csv,
             db_export_sql
-        ])
+        ]))
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
