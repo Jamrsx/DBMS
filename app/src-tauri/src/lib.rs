@@ -51,6 +51,7 @@ mod share;
 mod syspath;
 mod supervisor;
 mod freesites;
+mod localversions;
 mod terminal;
 mod tier;
 mod tray;
@@ -335,6 +336,46 @@ async fn project_use_localhost(stack: tauri::State<'_, Stack>, name: String) -> 
     .await
 }
 
+/// PHP and Node folders on this computer, including ones added by hand and not checked yet.
+#[tauri::command]
+async fn local_versions(stack: tauri::State<'_, Stack>) -> Result<Vec<localversions::LocalVersion>, String> {
+    let (root, settings, _) = stack.get()?;
+    blocking(move || {
+        let (php, node) = (versions::active_version(&settings, "php"), versions::active_version(&settings, "node"));
+        Ok(localversions::list(&root, php.as_deref(), node.as_deref()))
+    })
+    .await
+}
+
+/// Tests a folder added by hand; it joins the version list only if it works.
+#[tauri::command]
+async fn local_version_check(stack: tauri::State<'_, Stack>, id: String, folder: String) -> Result<String, String> {
+    let (root, _, _) = stack.get()?;
+    blocking(move || localversions::check_folder(&root, &id, &folder)).await
+}
+
+/// Mac: choose a PHP or Node installed some other way. None when the person cancels.
+#[tauri::command]
+async fn local_version_pick(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String) -> Result<Option<String>, String> {
+    #[cfg(windows)]
+    {
+        let _ = (app, stack, id);
+        Err("On Windows, extract the version into its folder and press Check again.".into())
+    }
+    #[cfg(not(windows))]
+    {
+        use tauri_plugin_dialog::DialogExt;
+        let (root, _, _) = stack.get()?;
+        blocking(move || {
+            let title = if id == "php" { "Choose php-cgi" } else { "Choose node" };
+            let Some(picked) = app.dialog().file().set_title(title).blocking_pick_file() else { return Ok(None) };
+            let path = picked.into_path().map_err(|e| e.to_string())?;
+            localversions::adopt_binary(&root, &id, &path).map(Some)
+        })
+        .await
+    }
+}
+
 /// Starts the one-click 14-day free trial on this PC.
 #[tauri::command]
 async fn license_start_trial(app: tauri::AppHandle) -> license::Outcome {
@@ -539,6 +580,9 @@ pub fn run() {
             license_start_trial,
             paused_sites,
             project_use_localhost,
+            local_versions,
+            local_version_check,
+            local_version_pick,
             license_change,
             license_check_in,
             license_unlink,
