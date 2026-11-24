@@ -30,16 +30,23 @@ pub fn show_window(app: &AppHandle) {
 /// menu is built again.
 fn snapshot(app: &AppHandle) -> (Vec<(String, String, bool, bool)>, Vec<String>) {
     let Ok((_, settings, sup)) = app.state::<crate::Stack>().get() else { return (vec![], vec![]) };
+    let full = crate::license::is_full();
+    let free_ids = crate::tier::free_services(settings.web().map(|w| w.0), &sup.ids());
     let services = sup
         .status()
         .into_iter()
+        .filter(|s| full || free_ids.contains(&s.id))
         .map(|s| {
             let up = matches!(s.state, State::Running | State::Starting);
             let name = if s.id.starts_with("php") { s.version.clone().map(|v| format!("PHP {v}")).unwrap_or(s.name) } else { s.name };
             (s.id, name, up, s.managed)
         })
         .collect();
-    let projects = crate::projects::list(std::path::Path::new(&settings.www_dir), 80).into_iter().map(|p| p.name).take(MENU_PROJECTS).collect();
+    let projects = if full {
+        crate::projects::list(std::path::Path::new(&settings.www_dir), 80).into_iter().map(|p| p.name).take(MENU_PROJECTS).collect()
+    } else {
+        Vec::new()
+    };
     (services, projects)
 }
 
@@ -80,7 +87,13 @@ fn build_menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let terminal = MenuItem::with_id(app, "term:", "Open a terminal", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit NexDB", true, None::<&str>)?;
     let (s2, s3) = (sep()?, sep()?);
-    Menu::with_items(app, &[&open, &s2, &services_menu, &projects_menu, &terminal, &s3, &quit])
+    // The Projects menu is part of the full NexDB.
+    let mut items: Vec<&dyn IsMenuItem<Wry>> = vec![&open, &s2, &services_menu];
+    if crate::license::is_full() {
+        items.push(&projects_menu);
+    }
+    items.extend([&terminal as &dyn IsMenuItem<Wry>, &s3, &quit]);
+    Menu::with_items(app, &items)
 }
 
 fn on_menu(app: &AppHandle, id: &str) {

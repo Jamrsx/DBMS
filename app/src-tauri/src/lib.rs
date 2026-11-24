@@ -100,7 +100,11 @@ fn component_choices() -> catalog::Choices {
 /// Downloads, verifies and unpacks the requested components, emitting
 /// `install-progress` events. Returns the first error, if any.
 #[tauri::command]
-async fn run_install(app: tauri::AppHandle, request: installer::InstallRequest) -> Result<(), String> {
+async fn run_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, request: installer::InstallRequest) -> Result<(), String> {
+    let repairing = settings::broken_install(app.path().app_config_dir().ok().as_deref()).is_some();
+    if !tier::install_allowed(license::is_full(), stack.get().is_ok(), repairing) {
+        return Err(tier::LOCKED.into());
+    }
     let catalog = livecatalog::current();
     let config_dir = app.path().app_config_dir().ok();
     installer::run(&catalog, &request, &installer::RunOptions::for_app(config_dir), |progress| {
@@ -216,11 +220,10 @@ async fn services(stack: tauri::State<'_, Stack>) -> Result<Vec<supervisor::Serv
 /// from the saved settings first, so template fixes reach existing installs.
 #[tauri::command]
 async fn start_services(stack: tauri::State<'_, Stack>, id: Option<String>) -> Result<(), String> {
-    license::require()?;
     let (root, settings, sup) = stack.get()?;
+    let ids = tier::start_ids(license::is_full(), id, settings.web().map(|w| w.0), sup.ids())?;
     blocking(move || {
         installer::refresh_configs(&root, &settings)?;
-        let ids = id.map(|i| vec![i]).unwrap_or_else(|| sup.ids());
         // All at once; watched-only services are skipped by Start All.
         let errors = sup.start_many(&ids);
         if errors.is_empty() { Ok(()) } else { Err(errors.join("\n")) }
@@ -384,7 +387,9 @@ pub fn run() {
                 let handle = app.handle().clone();
                 std::thread::spawn(move || loop {
                     if let Ok((_, settings, _)) = handle.state::<Stack>().get() {
-                        localname::sync(&shared_projects(&settings), share::lan_ip().as_deref());
+                        // Sharing is a paid feature: in Free no project is announced on the network.
+                        let shared = if license::is_full() { shared_projects(&settings) } else { Default::default() };
+                        localname::sync(&shared, share::lan_ip().as_deref());
                     }
                     std::thread::sleep(std::time::Duration::from_secs(60));
                 });
@@ -628,12 +633,10 @@ pub(crate) fn tray_services(app: &tauri::AppHandle, start: bool) {
     std::thread::spawn(move || {
         let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
         if start {
-            // No license: the tray can't start services either.
-            if license::require().is_err() {
-                return;
-            }
+            // In Free the tray starts the same services as the window.
+            let Ok(ids) = tier::start_ids(license::is_full(), None, settings.web().map(|w| w.0), sup.ids()) else { return };
             if installer::refresh_configs(&root, &settings).is_ok() {
-                let _ = sup.start_many(&sup.ids());
+                let _ = sup.start_many(&ids);
             }
         } else {
             sup.stop_all();
@@ -648,7 +651,13 @@ pub(crate) fn tray_service(app: &tauri::AppHandle, id: &str) {
     std::thread::spawn(move || {
         let Ok((root, settings, sup)) = app.state::<Stack>().get() else { return };
         let up = sup.status().iter().any(|s| s.id == id && matches!(s.state, supervisor::State::Running | supervisor::State::Starting));
-        let result = if up { sup.stop(&id) } else { installer::refresh_configs(&root, &settings).and_then(|_| sup.start(&id)) };
+        let result = if up {
+            sup.stop(&id)
+        } else {
+            tier::start_ids(license::is_full(), Some(id.clone()), settings.web().map(|w| w.0), sup.ids())
+                .and_then(|_| installer::refresh_configs(&root, &settings))
+                .and_then(|_| sup.start(&id))
+        };
         if let Err(e) = result {
             tray::notify(&app, "Couldn't change the service", &e);
         }
@@ -3803,6 +3812,9 @@ async fn version_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, 
 /// Makes an installed version the one in use, restarting whatever was running.
 #[tauri::command]
 async fn version_use(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String, version: String) -> Result<(), String> {
+    if !tier::version_switch_allowed(license::is_full(), &id) {
+        return Err(tier::LOCKED.into());
+    }
     let (root, settings, sup) = stack.get()?;
     let choices = catalog::choices(&livecatalog::current(), catalog::today());
     let dir = versions::check_switch(&root, &settings, &id, &version, &choices.components)?;

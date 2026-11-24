@@ -85,6 +85,10 @@ pub fn spawn(app: AppHandle) {
 }
 
 fn check(app: &AppHandle) {
+    // Automatic backups are part of the full NexDB. The schedule stays saved for after an upgrade.
+    if !crate::license::is_full() {
+        return;
+    }
     let stack = app.state::<crate::Stack>();
     let Ok((root, settings, _)) = stack.get() else { return };
     let prefs = &settings.preferences;

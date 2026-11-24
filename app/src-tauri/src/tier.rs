@@ -82,6 +82,45 @@ pub fn allow(command: &str) -> Result<(), String> {
     }
 }
 
+/// Database engines Free keeps running when they are already installed, so a former paid user's
+/// data stays reachable. Free can't install them.
+const FREE_DATABASES: [&str; 4] = ["mysql", "mariadb", "postgres", "mongodb"];
+
+fn is_free_service(id: &str, web: Option<&str>) -> bool {
+    id == "php" || web == Some(id) || FREE_DATABASES.contains(&id)
+}
+
+/// The services Free runs, out of everything installed.
+pub fn free_services(web: Option<&str>, all: &[String]) -> Vec<String> {
+    all.iter().filter(|id| is_free_service(id, web)).cloned().collect()
+}
+
+/// What Start should start: one named service, or Start All. Free refuses a paid service.
+pub fn start_ids(full: bool, requested: Option<String>, web: Option<&str>, all: Vec<String>) -> Result<Vec<String>, String> {
+    match (full, requested) {
+        (true, Some(id)) => Ok(vec![id]),
+        (true, None) => Ok(all),
+        (false, Some(id)) if is_free_service(&id, web) => Ok(vec![id]),
+        (false, Some(_)) => Err(LOCKED.to_string()),
+        (false, None) => Ok(free_services(web, &all)),
+    }
+}
+
+/// The running services to stop when a license ends. The core stack keeps running.
+pub fn to_stop(web: Option<&str>, running: &[String]) -> Vec<String> {
+    running.iter().filter(|id| !is_free_service(id, web)).cloned().collect()
+}
+
+/// Free can switch PHP and Node. Changing MySQL by hand could damage databases.
+pub fn version_switch_allowed(full: bool, id: &str) -> bool {
+    full || matches!(id, "php" | "node")
+}
+
+/// Free runs the installer only for first setup or to repair a broken install.
+pub fn install_allowed(full: bool, installed: bool, repairing: bool) -> bool {
+    full || !installed || repairing
+}
+
 /// Puts the check in front of every app command. Plugin commands (like updates) don't come here.
 pub fn guard<F>(commands: F) -> impl Fn(Invoke<Wry>) -> bool + Send + Sync + 'static
 where
@@ -113,6 +152,48 @@ mod tests {
         for c in ["license_start_trial", "start_services", "stop_services", "terminal_open", "phpmyadmin_open", "php_settings_save", "www_open", "backup_restore"] {
             assert!(allowed(false, c), "{c}");
         }
+    }
+
+    fn ids(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    #[test]
+    fn free_starts_only_core_services_and_existing_databases() {
+        let all = ids(&["php", "php-8.3.14", "apache", "mysql", "postgres", "mailpit", "redis"]);
+        assert_eq!(free_services(Some("apache"), &all), ids(&["php", "apache", "mysql", "postgres"]));
+    }
+
+    #[test]
+    fn free_refuses_a_paid_service_by_name() {
+        let all = ids(&["php", "apache", "mailpit"]);
+        assert_eq!(start_ids(false, Some("mailpit".into()), Some("apache"), all.clone()).unwrap_err(), LOCKED);
+        assert_eq!(start_ids(true, Some("mailpit".into()), Some("apache"), all).unwrap(), ids(&["mailpit"]));
+    }
+
+    #[test]
+    fn start_all_in_free_skips_paid_services() {
+        let all = ids(&["php", "apache", "mysql", "mailpit"]);
+        assert_eq!(start_ids(false, None, Some("apache"), all.clone()).unwrap(), ids(&["php", "apache", "mysql"]));
+        assert_eq!(start_ids(true, None, Some("apache"), all.clone()).unwrap(), all);
+    }
+
+    #[test]
+    fn ending_a_license_stops_only_paid_services() {
+        let running = ids(&["php", "php-8.3.14", "apache", "mysql", "mailpit"]);
+        assert_eq!(to_stop(Some("apache"), &running), ids(&["php-8.3.14", "mailpit"]));
+    }
+
+    #[test]
+    fn free_switches_only_php_and_node() {
+        assert!(version_switch_allowed(false, "php") && version_switch_allowed(false, "node"));
+        assert!(!version_switch_allowed(false, "mysql") && version_switch_allowed(true, "mysql"));
+    }
+
+    #[test]
+    fn free_installs_only_during_setup_or_repair() {
+        assert!(install_allowed(false, false, false) && install_allowed(false, true, true));
+        assert!(!install_allowed(false, true, false) && install_allowed(true, true, false));
     }
 
     #[test]
