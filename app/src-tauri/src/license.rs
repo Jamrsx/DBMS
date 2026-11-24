@@ -497,6 +497,9 @@ pub fn watch_end(app: tauri::AppHandle) {
             if lost_nexhost {
                 crate::lose_nexhost(&app);
             }
+            if now_status.is_active() != last.is_active() {
+                crate::apply_mode(&app);
+            }
             if changed || lost_nexhost {
                 match &now_status {
                     Status::Grace { grace_until, .. } => crate::tray::notify(
@@ -504,10 +507,10 @@ pub fn watch_end(app: tauri::AppHandle) {
                         "Your NexDB license has ended",
                         &format!("NexDB keeps working for {} more. Open NexDB to renew or upgrade.", time_left(grace_until - now())),
                     ),
-                    Status::Expired { .. } => crate::tray::notify(
+                    Status::Expired { trial, .. } => crate::tray::notify(
                         &app,
-                        "NexDB needs a new license",
-                        "The 3 grace days are over. Open NexDB to renew or upgrade; your projects and databases are safe.",
+                        if *trial { "Your 14-day free trial ended" } else { "NexDB is now in Free mode" },
+                        "Your projects and databases are safe. Open NexDB to renew or upgrade.",
                     ),
                     _ => {}
                 }

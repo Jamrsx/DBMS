@@ -240,20 +240,73 @@ async fn license_status() -> license::Status {
 
 /// Activates a key on this PC (needs internet once). `move_here` moves it from another PC.
 #[tauri::command]
-async fn license_activate(key: String, name: String, email: String, password: String, move_here: Option<bool>) -> license::Outcome {
-    license::activate(&key, &name, &email, &password, move_here.unwrap_or(false)).await
+async fn license_activate(app: tauri::AppHandle, key: String, name: String, email: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    let out = license::activate(&key, &name, &email, &password, move_here.unwrap_or(false)).await;
+    after_license(app, out).await
+}
+
+/// Moves NexDB between Free and Full when the license changed. Never deletes anything: Free stops
+/// paid services and pauses `.test` sites; Full brings the sites and their addresses back.
+pub(crate) fn apply_mode(app: &tauri::AppHandle) {
+    static ONE_AT_A_TIME: Mutex<()> = Mutex::new(());
+    let _turn = ONE_AT_A_TIME.lock().unwrap_or_else(|e| e.into_inner());
+    let full = license::is_full();
+    if let Err(e) = switch_mode(app, full) {
+        eprintln!("Couldn't finish switching NexDB's mode: {e}");
+    }
+    let _ = app.emit("license-changed", license::status());
+    let _ = app.emit("services-changed", ());
+}
+
+fn switch_mode(app: &tauri::AppHandle, full: bool) -> Result<(), String> {
+    let stack = app.state::<Stack>();
+    let (root, _, _) = stack.get()?;
+    let paused = root.join("etc").join(freesites::PAUSED_DIR);
+    if !tier::needs_rewrite(full, paused.is_dir()) {
+        return Ok(());
+    }
+    if full {
+        let (_, settings, sup) = stack.get()?;
+        apply_vhosts(&root, &settings, &sup)?;
+        freesites::restore_urls(&root.join("etc"), std::path::Path::new(&settings.www_dir))?;
+        // Last, so a step that failed above is tried again next time.
+        return std::fs::remove_dir_all(&paused).map_err(|e| e.to_string());
+    }
+    lose_nexhost(app);
+    // Read after the line above, which takes NexHost sites offline in the saved settings.
+    let (_, settings, sup) = stack.get()?;
+    let running: Vec<String> = sup
+        .status()
+        .into_iter()
+        .filter(|s| s.managed && matches!(s.state, supervisor::State::Running | supervisor::State::Starting))
+        .map(|s| s.id)
+        .collect();
+    for id in tier::to_stop(settings.web().map(|w| w.0), &running) {
+        if let Err(e) = sup.stop(&id) {
+            eprintln!("Couldn't stop {id}: {e}");
+        }
+    }
+    apply_vhosts(&root, &settings, &sup)
+}
+
+/// Runs the mode switch after a license command, away from the async runtime.
+async fn after_license(app: tauri::AppHandle, out: license::Outcome) -> license::Outcome {
+    let _ = tauri::async_runtime::spawn_blocking(move || apply_mode(&app)).await;
+    out
 }
 
 /// Replaces this PC's key with another one of the same account (upgrade, renewal).
 #[tauri::command]
-async fn license_change(key: String, password: String, move_here: Option<bool>) -> license::Outcome {
-    license::change(&key, &password, move_here.unwrap_or(false)).await
+async fn license_change(app: tauri::AppHandle, key: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    let out = license::change(&key, &password, move_here.unwrap_or(false)).await;
+    after_license(app, out).await
 }
 
 /// Signs in with the NexDB account on this PC (email and password) instead of a key.
 #[tauri::command]
-async fn license_sign_in(email: String, password: String, move_here: Option<bool>) -> license::Outcome {
-    license::sign_in(&email, &password, move_here.unwrap_or(false)).await
+async fn license_sign_in(app: tauri::AppHandle, email: String, password: String, move_here: Option<bool>) -> license::Outcome {
+    let out = license::sign_in(&email, &password, move_here.unwrap_or(false)).await;
+    after_license(app, out).await
 }
 
 /// `.test` sites this PC really had, now paused because NexDB is in Free.
@@ -284,20 +337,23 @@ async fn project_use_localhost(stack: tauri::State<'_, Stack>, name: String) -> 
 
 /// Starts the one-click 14-day free trial on this PC.
 #[tauri::command]
-async fn license_start_trial() -> license::Outcome {
-    license::start_trial().await
+async fn license_start_trial(app: tauri::AppHandle) -> license::Outcome {
+    let out = license::start_trial().await;
+    after_license(app, out).await
 }
 
 /// The quiet check with the website, when online.
 #[tauri::command]
-async fn license_check_in() -> license::Outcome {
-    license::check_in().await
+async fn license_check_in(app: tauri::AppHandle) -> license::Outcome {
+    let out = license::check_in().await;
+    after_license(app, out).await
 }
 
 /// Frees the key from this PC so it can be activated on another one.
 #[tauri::command]
-async fn license_unlink() -> license::Outcome {
-    license::unlink().await
+async fn license_unlink(app: tauri::AppHandle) -> license::Outcome {
+    let out = license::unlink().await;
+    after_license(app, out).await
 }
 
 /// Plans and prices from the website, for renewing or upgrading.
@@ -379,6 +435,8 @@ pub fn run() {
             // NexDB wrote with a mistake (the NexHost vendor/ rule in 0.5.5 tests) is repaired
             // before Apache or nginx starts.
             if loaded {
+                // A license can end while NexDB is closed: settle Free or Full before anything starts.
+                apply_mode(&handle);
                 if let Ok((root, settings, _)) = stack.get() {
                     if let Err(e) = projects::write_site_configs(&root, &settings) {
                         eprintln!("Couldn't rewrite the site settings at launch: {e}");

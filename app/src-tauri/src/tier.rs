@@ -123,6 +123,12 @@ pub fn install_allowed(full: bool, installed: bool, repairing: bool) -> bool {
     full || !installed || repairing
 }
 
+/// Whether the site configs are in the other mode's form. The paused folder exists only while
+/// Free's configs are in place, so a routine license check never restarts the web server.
+pub fn needs_rewrite(full: bool, paused_dir_exists: bool) -> bool {
+    full == paused_dir_exists
+}
+
 /// Puts the check in front of every app command. Plugin commands (like updates) don't come here.
 pub fn guard<F>(commands: F) -> impl Fn(Invoke<Wry>) -> bool + Send + Sync + 'static
 where
@@ -196,6 +202,12 @@ mod tests {
     fn free_installs_only_during_setup_or_repair() {
         assert!(install_allowed(false, false, false) && install_allowed(false, true, true));
         assert!(!install_allowed(false, true, false) && install_allowed(true, true, false));
+    }
+
+    #[test]
+    fn sites_are_rewritten_only_when_the_mode_changed() {
+        assert!(needs_rewrite(false, false) && needs_rewrite(true, true));
+        assert!(!needs_rewrite(false, true) && !needs_rewrite(true, false));
     }
 
     #[test]
