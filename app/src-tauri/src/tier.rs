@@ -54,6 +54,7 @@ pub const FREE_COMMANDS: &[&str] = &[
     "local_versions",
     "local_version_check",
     "local_version_pick",
+    "local_version_open",
     // phpMyAdmin
     "phpmyadmin_status",
     "phpmyadmin_install",

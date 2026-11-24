@@ -10,6 +10,7 @@ import { showSettingsSection } from "../lib/settingsNav";
 import { COMPUTER } from "../lib/os";
 
 export const WHATS_NEW = [
+  { version: "0.6.3", chapter: "New in 0.6.3" },
   { version: "0.6.1", chapter: "New in 0.6.1" },
   { version: "0.6.0", chapter: "New in 0.6.0" },
   { version: "0.5.9", chapter: "New in 0.5.9" },
@@ -25,7 +26,8 @@ export const WHATS_NEW = [
   { version: "0.4.9", chapter: "New in 0.4.9" },
   { version: "0.4.7", chapter: "New in 0.4.7" },
 ] as const;
-export type WhatsNewChapter = (typeof WHATS_NEW)[number]["chapter"];
+/** "NexDB Free" is the short tour of the Free window; it isn't tied to one release. */
+export type WhatsNewChapter = (typeof WHATS_NEW)[number]["chapter"] | "NexDB Free";
 
 const here = (sel: string) => `.page:not([hidden]) ${sel}`;
 const openProject = (name: string) => () =>
@@ -36,7 +38,64 @@ const openDatabase = (name: string) => () =>
 const openNexhostSite = (name: string) => () =>
   window.dispatchEvent(new CustomEvent("nexdb:open-nexhost-site", { detail: name }));
 
+const free = (name: string) => `[data-tour="free-${name}"]`;
+
 export const WHATS_NEW_STEPS: GuideStep[] = [
+  {
+    chapter: "NexDB Free",
+    title: "This is NexDB Free",
+    body: `Everything you need to run PHP sites on your ${COMPUTER}. This is practice mode, so nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Start All",
+    body: "This starts your web server, PHP and MySQL. Press it again to stop them.",
+    target: free("start"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Web",
+    body: "Opens localhost in your browser. Put each project in its own folder and open it at localhost/project.",
+    target: free("web"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Database",
+    body: "Opens phpMyAdmin, where you can create, import and export your databases.",
+    target: free("database"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Terminal",
+    body: "A terminal with PHP, Node, Composer and Git ready to use.",
+    target: free("terminal"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Folder",
+    body: "Opens the folder where your projects live.",
+    target: free("folder"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "PHP versions",
+    body: "Switch between the PHP versions on your computer. Add other versions by hand from this menu.",
+    target: free("php"),
+  },
+  {
+    chapter: "NexDB Free",
+    title: "Want more?",
+    body: "See what the full NexDB adds, like .test sites and templates. You can try it free for 14 days.",
+    target: free("upgrade"),
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.6.3",
+    title: "NexDB now has a Free mode",
+    body: `People without a license can now use a simple version of NexDB. Your license and every feature you have stay exactly the same. Practice mode: nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
   {
     chapter: "New in 0.6.1",
     title: "PHP 8.6 is here",

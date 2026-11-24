@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { KeyRound } from "lucide-react";
-import { changeLicense, checkInLicense, dateOf, formatKey, licenseStatus, timeLeft, unlinkLicense, type LicenseStatus } from "../lib/license";
+import { changeLicense, checkInLicense, dateOf, formatKey, licenseStatus, OPEN_LICENSE, timeLeft, unlinkLicense, type LicenseStatus } from "../lib/license";
 import { RenewOptions } from "../components/RenewOptions";
 import { isPractice } from "../lib/practice";
 import { nexCelebrate } from "../lib/nex";
@@ -30,6 +30,23 @@ export function LicenseCard() {
       </section>
     );
   if (!status || status.state !== "active") return null;
+  if (status.trial)
+    return (
+      <section className="set-card" data-guide="license-card">
+        <h2 className="license-card-title">
+          <KeyRound size={16} aria-hidden="true" /> Free trial, {status.days_left ?? 0} {status.days_left === 1 ? "day" : "days"} left
+        </h2>
+        <p>
+          Your 14-day free trial ends {status.expires_at ? dateOf(status.expires_at) : "soon"}. After that NexDB returns to Free, and your projects and databases stay safe.
+        </p>
+        <RenewOptions plan={null} seller={null} />
+        <div className="license-actions">
+          <button className="btn btn-small" onClick={() => window.dispatchEvent(new Event(OPEN_LICENSE))}>
+            <KeyRound size={14} aria-hidden="true" /> Enter a key or sign in
+          </button>
+        </div>
+      </section>
+    );
 
   async function checkNow() {
     setMessage(null);
@@ -53,10 +70,10 @@ export function LicenseCard() {
       return;
     }
     if (isPractice()) {
-      nexCelebrate("In real life, NexDB would now ask for a key again on this PC.");
+      nexCelebrate("In real life, this PC would now return to NexDB Free.");
       return;
     }
-    // This PC has no license now: back to the license screen.
+    // This PC has no license now: back to NexDB Free.
     window.location.reload();
   }
 

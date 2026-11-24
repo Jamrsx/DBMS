@@ -524,7 +524,7 @@ function StartupCard({ settings, onChanged }: { settings: AppSettings; onChanged
   );
 }
 
-function PortsCard({ settings, onSaved }: { settings: AppSettings; onSaved: () => void }) {
+export function PortsCard({ settings, onSaved }: { settings: AppSettings; onSaved: () => void }) {
   const [apache, setApache] = useState(String(settings.apache_port ?? ""));
   const [php, setPhp] = useState(String(settings.php_port));
   const [mysql, setMysql] = useState(String(settings.mysql_port ?? ""));
@@ -695,7 +695,7 @@ function WhatsNewCard({ version }: { version: string }) {
  * databases) is the default; deleting it asks once more. Windows hands over to NexDB's own
  * uninstaller; a Mac has none, so NexDB undoes what it added and moves itself to the Trash.
  */
-function UninstallCard() {
+export function UninstallCard() {
   const [info, setInfo] = useState<UninstallInfo | null>(null);
   const [open, setOpen] = useState(false);
   const [deleteFolder, setDeleteFolder] = useState(false);

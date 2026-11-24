@@ -4,7 +4,8 @@ import { Wizard } from "./Wizard";
 import { Shell } from "./Shell";
 import { Welcome } from "./components/Welcome";
 import { LicenseGate } from "./components/LicenseGate";
-import { checkInLicense, licenseStatus, licenseWorks, type LicenseStatus } from "./lib/license";
+import { checkInLicense, licenseStatus, licenseWorks, OPEN_LICENSE, type LicenseStatus } from "./lib/license";
+import { FreeShell } from "./free/FreeShell";
 import { GraceNotice } from "./components/GraceNotice";
 import { listen } from "@tauri-apps/api/event";
 import { realDesktopApp } from "./lib/scan";
@@ -60,9 +61,20 @@ function MainApp() {
   const [defaultRoot, setDefaultRoot] = useState<string | undefined>(undefined);
   // Just finished setup: the welcome screen plays, then the tour.
   const [welcome, setWelcome] = useState(false);
-  // No valid license: the license screen, and nothing else, until one is activated.
+  // No working license: NexDB Free. A key or sign-in unlocks the full app at any time.
   const [license, setLicense] = useState<LicenseStatus | null>(null);
   const [typingKey, setTypingKey] = useState(false);
+  const [licenseMode, setLicenseMode] = useState<"key" | "signin">("key");
+  const openLicense = useCallback((mode: "key" | "signin") => {
+    setLicenseMode(mode);
+    setTypingKey(true);
+  }, []);
+
+  useEffect(() => {
+    const open = () => openLicense("key");
+    window.addEventListener(OPEN_LICENSE, open);
+    return () => window.removeEventListener(OPEN_LICENSE, open);
+  }, [openLicense]);
 
   const check = useCallback(() => {
     setupInfo()
@@ -99,7 +111,7 @@ function MainApp() {
   }, [view]);
 
   // While open: read the license again every minute (and when the Rust side says it changed), so
-  // it ends on time. Ended within 3 days: a notice, nothing locked. After that: the license screen.
+  // it ends on time. Ended within 3 days: a notice, nothing locked. After that: NexDB Free.
   useEffect(() => {
     if (view !== "dashboard") return;
     const reread = () => void licenseStatus().then(setLicense).catch(() => {});
@@ -113,16 +125,37 @@ function MainApp() {
 
   if (view === "loading") return null;
   if (view === "dashboard" && license === null) return null;
-  if (view === "dashboard" && (!licenseWorks(license) || typingKey))
+  if (view === "dashboard" && typingKey)
     return (
       <LicenseGate
         status={license!}
+        initialMode={licenseMode}
         onActive={(s) => {
           setTypingKey(false);
           setLicense(s);
         }}
-        onClose={licenseWorks(license) ? () => setTypingKey(false) : undefined}
+        onClose={() => setTypingKey(false)}
       />
+    );
+  if (view === "dashboard" && !licenseWorks(license))
+    return (
+      <>
+        <FreeShell license={license!} onLicense={openLicense} onActive={setLicense} holdTour={welcome} />
+        {welcome && (
+          <Welcome
+            onDone={(tour) => {
+              setWelcome(false);
+              if (tour) showGuide("NexDB Free");
+              try {
+                localStorage.setItem("nexdb.guideDone", "1");
+                localStorage.setItem("nexdb.freeTourOffered", "1");
+              } catch {
+                // It offers the tour again next launch; harmless.
+              }
+            }}
+          />
+        )}
+      </>
     );
   if (view === "dashboard")
     return (

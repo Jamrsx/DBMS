@@ -18,6 +18,8 @@ export type LicenseStatus =
       days_left: number | null;
       /** Extra app features the plan includes ("nexhost"). */
       features: string[];
+      /** The one-click 14-day free trial. */
+      trial?: boolean;
     }
   | { state: "needs_checkin"; key_hint: string; check_by: number }
   | {
@@ -31,7 +33,7 @@ export type LicenseStatus =
       grace_until: number;
       features: string[];
     }
-  | { state: "expired"; key_hint: string; expires_at: number; plan: string | null; seller: string | null }
+  | { state: "expired"; key_hint: string; expires_at: number; plan: string | null; seller: string | null; trial?: boolean }
   | { state: "clock_back"; key_hint: string };
 
 /** What the website said to an activate, check-in or unlink. */
@@ -65,8 +67,8 @@ const SAMPLE: LicenseStatus = {
   days_left: 140,
 };
 
-/** Browser preview only: `?license=none` shows the license screen. */
-const previewNone = !realDesktopApp && new URLSearchParams(location.search).get("license") === "none";
+/** Browser preview only: `?license=free` (or `none`) shows NexDB Free. */
+const previewNone = !realDesktopApp && ["free", "none"].includes(new URLSearchParams(location.search).get("license") ?? "");
 /** Browser preview only: `?license=nexhost` is a 4-year license with NexHost. */
 const previewNexhost = !realDesktopApp && new URLSearchParams(location.search).get("license") === "nexhost";
 
@@ -105,6 +107,8 @@ export function timeLeft(until: number): string {
 
 /** Fired on the window when the license on this PC may have changed (new plan features, renewal). */
 export const LICENSE_UPDATED = "nexdb-license-updated";
+/** Fired on the window to open the screen for typing a key or signing in. */
+export const OPEN_LICENSE = "nexdb-open-license";
 const announce = (out: LicenseOutcome): LicenseOutcome => {
   if (out.ok) window.dispatchEvent(new Event(LICENSE_UPDATED));
   return out;

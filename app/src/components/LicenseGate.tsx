@@ -6,26 +6,28 @@ import type { NexState } from "./Nex";
 import { activateLicense, BUY_URL, checkInLicense, dateOf, formatKey, keyLooksComplete, thisDevice, type LicenseStatus, signInLicense, FORGOT_URL } from "../lib/license";
 
 /**
- * The license screen. Shown after setup, and on every start until this PC has a valid license.
- * There is no way past it: no close button, no skip, Escape does nothing. Activating needs the
- * internet once; after that NexDB works offline.
+ * Type a key or sign in. Opened from NexDB Free or from an ending license, and always closable:
+ * NexDB keeps working in Free without one. Activating needs the internet once; after that NexDB
+ * works offline.
  */
 export function LicenseGate({
   status,
   onActive,
   onClose,
+  initialMode = "key",
 }: {
   status: LicenseStatus;
   onActive: (s: LicenseStatus) => void;
-  /** Only while NexDB still works (grace days): goes back without a new key. */
+  /** Goes back without a new key. */
   onClose?: () => void;
+  initialMode?: "key" | "signin";
 }) {
   const ended = status.state === "expired" || status.state === "grace";
   const [key, setKey] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [mode, setMode] = useState<"key" | "signin">("key");
+  const [mode, setMode] = useState<"key" | "signin">(initialMode);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(status.state === "none" ? status.notice : null);
   const [move, setMove] = useState<{ device: string | null; left: number | null } | null>(null);
@@ -48,7 +50,13 @@ export function LicenseGate({
       : move
         ? { state: "thinking", line: "That key is on another PC. Move it here?" }
         : ended
-          ? { state: "sleeping", line: `Your license ended on ${dateOf(status.expires_at)}. Renew or upgrade, then type the new key.` }
+          ? {
+              state: "sleeping",
+              line:
+                status.state === "expired" && status.trial
+                  ? "Your 14-day free trial ended. Pick a plan, then type the key."
+                  : `Your license ended on ${dateOf(status.expires_at)}. Renew or upgrade, then type the new key.`,
+            }
           : needsInternet
             ? { state: "thinking", line: "It's been a while! Connect to the internet so I can check your license." }
             : clockBack
@@ -97,7 +105,17 @@ export function LicenseGate({
     !busy && emailOk && (mode === "signin" ? password.length > 0 : keyLooksComplete(key) && name.trim().length >= 2 && password.length >= 8);
 
   return (
-    <div className="license-gate" role="dialog" aria-modal="true" aria-labelledby="license-title" onKeyDown={(e) => e.key === "Escape" && e.preventDefault()}>
+    <div
+      className="license-gate"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="license-title"
+      onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        e.preventDefault();
+        onClose?.();
+      }}
+    >
       <div className="license-glow" aria-hidden="true" />
       <div className="license-card">
         <aside className="license-side">
@@ -124,7 +142,9 @@ export function LicenseGate({
             {status.state === "grace"
               ? "Type the new key you bought. Until then NexDB keeps working for the rest of the 3 grace days."
               : status.state === "expired"
-              ? "Your license has ended and the 3 grace days are over. Your projects and databases are safe; renew or upgrade, then type the new key."
+              ? status.trial
+                ? "Your 14-day free trial has ended. Your projects and databases are safe; pick a plan, then type the key."
+                : "Your license has ended and the 3 grace days are over. Your projects and databases are safe; renew or upgrade, then type the new key."
               : mode === "signin"
                 ? "Sign in with your NexDB account to use your license on this PC."
                 : "Type the license key you bought from NexDB or got from a reseller."}

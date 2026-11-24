@@ -369,6 +369,19 @@ async fn local_version_check(stack: tauri::State<'_, Stack>, id: String, folder:
     blocking(move || localversions::check_folder(&root, &id, &folder)).await
 }
 
+/// Opens the folder where PHP or Node versions are added by hand.
+#[tauri::command]
+fn local_version_open(app: tauri::AppHandle, stack: tauri::State<Stack>, id: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    if !matches!(id.as_str(), "php" | "node") {
+        return Err("Only PHP and Node versions can be added by hand.".into());
+    }
+    let (root, _, _) = stack.get()?;
+    let dir = root.join("bin").join(installer::bin_folder(&id));
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    app.opener().open_path(dir.to_string_lossy(), None::<&str>).map_err(|e| e.to_string())
+}
+
 /// Mac: choose a PHP or Node installed some other way. None when the person cancels.
 #[tauri::command]
 async fn local_version_pick(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, id: String) -> Result<Option<String>, String> {
@@ -598,6 +611,7 @@ pub fn run() {
             local_versions,
             local_version_check,
             local_version_pick,
+            local_version_open,
             license_change,
             license_check_in,
             license_unlink,
