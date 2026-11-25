@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { checkLocalVersion, localVersions, openVersionFolder, pickLocalVersion, type LocalVersion } from "../lib/free";
-import { isMac, joinPath } from "../lib/os";
+import { isMac } from "../lib/os";
 
 type Kind = "php" | "node";
 
 const NAMES: Record<Kind, string> = { php: "PHP", node: "Node" };
-const EXAMPLE: Record<Kind, string> = { php: "php-8.3.14", node: "node-24.22.3" };
-const FOLDER: Record<Kind, string> = { php: "php", node: "nodejs" };
-const SITE: Record<Kind, string> = { php: "windows.php.net", node: "nodejs.org" };
 
-/** Steps for adding a PHP or Node version by hand. Free has no download button on purpose. */
-export function AddVersion({ installRoot, onBack, onChanged }: {
-  installRoot: string | null;
+/**
+ * Adding a PHP or Node version the user got themselves. Free has no download button and, by the
+ * owner's choice, no how-to steps: the screen only checks what the user put in place.
+ */
+export function AddVersion({ onBack, onChanged }: {
   onBack: () => void;
   onChanged: () => void;
 }) {
@@ -32,7 +31,6 @@ export function AddVersion({ installRoot, onBack, onChanged }: {
   }, [load]);
 
   const name = NAMES[kind];
-  const target = joinPath(installRoot ?? (isMac ? "~/NexDB" : "C:\\NexDB"), "bin", FOLDER[kind], EXAMPLE[kind]);
   const added = versions.filter((v) => v.id === kind);
 
   async function checkAgain() {
@@ -40,7 +38,7 @@ export function AddVersion({ installRoot, onBack, onChanged }: {
     setResult(null);
     const waiting = (await load()).filter((v) => v.id === kind && !v.ready);
     if (waiting.length === 0) {
-      setResult({ ok: false, text: `NexDB doesn't see a new ${name} folder yet. Name it like ${EXAMPLE[kind]}.` });
+      setResult({ ok: false, text: `NexDB doesn't see a new ${name} version yet.` });
       setBusy(false);
       return;
     }
@@ -83,7 +81,7 @@ export function AddVersion({ installRoot, onBack, onChanged }: {
       <button type="button" className="link-button free-back" onClick={onBack}>
         <ArrowLeft size={14} aria-hidden="true" /> Back to NexDB
       </button>
-      <h1>Add a version by hand</h1>
+      <h1>Add a version</h1>
       <p className="free-sub">NexDB checks it first, then adds it to your version list.</p>
 
       <div className="free-tabs" role="group" aria-label="What to add">
@@ -102,28 +100,6 @@ export function AddVersion({ installRoot, onBack, onChanged }: {
           </button>
         ))}
       </div>
-
-      {isMac ? (
-        <ol className="free-steps">
-          <li>Install {name} yourself, for example with Homebrew.</li>
-          <li>
-            Press <strong>Choose {name}</strong> and select <code>{kind === "php" ? "php-cgi" : "node"}</code>.
-          </li>
-          <li>NexDB tests it and tells you if it works.</li>
-        </ol>
-      ) : (
-        <ol className="free-steps">
-          <li>
-            Download the 64-bit {name} zip from <code>{SITE[kind]}</code>.
-          </li>
-          <li>
-            Extract it so the program is directly inside <code>{target}</code>.
-          </li>
-          <li>
-            Press <strong>Check again</strong>. NexDB tells you if the folder works.
-          </li>
-        </ol>
-      )}
 
       {added.length > 0 && (
         <ul className="free-version-list" aria-label={`${name} versions on this computer`}>

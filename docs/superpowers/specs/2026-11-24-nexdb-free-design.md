@@ -87,18 +87,18 @@ Free shows no version catalog and offers no download button for PHP, Node or MyS
 
 ### Versions Free setup installs
 
-Owner's decision: LTS where a product has LTS, and PHP 8.5 because PHP has no LTS.
+Owner's decision: LTS where a product has LTS, and PHP 8.3 (changed from 8.5 on 2026-11-25).
 
 | Component | Rule | Today (catalog of 2026-11-23) |
 |---|---|---|
-| PHP | Newest patch of the 8.5 line | 8.5.13 |
+| PHP | Newest patch of the 8.3 line | 8.3.36 |
 | Node | Existing recommended LTS rule | 26.13.1 |
 | MySQL | Existing recommended LTS rule | 9.7.4 |
 | Apache, Composer, Git, phpMyAdmin | Existing recommended or latest stable | From the catalog |
 
-PHP 8.5 receives bug fixes until December 31, 2027, and security fixes until December 31, 2029.
+PHP 8.3 receives security fixes until December 31, 2027. Move Free to a newer line in a release before then.
 
-Pin PHP with a `FREE_PHP_LINE = "8.5"` constant. The existing rule cannot be reused for PHP, because it moves to 8.6 about 90 days after that release. Changing the Free default is a deliberate decision in a later release. If the catalog no longer has a Windows or Mac download for that line, setup falls back to the existing recommended PHP and says which version it installed.
+Pin PHP with a `FREE_PHP_LINE = "8.3"` constant. The existing rule cannot be reused for PHP, because it moves to 8.6 about 90 days after that release. Changing the Free default is a deliberate decision in a later release. If the catalog no longer has a Windows or Mac download for that line, setup falls back to the existing recommended PHP and says which version it installed.
 
 ## 5. License states and modes
 

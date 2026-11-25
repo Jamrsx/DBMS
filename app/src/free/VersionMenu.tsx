@@ -66,7 +66,7 @@ export function VersionMenu({ versions, busy, onAdd, onChanged, run }: {
         </>
       ) : (
         <button type="button" className="link-button free-card-detail" onClick={onAdd}>
-          Add PHP or Node by hand
+          Add PHP or Node
         </button>
       )}
     </section>

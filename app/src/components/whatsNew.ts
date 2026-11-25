@@ -80,7 +80,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "NexDB Free",
     title: "PHP versions",
-    body: "Switch between the PHP versions on your computer. Add other versions by hand from this menu.",
+    body: "Switch between the PHP versions on your computer. Add other versions you have from this menu.",
     target: free("php"),
   },
   {

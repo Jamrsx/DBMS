@@ -26,8 +26,8 @@ export interface PausedSite {
 }
 
 const sampleVersions: LocalVersion[] = [
-  { id: "php", version: "8.5.13", folder: "php-8.5.13", active: true, ready: true, problem: null },
-  { id: "php", version: "8.3.14", folder: "php-8.3.14", active: false, ready: true, problem: null },
+  { id: "php", version: "8.3.36", folder: "php-8.3.36", active: true, ready: true, problem: null },
+  { id: "php", version: "8.4.27", folder: "php-8.4.27", active: false, ready: true, problem: null },
   { id: "node", version: "26.13.1", folder: "node-26.13.1", active: true, ready: true, problem: null },
 ];
 

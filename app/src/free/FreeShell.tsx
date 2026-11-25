@@ -237,7 +237,7 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
       {screen === "upgrade" ? (
         <WhatYouGet trialAvailable={trialAvailable} onBack={() => setScreen("main")} onKey={() => onLicense("key")} onActive={onActive} />
       ) : screen === "add" ? (
-        <AddVersion installRoot={settings?.install_root ?? null} onBack={() => setScreen("main")} onChanged={refreshVersions} />
+        <AddVersion onBack={() => setScreen("main")} onChanged={refreshVersions} />
       ) : screen === "settings" ? (
         <FreeSettings
           settings={settings}
