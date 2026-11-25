@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Lock } from "lucide-react";
 import { PhpSettingsPanel } from "../components/PhpSettingsPanel";
-import { StartupToggle } from "../components/StartupToggle";
 import { ThemeToggle } from "../components/ThemeToggle";
-import { setStartServicesOnLaunch, type AppSettings } from "../lib/appsettings";
+import type { AppSettings } from "../lib/appsettings";
 import { formatWhen, listBackups, openBackupsFolder, restoreBackup, type BackupFile } from "../lib/backups";
 import type { LicenseStatus } from "../lib/license";
 import { checkUpdates, useUpdates } from "../lib/updates";
@@ -21,12 +20,16 @@ function UpdatesCard() {
           : null;
   return (
     <section className="set-card">
-      <h2>App updates</h2>
-      <p className="field-hint">NexDB Free keeps getting new app versions and security fixes.</p>
-      {text && <p role="status">{text}</p>}
-      <button type="button" className="btn btn-small" disabled={state.kind === "checking"} onClick={() => void checkUpdates()}>
-        Check for updates
-      </button>
+      <div className="free-set-head">
+        <div>
+          <h2>App updates</h2>
+          <p className="field-hint">NexDB Free keeps getting new app versions and security fixes.</p>
+          {text && <p className="free-set-status" role="status">{text}</p>}
+        </div>
+        <button type="button" className="btn btn-small" disabled={state.kind === "checking"} onClick={() => void checkUpdates()}>
+          Check for updates
+        </button>
+      </div>
     </section>
   );
 }
@@ -99,22 +102,15 @@ function BackupsCard() {
 }
 
 /** Settings in NexDB Free: only what the simple stack needs. */
-export function FreeSettings({ settings, phpVersion, license, onSaved, onBack, onLicense }: {
+export function FreeSettings({ settings, phpVersion, license, onSaved, onBack, onLicense, onUpgrade }: {
   settings: AppSettings | null;
   phpVersion: string | null;
   license: LicenseStatus;
   onSaved: () => void;
   onBack: () => void;
   onLicense: (mode: "key" | "signin") => void;
+  onUpgrade: () => void;
 }) {
-  const [onLaunch, setOnLaunch] = useState(settings?.start_services_on_launch ?? false);
-  useEffect(() => setOnLaunch(settings?.start_services_on_launch ?? false), [settings?.start_services_on_launch]);
-
-  const toggleLaunch = (on: boolean) => {
-    setOnLaunch(on);
-    setStartServicesOnLaunch(on).then(onSaved).catch(() => setOnLaunch(!on));
-  };
-
   return (
     <main className="free-main free-panel free-settings">
       <button type="button" className="link-button free-back" onClick={onBack}>
@@ -123,25 +119,37 @@ export function FreeSettings({ settings, phpVersion, license, onSaved, onBack, o
       <h1>Settings</h1>
 
       <section className="set-card">
-        <h2>Appearance and startup</h2>
-        <ThemeToggle />
-        <StartupToggle />
-        <label className="free-check">
-          <input type="checkbox" checked={onLaunch} onChange={(e) => toggleLaunch(e.target.checked)} />
-          Start services when NexDB opens
-        </label>
+        <div className="free-set-head">
+          <div>
+            <h2>Your plan: NexDB Free</h2>
+            <p className="field-hint">
+              {license.state === "none"
+                ? "No account needed. Already bought NexDB? Sign in or enter your key."
+                : "Your license has ended. Your projects and databases are safe."}
+            </p>
+          </div>
+          <div className="free-set-actions">
+            <button type="button" className="btn btn-small" onClick={() => onLicense("key")}>
+              I have a key
+            </button>
+            <button type="button" className="btn btn-small btn-primary" onClick={() => onLicense("signin")}>
+              Sign in
+            </button>
+          </div>
+        </div>
+        <div className="free-locked">
+          <Lock size={14} aria-hidden="true" />
+          <span>Starting with Windows, starting services when NexDB opens, and HTTPS for local sites are in the full NexDB.</span>
+          <button type="button" className="link-button" onClick={onUpgrade}>
+            What you get
+          </button>
+        </div>
       </section>
 
       <section className="set-card">
-        <h2>License</h2>
-        <p className="field-hint">{license.state === "none" ? "You're using NexDB Free. No account needed." : "NexDB is in Free mode. Your projects and databases are safe."}</p>
-        <div className="free-row">
-          <button type="button" className="btn btn-small" onClick={() => onLicense("signin")}>
-            Sign in
-          </button>
-          <button type="button" className="btn btn-small" onClick={() => onLicense("key")}>
-            I have a key
-          </button>
+        <h2>Appearance</h2>
+        <div className="free-theme">
+          <ThemeToggle />
         </div>
       </section>
 

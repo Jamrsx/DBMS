@@ -246,6 +246,7 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
           onSaved={refreshVersions}
           onBack={() => setScreen("main")}
           onLicense={onLicense}
+          onUpgrade={() => setScreen("upgrade")}
         />
       ) : (
         <main className="free-main">

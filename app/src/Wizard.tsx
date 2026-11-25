@@ -169,9 +169,9 @@ export function Wizard({
   const plan = useMemo(
     () =>
       current.id === "review" && selections && choices
-        ? buildPlan({ settings, selections, choices, scan: scanReport, mysql })
+        ? buildPlan({ settings, selections, choices, scan: scanReport, mysql, free })
         : null,
-    [current.id, settings, selections, choices, scanReport, mysql],
+    [current.id, settings, selections, choices, scanReport, mysql, free],
   );
 
   const componentsReady = current.id !== "components" || (choices && selections);
@@ -219,7 +219,7 @@ export function Wizard({
               const next = { ...selections, [id]: { ...selections[id], version, existingPath: null } };
               setSelections(next);
               setChoices(fresh);
-              setInstallPlan(buildPlan({ settings, selections: next, choices: fresh, scan: scanReport, mysql }));
+              setInstallPlan(buildPlan({ settings, selections: next, choices: fresh, scan: scanReport, mysql, free }));
             }}
           />
         ) : (

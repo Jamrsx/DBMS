@@ -109,7 +109,7 @@ async fn run_install(app: tauri::AppHandle, stack: tauri::State<'_, Stack>, requ
     }
     let catalog = livecatalog::current();
     let config_dir = app.path().app_config_dir().ok();
-    installer::run(&catalog, &request, &installer::RunOptions::for_app(config_dir), |progress| {
+    installer::run(&catalog, &request, &installer::RunOptions { trust_ca: license::is_full(), ..installer::RunOptions::for_app(config_dir) }, |progress| {
         let _ = app.emit("install-progress", progress);
     })
     .await?;
@@ -313,6 +313,10 @@ fn switch_mode(app: &tauri::AppHandle, full: bool) -> Result<(), String> {
         return freesites::mark_free(&etc, false);
     }
     lose_nexhost(app);
+    // Starting with the computer is a paid feature, and Free has no switch to turn it off.
+    if let Err(e) = tray::autostart_set(false) {
+        eprintln!("Couldn't stop NexDB starting with the computer: {e}");
+    }
     // A queue or scheduler could keep doing real work, like sending emails.
     app.state::<Arc<laravel::Workers>>().stop_all();
     // Read after the lines above, which take NexHost sites offline in the saved settings.
@@ -542,7 +546,8 @@ pub fn run() {
                     macapp::ensure_shortcuts(&root);
                 }
             }
-            if loaded && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
+            // Starting services when NexDB opens is a paid feature.
+            if loaded && license::is_full() && stack.get().is_ok_and(|(_, s, _)| s.preferences.start_services_on_launch) {
                 tray_services(&handle, true);
             }
             // After the install is loaded (and services asked to start): live NexHost sites return.

@@ -361,7 +361,7 @@
 
 .free-table th,
 .free-table td {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   text-align: left;
   font-weight: 400;
@@ -382,20 +382,132 @@
   color: var(--text-3);
 }
 
-.free-table td:nth-child(3) {
-  font-weight: 600;
+.free-offer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  background: var(--accent-soft);
 }
 
-.free-buy span {
-  margin-right: auto;
+.free-offer-text {
+  display: grid;
+  gap: 3px;
+}
+
+.free-offer-text > strong {
+  font-size: 15px;
+}
+
+.free-offer-text > span {
   color: var(--text-2);
 }
 
-.free-check {
+.free-offer-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+}
+
+.free-offer-actions .link-button {
+  margin-right: 6px;
+}
+
+.free-included {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.free-included-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.free-included ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.free-included li,
+.free-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.free-included li svg {
+  color: var(--ok);
+}
+
+.free-cell {
+  color: var(--text-3);
+}
+
+.free-cell.is-full {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.free-cell.is-full svg {
+  color: var(--accent-text);
+}
+
+.free-set-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.free-set-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.free-set-status {
+  margin: 6px 0 0;
+  font-size: 13px;
+}
+
+.free-locked {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.free-locked svg {
+  flex-shrink: 0;
+  color: var(--text-3);
+}
+
+.free-locked span {
+  flex: 1 1 260px;
+}
+
+.free-theme {
+  margin-top: 10px;
+  max-width: 380px;
 }
 
 .free-settings .set-card h2 {

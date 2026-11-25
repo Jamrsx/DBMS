@@ -111,6 +111,9 @@ pub struct RunOptions {
     /// Allow steps that change Windows itself (Visual C++ runtime, trusted certificates).
     /// Tests run with this off so they never touch the real system.
     pub system_changes: bool,
+    /// Create and trust the local HTTPS certificate. NexDB Free has no `.test` sites, so its
+    /// setup skips this step and Windows never asks.
+    pub trust_ca: bool,
     pub ca_dir: PathBuf,
     /// The app's config folder, where the install location is remembered for next launch.
     pub config_dir: Option<PathBuf>,
@@ -118,7 +121,7 @@ pub struct RunOptions {
 
 impl RunOptions {
     pub fn for_app(config_dir: Option<PathBuf>) -> Self {
-        RunOptions { system_changes: true, ca_dir: admin::ca_dir(), config_dir }
+        RunOptions { system_changes: true, trust_ca: true, ca_dir: admin::ca_dir(), config_dir }
     }
 }
 
@@ -213,7 +216,7 @@ pub async fn run(
         let password = mysql.password.as_ref().map(|p| p.expose().to_string());
         configure_steps.push(("mysql-init", Box::new(move || configure_mysql(&l, &base, &data_dir, port, password.as_deref()))));
     }
-    if options.system_changes && (layout.apache.is_some() || layout.nginx.is_some()) {
+    if options.system_changes && options.trust_ca && (layout.apache.is_some() || layout.nginx.is_some()) {
         let ca_dir = options.ca_dir.clone();
         configure_steps.push((
             "local-ca",
@@ -1190,6 +1193,7 @@ mod tests {
     fn test_options() -> RunOptions {
         RunOptions {
             system_changes: false,
+            trust_ca: false,
             ca_dir: std::env::temp_dir().join("devmanager-test-ca-unused"),
             config_dir: None,
         }

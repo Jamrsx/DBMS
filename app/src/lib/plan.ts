@@ -57,6 +57,8 @@ export interface PlanInput {
   choices: Choices;
   scan: ScanReport | null;
   mysql: { mode: MysqlMode; value: MysqlSettings } | null;
+  /** NexDB Free: no `.test` sites, so no HTTPS certificate step. */
+  free?: boolean;
 }
 
 /** Folder names under `bin\` for each component. */
@@ -72,7 +74,7 @@ const BIN_FOLDER: Record<string, string> = {
 
 const ORDER = ["apache", "nginx", "php", "mysql", "node", "composer", "git"];
 
-export function buildPlan({ settings, selections, choices, scan, mysql }: PlanInput): InstallPlan {
+export function buildPlan({ settings, selections, choices, scan, mysql, free = false }: PlanInput): InstallPlan {
   const root = settings.installRoot.trim().replace(/\\+$/, "");
   const names = new Map(choices.components.map((c) => [c.id, c.name]));
   names.set("composer", "Composer");
@@ -124,7 +126,7 @@ export function buildPlan({ settings, selections, choices, scan, mysql }: PlanIn
     wwwDir: settings.wwwDir.trim().replace(/\\+$/, ""),
     components,
     mysql: plannedMysql,
-    steps: planSteps(components, plannedMysql, scan),
+    steps: planSteps(components, plannedMysql, scan, free),
   };
 }
 
@@ -132,6 +134,7 @@ function planSteps(
   components: PlannedComponent[],
   mysql: PlannedMysql | null,
   scan: ScanReport | null,
+  free: boolean,
 ): PlanStep[] {
   const installing = (id: string) => components.some((c) => c.id === id && c.action === "install");
   const using = (id: string) => components.some((c) => c.id === id);
@@ -185,7 +188,7 @@ function planSteps(
   }
 
   // .test addresses are added when sites are created, so there's no hosts-file step here.
-  if (using("apache") || using("nginx")) {
+  if (!free && (using("apache") || using("nginx"))) {
     steps.push({
       id: "local-ca",
       title: "Create and trust a local HTTPS certificate",

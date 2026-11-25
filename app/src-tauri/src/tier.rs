@@ -42,9 +42,7 @@ pub const FREE_COMMANDS: &[&str] = &[
     "clear_service_log",
     "app_settings",
     "save_ports",
-    "set_start_services_on_launch",
     "autostart_get",
-    "autostart_set",
     // PHP and versions
     "php_settings_info",
     "php_settings_save",
