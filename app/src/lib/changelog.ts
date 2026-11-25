@@ -7,6 +7,17 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.6.3",
+    title: "NexDB Free and a 14-day free trial",
+    changes: [
+      "NexDB now has a free version. Without a license, NexDB runs Apache, PHP 8.3, MySQL and Node with Start and Stop, the Terminal, phpMyAdmin and PHP settings. You can add other PHP and Node versions yourself.",
+      "Try the full NexDB free for 14 days with one click from What you get. No card and no email.",
+      "When a license ends, NexDB switches to Free. Your .test sites pause and nothing is deleted. Sign in or enter a key to get everything back.",
+      "Fixed: phpMyAdmin couldn't be installed because its download was always rejected as changed. It installs again now.",
+      "The window title now shows which NexDB version you have.",
+    ],
+  },
+  {
     version: "0.6.2",
     title: "Easier to read in Glass look",
     changes: [
