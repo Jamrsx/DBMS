@@ -31,6 +31,9 @@ const COMPONENTS: ComponentInfo[] = [
   { id: "nginx", description: "Alternative web server. Optional.", defaultOn: false },
 ];
 
+/** What NexDB Free setup doesn't install: people add these themselves. */
+const FREE_SKIPS = ["composer", "git"];
+
 export function defaultSelections(choices: Choices, free = false): Selections {
   const byId = new Map(choices.components.map((c) => [c.id, c]));
   const version = (id: string) => (free && id === "php" && choices.free_php) || byId.get(id)?.recommended || null;
@@ -38,8 +41,9 @@ export function defaultSelections(choices: Choices, free = false): Selections {
     COMPONENTS.map((info) => [
       info.id,
       {
-        // No Git build on Mac (Macs have their own); the option is hidden there.
-        enabled: info.defaultOn && (info.id !== "git" || !!choices.git_version),
+        // No Git build on Mac (Macs have their own); the option is hidden there. Free leaves
+        // Composer and Git for people to install themselves.
+        enabled: info.defaultOn && (info.id !== "git" || !!choices.git_version) && !(free && FREE_SKIPS.includes(info.id)),
         version: version(info.id),
         existingPath: null,
       },

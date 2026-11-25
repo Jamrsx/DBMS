@@ -62,7 +62,7 @@ Marked **Owner** where the owner decided, and **Builder call** where Claude prop
 
 | Area | Free | Full | Source |
 |---|---|---|---|
-| Setup installs Apache, PHP, MySQL, Node, Composer, Git, phpMyAdmin | Yes | Yes | Owner |
+| Setup installs Apache, PHP, MySQL, Node, phpMyAdmin (Composer and Git left to the user since 2026-11-25) | Yes | Yes | Owner |
 | Start All, Stop All | Yes | Yes | Owner |
 | Terminal | Yes | Yes | Owner |
 | Open phpMyAdmin (including its own export) | Yes | Yes | Owner; export is a Builder call |
@@ -94,7 +94,8 @@ Owner's decision: LTS where a product has LTS, and PHP 8.3 (changed from 8.5 on 
 | PHP | Newest patch of the 8.3 line | 8.3.36 |
 | Node | Existing recommended LTS rule | 26.13.1 |
 | MySQL | Existing recommended LTS rule | 9.7.4 |
-| Apache, Composer, Git, phpMyAdmin | Existing recommended or latest stable | From the catalog |
+| Apache, phpMyAdmin | Existing recommended or latest stable | From the catalog |
+| Composer, Git | Not installed in Free; the user installs them | - |
 
 PHP 8.3 receives security fixes until December 31, 2027. Move Free to a newer line in a release before then.
 

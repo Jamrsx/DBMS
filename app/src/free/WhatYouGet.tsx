@@ -10,6 +10,7 @@ const IN_FREE = ["Start and stop Apache, PHP and MySQL", "Terminal", "phpMyAdmin
 /** What changes with the full NexDB. "No" means Free doesn't have it. */
 const ROWS: [string, string, string][] = [
   ["Add PHP and Node versions", "By hand", "One click"],
+  ["Composer and Git", "By hand", "Installed for you"],
   ["Create projects", "By hand", "Templates"],
   ["Site address", "localhost/project", "project.test with HTTPS"],
   ["PHP version per project", "No", "Yes"],

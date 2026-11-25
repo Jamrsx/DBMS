@@ -68,7 +68,7 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
   {
     chapter: "NexDB Free",
     title: "Terminal",
-    body: "A terminal with PHP, Node, Composer and Git ready to use.",
+    body: "A terminal with PHP and Node ready to use.",
     target: free("terminal"),
   },
   {

@@ -333,7 +333,7 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
           <ActionButton
             tour="free-terminal"
             disabled={!!busy}
-            title="Open a terminal with PHP, Node, Composer and Git ready"
+            title="Open a terminal with PHP and Node ready"
             icon={<SquareTerminal size={16} aria-hidden="true" />}
             label="Terminal"
             onClick={() => void run("Opening a terminal…", "NexDB couldn't open a terminal.", async () => void (await openTerminalWindow()))}
