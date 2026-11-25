@@ -523,6 +523,10 @@ pub fn run() {
                 .build(),
         )
         .setup(|app| {
+            // "NexDB 0.6.3" in the title bar, so the version is always in sight.
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.set_title(&format!("NexDB {}", app.package_info().version));
+            }
             tray::setup(app.handle())?;
             // Check which versions the official sites offer today (quietly; at most every 12 hours).
             tauri::async_runtime::spawn(async { let _ = livecatalog::refresh(false).await; });
