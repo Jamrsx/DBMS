@@ -8,7 +8,7 @@ import type { LicenseStatus } from "../lib/license";
 import { checkUpdates, useUpdates } from "../lib/updates";
 import { PortsCard, UninstallCard } from "../settings/SettingsPage";
 
-function UpdatesCard() {
+function UpdatesCard({ version }: { version: string | null }) {
   const { state } = useUpdates();
   const text =
     state.kind === "checking"
@@ -23,7 +23,7 @@ function UpdatesCard() {
       <div className="free-set-head">
         <div>
           <h2>App updates</h2>
-          <p className="field-hint">NexDB Free keeps getting new app versions and security fixes.</p>
+          <p className="field-hint">{version ? `You have NexDB ${version}. ` : ""}NexDB Free keeps getting new app versions and security fixes.</p>
           {text && <p className="free-set-status" role="status">{text}</p>}
         </div>
         <button type="button" className="btn btn-small" disabled={state.kind === "checking"} onClick={() => void checkUpdates()}>
@@ -161,7 +161,7 @@ export function FreeSettings({ settings, phpVersion, license, onSaved, onBack, o
       </section>
 
       <BackupsCard />
-      <UpdatesCard />
+      <UpdatesCard version={settings?.app_version ?? null} />
       <UninstallCard />
     </main>
   );
