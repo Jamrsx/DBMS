@@ -126,8 +126,9 @@ export function Wizard({
   useEffect(() => {
     Promise.all([loadChoices(), licenseStatus().catch(() => null)])
       .then(([c, license]) => {
-        // Existing databases must never meet another MySQL version without the person choosing it.
-        const isFree = !licenseWorks(license) && !repairMysql.unknown;
+        // Free keeps its fixed list even when old MySQL data is found; the Components step then
+        // adds only a MySQL version choice, so those databases never meet another version unasked.
+        const isFree = !licenseWorks(license);
         const picked = defaultSelections(c, isFree);
         if (repairMysql.keep) picked.mysql = { ...picked.mysql, version: repairMysql.keep };
         setFree(isFree);

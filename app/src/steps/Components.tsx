@@ -47,9 +47,18 @@ export function defaultSelections(choices: Choices, free = false): Selections {
   );
 }
 
-/** NexDB Free: the fixed list setup installs, with no version pickers. */
-function FreeComponents({ choices, selections }: { choices: Choices; selections: Selections }) {
+/**
+ * NexDB Free: the fixed list setup installs, with no version pickers. The one exception is old
+ * MySQL data of an unknown version (`warning`): then MySQL alone gets a version choice.
+ */
+function FreeComponents({ choices, selections, onChange, warning }: {
+  choices: Choices;
+  selections: Selections;
+  onChange: (selections: Selections) => void;
+  warning: string | null;
+}) {
   const byId = new Map(choices.components.map((c) => [c.id, c]));
+  const mysqlCatalog = byId.get("mysql");
   const rows = COMPONENTS.filter((info) => info.id !== "nginx" && selections[info.id]?.enabled).map((info) => ({
     id: info.id,
     name: byId.get(info.id)?.name ?? (info.id === "git" ? "Git" : "Composer"),
@@ -59,6 +68,11 @@ function FreeComponents({ choices, selections }: { choices: Choices; selections:
   rows.push({ id: "phpmyadmin", name: "phpMyAdmin", description: "Manage your databases in the browser.", version: "Latest stable" });
   return (
     <>
+      {warning && (
+        <p className="notice" role="alert">
+          {warning}
+        </p>
+      )}
       <p className="lede">NexDB will install the basics for local web development. You can add other PHP and Node versions yourself later.</p>
       <ul className="choice-list">
         {rows.map((row) => (
@@ -70,6 +84,14 @@ function FreeComponents({ choices, selections }: { choices: Choices; selections:
               </span>
               <span className="choice-summary">{row.version}</span>
             </div>
+            {warning && row.id === "mysql" && mysqlCatalog && (
+              <VersionPicker
+                component={mysqlCatalog}
+                existing={[]}
+                selection={selections.mysql}
+                onPick={(patch) => onChange({ ...selections, mysql: { ...selections.mysql, ...patch } })}
+              />
+            )}
           </li>
         ))}
       </ul>
@@ -97,7 +119,7 @@ interface Props {
 }
 
 export function Components({ choices, scan, selections, onChange, free = false, warning = null }: Props) {
-  if (free) return <FreeComponents choices={choices} selections={selections} />;
+  if (free) return <FreeComponents choices={choices} selections={selections} onChange={onChange} warning={warning} />;
   return (
     <>
       {warning && (

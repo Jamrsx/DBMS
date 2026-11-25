@@ -53,7 +53,10 @@ export async function setupInfo(): Promise<SetupInfo> {
   // `?view=dashboard` opens the dashboard directly in the browser preview.
   const forced = new URLSearchParams(location.search).get("view") === "dashboard";
   const found = new URLSearchParams(location.search).get("found") === "1";
+  // `?mysql=unknown` shows setup as if old MySQL data of an unknown version were found.
+  const unknownMysql = new URLSearchParams(location.search).get("mysql") === "unknown";
   return {
+    repair_mysql_unknown: unknownMysql,
     installed: preview.installed || forced,
     install_root: "C:\\NexDB",
     www_dir: "C:\\NexDB\\www",
