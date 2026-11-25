@@ -126,7 +126,7 @@ async function composerTool() {
 async function phpmyadminTool() {
   const { version } = await getJson("https://www.phpmyadmin.net/home_page/version.json");
   const url = `https://files.phpmyadmin.net/phpMyAdmin/${version}/phpMyAdmin-${version}-all-languages.zip`;
-  const sha = (await getText(`${url}.sha256`)).trim().split(/s+/)[0];
+  const sha = (await getText(`${url}.sha256`)).trim().split(/\s+/)[0];
   return { version, download: download(url, await headSize(url), "sha256", sha) };
 }
 

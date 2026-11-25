@@ -404,6 +404,42 @@ pub fn today() -> i64 {
 mod tests {
     use super::*;
 
+    /// Every checksum in the bundled catalog is only the hash, in lowercase hex of the right
+    /// length. A value with a file name stuck to it fails every download as "tampered with".
+    #[test]
+    fn bundled_checksums_are_plain_hashes() {
+        fn walk(v: &serde_json::Value, path: &str, bad: &mut Vec<String>) {
+            match v {
+                serde_json::Value::Object(map) => {
+                    if let (Some(algo), Some(value)) = (map.get("algo").and_then(|a| a.as_str()), map.get("value").and_then(|a| a.as_str())) {
+                        let len = match algo {
+                            "sha256" => 64,
+                            "sha512" => 128,
+                            "sha1" => 40,
+                            "md5" => 32,
+                            _ => 0,
+                        };
+                        if value.len() != len || !value.chars().all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c)) {
+                            bad.push(format!("{path}: {value}"));
+                        }
+                    }
+                    for (k, child) in map {
+                        walk(child, &format!("{path}/{k}"), bad);
+                    }
+                }
+                serde_json::Value::Array(items) => {
+                    for (i, child) in items.iter().enumerate() {
+                        walk(child, &format!("{path}[{i}]"), bad);
+                    }
+                }
+                _ => {}
+            }
+        }
+        let mut bad = Vec::new();
+        walk(&serde_json::from_str(BUNDLED).unwrap(), "", &mut bad);
+        assert!(bad.is_empty(), "bad checksums: {bad:?}");
+    }
+
     fn line(line: &str, latest: &str, released: &str) -> CatalogLine {
         CatalogLine {
             line: line.into(),

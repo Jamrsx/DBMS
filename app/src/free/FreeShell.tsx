@@ -198,9 +198,13 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
 
   const installPma = () =>
     run("Installing phpMyAdmin…", "phpMyAdmin couldn't be installed. Check your internet connection and try again.", async () => {
-      await pmaInstall((p) => setPmaPercent(p.bytes_total ? Math.round((p.bytes_done / p.bytes_total) * 100) : null));
+      try {
+        await pmaInstall((p) => setPmaPercent(p.bytes_total ? Math.round((p.bytes_done / p.bytes_total) * 100) : null));
+      } finally {
+        // A failed install must not leave "Installing… 97%" next to the error.
+        setPmaPercent(null);
+      }
       setNeedPma(false);
-      setPmaPercent(null);
       await pmaOpen();
     });
 
