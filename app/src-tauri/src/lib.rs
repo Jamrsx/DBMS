@@ -150,12 +150,15 @@ struct Loaded {
 }
 
 impl Stack {
-    /// (Re)reads the saved install. Running services keep running under the old supervisor
-    /// only until it is dropped, so this is called when nothing is running (startup, after setup).
+    /// (Re)reads the saved install. Services left running (by the old supervisor, or by a NexDB
+    /// that has quit) are taken back from `etc/services-running.json` when still alive.
     fn load(&self, app: &tauri::AppHandle) -> bool {
         let found = settings::locate(app.path().app_config_dir().ok().as_deref());
         let loaded = found.map(|(root, settings)| Loaded {
-            supervisor: Arc::new(supervisor::Supervisor::new(supervisor::specs_for(&root, &settings))),
+            supervisor: Arc::new(supervisor::Supervisor::persistent(
+                supervisor::specs_for(&root, &settings),
+                supervisor::state_file(&root),
+            )),
             root,
             settings,
         });
@@ -813,12 +816,10 @@ pub fn run() {
         .expect("error while building tauri application");
 
     app.run(|handle, event| {
-        // Stop services cleanly when DevManager closes; the job objects cover crashes.
+        // Services keep running after NexDB quits (like XAMPP); only Stop stops them. The next
+        // launch takes them back from etc/services-running.json.
         if let tauri::RunEvent::Exit = event {
             handle.state::<terminal::Terminals>().close_all();
-            if let Ok((_, _, sup)) = handle.state::<Stack>().get() {
-                sup.stop_all();
-            }
         }
     });
 }

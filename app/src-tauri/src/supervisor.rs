@@ -1,6 +1,9 @@
 //! Starts, stops and watches the stack's services (Apache, nginx, PHP FastCGI, MySQL).
-//! Each managed service runs in its own Windows Job Object, so nothing outlives DevManager,
-//! and stops gracefully through the shutdown signal its own tools use.
+//! Services keep running when NexDB quits, like XAMPP's: only Stop (or Stop all in the tray)
+//! stops them, through the shutdown signal each service's own tools use. NexDB writes the
+//! running services (id, process id, program, start time) to `etc/services-running.json`, and on
+//! the next launch takes back the ones still alive whose program is the same file, so the
+//! dashboard shows them as Running and Stop and Logs work by process id. Uninstalling stops them.
 
 use crate::settings::Settings;
 use serde::Serialize;
@@ -11,7 +14,7 @@ use std::net::{SocketAddr, TcpStream};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const START_TIMEOUT: Duration = Duration::from_secs(30);
 const STOP_TIMEOUT: Duration = Duration::from_secs(20);
@@ -75,19 +78,71 @@ pub struct ServiceStatus {
     pub pid: Option<u32>,
     pub uptime_secs: Option<u64>,
     pub message: Option<String>,
+    /// It couldn't start because another program holds its port, so the dashboard can offer
+    /// the next free port.
+    pub port_taken: bool,
 }
 
+/// A service NexDB started: by this NexDB (with its `Child`) or by an earlier one that has since
+/// quit (taken back by process id).
 struct Running {
-    child: Child,
-    started: Instant,
-    #[cfg(windows)]
-    _job: job::Job,
+    pid: u32,
+    /// Only for services this NexDB started; on macOS waiting on it also clears the ended process.
+    child: Option<Child>,
+    /// Seconds since 1970, so the uptime carries over a NexDB restart.
+    started: u64,
+}
+
+impl Running {
+    /// Some once the process has ended, with its exit code when NexDB can know it.
+    fn ended(&mut self) -> Option<Option<i32>> {
+        match &mut self.child {
+            Some(child) => child.try_wait().ok().flatten().map(|s| s.code()),
+            None => (!pid_alive(self.pid)).then_some(None),
+        }
+    }
+}
+
+/// Why a launch failed, and whether it was because the port was taken.
+struct LaunchError {
+    message: String,
+    port_taken: bool,
+}
+
+impl From<String> for LaunchError {
+    fn from(message: String) -> Self {
+        LaunchError { message, port_taken: false }
+    }
+}
+
+/// One entry of `etc/services-running.json`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
+pub struct SavedService {
+    pub id: String,
+    pub pid: u32,
+    pub exe: PathBuf,
+    pub started: u64,
+}
+
+/// The file in the NexDB folder that lists the services left running.
+pub fn state_file(root: &Path) -> PathBuf {
+    root.join("etc").join("services-running.json")
+}
+
+fn read_saved(file: &Path) -> Vec<SavedService> {
+    fs::read_to_string(file).ok().and_then(|t| serde_json::from_str(&t).ok()).unwrap_or_default()
+}
+
+fn now_secs() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
 #[derive(Default)]
 struct Inner {
     running: HashMap<String, Running>,
     errors: HashMap<String, String>,
+    /// Services whose last start failed because their port was taken.
+    port_taken: HashSet<String>,
     /// Launched and not answering yet, so its row says Starting (each on its own).
     launching: HashSet<String>,
 }
@@ -95,6 +150,8 @@ struct Inner {
 pub struct Supervisor {
     specs: Vec<ServiceSpec>,
     inner: Mutex<Inner>,
+    /// Where the running services are written; None for throwaway supervisors (tests, checks).
+    state: Option<PathBuf>,
 }
 
 /// Service definitions for a saved install, in start order (PHP and MySQL before web servers).
@@ -370,7 +427,60 @@ pub const POSTGRES_PORT: u16 = 5432;
 
 impl Supervisor {
     pub fn new(specs: Vec<ServiceSpec>) -> Self {
-        Supervisor { specs, inner: Mutex::new(Inner::default()) }
+        Supervisor { specs, inner: Mutex::new(Inner::default()), state: None }
+    }
+
+    /// The app's supervisor: remembers its running services in `file` and takes back the ones an
+    /// earlier NexDB left running that are still alive.
+    pub fn persistent(specs: Vec<ServiceSpec>, file: PathBuf) -> Self {
+        let saved = read_saved(&file);
+        let sup = Supervisor { specs, inner: Mutex::new(Inner::default()), state: Some(file) };
+        sup.adopt(saved, pid_alive, process_exe);
+        sup
+    }
+
+    /// Takes back each saved service that is still alive and still runs this service's program.
+    /// The checks are passed in so tests can stand in for real processes.
+    fn adopt(&self, saved: Vec<SavedService>, alive: impl Fn(u32) -> bool, exe_of: impl Fn(u32) -> Option<PathBuf>) {
+        {
+            let mut inner = self.inner.lock().unwrap();
+            for s in saved {
+                let Some(spec) = self.specs.iter().find(|spec| spec.id == s.id) else { continue };
+                if !spec.managed || !same_file(&s.exe, &spec.exe) || inner.running.contains_key(&s.id) || !alive(s.pid) {
+                    continue;
+                }
+                // A process id can be reused: it must still be this service's own program.
+                if !exe_of(s.pid).is_some_and(|exe| same_file(&exe, &spec.exe)) {
+                    continue;
+                }
+                inner.running.insert(s.id, Running { pid: s.pid, child: None, started: s.started });
+            }
+        }
+        self.save();
+    }
+
+    /// Writes the running services to the state file. Best effort: a failed write only means
+    /// NexDB won't recognise them after a restart.
+    fn save(&self) {
+        let Some(file) = &self.state else { return };
+        let mut list: Vec<SavedService> = {
+            let inner = self.inner.lock().unwrap();
+            inner
+                .running
+                .iter()
+                .filter_map(|(id, r)| {
+                    let spec = self.specs.iter().find(|s| &s.id == id)?;
+                    Some(SavedService { id: id.clone(), pid: r.pid, exe: spec.exe.clone(), started: r.started })
+                })
+                .collect()
+        };
+        list.sort_by(|a, b| a.id.cmp(&b.id));
+        if let Some(dir) = file.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        if let Ok(text) = serde_json::to_string_pretty(&list) {
+            let _ = fs::write(file, text);
+        }
     }
 
     fn spec(&self, id: &str) -> Result<&ServiceSpec, String> {
@@ -390,21 +500,28 @@ impl Supervisor {
         {
             let mut inner = self.inner.lock().unwrap();
             if let Some(r) = inner.running.get_mut(id) {
-                if matches!(r.child.try_wait(), Ok(None)) {
+                if r.ended().is_none() {
                     return Ok(());
                 }
                 inner.running.remove(id);
             }
             inner.errors.remove(id);
+            inner.port_taken.remove(id);
             inner.launching.insert(id.into());
         }
         let result = self.launch(&spec);
-        let mut inner = self.inner.lock().unwrap();
-        inner.launching.remove(id);
-        if let Err(msg) = &result {
-            inner.errors.insert(id.into(), msg.clone());
+        {
+            let mut inner = self.inner.lock().unwrap();
+            inner.launching.remove(id);
+            if let Err(e) = &result {
+                inner.errors.insert(id.into(), e.message.clone());
+                if e.port_taken {
+                    inner.port_taken.insert(id.into());
+                }
+            }
         }
-        result
+        self.save();
+        result.map_err(|e| e.message)
     }
 
     /// Starts several services at the same time (none needs another to be up first), so the
@@ -424,9 +541,9 @@ impl Supervisor {
         })
     }
 
-    fn launch(&self, spec: &ServiceSpec) -> Result<(), String> {
+    fn launch(&self, spec: &ServiceSpec) -> Result<(), LaunchError> {
         if !spec.exe.is_file() {
-            return Err(format!("{} isn't installed: its files at {} are missing. Reinstall it on the Versions page.", spec.name, spec.exe.display()));
+            return Err(format!("{} isn't installed: its files at {} are missing. Reinstall it on the Versions page.", spec.name, spec.exe.display()).into());
         }
         #[cfg(unix)]
         if port_listening(spec.port) {
@@ -434,21 +551,24 @@ impl Supervisor {
         }
         if port_listening(spec.port) {
             let owner = crate::scan::port_status(spec.port, &spec.name);
-            return Err(format!(
-                "Port {} is already in use by {}{}. Stop that program, then press Start.",
-                spec.port,
-                owner.process.unwrap_or_else(|| "another program".into()),
-                owner.pid.map(|p| format!(" (PID {p})")).unwrap_or_default(),
-            ));
+            return Err(LaunchError {
+                message: format!(
+                    "Port {} is already in use by {}{}. Stop that program, then press Start.",
+                    spec.port,
+                    owner.process.unwrap_or_else(|| "another program".into()),
+                    owner.pid.map(|p| format!(" (PID {p})")).unwrap_or_default(),
+                ),
+                port_taken: true,
+            });
         }
         if let Some(dir) = spec.log.parent() {
             let _ = fs::create_dir_all(dir);
         }
         let console = spec.log.with_extension("console.log");
         let mut out = OpenOptions::new().create(true).append(true).open(&console)
-            .map_err(|e| format!("Couldn't open {}: {e}", console.display()))?;
+            .map_err(|e| LaunchError::from(format!("Couldn't open {}: {e}", console.display())))?;
         let _ = writeln!(out, "--- {} starting ---", spec.name);
-        let err = out.try_clone().map_err(|e| e.to_string())?;
+        let err = out.try_clone().map_err(|e| LaunchError::from(e.to_string()))?;
 
         let mut command = Command::new(&spec.exe);
         command
@@ -467,46 +587,39 @@ impl Supervisor {
             use std::os::unix::process::CommandExt;
             command.process_group(0);
         }
-        let mut child = command.spawn().map_err(|e| format!("Couldn't start {}: {e}", spec.name))?;
-
-        #[cfg(windows)]
-        let job = match job::Job::kill_on_close().and_then(|j| j.assign(&child).map(|_| j)) {
-            Ok(job) => job,
-            Err(e) => {
-                let _ = child.kill();
-                return Err(format!("Couldn't contain {}: {e}", spec.name));
-            }
-        };
+        // No Job Object that ends it with NexDB, and on macOS its own process group: the service
+        // keeps running after NexDB quits, and stopping still reaches its worker processes.
+        let child = command.spawn().map_err(|e| LaunchError::from(format!("Couldn't start {}: {e}", spec.name)))?;
+        let pid = child.id();
+        // Written down at once, so a NexDB that quits while this is still starting finds it
+        // again on the next launch instead of reporting its port as taken.
+        self.inner.lock().unwrap().running.insert(spec.id.clone(), Running { pid, child: Some(child), started: now_secs() });
+        self.save();
 
         let deadline = Instant::now() + START_TIMEOUT;
-        loop {
-            if let Ok(Some(status)) = child.try_wait() {
-                return Err(format!(
+        let failure = loop {
+            let ended = self.inner.lock().unwrap().running.get_mut(&spec.id).map_or(Some(None), Running::ended);
+            if let Some(code) = ended {
+                break format!(
                     "{} stopped while starting (exit code {}). {}",
                     spec.name,
-                    status.code().map(|c| c.to_string()).unwrap_or_else(|| "unknown".into()),
+                    code.map(|c| c.to_string()).unwrap_or_else(|| "unknown".into()),
                     last_lines(&[&spec.log, &console], 3)
-                ));
+                );
             }
             if port_listening(spec.port) {
-                break;
+                return Ok(());
             }
             if Instant::now() >= deadline {
-                let _ = child.kill();
-                return Err(format!("{} didn't start listening on port {} in time.", spec.name, spec.port));
+                if let Some(mut r) = self.inner.lock().unwrap().running.remove(&spec.id) {
+                    kill(&mut r);
+                }
+                break format!("{} didn't start listening on port {} in time.", spec.name, spec.port);
             }
             std::thread::sleep(Duration::from_millis(200));
-        }
-        self.inner.lock().unwrap().running.insert(
-            spec.id.clone(),
-            Running {
-                child,
-                started: Instant::now(),
-                #[cfg(windows)]
-                _job: job,
-            },
-        );
-        Ok(())
+        };
+        self.inner.lock().unwrap().running.remove(&spec.id);
+        Err(failure.into())
     }
 
     /// Asks a service to shut down cleanly, ending it after a timeout. Blocking.
@@ -515,7 +628,8 @@ impl Supervisor {
         let Some(mut running) = self.inner.lock().unwrap().running.remove(id) else {
             return Ok(());
         };
-        let pid = running.child.id();
+        self.save();
+        let pid = running.pid;
         let asked = match spec.stop {
             // macOS: Apache and MySQL shut down cleanly on SIGTERM.
             #[cfg(unix)]
@@ -560,17 +674,14 @@ impl Supervisor {
         if asked {
             let deadline = Instant::now() + STOP_TIMEOUT;
             while Instant::now() < deadline {
-                if let Ok(Some(_)) = running.child.try_wait() {
+                if running.ended().is_some() {
                     return Ok(());
                 }
                 std::thread::sleep(Duration::from_millis(200));
             }
         }
-        // Not asked, or didn't stop in time: end it. Dropping the job ends any children too.
-        #[cfg(unix)]
-        signal_group(pid, "KILL");
-        let _ = running.child.kill();
-        let _ = running.child.wait();
+        // Not asked, or didn't stop in time: end it and the processes it started.
+        kill(&mut running);
         Ok(())
     }
 
@@ -581,6 +692,8 @@ impl Supervisor {
     }
 
     pub fn status(&self) -> Vec<ServiceStatus> {
+        let mut gone = false;
+        let list: Vec<ServiceStatus> = {
         let mut inner = self.inner.lock().unwrap();
         self.specs
             .iter()
@@ -598,15 +711,20 @@ impl Supervisor {
                         pid: None,
                         uptime_secs: None,
                         message: Some("Managed outside DevManager".into()),
+                        port_taken: false,
                     };
                 }
                 // A process that exited on its own is a failure worth showing.
-                let exited = inner.running.get_mut(&spec.id).and_then(|r| r.child.try_wait().ok().flatten());
-                if let Some(status) = exited {
+                let exited = inner.running.get_mut(&spec.id).and_then(Running::ended);
+                if let Some(code) = exited {
                     inner.running.remove(&spec.id);
+                    gone = true;
                     inner.errors.insert(
                         spec.id.clone(),
-                        format!("{} stopped unexpectedly (exit code {}).", spec.name, status.code().map(|c| c.to_string()).unwrap_or_else(|| "unknown".into())),
+                        match code {
+                            Some(c) => format!("{} stopped unexpectedly (exit code {c}).", spec.name),
+                            None => format!("{} stopped unexpectedly.", spec.name),
+                        },
                     );
                 }
                 let running = inner.running.get(&spec.id);
@@ -625,12 +743,19 @@ impl Supervisor {
                     managed: true,
                     state,
                     listening,
-                    pid: running.map(|r| r.child.id()),
-                    uptime_secs: running.map(|r| r.started.elapsed().as_secs()),
+                    pid: running.map(|r| r.pid),
+                    uptime_secs: running.map(|r| now_secs().saturating_sub(r.started)),
                     message: inner.errors.get(&spec.id).cloned(),
+                    port_taken: inner.port_taken.contains(&spec.id) && inner.errors.contains_key(&spec.id),
                 }
             })
             .collect()
+        };
+        // A service that ended on its own is no longer left running.
+        if gone {
+            self.save();
+        }
+        list
     }
 
     /// Empties a service's log files (its own log and the console output NexDB captures).
@@ -667,6 +792,102 @@ impl Supervisor {
 pub fn port_listening(port: u16) -> bool {
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     TcpStream::connect_timeout(&addr, Duration::from_millis(150)).is_ok()
+}
+
+/// Stops the services an earlier NexDB left running in this NexDB folder (the uninstaller does
+/// this, so no server keeps running without NexDB to stop it).
+pub fn stop_saved(root: &Path, settings: &Settings) {
+    Supervisor::persistent(specs_for(root, settings), state_file(root)).stop_all();
+}
+
+/// Whether two paths name the same file (case and `..` don't matter).
+fn same_file(a: &Path, b: &Path) -> bool {
+    if a == b {
+        return true;
+    }
+    if let (Ok(x), Ok(y)) = (a.canonicalize(), b.canonicalize()) {
+        return x == y;
+    }
+    cfg!(windows) && a.to_string_lossy().eq_ignore_ascii_case(&b.to_string_lossy())
+}
+
+/// Ends a service and the processes it started, then clears it (a child of this NexDB).
+fn kill(r: &mut Running) {
+    #[cfg(unix)]
+    {
+        signal_group(r.pid, "KILL");
+        // SAFETY: kill only sends a signal to the service's own process.
+        unsafe { libc::kill(r.pid as libc::pid_t, libc::SIGKILL) };
+    }
+    #[cfg(windows)]
+    {
+        // The whole tree: Apache's worker process too.
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/PID", &r.pid.to_string(), "/T", "/F"]).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+        crate::scan::hide_console(&mut cmd);
+        let _ = cmd.status();
+    }
+    if let Some(child) = &mut r.child {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+}
+
+/// Whether a process with this id is running.
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    if pid == 0 {
+        return false;
+    }
+    // SAFETY: signal 0 only checks that the process exists.
+    let r = unsafe { libc::kill(pid as libc::pid_t, 0) };
+    r == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
+#[cfg(windows)]
+fn pid_alive(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
+    const STILL_ACTIVE: u32 = 259;
+    if pid == 0 {
+        return false;
+    }
+    // SAFETY: the handle is checked and closed; `code` outlives the call.
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let mut code = 0u32;
+        let ok = GetExitCodeProcess(handle, &mut code) != 0;
+        CloseHandle(handle);
+        ok && code == STILL_ACTIVE
+    }
+}
+
+/// The program file a running process was started from.
+#[cfg(unix)]
+fn process_exe(pid: u32) -> Option<PathBuf> {
+    crate::platform::unix::process_path(pid)
+}
+
+#[cfg(windows)]
+fn process_exe(pid: u32) -> Option<PathBuf> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{OpenProcess, QueryFullProcessImageNameW, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION};
+    // SAFETY: the handle is checked and closed; the buffer and its length outlive the call.
+    unsafe {
+        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        if handle.is_null() {
+            return None;
+        }
+        let mut buf = vec![0u16; 32768];
+        let mut len = buf.len() as u32;
+        let ok = QueryFullProcessImageNameW(handle, PROCESS_NAME_WIN32, buf.as_mut_ptr(), &mut len) != 0;
+        CloseHandle(handle);
+        ok.then(|| PathBuf::from(std::ffi::OsString::from_wide(&buf[..len as usize])))
+    }
 }
 
 fn read_tail(path: &Path, max: u64) -> std::io::Result<String> {
@@ -867,6 +1088,92 @@ mod tests {
         assert!(sup.clear_log("nope").is_err());
     }
 
+    fn spec_at(id: &str, exe: PathBuf, port: u16, dir: &Path) -> ServiceSpec {
+        ServiceSpec {
+            id: id.into(), name: id.into(), version: None, exe, args: vec![], cwd: dir.into(), port,
+            managed: true, stop: StopMethod::Kill, log: dir.join(format!("{id}.log")),
+        }
+    }
+
+    #[test]
+    fn takes_back_only_live_services_running_their_own_program() {
+        let dir = tempfile::tempdir().unwrap();
+        let (php, apache, mysql) = (dir.path().join("php-cgi"), dir.path().join("httpd"), dir.path().join("mysqld"));
+        let file = dir.path().join("etc").join("services-running.json");
+        let sup = Supervisor {
+            specs: vec![
+                spec_at("php", php.clone(), 1, dir.path()),
+                spec_at("apache", apache.clone(), 1, dir.path()),
+                spec_at("mysql", mysql.clone(), 1, dir.path()),
+            ],
+            inner: Mutex::new(Inner::default()),
+            state: Some(file.clone()),
+        };
+        let started = now_secs() - 120;
+        // This test process stands in for the live PHP, since the dashboard checks it really runs.
+        let me = std::process::id();
+        let saved = vec![
+            SavedService { id: "php".into(), pid: me, exe: php.clone(), started },
+            // Ended while NexDB was closed.
+            SavedService { id: "apache".into(), pid: 200, exe: apache.clone(), started },
+            // Its process id now belongs to another program.
+            SavedService { id: "mysql".into(), pid: 300, exe: mysql.clone(), started },
+            // A service this install no longer has.
+            SavedService { id: "redis".into(), pid: 400, exe: dir.path().join("redis"), started },
+        ];
+        let php2 = php.clone();
+        sup.adopt(saved, |pid| pid != 200, move |pid| Some(if pid == me { php2.clone() } else { PathBuf::from("/other") }));
+
+        let status = sup.status();
+        let php_row = status.iter().find(|s| s.id == "php").unwrap();
+        assert_eq!(php_row.pid, Some(me));
+        assert!(php_row.uptime_secs.unwrap() >= 120, "uptime carries over the restart");
+        assert!(status.iter().filter(|s| s.id != "php").all(|s| s.pid.is_none() && s.state == State::Stopped));
+        // The file now lists only what is really left running.
+        assert_eq!(read_saved(&file), vec![SavedService { id: "php".into(), pid: me, exe: php, started }]);
+    }
+
+    #[test]
+    fn persistent_supervisor_finds_a_live_process_again() {
+        let dir = tempfile::tempdir().unwrap();
+        let me = std::env::current_exe().unwrap();
+        let file = dir.path().join("services-running.json");
+        // A process that has already ended, for the "not alive" case.
+        let mut gone = Command::new(&me).arg("--list").stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let gone_pid = gone.id();
+        gone.wait().unwrap();
+        let saved = vec![
+            SavedService { id: "php".into(), pid: std::process::id(), exe: me.clone(), started: now_secs() },
+            SavedService { id: "apache".into(), pid: gone_pid, exe: me.clone(), started: now_secs() },
+        ];
+        fs::write(&file, serde_json::to_string(&saved).unwrap()).unwrap();
+        let sup = Supervisor::persistent(
+            vec![spec_at("php", me.clone(), 1, dir.path()), spec_at("apache", me.clone(), 1, dir.path())],
+            file.clone(),
+        );
+        let status = sup.status();
+        assert_eq!(status[0].pid, Some(std::process::id()), "this test process stands in for a service left running");
+        assert_eq!(status[1].pid, None);
+        assert_eq!(read_saved(&file).len(), 1);
+        // Not stopped here: that would end the test itself.
+    }
+
+    #[test]
+    fn taken_port_is_flagged_for_the_port_suggestion() {
+        let dir = tempfile::tempdir().unwrap();
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        // A program file that exists but isn't what holds the port, so nothing gets stopped.
+        let exe = dir.path().join(crate::platform::exe("httpd.exe"));
+        fs::write(&exe, "").unwrap();
+        let sup = Supervisor::new(vec![spec_at("apache", exe, port, dir.path())]);
+        let err = sup.start("apache").unwrap_err();
+        assert!(err.contains(&format!("Port {port} is already in use")), "{err}");
+        let row = &sup.status()[0];
+        assert_eq!(row.state, State::Failed);
+        assert!(row.port_taken);
+    }
+
     #[test]
     fn missing_executable_is_a_clear_failure() {
         let dir = tempfile::tempdir().unwrap();
@@ -879,6 +1186,7 @@ mod tests {
         let err = sup.start("php").unwrap_err();
         assert!(err.contains("isn't installed"), "{err}");
         assert_eq!(sup.status()[0].state, State::Failed);
+        assert!(!sup.status()[0].port_taken);
     }
 
     const LARAGON: &str = r"C:\laragon\bin";

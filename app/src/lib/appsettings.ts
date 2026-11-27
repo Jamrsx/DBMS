@@ -1,5 +1,6 @@
 import { invoke, pause } from "./invoke";
 import { inDesktopApp } from "./scan";
+import { setPreviewPorts } from "./services";
 
 export interface AppSettings {
   app_version: string;
@@ -38,6 +39,11 @@ export async function savePorts(apache: number | null, php: number, mysql: numbe
   if (apache !== null && apache === mysql)
     throw "Web server and MySQL can't share the same port. Give each its own port.";
   Object.assign(preview, { apache_port: apache, php_port: php, mysql_port: mysql });
+  setPreviewPorts({
+    ...(apache !== null && preview.web_server ? { [preview.web_server]: apache } : {}),
+    php,
+    ...(mysql !== null ? { mysql } : {}),
+  });
 }
 
 /** Makes Apache or nginx serve the sites; the running web server restarts as the new one. */

@@ -11506,3 +11506,25 @@ html[data-glass-preview][data-theme="dark"]::before {
   font: 500 12px var(--mono);
   color: var(--text-2);
 }
+
+/* "Port 81 is free" under a service that couldn't start because its port was taken. */
+.dash-error {
+  display: grid;
+  gap: 6px;
+}
+
+.dash-error p {
+  margin: 0;
+}
+
+.port-fix {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 13px;
+}
+
+.port-fix span {
+  flex: 1 1 260px;
+}

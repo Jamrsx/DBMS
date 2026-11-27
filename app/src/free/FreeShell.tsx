@@ -14,6 +14,8 @@ import { realDesktopApp } from "../lib/scan";
 import { listServices, startServices, stopServices, type ServiceStatus } from "../lib/services";
 import { openTerminalWindow } from "../lib/terminal";
 import { startUpdateChecks } from "../lib/updates";
+import { moveServiceToPort } from "../lib/ports";
+import { PortFix } from "../components/PortFix";
 import { AddVersion } from "./AddVersion";
 import { FreeSettings } from "./FreeSettings";
 import { PausedSites } from "./PausedSites";
@@ -160,6 +162,7 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
   const webReady = web?.state === "running";
   const dbReady = webReady && (mysql?.state === "running" || mysql?.state === "external");
   const failed = services.some((s) => s.state === "failed");
+  const portTaken = services.some((s) => s.state === "failed" && s.port_taken);
   const message = licenseMessage(license);
   // The website has the final say; this only hides the offer from someone who clearly used it.
   const trialAvailable = license.state === "none";
@@ -168,7 +171,9 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
   const subheading = busy
     ? "This can take a few seconds."
     : failed
-      ? "Press Stop All, then Start All to try again. Another program may be using the same port."
+      ? portTaken
+        ? "Another program is using the port. Use the free port below, or close that program and press Start All again."
+        : "Press Stop All, then Start All to try again. Another program may be using the same port."
       : webReady
         ? "Open your sites at localhost, or manage databases in phpMyAdmin."
         : "Press Start All to run your local server.";
@@ -281,6 +286,22 @@ export function FreeShell({ license, onLicense, onActive, holdTour = false }: {
               )}
             </div>
           )}
+
+          {services
+            .filter((s) => s.state === "failed" && s.port_taken)
+            .map((s) => (
+              <PortFix
+                key={s.id}
+                service={s}
+                services={services}
+                busy={!!busy}
+                onUse={(port) =>
+                  void run(`Moving ${s.name} to port ${port}…`, `NexDB couldn't move ${s.name} to port ${port}.`, () =>
+                    moveServiceToPort(s, port),
+                  )
+                }
+              />
+            ))}
 
           {needPma && (
             <p className="free-banner">

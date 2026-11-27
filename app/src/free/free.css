@@ -533,3 +533,10 @@
     display: none;
   }
 }
+
+/* The port suggestion, styled like the other Free banners. */
+.free-main .port-fix {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}

@@ -15,6 +15,8 @@ export interface ServiceStatus {
   pid: number | null;
   uptime_secs: number | null;
   message: string | null;
+  /** It couldn't start because another program holds its port. */
+  port_taken?: boolean;
 }
 
 export interface SetupInfo {
@@ -140,7 +142,7 @@ const preview = (() => {
     const d = new Date();
     return `${d.toDateString().slice(0, 10)} ${d.toTimeString().slice(0, 8)}.000000 ${d.getFullYear()}`;
   };
-  const base: Omit<ServiceStatus, "state" | "pid" | "uptime_secs" | "message" | "listening">[] = [
+  const base: Omit<ServiceStatus, "state" | "pid" | "uptime_secs" | "message" | "listening" | "port_taken">[] = [
     { id: "php", name: "PHP (FastCGI)", version: "8.5.12", port: 9085, managed: true },
     { id: "php-8.4.27", name: "PHP 8.4.27 (FastCGI)", version: "8.4.27", port: 9086, managed: true },
     { id: "mysql", name: "MySQL", version: "8.0.30", port: 3306, managed: false },
@@ -149,7 +151,9 @@ const preview = (() => {
     { id: "mailpit", name: "Mail catcher", version: "1.33.0", port: 8025, managed: true },
     { id: "redis", name: "Redis", version: "8.10.3", port: 6379, managed: true },
   ];
-  const PORT_80 = "Port 80 is already in use by httpd.exe (PID 9112). Stop that program, then press Start.";
+  // The sample "other program" holds port 80, so Apache fails there until it moves.
+  const portBusy = (s: string) =>
+    `Port ${base.find((b) => b.id === s)?.port} is already in use by httpd.exe (PID 9112). Stop that program, then press Start.`;
 
   return {
     // The browser preview remembers its pretend setup for the tab, so a reload skips the wizard.
@@ -180,23 +184,27 @@ const preview = (() => {
           pid: t ? (s.id === "php" ? 18044 : 20312) : null,
           uptime_secs: t ? Math.floor((Date.now() - t) / 1000) : null,
           message: errors[s.id],
+          port_taken: !t && !!errors[s.id]?.includes("already in use"),
         };
       });
+    },
+    setPorts(ports: Record<string, number>) {
+      for (const b of base) if (ports[b.id] !== undefined) b.port = ports[b.id];
     },
     async start(id?: string) {
       await sleep(700);
       const ids = id ? [id] : ["php", "php-8.4.27", "apache", "postgres", "mailpit", "redis"];
       const failures: string[] = [];
       for (const s of ids) {
-        if (s === "apache") {
-          errors.apache = PORT_80;
+        if (s === "apache" && base.find((b) => b.id === "apache")?.port === 80) {
+          errors.apache = portBusy("apache");
           logs.apache.push(
             `[${stamp()}] [core:error] [pid 9112:tid 1] (OS 10048) Only one usage of each socket address is normally permitted.  : AH00072: make_sock: could not bind to address 0.0.0.0:80`,
           );
           logs.apache.push(
             `[${stamp()}] [core:alert] [pid 9112:tid 1] AH00451: no listening sockets available, shutting down`,
           );
-          failures.push(PORT_80);
+          failures.push(portBusy("apache"));
         } else {
           started[s] = Date.now();
           errors[s] = null;
@@ -223,4 +231,9 @@ const preview = (() => {
 export async function clearServiceLog(id: string): Promise<void> {
   if (inDesktopApp) return invoke("clear_service_log", { id });
   previewLogs[id] = [];
+}
+
+/** Browser preview: new ports from Settings → Ports or the port suggestion. */
+export function setPreviewPorts(ports: Record<string, number>) {
+  preview.setPorts(ports);
 }

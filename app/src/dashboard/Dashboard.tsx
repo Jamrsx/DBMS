@@ -33,6 +33,8 @@ import {
   type ServiceUsage,
 } from "../lib/services";
 import { mailList } from "../lib/mail";
+import { moveServiceToPort } from "../lib/ports";
+import { PortFix } from "../components/PortFix";
 import { InboxPanel } from "./InboxPanel";
 import { DockerSection } from "./DockerSection";
 
@@ -244,9 +246,17 @@ export function Dashboard({ onOpenVersions, active = true }: { onOpenVersions: (
                 <Nex state="error" size={48} />
                 <div>
                   {failures.map((s) => (
-                    <p key={s.id}>
-                      <strong>{s.name} couldn't start.</strong> {s.message}
-                    </p>
+                    <div key={s.id} className="dash-error">
+                      <p>
+                        <strong>{s.name} couldn't start.</strong> {s.message}
+                      </p>
+                      <PortFix
+                        service={s}
+                        services={services}
+                        busy={!!busy[s.id]}
+                        onUse={(port) => run([s.id], "starting", () => moveServiceToPort(s, port))}
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

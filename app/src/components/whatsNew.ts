@@ -10,6 +10,7 @@ import { showSettingsSection } from "../lib/settingsNav";
 import { COMPUTER } from "../lib/os";
 
 export const WHATS_NEW = [
+  { version: "0.6.4", chapter: "New in 0.6.4" },
   { version: "0.6.3", chapter: "New in 0.6.3" },
   { version: "0.6.1", chapter: "New in 0.6.1" },
   { version: "0.6.0", chapter: "New in 0.6.0" },
@@ -89,6 +90,26 @@ export const WHATS_NEW_STEPS: GuideStep[] = [
     body: "See what the full NexDB adds, like .test sites and templates. You can try it free for 14 days.",
     target: free("upgrade"),
     mood: "hello",
+  },
+  {
+    chapter: "New in 0.6.4",
+    title: "Your servers keep running",
+    body: `Closing NexDB no longer stops Apache, PHP or MySQL. They stop only when you press Stop. Open NexDB again and it shows them running. Practice mode: nothing on your ${COMPUTER} changes.`,
+    mood: "hello",
+  },
+  {
+    chapter: "New in 0.6.4",
+    title: "Port already taken? Pick the next one",
+    body: "Here another program holds port 80, so Apache couldn't start. NexDB finds the next free port. Press Yes to save it and start Apache there.",
+    page: "dashboard",
+    run: () => void startServices("apache").catch(() => {}),
+    target: here('[data-guide="port-fix"]'),
+  },
+  {
+    chapter: "New in 0.6.4",
+    title: "That's 0.6.4!",
+    body: "Practice is over; your real NexDB is back. Settings → Tutorial replays this any time.",
+    mood: "success",
   },
   {
     chapter: "New in 0.6.3",

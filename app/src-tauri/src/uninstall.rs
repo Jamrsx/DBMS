@@ -92,6 +92,10 @@ pub fn remove_from_mac(config_dir: Option<&Path>, delete_folder: bool) -> Vec<St
         }
     };
     let found = find(config_dir);
+    // Services NexDB left running (Settings has already stopped its own).
+    if let Some((root, s)) = settings::locate(config_dir) {
+        crate::supervisor::stop_saved(&root, &s);
+    }
 
     // Open at login.
     note(crate::tray::autostart_set(false), "Open at login");
@@ -221,6 +225,10 @@ pub fn trash_app() -> Result<(), String> {
 /// Runs the whole thing with Windows message boxes. Returns when the user has answered.
 #[cfg(windows)]
 pub fn run(config_dir: Option<&Path>) {
+    // Services keep running after NexDB quits; without NexDB nothing could stop them.
+    if let Some((root, s)) = settings::locate(config_dir) {
+        crate::supervisor::stop_saved(&root, &s);
+    }
     let Some(c) = find(config_dir) else { return };
     if !ask(&question(&c), "Uninstall NexDB", true) {
         return;
