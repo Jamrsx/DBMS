@@ -86,7 +86,7 @@ const STEPS_ANY_OS: Step[] = [
     chapter: "Welcome",
     macOnly: true,
     title: "In the menu bar",
-    body: "NexDB also sits in the menu bar at the top of the screen. Closing this window keeps your servers running; Quit there stops them all.",
+    body: "NexDB also sits in the menu bar at the top of the screen. Your servers keep running when you close this window or quit NexDB; Stop all there stops them.",
   },
   {
     chapter: "Dashboard",

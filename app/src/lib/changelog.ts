@@ -7,6 +7,15 @@ export interface Release {
 
 export const CHANGELOG: Release[] = [
   {
+    version: "0.6.4",
+    title: "Servers keep running when you close NexDB",
+    changes: [
+      "Closing NexDB no longer stops Apache, PHP or MySQL. They stop only when you press Stop. Open NexDB again and it shows them running, with Stop and Logs working as before.",
+      "When another program already uses a service's port, NexDB now finds the next free one (like 81 instead of 80). Press Yes, use port 81 and NexDB saves it and starts the service. Works for Apache, nginx, PHP and MySQL, in NexDB and NexDB Free.",
+      "Uninstalling NexDB stops any servers it left running.",
+    ],
+  },
+  {
     version: "0.6.3",
     title: "NexDB Free and a 14-day free trial",
     changes: [
